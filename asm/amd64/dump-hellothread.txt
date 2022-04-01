@@ -1,0 +1,62 @@
+
+hellothread.out:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+0000000000401000 <.text>:
+  401000:	49 b8 00 20 40 00 00 	movabs r8,0x402000
+  401007:	00 00 00 
+  40100a:	49 bf 16 10 40 00 00 	movabs r15,0x401016
+  401011:	00 00 00 
+  401014:	eb 5a                	jmp    0x401070
+  401016:	49 bf 22 10 40 00 00 	movabs r15,0x401022
+  40101d:	00 00 00 
+  401020:	eb 44                	jmp    0x401066
+  401022:	49 b8 10 20 40 00 00 	movabs r8,0x402010
+  401029:	00 00 00 
+  40102c:	49 b9 00 20 40 00 00 	movabs r9,0x402000
+  401033:	00 00 00 
+  401036:	49 bf 42 10 40 00 00 	movabs r15,0x401042
+  40103d:	00 00 00 
+  401040:	eb 49                	jmp    0x40108b
+  401042:	49 b8 10 20 40 00 00 	movabs r8,0x402010
+  401049:	00 00 00 
+  40104c:	49 bf 58 10 40 00 00 	movabs r15,0x401058
+  401053:	00 00 00 
+  401056:	eb 18                	jmp    0x401070
+  401058:	49 bf b6 10 40 00 00 	movabs r15,0x4010b6
+  40105f:	00 00 00 
+  401062:	eb 02                	jmp    0x401066
+  401064:	eb 50                	jmp    0x4010b6
+  401066:	49 b8 0e 20 40 00 00 	movabs r8,0x40200e
+  40106d:	00 00 00 
+  401070:	b8 01 00 00 00       	mov    eax,0x1
+  401075:	bf 01 00 00 00       	mov    edi,0x1
+  40107a:	4c 89 c6             	mov    rsi,r8
+  40107d:	48 ff c6             	inc    rsi
+  401080:	48 31 d2             	xor    rdx,rdx
+  401083:	41 8a 10             	mov    dl,BYTE PTR [r8]
+  401086:	0f 05                	syscall 
+  401088:	41 ff e7             	jmp    r15
+  40108b:	4d 31 d2             	xor    r10,r10
+  40108e:	45 8a 11             	mov    r10b,BYTE PTR [r9]
+  401091:	4d 89 cb             	mov    r11,r9
+  401094:	4d 01 d3             	add    r11,r10
+  401097:	4d 89 c4             	mov    r12,r8
+  40109a:	45 88 14 24          	mov    BYTE PTR [r12],r10b
+  40109e:	49 ff c4             	inc    r12
+  4010a1:	4d 8b 2b             	mov    r13,QWORD PTR [r11]
+  4010a4:	4d 89 2c 24          	mov    QWORD PTR [r12],r13
+  4010a8:	49 ff cb             	dec    r11
+  4010ab:	49 ff c4             	inc    r12
+  4010ae:	4d 39 cb             	cmp    r11,r9
+  4010b1:	77 ee                	ja     0x4010a1
+  4010b3:	41 ff e7             	jmp    r15
+  4010b6:	b8 3c 00 00 00       	mov    eax,0x3c
+  4010bb:	bf 00 00 00 00       	mov    edi,0x0
+  4010c0:	0f 05                	syscall 
+
+Hex dump of section '.data':
+  0x00402000 0d68656c 6c6f2c20 776f726c 6421010a .hello, world!..
+
