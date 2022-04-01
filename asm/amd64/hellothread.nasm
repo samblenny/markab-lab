@@ -32,39 +32,37 @@ jmp exit
 ; == Start of dictionary ==
 ; =========================
 
-newline:            ; Write a newline to stdout
-mov r8, d_newline   ; fall through to puts
+newline:             ; Write a newline to stdout
+mov r8, d_newline    ; fall through to puts
 
-puts:               ; Write string [r8] to stdout
-mov rax, sys_write  ; rax=sys_write(rdi: fd, rsi: *buf, rdx: count)
-mov rdi, stdout     ; fd
-mov rsi, r8         ; *buf (string starts at second byte of string record)
+puts:                ; Write string [r8] to stdout
+mov rax, sys_write   ; rax=sys_write(rdi: fd, rsi: *buf, rdx: count)
+mov rdi, stdout      ; fd
+mov rsi, r8          ; *buf (string starts at second byte of string record)
 inc rsi
-xor rdx, rdx        ; prepare for fetching 1-byte length
-mov dl, [r8]        ; count (string length is first byte of string record)
+movzx rdx, byte [r8] ; count (string length is first byte of string record)
 syscall
-jmp r15             ; NEXT
+jmp r15              ; NEXT
 
-reverse:            ; Reverse src string [r9] into dest buffer [r8]
-xor r10, r10        ; r10 := src length (1 byte max)
-mov r10b, [r9]
-mov r11, r9         ; r11 := src_ptr, range (src+len(src))..(src+1)
+reverse:             ; Reverse src string [r9] into dest buffer [r8]
+movzx r10, byte [r9] ; r10 := src length (1 byte max)
+mov r11, r9          ; r11 := src_ptr, range (src+len(src))..(src+1)
 add r11, r10
-mov r12, r8         ; r12 := dest_ptr, range (dest+1)..(dest+len(src))
-mov [r12], r10b     ; dest length := src length
+mov r12, r8          ; r12 := dest_ptr, range (dest+1)..(dest+len(src))
+mov [r12], r10b      ; dest length := src length
 inc r12
 reverse_loop:
-mov r13, [r11]      ; copy 1 byte from end of src to start of dest
+mov r13, [r11]       ; copy 1 byte from end of src to start of dest
 mov [r12], r13
-dec r11             ; dec src_ptr
-inc r12             ; inc dest_ptr
+dec r11              ; dec src_ptr
+inc r12              ; inc dest_ptr
 cmp r11, r9
-ja reverse_loop     ; loop while src_ptr > src
-jmp r15             ; NEXT
+ja reverse_loop      ; loop while src_ptr > src
+jmp r15              ; NEXT
 
-exit:               ; Exit process
-mov rax, sys_exit   ; rax=sys_exit(rdi: code)
-mov rdi, 0          ; exit code
+exit:                ; Exit process
+mov rax, sys_exit    ; rax=sys_exit(rdi: code)
+mov rdi, 0           ; exit code
 syscall
 
 ; ==========
