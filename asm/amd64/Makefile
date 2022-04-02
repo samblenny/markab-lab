@@ -3,7 +3,7 @@
 .PHONY: all clean
 .SILENT: run
 
-all: main.out hello.out hellothread.out
+all: main.out hello.out hellothread.out repl.out
 clean:
 	rm -f *.out *.o
 
@@ -13,6 +13,8 @@ run-hello: hello.out
 	@./hello.out
 run-hellothread: hellothread.out
 	@./hellothread.out
+run-repl: repl.out
+	@./repl.out
 
 # objdump'ing the .out (linked) file rather than the .o makes it possible to
 # see pointer values into the relocated .data segment. In the .o, pointers
@@ -26,12 +28,17 @@ dump-hello: hello.out
 dump-hellothread: hellothread.out
 	@objdump -d -M intel $<
 	@readelf -x .data $<
+dump-repl: repl.out
+	@objdump -d -M intel $<
+	@readelf -x .data $<
 
 elf-main: main.out
 	readelf -a $<
 elf-hello: hello.out
 	readelf -a $<
 elf-hellothread: hellothread.out
+	readelf -a $<
+elf-repl: repl.out
 	readelf -a $<
 
 # These inference rules will assemble and link a .nasm input file.
