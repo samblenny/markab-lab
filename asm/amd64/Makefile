@@ -1,3 +1,11 @@
+# This Makefile is intended to easily build, run, and inspect lots of little
+# experiments without having to constantly make edits for adding new rules. To
+# understand what's going on here, you need to become familiar with the
+# concepts of "automatic variables", "implicit rules" and "pattern rules",
+# which are described here:
+# - https://www.gnu.org/software/make/manual/html_node/Automatic-Variables.html
+# - https://www.gnu.org/software/make/manual/html_node/Implicit-Rules.html
+# - https://www.gnu.org/software/make/manual/html_node/Pattern-Rules.html
 .POSIX:
 .SUFFIXES:
 .PHONY: help all clean
@@ -12,7 +20,7 @@ clean:
 	@rm -rf $(OBJECT_DIR)
 
 # To invoke this, do `make main.run`
-# Running main is special since it's effect is all about the return code
+# Running main is special since its effect is all about the return code
 main.run: main
 	@./$< || echo "$< exit: $$?"
 
@@ -29,9 +37,10 @@ main.run: main
 %.elf: %
 	readelf -a $<
 
-# These inference rules will assemble and link a .nasm input file.
-# For example, if you do `make hello`, make will match and chain these rules
-# as `obj/hello.o: hello.nasm`, then `hello: obj/hello.o` 
+# These pattern rules define an implicit rule to automatically assemble and
+# link a .nasm input file. For example, if you do `make hello`, make will match
+# and chain these rules as `obj/hello.o: hello.nasm`, then `hello: obj/hello.o`,
+# as if there were a rule for `hello: hello.nasm` (the implicit rule).
 $(OBJECT_DIR)/%.o: %.nasm
 	@mkdir -p $(OBJECT_DIR)
 	@nasm -f elf64 -w+all -o $@ $<
