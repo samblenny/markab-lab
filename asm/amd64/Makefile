@@ -1,51 +1,43 @@
 .POSIX:
 .SUFFIXES:
-.PHONY: all clean
-.SILENT: run
+.PHONY: help all clean
+OBJECT_DIR=obj
+TARGETS=main hello hellothread repl
 
-all: main.out hello.out hellothread.out repl.out
+help:
+	@echo "you need to specify a target"
+all: $(TARGETS)
 clean:
-	rm -f *.out *.o
+	@rm -f $(TARGETS)
+	@rm -rf $(OBJECT_DIR)
 
-run-main: main.out
-	@./main.out || echo "main exit: $$?"
-run-hello: hello.out
-	@./hello.out
-run-hellothread: hellothread.out
-	@./hellothread.out
-run-repl: repl.out
-	@./repl.out
+# To invoke this, do `make main.run`
+# Running main is special since it's effect is all about the return code
+main.run: main
+	@./$< || echo "$< exit: $$?"
 
-# objdump'ing the .out (linked) file rather than the .o makes it possible to
-# see pointer values into the relocated .data segment. In the .o, pointers
-# show up as `QWORD PTR ds:0x0`, which is not helpful.
-dump-main: main.out
-	@objdump -d -M intel $<
-	@readelf -x .data $<
-dump-hello: hello.out
-	@objdump -d -M intel $<
-	@readelf -x .data $<
-dump-hellothread: hellothread.out
-	@objdump -d -M intel $<
-	@readelf -x .data $<
-dump-repl: repl.out
+# Enable `make hello.run`, `make repl.run`, or generally `make $WHATEVER.run`
+%.run: %
+	@./$<
+
+# Enable `make hello.dump`, `make repl.dump`, etc. for disassembly.
+%.dump: %
 	@objdump -d -M intel $<
 	@readelf -x .data $<
 
-elf-main: main.out
-	readelf -a $<
-elf-hello: hello.out
-	readelf -a $<
-elf-hellothread: hellothread.out
-	readelf -a $<
-elf-repl: repl.out
+# Enable `make hello.elf`, and so on for a full ELF header listing.
+%.elf: %
 	readelf -a $<
 
 # These inference rules will assemble and link a .nasm input file.
-# The .PRECIOUS line prevents make from removing the intermediate .o files.
-.SUFFIXES: .nasm .o .out
-.PRECIOUS: %.o
-.nasm.o:
-	nasm -f elf64 -w+all -o $@ $<
-.o.out:
-	ld -s -o $@ $<
+# For example, if you do `make hello`, make will match and chain these rules
+# as `obj/hello.o: hello.nasm`, then `hello: obj/hello.o` 
+$(OBJECT_DIR)/%.o: %.nasm
+	@mkdir -p $(OBJECT_DIR)
+	@nasm -f elf64 -w+all -o $@ $<
+%: $(OBJECT_DIR)/%.o
+	@ld -s -o $@ $<
+
+# The .PRECIOUS line prevents make from removing the intermediate .o files
+# because that prints confusing `rm -f ...` lines after the output from %.run.
+.PRECIOUS: $(OBJECT_DIR)/%.o
