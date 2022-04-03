@@ -9,7 +9,7 @@
 .SUFFIXES:
 .PHONY: help all clean
 OBJECT_DIR=obj
-TARGETS=main hello hellothread repl
+TARGETS=main hello hellothread repl stacktest
 
 help:
 	@echo "you need to specify a target"
