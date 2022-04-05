@@ -12,7 +12,7 @@
 ;
 ; Sample output:
 ; ```
-; $ make stacktest && ./stacktest | hexdump -C
+; $ make stacktest2 && ./stacktest2 | hexdump -C
 ; 00000000  80 ff c4 0c fe 7f 00 00  01 00 00 00 00 00 00 00  |................|
 ; 00000010  88 ff c4 0c fe 7f 00 00  f3 07 c5 0c fe 7f 00 00  |................|
 ; 00000020  90 ff c4 0c fe 7f 00 00  00 00 00 00 00 00 00 00  |................|
