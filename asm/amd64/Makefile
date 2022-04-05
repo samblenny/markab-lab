@@ -9,7 +9,7 @@
 .SUFFIXES:
 .PHONY: help all clean
 OBJECT_DIR=obj
-TARGETS=main hello hellothread repl stacktest
+TARGETS=main hello hellothread repl stacktest stacktest2
 
 help:
 	@echo "you need to specify a target"
@@ -41,5 +41,5 @@ main.run: main
 # Enable `make hello` to create the program `hello` from `hello.nasm`.
 %: %.nasm
 	@mkdir -p $(OBJECT_DIR)
-	@nasm -f elf64 -w+all -o $(OBJECT_DIR)/$@.o $<
+	@nasm -f elf64 -w+all --reproducible -o $(OBJECT_DIR)/$@.o $<
 	@ld -s -o $@ $(OBJECT_DIR)/$@.o
