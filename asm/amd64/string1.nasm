@@ -25,6 +25,7 @@ align 16, resb 0
 %define strMax 1021
 inBuf: resb 2+strMax+1   ; Keyboard input buffer; word 0 is length
 strBuf: resb 2+strMax+1  ; String scratch buffer; word 0 is length
+fmtBuf: resb 2+strMax+1  ; Formatter scratch buffer; word 0 is length
 
 
 ;=============================
@@ -52,7 +53,10 @@ section .text
 ;-----------------------------
 ; Stack macros
 
-%define W r11        ; Working register
+%define W r11        ; Working register, full qword
+%define WD r11d      ; Working register, low dword
+%define WW r11w      ; Working register, low word
+%define WB r11b      ; Working register, low byte
 
 %define T r12        ; Top on stack
 %define S r13        ; Second on stack
@@ -60,7 +64,7 @@ section .text
 %define DSLen r15    ; Current depth of circular data stack (excludes T & S)
 
 ;-----------------------------
-; Dictionary macros
+; Dictionary: macros
 ; These provide minor inlining
 
 %macro mPush 0         ; PUSH - Push whatever is in W
@@ -73,17 +77,19 @@ section .text
 %endmacro
 
 %macro mLitD 1         ; LITD - Push a 32-bit dword literal with zero extend
-  mov dword W, %1
+  mov WD, %1
   mPush
 %endmacro
 
-%macro mLitD 1         ; LITW - Push a 16-bit word literal with zero extend
-  movzx word W, %1
+%macro mLitW 1         ; LITW - Push a 16-bit word literal with zero extend
+  xor W, W
+  mov WW, %1
   mPush
 %endmacro
 
 %macro mLitB 1         ; LITB - Push an 8-bit byte literal with zero extend
-  movzx byte W, %1
+  xor W, W
+  mov WB, %1
   mPush
 %endmacro
 
@@ -105,79 +111,8 @@ section .text
   mPush
 %endmacro
 
-%macro mStrLoad 1      ; Load %1 into [strBuf], replacing previous contents
-  mov W, %1
-  call _mStrLoad
-%endmacro
-
-%macro mStrAppend 1    ; Append %1 after current contents of [strBuf]
-  mov W, %1
-  call _mStrAppend
-%endmacro
-
-%macro mStrPut 0       ; Write [strBuf] to stdout
-  call _mStrPut
-%endmacro
-
-%macro mStrPutLn 0     ; Write [strBuf] to stdout with a CR at the end
-  mStrAppend datCR
-  mStrPut
-%endmacro
-
-_mStrLoad:             ; Overwrite [strBuf] with copy of string from [W]
-lea rsi, [W+2]         ; src
-mov rdi, strBuf        ; dest
-movzx rcx, word [W]    ; get source string length in bytes
-mov ebx, strMax
-cmp rcx, rbx
-cmova rcx, rbx         ; clip length to fit in strBuf
-mov word [rdi], cx     ; store destination length
-add rdi, 2             ; advance dest past length to start of string area
-call _mStrCopy
-ret
-
-_mStrAppend:           ; Append string from [W] after contents of [strBuf]
-mov rdi, strBuf        ; dest
-lea rsi, [W+2]         ; src
-mov ebx, strMax
-movzx r8, word [rdi]   ; current dest length
-cmp r8, strMax         ; return if destination is full
-jae .done
-movzx r9, word [W]     ; get source string length in bytes
-mov rcx, r8            ; calculate combined length
-add rcx, r9
-cmp rcx, rbx           ; clip combined length to fit in strBuf
-cmova rcx, rbx
-mov word [rdi], cx     ; store destination length
-sub rcx, r8            ; calculate copy length (clipped source length)
-add rdi, 2             ; advance dest ptr to end of current string +1
-add rdi, r8
-call _mStrCopy
-.done:
-ret
-
-_mStrCopy:             ; copy(rsi:src, rdi:dest, rcx:lengthInBytes)
-mov rbx, rcx           ; save a copy of length in rbx
-cld                    ; clear DF flag so MOVSx advances RSI and RDI with +1
-.initialQwords:
-shr rcx, 3             ; start by copying as many whole qwords as possible
-cmp rcx, 0
-je .finalBytes
-.for1:
-movsq                  ; copy qword from [rsi] to [rdi]
-dec rcx
-jnz .for1
-.finalBytes:
-mov rcx, rbx           ; finish up with remaining 0 to 7 bytes
-and rcx, 7
-jz .done
-.for2:
-movsb                  ; copy byte from [rsi] to [rdi]
-dec rcx
-jnz .for2
-.done:
-mov byte [rdi], 0      ; add null terminator for cstring compatibility
-ret
+;-----------------------------
+; Dictionary: Stack code
 
 _mPush:                ; PUSH - Push W to data stack
 mov rdx, DStackLo
@@ -205,14 +140,162 @@ dec rax
 cmovns DSLen, rax
 ret
 
-; printStack:            ; Nondestructively print stack
-; mov rcx, DSLen         ; loop stackDepth times
-; .for:
-; push rcx
-; call putln
-; pop rcx
-; dec rcx
-; jnz .for
+;-----------------------------
+; Dictionary: String code
+
+%macro mStrLoad 1      ; Load %1 into [strBuf], replacing previous contents
+  mov W, %1
+  call _mStrLoad
+%endmacro
+
+%macro mStrAppend 1    ; Append %1 after current contents of [strBuf]
+  mov W, %1
+  call _mStrAppend
+%endmacro
+
+%macro mStrClear 0
+  mStrLoad datStrNone
+%endmacro
+
+%macro mStrFmtSpace 0
+  mStrAppend datStrSpace
+%endmacro
+
+%macro mStrFmtCR 0
+  mStrAppend datStrCR
+%endmacro
+
+%macro mStrFmtHex 0
+  mov W, T
+  call _mStrFmtHex
+%endmacro
+
+%macro mStrPut 0       ; Write [strBuf] to stdout
+  call _mStrPut
+  mStrClear
+%endmacro
+
+%macro mStrPutLn 0     ; Write [strBuf] to stdout with a CR at the end
+  mStrAppend datStrCR
+  mStrPut
+  mStrClear
+%endmacro
+
+_mStrLoad:             ; Overwrite [strBuf] with copy of string from [W]
+lea rsi, [W+2]         ; src
+mov rdi, strBuf        ; dest
+movzx rdx, word [W]    ; get source string length in bytes
+mov r9d, strMax
+cmp rdx, r9
+cmova rdx, r9          ; clip length to fit in strBuf
+mov word [rdi], dx     ; store destination length
+add rdi, 2             ; advance dest past length to start of string area
+call _mMemcpy
+mov byte [rdi], 0      ; add null terminator for cstring compatibility
+ret
+
+_mStrAppend:           ; Append string from [W] after contents of [strBuf]
+push rbx
+mov rdi, strBuf        ; dest
+lea rsi, [W+2]         ; src
+mov ebx, strMax
+movzx r8, word [rdi]   ; current dest length
+cmp r8, strMax         ; return if destination is full
+jae .done
+movzx r9, word [W]     ; get source string length in bytes
+mov rdx, r8            ; calculate combined length
+add rdx, r9
+cmp rdx, rbx           ; clip combined length to fit in strBuf
+cmova rdx, rbx
+mov word [rdi], dx     ; store destination length
+sub rdx, r8            ; calculate copy length (clipped source length)
+add rdi, 2             ; advance dest ptr to end of current string +1
+add rdi, r8
+call _mMemcpy
+mov byte [rdi], 0      ; add null terminator for cstring compatibility
+.done:
+pop rbx
+ret
+
+_mMemcpy:              ; memcpy(rdi:dest, rsi:src, rdx:lengthInBytes)
+mov rcx, rdx           ; save a copy of length
+cld                    ; clear DF flag so MOVSx advances RSI and RDI with +1
+.initialQwords:
+shr rdx, 3             ; start by copying as many whole qwords as possible
+cmp rdx, 0
+je .finalBytes
+.for1:
+movsq                  ; copy qword from [rsi] to [rdi]
+dec rdx
+jnz .for1
+.finalBytes:
+mov rdx, rcx           ; finish up with remaining 0 to 7 bytes
+and rdx, 7
+jz .done
+.for2:
+movsb                  ; copy byte from [rsi] to [rdi]
+dec rdx
+jnz .for2
+.done:
+ret
+
+;-----------------------------
+; Dictionary: Formatting
+
+_mStrFmtHex:           ; Append W, formatted as hex digits, to [strBuf]
+push rbx
+mov rdi, fmtBuf
+mov word [rdi], 16     ; set length with space for 8 hex bytes
+add rdi, 2             ; advance dest ptr to end of current fmt string
+mov ecx, 16            ; loop for 16 hex digits because W is qword
+mov rsi, W
+mov r8, datFmtDigits
+.for:
+mov r9, rsi           ; format high nibble
+shl rsi, 4            ; source shifts 1 nibble off the right
+shr r9, 60            ; dest shifts 15 nibbles off the left (isolate high nib)
+and r9, 15
+mov bl, byte [r8+r9]  ; index into the list of digits 0..F
+mov byte [rdi], bl    ; add the digit to the buffer
+inc rdi
+dec ecx
+jnz .for
+mov byte [rdi], 0     ; set the cstring null terminator
+mStrAppend fmtBuf     ; add format buffer to [strBuf]
+pop rbx
+ret
+
+%macro  mDumpStack 0
+  call _mDumpStack
+%endmacro
+
+_mDumpStack:          ; Nondestructively print hexdump of stack
+push rbx
+push rbp
+mov rbx, DSLen        ; save original data stack depth
+cmp rbx, 0            ; return if stack is empty
+je .done
+mov rbp, rbx          ; Move contents of data stack to return stack
+.for1:
+push T
+mDrop
+dec rbp
+jnz .for1
+mov rbp, rbx          ; Now move them back
+.for2:
+pop W
+call _mPush
+mStrFmtHex            ; Print T (this will print lines with T at the top)
+mStrFmtCR
+dec rbp
+jnz .for2
+.done:
+pop rbp
+pop rbx
+ret
+
+;-----------------------------
+; Dictionary: Syscalls
 
 _mStrPut:              ; Write string [strBuf] to stdout
 mov rax, sys_write     ; rax=sys_write(rdi: fd, rsi: *buf, rdx: count)
@@ -221,7 +304,6 @@ mov rsi, strBuf        ; *buf
 movzx rdx, word [rsi]  ; count (string length is first word of string record)
 add rsi, 2             ; cstring starts at third byte of strBuf
 alignSyscall
-mDrop
 ret
 
 exit:                  ; Exit process
@@ -258,11 +340,24 @@ jnz .for
 mov DSHead, 0
 mov DSLen, 0
 
+; Initialize buffers by setting lengths to zero (and nulling first bytes)
+mov qword [inBuf], 0
+mov qword [strBuf], 0
+mov qword [fmtBuf], 0
+
 ; Do the stuff...
 
-mStrLoad datHello
+mLitB 1
+mLitB 2
+mLitB 3
+mLitQ 0x0123456789abcdef
+mDup
+mLitW 6
+mLitD 7
+mDumpStack
 mStrPutLn
-mStrLoad datEmptyStr
+
+mStrLoad datHello
 mStrPutLn
 mStrLoad dat16X
 mStrPutLn
@@ -293,10 +388,22 @@ section .data
   db 0
   align 8, db 0
 %endmacro
-datEmptyStr: mStr ""
-datCR: mChr 10
+
+;-----------------------------
+; Formatter data
+
+datStrNone: mStr ""
+datStrCR: mChr 10
+datStrSpace: mStr " "
+align 16, db 0
+datFmtDigits: db "0123456789ABCDEF"
+
+;-----------------------------
+; Other data
+
 datHi: mStr "hi!"
 dat16X: mStr "XXXXXXXXXXXXXXXX"
 datHello: mStr "Hello, world!"
 ; this next one is 1020 bytes long (enough to fill strBuf once CR is appended)
 datLong: mStr "This is a long line, and it's long, and it repeats itself a;sldkf 'a;sldkfaslk df;alskd jfalskdj f;laksjd f;laksjd fl;askdj f;laskdj f;laskdj f;laskdjf ;laskdj f;alskdj f;alskdj f;alskdj f;alskdj fl;askjd f alksjd flkajs d;flkj as;ldf jka;slkd jf ;laskdj f;lask jdf;lkasj df;lk asjd;lf kjas;ld kf ja;slkdj f;lask jdf;lka sjd;lf kjas;ld fkja;sl dkjf;lask jdf;lkas jdf;l kajsd;l kjafsd ;lkjfasd ;lkjafsdjlk; adsf;l kja ;jklasd ;jkla ;jklafd; jkla lk;ja ;lkja ;kljaasdf;ljkfasdk jl;asdfl jk;asdf ljk;asdf ljk;asdf; jklasdf ljk;afsd lk;fasd lk;fasd lasfd lafsd l afsdj ljk;as ljk;fasd lfasd jfasd lfasd lasfd lasfd kafsd j afsdj lk;jasdf lafsd kfasd kfasd lfasd kfsad l ;lkja jkl;af ;jklasdf; ljkfdas jkl;afsd; ljkafsd jkl;asfd ljk;asdf ;jklasdf jkl;fasd lkj;afsd ljk;fasd lasfd; fasd ;aa;sldkjfasdfas;ldkjf; lkjad ;lkjas ;lkjasd ljk;afsd klj;afd ljk;afds lj;afds kj;fads lfads k afsdl faljs lkj;a lkj;a ljk;fas lkj;fasd ljk;fasd ;fasd kfads lfdas lfads lfdas l ;klfa lkj;f lkj;f kjl;fas lkj;fads l;fads lfasd lfas j THE END"
+
