@@ -1,4 +1,30 @@
-; Rework string handling to enable concatenation into a buffer
+; This now has a pretty decent stack dumper that labels each cell of the stack.
+; Since this is meant for debugging, the hexdumping routines only peek at the
+; stack values without pushing or popping anything. This should reduce the
+; chance of side effects due to printing stack dumps.
+;
+; Output from `make string1.run`:
+; ```
+; T  0000000000000046
+; S  0000000000000045
+; 03 0000000000000044
+; 04 0123456789ABCDEF
+; 05 0123456789ABCDEF
+; 06 0000000000000043
+; 07 0000000000000042
+; 08 0000000000000041
+; 09 00000000FFFFFFFD
+; 0A 00000000FFFFFFFE
+; 0B 00000000FFFFFFFF
+; 0C 0000000000000009
+; 0D 0000000000000008
+; 0E 0000000000000007
+; 0F 0000000000000006
+; 10 0000000000000005
+; 11 0000000000000004
+; 12 0000000000000003
+; Hello, world!
+; ```
 
 bits 64
 default rel
@@ -53,10 +79,11 @@ section .text
 ;-----------------------------
 ; Stack macros
 
-%define W r11        ; Working register, full qword
-%define WD r11d      ; Working register, low dword
-%define WW r11w      ; Working register, low word
-%define WB r11b      ; Working register, low byte
+%define W r10        ; Working register, full qword
+%define WD r10d      ; Working register, low dword
+%define WW r10w      ; Working register, low word
+%define WB r10b      ; Working register, low byte
+%define X r11        ; Temporary register (not preserved during CALL)
 
 %define T r12        ; Top on stack
 %define S r13        ; Second on stack
@@ -67,39 +94,31 @@ section .text
 ; Dictionary: macros
 ; These provide minor inlining
 
-%macro mPush 0         ; PUSH - Push whatever is in W
-  call _mPush
-%endmacro
-
 %macro mLitQ 1         ; LITQ - Push a 64-bit qword literal
   mov W, %1
-  mPush
+  call mPush
 %endmacro
 
 %macro mLitD 1         ; LITD - Push a 32-bit dword literal with zero extend
   mov WD, %1
-  mPush
+  call mPush
 %endmacro
 
 %macro mLitW 1         ; LITW - Push a 16-bit word literal with zero extend
   xor W, W
   mov WW, %1
-  mPush
+  call mPush
 %endmacro
 
 %macro mLitB 1         ; LITB - Push an 8-bit byte literal with zero extend
   xor W, W
   mov WB, %1
-  mPush
+  call mPush
 %endmacro
 
 %macro mDup 0          ; DUP - Push T
   mov W, T
-  mPush
-%endmacro
-
-%macro mDrop 0         ; DROP - Drop (pop) T
-  call _mDrop
+  call mPush
 %endmacro
 
 %macro mSwap 0         ; SWAP - Swap T and S
@@ -114,7 +133,7 @@ section .text
 ;-----------------------------
 ; Dictionary: Stack code
 
-_mPush:                ; PUSH - Push W to data stack
+mPush:                 ; PUSH - Push W to data stack
 mov rdx, DStackLo
 mov [rdx+8*DSHead], S  ; on entry, DSHead points to an availble cell
 inc DSHead
@@ -127,7 +146,7 @@ mov S, T
 mov T, W
 ret
 
-_mDrop:                ; DROP - discard T
+mDrop:                 ; DROP - discard (pop) T
 cmp DSLen, 0
 mov T, S
 mov rdx, DStackLo
@@ -148,38 +167,24 @@ ret
   call _mStrLoad
 %endmacro
 
-%macro mStrAppend 1    ; Append %1 after current contents of [strBuf]
-  mov W, %1
-  call _mStrAppend
-%endmacro
-
 %macro mStrClear 0
-  mStrLoad datStrNone
+  mov qword [strBuf], 0
 %endmacro
 
-%macro mStrFmtSpace 0
-  mStrAppend datStrSpace
-%endmacro
+mStrSpace:             ; Append a space to [strBuf]
+mov W, ' '
+call mStrAppendByte
+ret
 
-%macro mStrFmtCR 0
-  mStrAppend datStrCR
-%endmacro
+mStrCR:                ; Append a newline to [strBuf]
+mov W, 10
+call mStrAppendByte
+ret
 
-%macro mStrFmtHex 0
-  mov W, T
-  call _mStrFmtHex
-%endmacro
-
-%macro mStrPut 0       ; Write [strBuf] to stdout
-  call _mStrPut
-  mStrClear
-%endmacro
-
-%macro mStrPutLn 0     ; Write [strBuf] to stdout with a CR at the end
-  mStrAppend datStrCR
-  mStrPut
-  mStrClear
-%endmacro
+mStrPutLn:             ; Write [strBuf] to stdout with a CR at the end
+call mStrCR
+call mStrPut
+ret
 
 _mStrLoad:             ; Overwrite [strBuf] with copy of string from [W]
 lea rsi, [W+2]         ; src
@@ -190,11 +195,11 @@ cmp rdx, r9
 cmova rdx, r9          ; clip length to fit in strBuf
 mov word [rdi], dx     ; store destination length
 add rdi, 2             ; advance dest past length to start of string area
-call _mMemcpy
+call _mMemcpy          ; memcpy(rdi:dest, rsi:src, rdx:lengthInBytes)
 mov byte [rdi], 0      ; add null terminator for cstring compatibility
 ret
 
-_mStrAppend:           ; Append string from [W] after contents of [strBuf]
+mStrAppend:            ; Append string from [W] after contents of [strBuf]
 push rbx
 mov rdi, strBuf        ; dest
 lea rsi, [W+2]         ; src
@@ -211,10 +216,24 @@ mov word [rdi], dx     ; store destination length
 sub rdx, r8            ; calculate copy length (clipped source length)
 add rdi, 2             ; advance dest ptr to end of current string +1
 add rdi, r8
-call _mMemcpy
+call _mMemcpy          ; memcpy(rdi:dest, rsi:src, rdx:lengthInBytes)
 mov byte [rdi], 0      ; add null terminator for cstring compatibility
 .done:
 pop rbx
+ret
+
+mStrAppendByte:        ; Append low byte of W (raw value) after [strBuf]
+mov rdi, strBuf
+movzx rax, word [rdi]  ; get current string length
+inc eax
+cmp eax, strMax        ; return if string buffer is too full already
+jae .done
+mov word [rdi], ax     ; adjust string length
+inc rax                ; adjust dest to start of string area (sneaky magic)
+add rdi, rax
+mov byte [rdi], WB     ; append the new byte
+mov byte [rdi+1], 0    ; set null terminator
+.done:
 ret
 
 _mMemcpy:              ; memcpy(rdi:dest, rsi:src, rdx:lengthInBytes)
@@ -242,11 +261,11 @@ ret
 ;-----------------------------
 ; Dictionary: Formatting
 
-_mStrFmtHex:           ; Append W, formatted as hex digits, to [strBuf]
+mStrFmtHexQ:           ; Append W, formatted as hex digits, to [strBuf]
 push rbx
 mov rdi, fmtBuf
-mov word [rdi], 16     ; set length with space for 8 hex bytes
-add rdi, 2             ; advance dest ptr to end of current fmt string
+mov word [rdi], 16     ; set string length for 8 hex bytes
+add rdi, 2             ; advance dest ptr to start of string data area
 mov ecx, 16            ; loop for 16 hex digits because W is qword
 mov rsi, W
 mov r8, datFmtDigits
@@ -254,42 +273,81 @@ mov r8, datFmtDigits
 mov r9, rsi           ; format high nibble
 shl rsi, 4            ; source shifts 1 nibble off the right
 shr r9, 60            ; dest shifts 15 nibbles off the left (isolate high nib)
-and r9, 15
+and r9, 0x0f
 mov bl, byte [r8+r9]  ; index into the list of digits 0..F
 mov byte [rdi], bl    ; add the digit to the buffer
 inc rdi
 dec ecx
 jnz .for
 mov byte [rdi], 0     ; set the cstring null terminator
-mStrAppend fmtBuf     ; add format buffer to [strBuf]
+mov W, fmtBuf
+call mStrAppend       ; add format buffer to [strBuf]
 pop rbx
 ret
 
-%macro  mDumpStack 0
-  call _mDumpStack
+mStrFmtHexB:          ; Append low byte of W, formated as hex, to [strBuf]
+mov rsi, datFmtDigits
+mov rdi, fmtBuf
+mov word [rdi], 2     ; set string length for 1 hex byte
+add rdi, 2            ; advance dest ptr to start of string data area
+mov X, W
+shr X, 4
+and X, 0x0f
+mov cl, byte [rsi+X]  ; index into the list of digits 0..F
+mov byte [rdi], cl    ; add the digit to the buffer
+inc rdi
+and W, 0x0f
+mov cl, byte [rsi+W]  ; index into the list of digits 0..F
+mov byte [rdi], cl    ; add the digit to the buffer
+inc rdi
+mov byte [rdi], 0     ; set the cstring null terminator
+mov W, fmtBuf
+call mStrAppend       ; add format buffer to [strBuf]
+ret
+
+%macro mDumpLabel 1   ; Append low byte of %1, then a ': ' to [strBuf]
+  mov W, %1
+  call mStrAppendByte
+  call mStrSpace
+  call mStrSpace
 %endmacro
 
-_mDumpStack:          ; Nondestructively print hexdump of stack
-push rbx
+mDumpStack:           ; Nondestructively print hexdump of stack
+push rbx              ; use rbx & rbp to preserve values across calls
 push rbp
-mov rbx, DSLen        ; save original data stack depth
-cmp rbx, 0            ; return if stack is empty
+cmp DSLen, 0          ; return if stack is empty
 je .done
-mov rbp, rbx          ; Move contents of data stack to return stack
-.for1:
-push T
-mDrop
-dec rbp
-jnz .for1
-mov rbp, rbx          ; Now move them back
-.for2:
-pop W
-call _mPush
-mStrFmtHex            ; Print T (this will print lines with T at the top)
-mStrFmtCR
-dec rbp
-jnz .for2
+mDumpLabel 'T'        ; format T if depth >= 1
+mov W, T
+call mStrFmtHexQ
+call mStrCR
+cmp DSLen, 1
+je .done
+mDumpLabel 'S'        ; format S if depth >= 2
+mov W, S
+call mStrFmtHexQ
+call mStrCR
+cmp DSLen, 2
+je .done
+lea rbx, [DSLen-2]    ; format the rest if depth > 2
+mov rbp, DSHead
+.for:
+mov W, DSLen          ; print the stack depth label
+sub W, rbx
+inc W
+call mStrFmtHexB
+call mStrSpace
+mov rdi, 15           ; step 1 cell down the circular data stack 
+add rbp, rdi          ; equivalent to (DSHead + 16 - 1) % 16
+and rbp, rdi
+mov rsi, DStackLo     ; set this each time because of calls below
+mov W, [rsi+8*rbp]    ; peek at the current cell's value
+call mStrFmtHexQ      ; print it
+call mStrCR
+dec rbx
+jnz .for
 .done:
+call mStrPut
 pop rbp
 pop rbx
 ret
@@ -297,13 +355,14 @@ ret
 ;-----------------------------
 ; Dictionary: Syscalls
 
-_mStrPut:              ; Write string [strBuf] to stdout
+mStrPut:               ; Write string [strBuf] to stdout, clear [strBuf]
 mov rax, sys_write     ; rax=sys_write(rdi: fd, rsi: *buf, rdx: count)
 mov rdi, stdout        ; fd
 mov rsi, strBuf        ; *buf
 movzx rdx, word [rsi]  ; count (string length is first word of string record)
-add rsi, 2             ; cstring starts at third byte of strBuf
+add rsi, 2             ; string data area starts at third byte of strBuf
 alignSyscall
+mov qword [strBuf], 0  ; clear [strBuf]
 ret
 
 exit:                  ; Exit process
@@ -347,24 +406,31 @@ mov qword [fmtBuf], 0
 
 ; Do the stuff...
 
+mLitB 0
 mLitB 1
 mLitB 2
 mLitB 3
+mLitB 4
+mLitB 5
+mLitB 6
+mLitB 7
+mLitB 8
+mLitB 9
+mLitD -1
+mLitD -2
+mLitD -3
+
+mLitB 'A'
+mLitB 'B'
+mLitB 'C'
 mLitQ 0x0123456789abcdef
 mDup
-mLitW 6
-mLitD 7
-mDumpStack
-mStrPutLn
-
+mLitW 'D'
+mLitD 'E'
+mLitB 'F'
+call mDumpStack
 mStrLoad datHello
-mStrPutLn
-mStrLoad dat16X
-mStrPutLn
-mStrLoad datHi
-mStrPutLn
-mStrLoad datLong
-mStrPutLn
+call mStrPutLn
 
 jmp exit
 
@@ -401,9 +467,4 @@ datFmtDigits: db "0123456789ABCDEF"
 ;-----------------------------
 ; Other data
 
-datHi: mStr "hi!"
-dat16X: mStr "XXXXXXXXXXXXXXXX"
 datHello: mStr "Hello, world!"
-; this next one is 1020 bytes long (enough to fill strBuf once CR is appended)
-datLong: mStr "This is a long line, and it's long, and it repeats itself a;sldkf 'a;sldkfaslk df;alskd jfalskdj f;laksjd f;laksjd fl;askdj f;laskdj f;laskdj f;laskdjf ;laskdj f;alskdj f;alskdj f;alskdj f;alskdj fl;askjd f alksjd flkajs d;flkj as;ldf jka;slkd jf ;laskdj f;lask jdf;lkasj df;lk asjd;lf kjas;ld kf ja;slkdj f;lask jdf;lka sjd;lf kjas;ld fkja;sl dkjf;lask jdf;lkas jdf;l kajsd;l kjafsd ;lkjfasd ;lkjafsdjlk; adsf;l kja ;jklasd ;jkla ;jklafd; jkla lk;ja ;lkja ;kljaasdf;ljkfasdk jl;asdfl jk;asdf ljk;asdf ljk;asdf; jklasdf ljk;afsd lk;fasd lk;fasd lasfd lafsd l afsdj ljk;as ljk;fasd lfasd jfasd lfasd lasfd lasfd kafsd j afsdj lk;jasdf lafsd kfasd kfasd lfasd kfsad l ;lkja jkl;af ;jklasdf; ljkfdas jkl;afsd; ljkafsd jkl;asfd ljk;asdf ;jklasdf jkl;fasd lkj;afsd ljk;fasd lasfd; fasd ;aa;sldkjfasdfas;ldkjf; lkjad ;lkjas ;lkjasd ljk;afsd klj;afd ljk;afds lj;afds kj;fads lfads k afsdl faljs lkj;a lkj;a ljk;fas lkj;fasd ljk;fasd ;fasd kfads lfdas lfads lfdas l ;klfa lkj;f lkj;f kjl;fas lkj;fads l;fads lfasd lfas j THE END"
-
