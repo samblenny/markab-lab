@@ -305,7 +305,7 @@ mov W, fmtBuf
 call mStrAppend       ; add format buffer to [strBuf]
 ret
 
-%macro mDumpLabel 1   ; Append low byte of %1, then a ': ' to [strBuf]
+%macro mDumpLabel 1   ; Append low byte of %1, then 2 spaces, to [strBuf]
   mov W, %1
   call mStrAppendByte
   call mStrSpace
