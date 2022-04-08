@@ -170,14 +170,14 @@ mov [fmtBuf], rax
 ;//////////////////////////////
 innerInterpreter:
 ;//////////////////////////////
-mov rbp, initROM              ; store instruction pointer (I) in rbp so
+mov ebp, initROM              ; store instruction pointer (I) in rbp so
                               ;  it will be preserved during calls
 align 16                      ; align loop to a fresh cache line
 .while:
 movzx rcx, byte [rbp]         ; load token at I
 cmp cl, byte [jtMax]          ; break to debug if token is not in range
 ja .errBadToken
-mov rdi, JumpTable            ; calculate jmp address
+mov edi, JumpTable            ; calculate jmp address
 movzx rsi, word [rdi+2*rcx]
 add rsi, DictBase
 inc rbp                       ; advance I
@@ -192,7 +192,7 @@ call mStrLoad.W
 movzx W, byte [rbp]           ; print offending token value
 call mStrFmtHexB
 call mStrCR
-mov W, 'I'                    ; print token's instruction pointer
+mov WB, 'I'                   ; print token's instruction pointer
 call mDumpLabel
 mov W, rbp
 sub W, initROM
@@ -246,12 +246,12 @@ mov W, S
 jmp mPush
 
 mPush:                 ; PUSH - Push W to data stack
-mov rdx, DStackLo
+mov edx, DStackLo
 mov [rdx+8*DSHead], S  ; on entry, DSHead points to an availble cell
 inc DSHead
 and DSHead, 0x0f       ; Modulo 16 because data stack is circular
 inc DSLen              ; Limit length to max capacity of data stack (16)
-mov rax, 18
+mov eax, 18
 cmp DSLen, rax         ; Bascially, DSLen==18 probably indicates an error
 cmova DSLen, rax
 mov S, T
@@ -262,7 +262,7 @@ mDrop:                 ; DROP - discard (pop) T
 cmp DSLen, 0
 mov T, S
 mov rdx, DStackLo
-mov rdi, 15
+mov edi, 15
 add DSHead, rdi        ; Equivalent to (DSHead + 16 - 1) % 16
 and DSHead, rdi
 mov S, [rdx+8*DSHead]
@@ -283,7 +283,7 @@ mov W, ' '
 jmp mStrAppendByte
 
 mStrCR:                ; Append a newline to [strBuf]
-mov W, 10
+mov WD, 10
 jmp mStrAppendByte
 
 mStrPutLn:             ; Write [strBuf] to stdout with a CR at the end
@@ -295,7 +295,7 @@ mov W, T
 call mDrop             ; don't need T any more
 .W:                    ; entry point for debug code that sets W itself
 lea rsi, [W+2]         ; src
-mov rdi, strBuf        ; dest
+mov edi, strBuf        ; dest
 movzx rdx, word [W]    ; get source string length in bytes
 mov r9d, strMax
 cmp rdx, r9
@@ -308,7 +308,7 @@ ret
 
 mStrAppend:            ; Append string from [W] after contents of [strBuf]
 push rbx
-mov rdi, strBuf        ; dest
+mov edi, strBuf        ; dest
 lea rsi, [W+2]         ; src
 mov ebx, strMax
 movzx r8, word [rdi]   ; current dest length
@@ -330,7 +330,7 @@ pop rbx
 ret
 
 mStrAppendByte:        ; Append low byte of W (raw value) after [strBuf]
-mov rdi, strBuf
+mov edi, strBuf
 movzx rax, word [rdi]  ; get current string length
 inc eax
 cmp eax, strMax        ; return if string buffer is too full already
@@ -370,12 +370,12 @@ ret
 
 mStrFmtHexQ:           ; Append W, formatted as hex digits, to [strBuf]
 push rbx
-mov rdi, fmtBuf
+mov edi, fmtBuf
 mov word [rdi], 16     ; set string length for 8 hex bytes
 add rdi, 2             ; advance dest ptr to start of string data area
 mov ecx, 16            ; loop for 16 hex digits because W is qword
 mov rsi, W
-mov r8, datFmtDigits
+mov r8d, datFmtDigits
 .for:
 mov r9, rsi           ; format high nibble
 shl rsi, 4            ; source shifts 1 nibble off the right
@@ -387,13 +387,13 @@ inc rdi
 dec ecx
 jnz .for
 mov byte [rdi], 0     ; set the cstring null terminator
-mov W, fmtBuf
+mov WD, fmtBuf
 pop rbx
 jmp mStrAppend        ; add format buffer to [strBuf]
 
 mStrFmtHexB:          ; Append low byte of W, formated as hex, to [strBuf]
-mov rsi, datFmtDigits
-mov rdi, fmtBuf
+mov esi, datFmtDigits
+mov edi, fmtBuf
 mov word [rdi], 2     ; set string length for 1 hex byte
 add rdi, 2            ; advance dest ptr to start of string data area
 mov X, W
@@ -407,7 +407,7 @@ mov cl, byte [rsi+W]  ; index into the list of digits 0..F
 mov byte [rdi], cl    ; add the digit to the buffer
 inc rdi
 mov byte [rdi], 0     ; set the cstring null terminator
-mov W, fmtBuf
+mov WD, fmtBuf
 jmp mStrAppend        ; add format buffer to [strBuf]
 
 mDumpLabel:           ; Append low byte of %1, then 2 spaces, to [strBuf]
@@ -420,14 +420,14 @@ push rbx              ; use rbx & rbp to preserve values across calls
 push rbp
 cmp DSLen, 0          ; return if stack is empty
 je .done
-mov W, 'T'            ; format T if depth >= 1
+mov WD, 'T'            ; format T if depth >= 1
 call mDumpLabel
 mov W, T
 call mStrFmtHexQ
 call mStrCR
 cmp DSLen, 1
 je .done
-mov W, 'S'            ; format S if depth >= 2
+mov WD, 'S'            ; format S if depth >= 2
 call mDumpLabel
 mov W, S
 call mStrFmtHexQ
@@ -442,10 +442,10 @@ sub W, rbx
 inc W
 call mStrFmtHexB
 call mStrSpace
-mov rdi, 15           ; step 1 cell down the circular data stack
+mov edi, 15           ; step 1 cell down the circular data stack
 add rbp, rdi          ; equivalent to (DSHead + 16 - 1) % 16
 and rbp, rdi
-mov rsi, DStackLo     ; set this each time because of calls below
+mov esi, DStackLo     ; set this each time because of calls below
 mov W, [rsi+8*rbp]    ; peek at the current cell's value
 call mStrFmtHexQ      ; print it
 call mStrCR
@@ -475,9 +475,9 @@ jmp mStrPut
 %endmacro
 
 mStrPut:               ; Write string [strBuf] to stdout, clear [strBuf]
-mov rax, sys_write     ; rax=sys_write(rdi: fd, rsi: *buf, rdx: count)
-mov rdi, stdout        ; fd
-mov rsi, strBuf        ; *buf
+mov eax, sys_write     ; rax=sys_write(rdi: fd, rsi: *buf, rdx: count)
+mov edi, stdout        ; fd
+mov esi, strBuf        ; *buf
 movzx rdx, word [rsi]  ; count (string length is first word of string record)
 add rsi, 2             ; string data area starts at third byte of strBuf
 alignSyscall
@@ -485,7 +485,7 @@ mov qword [strBuf], 0  ; clear [strBuf]
 ret
 
 mExit:                 ; Exit process
-mov rax, sys_exit      ; rax=sys_exit(rdi: code)
-mov rdi, 0             ; exit code
+mov eax, sys_exit      ; rax=sys_exit(rdi: code)
+mov edi, 0             ; exit code
 and rsp, -16           ; align stack to System V ABI (maybe unnecessary?)
 syscall
