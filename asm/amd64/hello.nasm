@@ -17,18 +17,17 @@ global _start
 section .text
 _start:
 
-xor rax, rax       ; Clear high bits of RAX, RDI, and RDX
-xor rdi, rdi
-xor rdx, rdx
 
-mov al, sys_write  ; rax=sys_write(rdi: fd, rsi: *buf, rdx: count)
-mov dil, stdout    ; fd: stdout
-mov rsi, str       ; *buf
+xor eax, eax       ; rax=sys_write(rdi: fd, rsi: *buf, rdx: count)
+inc eax            ; rax=1 means sys_write
+mov edi, eax       ; rdi=1 means stdout
+lea esi, [dword str] ; *buf
+xor edx, edx
 mov dl, 14         ; count
 syscall
 
 mov al, sys_exit   ; rax=sys_exit(rdi: code)
-mov dil, 0         ; exit code
+xor edx, edx       ; exit code = 0
 syscall
 
 section .data
