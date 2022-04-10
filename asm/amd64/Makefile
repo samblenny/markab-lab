@@ -31,7 +31,7 @@ main.run: main
 
 # Enable `make hello.dump`, `make repl.dump`, etc. for disassembly.
 %.dump: %
-	@objdump -d -M intel $<
+	@objdump --visualize-jumps -d -M intel $<
 	@readelf -x .data $<
 
 # Enable `make hello.elf`, and so on for a full ELF header listing.
@@ -39,7 +39,9 @@ main.run: main
 	readelf -a $<
 
 # Enable `make hello` to create the program `hello` from `hello.nasm`.
+# NOTE: `ld --export-dynamic ...` is good for disassembly with nice labels,
+#       but it might be better to use `ld -s ...` if building for distro.
 %: %.nasm
 	@mkdir -p $(OBJECT_DIR)
 	@nasm -f elf64 -w+all --reproducible -o $(OBJECT_DIR)/$@.o $<
-	@ld -s -o $@ $(OBJECT_DIR)/$@.o
+	@ld --export-dynamic -o $@ $(OBJECT_DIR)/$@.o

@@ -155,7 +155,7 @@ mov [Pad], eax
 
 
 ;//////////////////////////////
-innerInterpreter:
+doInner:
 ;//////////////////////////////
 mov ebp, initROM              ; persist instruction pointer (I) in rbp
 mov ebx, JumpTable            ; persist jump table address in rbx
@@ -163,7 +163,7 @@ align 16                      ; align loop to a fresh cache line
 .while:
 movzx ecx, byte [rbp]         ; load token at I
 cmp cl, byte [jtMax]          ; break to debug if token is not in range
-ja .errBadToken
+ja .eBadToken
 movzx esi, word [rbx+2*rcx]   ; fetch jump table address offset
 add esi, DictBase             ; calculate jump address
 inc ebp                       ; advance I
@@ -171,7 +171,7 @@ call rsi                      ; jump (callee may adjust I for LITx)
 jmp .while                    ; LOOP FOREVER! ({bad|exit} token can break)
 
 ;//////////////////////////////
-.errBadToken:                 ; Exit with debug message about bad token
+.eBadToken:                   ; Exit with debug message about bad token
 call mDotS                    ; dump stack
 lea W, [datBadToken1]         ; print bad token error label
 call mStrPut.W
@@ -190,7 +190,7 @@ jmp mExit                     ; exit
 ;-----------------------------
 ; Dictionary base address
 DictBase:
-
+nop
 
 ;-----------------------------
 ; Dictionary: Literals
