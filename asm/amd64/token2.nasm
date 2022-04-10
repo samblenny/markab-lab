@@ -123,8 +123,8 @@ section .text
 ;-----------------------------
 ; Stack macros
 
-%define W r10d       ; Working register, 32-bit zero-extended dword
-%define WB r10b      ; Working register, low byte
+%define W eax        ; Working register, 32-bit zero-extended dword
+%define WB al        ; Working register, low byte
 %define X r11        ; Temporary register (not preserved during CALL)
 
 %define T r12d       ; Top on stack, 32-bit zero-extended dword
@@ -211,10 +211,10 @@ add ebp, 4             ; adjust I
 jmp mPush
 
 mDotQuote:             ; Print string literal to stdout
-movzx eax, word [rbp]  ; get length of string in bytes (for adjusting I)
-add ax, 2              ;   add 2 for length dword
+movzx ecx, word [rbp]  ; get length of string in bytes (for adjusting I)
+add cx, 2              ;   add 2 for length dword
 mov W, ebp             ; I (ebp) should be pointing to {length, chars}
-add ebp, eax           ; adjust I past string
+add ebp, ecx           ; adjust I past string
 jmp mStrPut.W
 
 
@@ -242,9 +242,9 @@ mov dword [edx+4*DSHead], S  ; on entry, DSHead points to an availble cell
 inc DSHead
 and DSHead, 0x0f       ; modulo 16 because data stack is circular
 inc DSLen              ; limit length to max capacity of data stack (16)
-mov eax, 18
-cmp DSLen, eax         ; bascially, DSLen==18 probably indicates an error
-cmova DSLen, eax
+mov ecx, 18
+cmp DSLen, ecx         ; bascially, DSLen==18 probably indicates an error
+cmova DSLen, ecx
 mov S, T
 mov T, W
 ret
@@ -389,10 +389,10 @@ ret
 mStrPut:               ; Write string [Pad] to stdout, clear [Pad]
 lea W, [Pad]
 .W:                    ; Write string [W] to stdout, clear [W]
+mov esi, W             ; *buf (note: W is eax, so save it first)
 xor eax, eax           ; rax=sys_write(rdi: fd, rsi: *buf, rdx: count)
 inc eax                ; rax=1 means sys_write
 mov edi, eax           ; rdi=1 means fd 1, which is stdout
-mov esi, W             ; *buf
 movzx edx, word [rsi]  ; count (string length is first word of string record)
 add esi, 2             ; string data area starts at third byte of Pad
 alignSyscall
