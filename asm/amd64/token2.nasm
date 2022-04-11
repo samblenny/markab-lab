@@ -4,16 +4,16 @@
 ; Output from `make token2.run`:
 ; ```
 ; Hello, world!
-
+;
 ;  T 0123ABCD
-; 02 00000001
-; 03 00000002
-; 04 00000003
-; 05 FFFFFFFF
-; 06 FFFFFFFE
-; 07 00000041
-; 08 00000042
-; 09 00000042
+; 02 00000042
+; 03 00000042
+; 04 00000041
+; 05 FFFFFFFE
+; 06 FFFFFFFF
+; 07 00000003
+; 08 00000002
+; 09 00000001
 ; Error #1 Stack too empty
 ; Error #1 Stack too empty
 ; Stack is empty
@@ -35,7 +35,8 @@ db "=== initROM: ==="
 
 align 16, db 0
 LoadScreen:
-db 2,1,  2,2             ; 1  2               ( bytes)
+db 2,2,  2,1             ; 2  1               ( bytes)
+db 7                     ; Swap
 db 3,3,0,                ; 3                   ( word)
 db 4,-1,-1,-1,-1         ; -1                 ( dword)
 db 4,-2,-1,-1,-1         ; -2                 ( dword)
@@ -295,7 +296,7 @@ mSwap:                        ; SWAP - Swap T and second item on stack
 mov W, DSDeep
 cmp WB, 2
 jb mErr1Underflow
-dec W
+sub WB, 2
 xchg T, [DSBase+4*W]
 ret
 
@@ -303,7 +304,7 @@ mOver:                        ; OVER - Push second item on stack
 mov W, DSDeep
 cmp WB, 2
 jb mErr1Underflow
-dec W
+sub WB, 2
 mov W, [DSBase+4*W]
 jmp mPush
 
@@ -311,16 +312,20 @@ mPush:                        ; PUSH - Push W to data stack
 cmp DSDeep, DSMax
 jnb mErr2Overflow
 mov edi, W                    ; save W before relative address calculation
-mov [DSBase+4*DSDeep], T      ; implicit `inc DSDeep` (since no dec to skip T)
-mov T, edi
+mov esi, DSDeep               ; calculate store index of old_depth-2+1
+dec esi
+mov [DSBase+4*esi], T         ; store old value of T
+mov T, edi                    ; set T to caller's value of W
 inc DSDeep                    ; this depth includes T + (DSMax-1) memory items
 ret
 
 mDrop:                        ; DROP - discard (pop) T
 cmp DSDeep, 1
 jb mErr1Underflow
-dec DSDeep
-mov T, [DSBase+4*DSDeep]
+dec DSDeep                    ; new_depth = old_depth-1
+mov W, DSDeep                 ; new second item index = old_depth-2+1-1
+dec W
+mov T, [DSBase+4*W]
 ret
 
 
@@ -399,8 +404,8 @@ jmp .forPrintValue            ; for T, skip past numeric label & memory fetch
 mov W, ebp
 call mDotB.W                  ; print stack depth numeric label (2 is below T)
 call mSpace
-mov W, ebp                    ; fetch stack value (this gets skipped for T)
-dec W
+mov W, DSDeep                 ; fetch stack value (this gets skipped for T)
+sub W, ebp
 mov W, [DSBase+4*W]
 .forPrintValue:               ; print the value (for both T and memory items)
 call mDot.W
