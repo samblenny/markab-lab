@@ -6,18 +6,17 @@
 ; Hello, world!
 
 ;  T 0123ABCD
-;  S 00000043
-; 03 00000043
-; 04 00000042
-; 05 00000041
-; 06 FFFFFFFD
-; 07 FFFFFFFE
-; 08 FFFFFFFF
-; 09 00000005
-; 0A 00000004
-; 0B 00000003
-; 0C 00000002
-; 0D 00000001
+; 02 00000001
+; 03 00000002
+; 04 00000003
+; 05 FFFFFFFF
+; 06 FFFFFFFE
+; 07 00000041
+; 08 00000042
+; 09 00000042
+; Error #1 Stack too empty
+; Error #1 Stack too empty
+; Stack is empty
 ; ```
 
 bits 64
@@ -35,27 +34,26 @@ align 16, db 0
 db "=== initROM: ==="
 
 align 16, db 0
-initROM:
-db 1,1,  1,2,  1,3       ; 1  2  3            ( bytes)
-db 2,4,0,  2,5,0         ; 4  5               ( words)
-db 3,-1,-1,-1,-1         ; -1                 ( dword)
-db 3,-2,-1,-1,-1         ; -2                 ( dword)
-db 3,-3,-1,-1,-1         ; -3                 ( dword)
-db 1,'A',  1,'B',  1,'C' ; 'A'  'B'  'C'      ( bytes)
-db 4                     ; Dup
-db 3                     ; 0x0123abcd         ( dword)
+LoadScreen:
+db 2,1,  2,2             ; 1  2               ( bytes)
+db 3,3,0,                ; 3                   ( word)
+db 4,-1,-1,-1,-1         ; -1                 ( dword)
+db 4,-2,-1,-1,-1         ; -2                 ( dword)
+db 2,'A',  2,'B'         ; 'A'  'B'           ( bytes)
+db 5                     ; Dup
+db 4                     ; 0x0123abcd         ( dword)
 dd 0x0123abcd
 db 0                     ; Nop
-db 9                     ; ."
+db 10                    ; ."
 dw 13                    ;            ( string length)
 db "Hello, world!"       ; Hello, world"
-db 1, 10                 ; 10                  ( byte)
-db 10                    ; Emit           ( manual CR)
-db 8                     ; .S   ( non-dest stack dump)
-db 5, 5, 5, 5, 5, 5, 5,  ; Drop Drop ...  ( many drop)
-db 5, 5, 5, 5, 5, 5, 5   ;    ( fully empty the stack)
-db 8                     ; .S ( nop since stack empty)
-db 13                    ; Exit
+db 2, 10                 ; 10                  ( byte)
+db 11                    ; Emit           ( manual CR)
+db 9                     ; .S   ( non-dest stack dump)
+db 6, 6, 6, 6, 6, 6, 6   ; Drop Drop ...  ( many drop)
+db 6, 6, 6, 6            ;    ( fully empty the stack)
+db 9                     ; .S           ( stack empty)
+db 1                     ; Next
 .end:
 
 
@@ -63,7 +61,7 @@ db 13                    ; Exit
 ; Jump table
 
 %macro jt 2
-jt%[%1]: dw m%[%2] - DictBase
+jt%[%1]: dd m%[%2]
 %endmacro
 
 align 16, db 0
@@ -72,47 +70,76 @@ align 16, db 0
 
 JumpTable:
 jt  0, Nop
-jt  1, LitB
-jt  2, LitW
-jt  3, LitD
-jt  4, Dup
-jt  5, Drop
-jt  6, Swap
-jt  7, Over
-jt  8, DotS
-jt  9, DotQuote
-jt 10, Emit
-jt 11, CR
-jt 12, Dot
-jt 13, Exit
+jt  1, Next                   ; This gets handled specially by doInner
+jt  2, LitB
+jt  3, LitW
+jt  4, LitD
+jt  5, Dup
+jt  6, Drop
+jt  7, Swap
+jt  8, Over
+jt  9, DotS
+jt 10, DotQuote
+jt 11, Emit
+jt 12, CR
+jt 13, Dot
+jt 14, Err3BadToken
+jt 15, Err3BadToken
+jt 16, Err3BadToken
+jt 17, Err3BadToken
+jt 18, Err3BadToken
+jt 19, Err3BadToken
+jt 20, Err3BadToken
+jt 21, Err3BadToken
+jt 22, Err3BadToken
+jt 23, Err3BadToken
+jt 24, Err3BadToken
+jt 25, Err3BadToken
+jt 26, Err3BadToken
+jt 27, Err3BadToken
+jt 28, Err3BadToken
+jt 29, Err3BadToken
+jt 30, Err3BadToken
+jt 31, Err3BadToken
 
-jtMax: db 13
 align 16, db 0
-db "=== EndJumpT ==="
+db "== EndJumpTbl =="
 align 16, db 0
+
 
 ;-----------------------------
 ; Strings {dword len, chars}
 
-datBadToken1: db 11, 0, "BadToken:  "
-datBadToken2: db  4, 0, "  I:"
+datErr1se:   db 25, 0, "Error #1 Stack too empty", 10
+datErr2sf:   db 24, 0, "Error #2 Stack too full", 10
+datErr3btA:  db 22, 0, "Error #3 Bad token  T:"
+datErr3btB:  db  4, 0, "  I:"
+datErr4lt:   db 22, 0, "Error #4 Loop timeout", 10
+datDotST:    db  4, 0, 10, " T "
+datDotSNone: db 15, 0, "Stack is empty", 10
 
 
 ;=============================
 section .bss
 ;=============================
 
-; Data stack
-align 16, resb 0
-%define DStackSize 16
-DStackLo: resq DStackSize  ; Data stack (cell size is 64-bit qword)
-DStackHi: resq 1
+align 16, resb 0              ; Data stack
+%define DSMax 17              ; total size of data stack (T + 16 dwords)
+DSBase: resd DSMax-1          ; data stack (excludes T; 32-bit dword cells)
 
-; String buffers
+align 16, resb 0              ; Return stack (for token interpreter)
+%define RSMax 16              ; total size of return stack (16 dwords)
+RSBase: resd RSMax            ; data stack (32-bit dword cells)
+
+align 16, resb 0              ; String buffers
+%define StrMax 1022           ; length of string data area
+TIB: resb 2+StrMax            ; terminal input buffer; word 0 is length
 align 16, resb 0
-%define strMax 1021
-TIB: resb 2+strMax+1     ; Terminal input buffer; word 0 is length
-Pad: resb 2+strMax+1     ; String scratch buffer; word 0 is length
+Pad: resb 2+StrMax            ; string scratch buffer; word 0 is length
+
+align 16, resb 0              ; Error message buffers
+ErrToken: resd 1              ; value of current token
+ErrInst: resd 1               ; instruction pointer to current token
 
 
 ;=============================
@@ -123,74 +150,105 @@ section .text
 ;-----------------------------
 ; Stack macros
 
-%define W eax        ; Working register, 32-bit zero-extended dword
-%define WB al        ; Working register, low byte
-%define X r11        ; Temporary register (not preserved during CALL)
+%define W eax                 ; Working register, 32-bit zero-extended dword
+%define WQ rax                ; Working register, 64-bit qword (for pointers)
+%define WB al                 ; Working register, low byte
 
-%define T r12d       ; Top on stack, 32-bit zero-extended dword
-%define TB r12b      ; Top on stack, low byte
-%define S r13d       ; Second on stack, 32-bit zero-extended dword
-%define SB r13b      ; Second on stack, low byte
-%define DSHead r14d  ; Index to head of circular data stack
-%define DSLen r15d   ; Current depth of circular data stack (excludes T & S)
+%define T r13d                ; Top on stack, 32-bit zero-extended dword
+%define TB r13b               ; Top on stack, low byte
+%define DSDeep r14d           ; Current depth of data stack (including T)
+%define DSDeepB r14d          ; Current depth of data stack, low byte
+%define RSDeep r15d           ; Current depth of return stack
+%define RSDeepB r15d          ; Current depth of return stack, low byte
 
 
 ;-----------------------------
+; Process entry point
+
 _start:
+xor W, W                      ; init data stack registers
+mov T, W
+mov DSDeep, W
+mov RSDeep, W
+mov [TIB], W                  ; init string buffers
+mov [Pad], W
+.loadScreen:                  ; run the load screen
+mov W, LoadScreen
+call doInner
+.done:
+jmp mExit
 
 
 ;-----------------------------
-; Init registers & buffers
+; Interpreters
 
-initStack:                    ; Init data stack registers
-xor eax, eax
-xor T, eax
-mov S, eax
-mov DSHead, eax
-mov DSLen, eax
-
-initPad:                      ; Init string buffers
-mov [TIB], eax
-mov [Pad], eax
-
-
+doInner:                      ; Inner interpreter
+push rbp
+push rbx
+mov ebp, W                    ; ebp = instruction pointer (I)
+xor ebx, ebx                  ; max loop iterations = 2^32 - 1
+dec ebx
+align 16                      ; align loop to a cache line
+.for:
 ;//////////////////////////////
-doInner:
-;//////////////////////////////
-mov ebp, initROM              ; persist instruction pointer (I) in rbp
-mov ebx, JumpTable            ; persist jump table address in rbx
-align 16                      ; align loop to a fresh cache line
-.while:
-movzx ecx, byte [rbp]         ; load token at I
-cmp cl, byte [jtMax]          ; break to debug if token is not in range
-ja .eBadToken
-movzx esi, word [rbx+2*rcx]   ; fetch jump table address offset
-add esi, DictBase             ; calculate jump address
+movzx W, byte [rbp]           ; load token at I
+cmp WB, 1                     ; handle NEXT (token = 1) specially
+je .done
+cmp WB, 32                    ; detect token beyond jump table range (CAUTION!)
+jae mErr3BadToken
+lea edi, [JumpTable]          ; fetch jump table address
+mov esi, dword [rdi+4*WQ]
 inc ebp                       ; advance I
 call rsi                      ; jump (callee may adjust I for LITx)
-jmp .while                    ; LOOP FOREVER! ({bad|exit} token can break)
-
+dec ebx
+jnz .for                      ; loop until timeout (or break by NEXT token)
 ;//////////////////////////////
-.eBadToken:                   ; Exit with debug message about bad token
-call mDotS                    ; dump stack
-lea W, [datBadToken1]         ; print bad token error label
+.doneTimeout:                 ; alternate exit path when loop timed out
+call mErr4LoopTimeout
+.done:                        ; normal exit path
+pop rbx
+pop rbp
+ret
+
+;-----------------------------
+; Dictionary: Error handling
+
+mErr1Underflow:               ; Handle stack too empty error
+lea W, [datErr1se]            ; print error message
 call mStrPut.W
-movzx W, byte [rbp]           ; print offending token value
+xor DSDeep, DSDeep            ; clear stack
+ret                           ; return control to interpreter
+
+mErr2Overflow:                ; Handle stack too full error
+lea W, [datErr2sf]            ; print error message
+call mStrPut.W
+xor DSDeep, DSDeep            ; clear stack
+ret                           ; return control to interpreter
+
+mErr3BadToken:                ; Handle bad token error
+movzx W, byte [rbp]           ; save value of token
+mov [ErrToken], W
+mov W, ebp                    ; save instruction pointer to token
+sub W, LoadScreen
+mov [ErrInst], W
+lea W, [datErr3btA]           ; print error message
+call mStrPut.W
+mov W, [ErrToken]             ; print token value
 call mDotB.W
-lea W, [datBadToken2]         ; print token's instruction pointer
+lea W, [datErr3btB]           ; print token instruction pointer
 call mStrPut.W
-mov W, ebp
-sub W, initROM
+mov W, [ErrInst]
+lea ecx, [LoadScreen]
+sub W, ecx
 call mDotB.W
 call mCR
 jmp mExit                     ; exit
-;/////////////////////////////
 
+mErr4LoopTimeout:             ; Handle loop timeout error
+lea W, [datErr4lt]            ; print error message
+call mStrPut.W
+ret                           ; return control to interpreter
 
-;-----------------------------
-; Dictionary base address
-DictBase:
-nop
 
 ;-----------------------------
 ; Dictionary: Literals
@@ -221,45 +279,48 @@ jmp mStrPut.W
 ;-----------------------------
 ; Dictionary: Stack ops
 
-mNop:                  ; NOP - do nothing
+mNop:                         ; NOP - do nothing
 ret
 
-mDup:                  ; DUP - Push T
+mNext:                        ; NEXT - (nop) this gets handled by doInner
+ret
+
+mDup:                         ; DUP - Push T
+cmp DSDeepB, 1
+jb mErr2Overflow
 mov W, T
 jmp mPush
 
-mSwap:                 ; SWAP - Swap T and S
-xchg T, S
+mSwap:                        ; SWAP - Swap T and second item on stack
+mov W, DSDeep
+cmp WB, 2
+jb mErr1Underflow
+dec W
+xchg T, [DSBase+4*W]
 ret
 
-mOver:                 ; OVER - Push S
-mov W, S
+mOver:                        ; OVER - Push second item on stack
+mov W, DSDeep
+cmp WB, 2
+jb mErr1Underflow
+dec W
+mov W, [DSBase+4*W]
 jmp mPush
 
-mPush:                 ; PUSH - Push W to data stack
-mov edx, DStackLo
-mov dword [edx+4*DSHead], S  ; on entry, DSHead points to an availble cell
-inc DSHead
-and DSHead, 0x0f       ; modulo 16 because data stack is circular
-inc DSLen              ; limit length to max capacity of data stack (16)
-mov ecx, 18
-cmp DSLen, ecx         ; bascially, DSLen==18 probably indicates an error
-cmova DSLen, ecx
-mov S, T
-mov T, W
+mPush:                        ; PUSH - Push W to data stack
+cmp DSDeep, DSMax
+jnb mErr2Overflow
+mov edi, W                    ; save W before relative address calculation
+mov [DSBase+4*DSDeep], T      ; implicit `inc DSDeep` (since no dec to skip T)
+mov T, edi
+inc DSDeep                    ; this depth includes T + (DSMax-1) memory items
 ret
 
-mDrop:                 ; DROP - discard (pop) T
-cmp DSLen, 1           ; return silently if stack is empty
-jb .done
-mov T, S
-mov edx, DStackLo
-mov edi, 15
-add DSHead, edi        ; equivalent to (DSHead + 16 - 1) % 16
-and DSHead, edi
-mov S, dword [edx+4*DSHead]
-dec DSLen              ; make sure DSLen doesn't go lower than 0
-.done:
+mDrop:                        ; DROP - discard (pop) T
+cmp DSDeep, 1
+jb mErr1Underflow
+dec DSDeep
+mov T, [DSBase+4*DSDeep]
 ret
 
 
@@ -321,51 +382,39 @@ jnz .for
 lea W, [Pad]          ; print it
 jmp mStrPut.W
 
-mDotS:                ; Nondestructively print hexdump of stack
-push rbx              ; use rbx & rbp to preserve values across calls
+mDotS:                        ; Nondestructively print hexdump of stack
 push rbp
-cmp DSLen, 0                   ; return if stack is empty
-je .done
-lea edi, [Pad]                 ; format T if depth >= 1
-mov word [rdi], 4              ;   print label for T
-mov dword [rdi+2], 0x2054200A  ;   CR, " T "
-mov W, dword Pad
+mov ecx, DSDeep
+cmp cl, 0
+je .empty
+cmp cl, 1                     ; format T if data stack depth >= 1
+jb .done
+lea W, [datDotST]             ; T gets special label since it's not a number
 call mStrPut.W
-mov W, T                       ;   print value of T
-call mDot.W
-cmp DSLen, 1                   ; format S if depth >= 2
-je .done
-lea edi, [Pad]
-mov word [rdi], 4              ;   print label for S
-mov dword [rdi+2], 0x2053200A  ;   CR, " S "
-mov W, dword Pad
-call mStrPut.W
-mov W, S                       ;   print value of S
-call mDot.W
-call mCR
-cmp DSLen, 2
-je .done
-lea ebx, [DSLen-2]    ; format the rest if depth > 2
-mov ebp, DSHead
+mov W, T                      ; prepare for printing T's value
+xor ebp, ebp                  ; start loop counter at 1, for T's iteration
+inc ebp
+jmp .forPrintValue            ; for T, skip past numeric label & memory fetch
 .for:
-mov W, DSLen          ; print the stack depth label
-sub W, ebx
-inc W
-call mDotB.W
+mov W, ebp
+call mDotB.W                  ; print stack depth numeric label (2 is below T)
 call mSpace
-mov edi, 15           ; step 1 cell down the circular data stack
-add ebp, edi          ; equivalent to (DSHead + 16 - 1) % 16
-and ebp, edi
-mov esi, DStackLo         ; set this each time because of calls below
-mov W, dword [rsi+4*rbp]  ; peek at the current cell's value
-call mDot.W               ; print it
+mov W, ebp                    ; fetch stack value (this gets skipped for T)
+dec W
+mov W, [DSBase+4*W]
+.forPrintValue:               ; print the value (for both T and memory items)
+call mDot.W
 call mCR
-dec ebx
-jnz .for
-.done:
+inc ebp
+cmp ebp, DSDeep
+jbe .for                      ; loop in range 1..DSDeep
+.done:                        ; clean up (normal exit point)
 pop rbp
-pop rbx
 ret
+.empty:                       ; alternate exit point for case of empty stack
+pop rbp
+lea W, [datDotSNone]
+jmp mStrPut.W
 
 
 ;-----------------------------
