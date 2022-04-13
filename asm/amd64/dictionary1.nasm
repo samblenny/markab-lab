@@ -19,6 +19,55 @@
 ;  T FFFFFFFD
 ; 02 FFFFFFFE
 ; ```
+;
+; Partial output from `make dictionary1.dump` showing .data section:
+; ```
+; Hex dump of section '.data':
+;   0x00402000 3d3d204a 756d7020 5461626c 65203d3d == Jump Table ==
+;   0x00402010 0f114000 10114000 d4104000 dc104000 ..@...@...@...@.
+;   0x00402020 e4104000 ed104000 f6104000 11114000 ..@...@...@...@.
+;   0x00402030 6f114000 20114000 37114000 72134000 o.@. .@.7.@.r.@.
+;   0x00402040 fe104000 fe124000 f7124000 2b134000 ..@...@...@.+.@.
+;   0x00402050 ac114000 b5114000 be114000 c8114000 ..@...@...@...@.
+;   0x00402060 dc114000 f0114000 1c124000 29124000 ..@...@...@.).@.
+;   0x00402070 36124000 4c124000 55124000 5e124000 6.@.L.@.U.@.^.@.
+;   0x00402080 67124000 75124000 8c124000 a2124000 g.@.u.@...@...@.
+;   0x00402090 b8124000 d4124000 00000000 00000000 ..@...@.........
+;   0x004020a0 3d3d2044 69637469 6f6e6172 79203d3d == Dictionary ==
+;   0x004020b0 00000000 034e6f70 01000000 00000000 .....Nop........
+;   0x004020c0 b0204000 044e6578 74010100 00000000 . @..Next.......
+;   0x004020d0 c0204000 03447570 01070000 00000000 . @..Dup........
+;   0x004020e0 d0204000 0444726f 70010800 00000000 . @..Drop.......
+;   0x004020f0 e0204000 04537761 70010900 00000000 . @..Swap.......
+;   0x00402100 f0204000 044f7665 72010a00 00000000 . @..Over.......
+;   0x00402110 00214000 022e5301 0b000000 00000000 .!@...S.........
+;   0x00402120 10214000 022e2201 0c000000 00000000 .!@...".........
+;   0x00402130 20214000 04456d69 74010d00 00000000  !@..Emit.......
+;   0x00402140 30214000 02435201 0e000000 00000000 0!@..CR.........
+;   0x00402150 40214000 012e010f 00000000 00000000 @!@.............
+;   0x00402160 50214000 012b0110 00000000 00000000 P!@..+..........
+;   0x00402170 60214000 012d0111 00000000 00000000 `!@..-..........
+;   0x00402180 70214000 012a0112 00000000 00000000 p!@..*..........
+;   0x00402190 80214000 012f0113 00000000 00000000 .!@../..........
+;   0x004021a0 90214000 034d6f64 01140000 00000000 .!@..Mod........
+;   0x004021b0 a0214000 042f4d6f 64011500 00000000 .!@../Mod.......
+;   0x004021c0 b0214000 034d6178 01160000 00000000 .!@..Max........
+;   0x004021d0 c0214000 034d696e 01170000 00000000 .!@..Min........
+;   0x004021e0 d0214000 03416273 01180000 00000000 .!@..Abs........
+;   0x004021f0 e0214000 03416e64 01190000 00000000 .!@..And........
+;   0x00402200 f0214000 024f7201 1a000000 00000000 .!@..Or.........
+;   0x00402210 00224000 03586f72 011b0000 00000000 ."@..Xor........
+;   0x00402220 10224000 034e6f74 011c0000 00000000 ."@..Not........
+;   0x00402230 20224000 013c011d 00000000 00000000  "@..<..........
+;   0x00402240 30224000 013e011e 00000000 00000000 0"@..>..........
+;   0x00402250 40224000 013d011f 00000000 00000000 @"@..=..........
+;   0x00402260 50224000 02303c01 20000000 00000000 P"@..0<. .......
+;   0x00402270 60224000 02303d01 21000000 00000000 `"@..0=.!.......
+;   0x00402280 70224000 00000000 00000000 00000000 p"@.............
+;   0x00402290 3d3d204c 6f616453 63726565 6e203d3d == LoadScreen ==
+;   0x004022a0 0c080032 2031202b 202e5303 02030110 ...2 1 + .S.....
+;   ...
+; ```
 
 bits 64
 default rel
@@ -97,6 +146,90 @@ mkEndJumpTable                ; define tEndJumpTable for token bounds checking
 
 
 ;-----------------------------
+; Dictionary
+
+align 16, db 0
+db "== Dictionary =="
+align 16, db 0
+
+; === Notes on Nasm Macro Syntax ===
+; The macros here use some moderately fancy constructions:
+; 1. Macro Parameters Range: in `%macro foo 2-*`, the `-*` means the macro
+;    takes 2 or more parameters. The `%{2:-1}` matches a comma separated list
+;    of parameter 2 to the last parameter. So, `foo a, b, c, ...` means that
+;    `%1` expands to `a` and `%{2:-1}` expands to `b, c, ...`.
+; 2. Macro Pararameter Counter: `%0` expands to the number of parameters. This
+;    is useful for calculating the number of items in `%{2:-1}` for generating
+;    the .tokenCount field.
+; ==================================
+
+%assign _dyN 0                ; tail of dictionary list has null link
+%macro mkDyFirst 2-*          ; Make first dictionary linked list item
+  %strlen %%nameLen %1        ;   length of this word's name
+  %xdefine _dyThis dyN%[_dyN] ;   next item uses this label as its .link value
+  align 16, db 0
+  _dyThis:                    ;   relocatable label for this item
+  dd 0                        ;   .link = 0
+  db %%nameLen                ;   .nameLength = ...  (example:     3)
+  db %1                       ;   .name = ...        (example: "Nop")
+  db %0-1                     ;   .tokenCount
+  db %{2:-1}                  ;   .tokenValue = ...  (example:  tNop)
+%endmacro
+%macro mkDyItem 2-*           ; Add entry to dictionary linked list
+  %xdefine _dyPrev _dyThis    ;   save link label to previous item
+  %assign _dyN _dyN+1         ;   increment dictionary item label number
+  %xdefine _dyThis dyN%[_dyN] ;   make link label for this item
+  %strlen %%nameLen %1        ;   length of this word's name
+  align 16, db 0
+  _dyThis:                    ;   relocatable label for this item
+  dd _dyPrev                  ;   .link = ...        (example:  dyN0)
+  db %%nameLen                ;   .nameLength = ...  (example:     3)
+  db %1                       ;   .name = ...        (example: "Nop")
+  db %0-1                     ;   .tokenCount
+  db %{2:-1}                  ;   .tokenValue = ...  (example:  tNop)
+%endmacro
+%macro mkDyHead 0             ; Make dyHead pointing to head of dictionary
+  align 16, db 0
+  dyHead:
+  dd _dyThis
+  %undef _dyThis
+  %undef _dyPrev
+  %undef _dyN
+%endmacro
+
+mkDyFirst "Nop", tNop
+mkDyItem "Next", tNext
+mkDyItem "Dup", tDup
+mkDyItem "Drop", tDrop
+mkDyItem "Swap", tSwap
+mkDyItem "Over", tOver
+mkDyItem ".S", tDotS
+mkDyItem '."', tDotQuote
+mkDyItem "Emit", tEmit
+mkDyItem "CR", tCR
+mkDyItem ".", tDot
+mkDyItem "+", tPlus
+mkDyItem "-", tMinus
+mkDyItem "*", tMul
+mkDyItem "/", tDiv
+mkDyItem "Mod", tMod
+mkDyItem "/Mod", tDivMod
+mkDyItem "Max", tMax
+mkDyItem "Min", tMin
+mkDyItem "Abs", tAbs
+mkDyItem "And", tAnd
+mkDyItem "Or", tOr
+mkDyItem "Xor", tXor
+mkDyItem "Not", tNot
+mkDyItem "<", tLess
+mkDyItem ">", tGreater
+mkDyItem "=", tEqual
+mkDyItem "0<", tZeroLess
+mkDyItem "0=", tZeroEqual
+mkDyHead
+
+
+;-----------------------------
 ; Compiled code ROM (tokens)
 
 %macro mkDotQuote 1           ; Compile a `." ..."` string with correct length
@@ -108,9 +241,9 @@ mkEndJumpTable                ; define tEndJumpTable for token bounds checking
 
 align 16, db 0
 db "== LoadScreen =="
-
 align 16, db 0
 LoadScreen:                   ; Hand compiled load screen code
+
 mkDotQuote "2 1 + .S"
 db tI8, 2, tI8, 1, tPlus, tDotS
 mkDotQuote "Drop 1 3 - .S"
