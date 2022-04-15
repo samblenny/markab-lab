@@ -10,7 +10,7 @@
 .PHONY: help all clean
 OBJECT_DIR=obj
 TARGETS=main hello hellothread repl stacktest stacktest2 string1 token1 token2\
- token3 dictionary1
+ token3 dictionary1 repl2
 
 help:
 	@echo "you need to specify a target"
@@ -46,3 +46,7 @@ main.run: main
 	@mkdir -p $(OBJECT_DIR)
 	@nasm -f elf64 -w+all --reproducible -o $(OBJECT_DIR)/$@.o $<
 	@ld --export-dynamic -o $@ $(OBJECT_DIR)/$@.o
+
+# Enable `make foo` to create the program `foo` from `foo.c`
+%: %.c
+	$(CC) -Wall -o $@ $<
