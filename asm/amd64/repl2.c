@@ -51,13 +51,6 @@ int main() {
 
     // Save old terminal config and set an exit hook to restore it, so that
     // the shell hopefully doesn't get confused
-    // 1. Display sizeof stats for termios struct
-    // 2. Get the original tty configuration
-    // 3. Clear canonical mode bit to turn off input line-buffering
-    // 4. Clear keystroke echo bit
-    // 5. Set the modified tty configuration
-    // 6. Read characters
-    // 7. Restore original tty configuration
     struct termios new_config;
     tcgetattr(STDIN_FILENO, &old_config);
     atexit(set_old_config);
