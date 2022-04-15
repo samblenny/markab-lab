@@ -9,8 +9,9 @@
 /*
  * Output from `make repl2.run` with typed input of:
  *   q w e Ctrl-q Ctrl-w Ctrl-e Alt-q Alt-w Alt-e Up Down Left Right Backspace
- *   Del Enter Space Ctrl-C
- * followed by mashing lots of simultaneous F-keys on an NKRO keyboard
+ *   Del Enter Space
+ * followed by mashing lots of simultaneous F-keys on an NKRO keyboard, then
+ * typing a final Ctrl-C:
 
 $ make repl2.run
 CHAR_BIT: 8
@@ -34,7 +35,6 @@ read 1: 127   127
 read 4: 27 91 51 126   Esc [ 3 ~
 read 1: 10   ^J
 read 1: 32   Spc
-read 1: 3   ^C
 read 5: 27 91 50 49 126   Esc [ 2 1 ~
 read 10: 27 91 49 56 126 27 91 49 57 126   Esc [ 1 8 ~ Esc [ 1 9 ~
 read 5: 27 91 50 49 126   Esc [ 2 1 ~
@@ -45,6 +45,7 @@ read 5: 27 91 50 48 126   Esc [ 2 0 ~
 read 5: 27 91 49 53 126   Esc [ 1 5 ~
 read 15: 27 91 49 56 126 27 91 49 57 126 27 91 49 55 126   Esc [ 1 8 ~ Esc [ 1 9 ~ Esc [ 1 7 ~
 read 5: 27 91 49 57 126   Esc [ 1 9 ~
+read 1: 3   ^C
  */
 
 struct termios old_config;
