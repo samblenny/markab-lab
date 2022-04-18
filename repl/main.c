@@ -96,12 +96,8 @@ void tib_backspace() {
     }
 }
 
-void tib_control(unsigned char c) {
-    printf(" control(^%c, %u)", c+64, c);
-}
-
 void tib_insert(unsigned char c) {
-    if(c < ' ' || c == 127 || c > 0xf7) {
+    if(c == 0 || c == 127 || c > 0xf7) {
         printf(" tib_insert_oor(%u)", c);
         return;
     }
@@ -116,6 +112,7 @@ void tib_insert(unsigned char c) {
 }
 
 void tib_cr() {
+    // TODO: Send the composed line somewhere to be interpreted
     printf(" CR\n");
     TIB_LEN = 0;
     TIB[TIB_LEN] = 0;
@@ -212,8 +209,11 @@ void step_tty_state(unsigned char c) {
             tib_cr();
         } else if(c == 27) {
             TTY.state = Esc;
+        } else if(c == '\t') {
+            tib_insert(c);
+            tty_update_line();
         } else if(c < ' ') {
-            tib_control(c);
+            printf(" ^%c", c+64); // Control character
         } else if(c == 127) {
             tib_backspace();
             tty_update_line();
