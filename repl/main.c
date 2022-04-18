@@ -22,7 +22,6 @@ size_t ISB_LEN;
 // States of the terminal input state machine.
 // CSI stands for Control Sequence Intro, and it means `Esc [`.
 typedef enum {
-    ColdBoot,      // Startup in progress
     Normal,        // Ready for input, non-escaped
     Esc,           // Start of escape sequence
     EscSS2,        // Single shift of form `Esc N <foo>` (G2 char set)
@@ -98,7 +97,7 @@ void tib_backspace() {
 }
 
 void tib_control(unsigned char c) {
-    printf(" ^%c", c+64);
+    printf(" control(^%c, %u)", c+64, c);
 }
 
 void tib_insert(unsigned char c) {
@@ -116,15 +115,21 @@ void tib_insert(unsigned char c) {
     }
 }
 
-void tib_newline() {
+void tib_cr() {
     printf(" CR\n");
     TIB_LEN = 0;
     TIB[TIB_LEN] = 0;
 }
 
 void tty_cs_tilde(uint32_t n) {
-    if(n == 3) {
+    if(n == 2) {
+        printf(" Ins");
+    } else if(n == 3) {
         printf(" Del");
+    } else if(n == 5) {
+        printf(" PgUp");
+    } else if(n == 6) {
+        printf(" PgDn");
     } else if(n == 15) {
         printf(" F5");
     } else if(n == 17) {
@@ -203,8 +208,8 @@ void tty_update_line() {
 void step_tty_state(unsigned char c) {
     switch(TTY.state) {
     case Normal:
-        if(c == 10 || c == 13) {
-            tib_newline();
+        if(c == 13) {  // Enter key is CR (^M) since ICRNL|INLCR are turned off
+            tib_cr();
         } else if(c == 27) {
             TTY.state = Esc;
         } else if(c < ' ') {
@@ -212,36 +217,46 @@ void step_tty_state(unsigned char c) {
         } else if(c == 127) {
             tib_backspace();
             tty_update_line();
-        } else {
+        } else if(c <= 0xf7) {
             tib_insert(c);
             tty_update_line();
+        } else {
+            printf(" Normal(%u)", c);
         }
         break;
     case Esc:
-        switch(c) {
-        case 'N':
+        if(c == 'N') {
             TTY.state = EscSS2;
-            break;
-        case 'O':
+        } else if(c == 'O') {
             TTY.state = EscSS3;
-            break;
-        case '[':
+        } else if(c == '[') {
             TTY.state = EscCSIntro;
-            break;
-        case 27:
+        } else if(c == 27) {
             TTY.state = Esc;
-            break;
-        default:
-            printf(" Esc(%c)", c);
+        } else {
+            if(c == 9) {
+                printf(" Meta-Tab");
+            } else if(c == '(') {
+                printf(" Meta-Del");
+            } else if(c == 'b') {
+                printf(" Meta-Left");
+            } else if(c == 'f') {
+                printf(" Meta-Right");
+            } else if(c == 'F') {
+                printf(" Meta-Ins");
+            } else if(c == 127) {
+                printf(" Meta-Backspace");
+            } else if(c == 5) {
+                printf(" Meta-Shift-Ins");
+            } else {
+                printf(" Esc(%c, %u)", c, c);
+            }
             tty_state_normal();
-        };
+        }
         break;
     case EscSS2:
         // TODO: deal with this
-        if(0) {
-        } else {
-            printf(" SS2(%c)", c);
-        }
+        printf(" SS2(%c, %u)", c, c);
         tty_state_normal();
         break;
     case EscSS3:
@@ -254,7 +269,7 @@ void step_tty_state(unsigned char c) {
         } else if(c == 'S') {
             printf(" F4");
         } else {
-            printf(" SS3(%c)", c);
+            printf(" SS3(%c, %u)", c, c);
         }
         tty_state_normal();
         break;
@@ -275,8 +290,14 @@ void step_tty_state(unsigned char c) {
                 printf(" Right");
             } else if(c == 'D') {
                 printf(" Left");
+            } else if(c == 'F') {
+                printf(" End");
+            } else if(c == 'H') {
+                printf(" Home");
+            } else if(c == 'Z') {
+                printf(" Shift-Tab");
             } else {
-                printf(" CSIntro(%c)", c);
+                printf(" CSIntro(%c, %u)", c, c);
             }
             tty_state_normal();
         }
@@ -288,11 +309,12 @@ void step_tty_state(unsigned char c) {
         } else if(c == ';') {
             TTY.csParam2 = 0;
             TTY.state = EscCSParam2;
-        } else if(c == '~') {
-            tty_cs_tilde(TTY.csParam1);
-            tty_state_normal();
         } else {
-            printf(" CSParam1(%c)", c);
+            if(c == '~') {
+                tty_cs_tilde(TTY.csParam1);
+            } else {
+                printf(" CSParam1(%c, %u)", c, c);
+            }
             tty_state_normal();
         }
         break;
@@ -300,17 +322,24 @@ void step_tty_state(unsigned char c) {
         if(c >= '0' && c <= '9') {
             TTY.csParam2 *= 10;
             TTY.csParam2 += c - '0';
-        } else if (c == 'R') {
-            // Got cursor position report as answer to a "\33[6n" request
-            tty_cursor_handle_report(TTY.csParam1, TTY.csParam2);
-            tty_state_normal();
         } else {
-            printf(" CSParam2(%c)", c);
+            if(c == 'C') {
+                printf(" Shift-Right");
+            } else if(c == 'D') {
+                printf(" Shift-Left");
+            } else if(c == '~') {
+                printf(" Shift-Del");
+            } else if(c == 'R') {
+                // Got cursor position report as answer to a "\33[6n" request
+                tty_cursor_handle_report(TTY.csParam1, TTY.csParam2);
+            } else {
+                printf(" CSParam2(%c)", c);
+            }
             tty_state_normal();
         }
         break;
     default:
-        printf(" default(%c)", c);
+        printf(" default(%c, %u)", c, c);
     }
 }
 
