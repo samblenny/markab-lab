@@ -16,7 +16,7 @@ dump: main
 	@readelf -x .data $<
 
 main: main.c obj/libmarkab.o
-	$(CC) -Wl,-export-dynamic -std=c99 -Wall -o $@ main.c obj/libmarkab.o
+	$(CC) -O2 -Wl,-export-dynamic -std=c99 -Wall -o $@ main.c obj/libmarkab.o
 
 # Enable `make obj/foo.o` to create object file `obj/foo.o` from `foo.nasm`
 obj/%.o: %.nasm
