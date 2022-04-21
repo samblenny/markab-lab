@@ -10,7 +10,7 @@
 .PHONY: help all clean
 OBJECT_DIR=obj
 TARGETS=main hello hellothread repl stacktest stacktest2 string1 token1 token2\
- token3 dictionary1 repl2 repl3 utf8test
+ token3 dictionary1 repl2 repl3 utf8test repl4
 
 help:
 	@echo "you need to specify a target"
