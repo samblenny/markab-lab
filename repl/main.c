@@ -13,6 +13,7 @@
 #define _XOPEN_SOURCE 500
 #include <signal.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <termios.h>
@@ -41,14 +42,30 @@ typedef enum {
     Esc,            // Start of escape sequence
     EscEsc,         // Start of meta-combo escape sequence
     EscSingleShift, // Single shift: `Esc N <foo>`, `Esc O <foo>`, etc.
-    EscCtrlSeq,     // Control sequence; CS Intro (CSI) is `Esc [`
+    EscCSIntro,     // Control sequence Intro, `Esc [`
+    EscCSParam1,    // first control sequence parameter `[0-9]*;`
+    EscCSParam2,    // second control sequence parameter `[0-9]*`
 } ttyInputState_t;
 
 // Terminal State Machine Variables
 typedef struct {
     ttyInputState_t state;
+    uint32_t csParam1;
+    uint32_t csParam2;
+    uint32_t cursorRow;
+    uint32_t cursorCol;
+    uint32_t maxRow;
+    uint32_t maxCol;
 } ttyState_t;
 ttyState_t TTY;
+
+typedef enum {
+    CursorPosCurrent,
+    CursorPosMaxPossible1,
+    CursorPosMaxPossible2,
+} cursorRequest_t;
+
+cursorRequest_t CURSOR_REQUEST;
 
 void restore_old_terminal_config() {
     tcsetattr(STDIN_FILENO, TCSANOW, &old_config);
@@ -122,6 +139,13 @@ void cold_boot() {
     TIB_LEN = 0;
     ISB_LEN = 0;
     TTY.state = Normal;
+    TTY.csParam1 = 1;
+    TTY.csParam2 = 1;
+    TTY.cursorRow = 0;
+    TTY.cursorCol = 0;
+    TTY.maxRow = 0;
+    TTY.maxCol = 0;
+    CURSOR_REQUEST = CursorPosCurrent;
 }
 
 void tib_backspace() {
@@ -151,9 +175,60 @@ void tib_cr() {
     TIB[TIB_LEN] = 0;
 }
 
+void tty_cursor_goto(uint32_t row, uint32_t col) {
+    printf("\33[%u;%uH", row, col);
+}
+
+void tty_cursor_request_position(cursorRequest_t crq) {
+    // This may trigger a chain of stuff in the state machine
+    CURSOR_REQUEST = crq;
+    printf("\33[6n");
+}
+
+void tty_cursor_handle_report(uint32_t row, uint32_t col) {
+    switch(CURSOR_REQUEST) {
+    case CursorPosCurrent:
+        TTY.cursorRow = row;
+        TTY.cursorCol = col;
+        TTY.state = Normal;
+        return;
+    case CursorPosMaxPossible1:
+        // Save original cursor position
+        TTY.cursorRow = row;
+        TTY.cursorCol = col;
+        // Attempt to move to an offscreen cursor position that should clip
+        // the row and col to their maximum possible values
+        tty_cursor_goto(999, 999);
+        // Chain another request to get the clipped values and put the
+        // cursor back in its original position
+        tty_cursor_request_position(CursorPosMaxPossible2);
+        TTY.state = Normal;
+        return;
+    case CursorPosMaxPossible2:
+        // Save the maximum row and column
+        TTY.maxRow = row;
+        TTY.maxCol = col;
+        // Restore original cursor position. This needs CursorPosMaxPossible1
+        // to have already saved the original cursor position.
+        tty_cursor_goto(TTY.cursorRow, TTY.cursorCol);
+        // End the request
+        CURSOR_REQUEST = CursorPosCurrent;
+        TTY.state = Normal;
+        return;
+    }
+}
+
 void tty_update_line() {
-    char *erase_line = "\33[2K\33[G";  // erase whole line, move to column 1
+    // Erase all of current line, move to column 1
+    char *erase_line = "\33[2K\33[G";
     write(STDOUT_FILENO, erase_line, 7);
+    // If the input buffer is too long, show only the end
+    if(TTY.maxCol < TIB_LEN) {
+        size_t diff = TIB_LEN - TTY.maxCol;
+        write(STDOUT_FILENO, TIB+diff, TTY.maxCol);
+        return;
+    }
+    // Otherwise, show the whole input buffer
     write(STDOUT_FILENO, TIB, TIB_LEN);
 }
 
@@ -163,71 +238,111 @@ void step_tty_state(unsigned char c) {
         switch(c) {
         case 13:  // Enter key is CR (^M) since ICRNL|INLCR are turned off
             tib_cr();
-            break;
+            return;
         case 27:
             TTY.state = Esc;
-            break;
+            return;
         case 127:
             tib_backspace();
             tty_update_line();
-            break;
+            return;
+        case 'L'-64:
+            // For Control-L, check window size
+            tty_cursor_request_position(CursorPosMaxPossible1);
         default:
-            if(c < ' ') {
-                // Ignore control characters
-            } else if(c > 0xf7) {
-                // Ignore invalid UTF-8 characters
-            } else {
-                // Handle normal character or UTF-8 byte
-                tib_insert(c);
-                tty_update_line();
+            if(c < ' ' || c > 0xf7) {
+                // Ignore control characters and invalid UTF-8 bytes
+                return;
             }
+            // Handle normal character or UTF-8 byte
+            tib_insert(c);
+            tty_update_line();
+            return;
         }
-        break;
     case Esc:
         switch(c) {
         case 'N':
         case 'O':
             TTY.state = EscSingleShift;
-            break;
+            return;
         case '[':
-            TTY.state = EscCtrlSeq;
-            break;
+            TTY.state = EscCSIntro;
+            return;
         case 27:
             TTY.state = EscEsc;
-            break;
+            return;
         default:
             // Switch back to normal mode if the escape sequence was not one of
             // the mode-shifting sequences that we know about
             TTY.state = Normal;
+            return;
         }
-        break;
     case EscEsc:
         switch(c) {
         case '[':
-            break;
+            // This is the third byte of a meta-key combo escape sequence
+            return;
         default:
             // For now, filter Meta-<whatever> sequences out of input stream.
             // This catches stuff like Meta-Up (`Esc Esc [ A`).
             TTY.state = Normal;
+            return;
         }
-        break;
     case EscSingleShift:
         // The SS2 (G2) single shift charset is boring. The SS3 (G3) charset
         // has F1..F4. But, for now, just filter out all of that stuff.
         TTY.state = Normal;
-        break;
-    case EscCtrlSeq:
-        if((c >= '0' && c <= '9') || c == ';') {
-            // Ignore numeric parameters (numbers and ';'). Parsing numeric
-            // parameters is necessary for F-keys, Ins, Del, PgDn, PgUp, cursor
-            // position reports, etc. But, for now, just filter that stuff out.
-        } else {
+        return;
+    case EscCSIntro:
+        TTY.csParam1 = 0;
+        TTY.csParam2 = 0;
+        if(c >= '0' && c <= '9') {
+            TTY.csParam1 = c - '0';
+            TTY.state = EscCSParam1;
+            return;
+        }
+        switch(c) {
+        case ';':
+            TTY.state = EscCSParam2;
+            return;
+        default:
             // This is the spot to parse and handle arrow keys:
             //    'A': up, 'B': down, 'C': right, 'D': left
             // But, for now, just filter them out.
             TTY.state = Normal;
+            return;
         }
-        break;
+    case EscCSParam1:
+        if(c >= '0' && c <= '9') {
+            TTY.csParam1 *= 10;
+            TTY.csParam1 += c - '0';
+            return;
+        }
+        switch(c) {
+        case ';':
+            TTY.state = EscCSParam2;
+            return;
+        default:
+            // Getting a `~` here means F-key, Ins, Del, PgUp, PgDn, etc.
+            // depending on the value of parameter 1
+            TTY.state = Normal;
+            return;
+        };
+    case EscCSParam2:
+        if(c >= '0' && c <= '9') {
+            TTY.csParam2 *= 10;
+            TTY.csParam2 += c - '0';
+            return;
+        }
+        switch(c) {
+        case 'R':
+            // Got cursor position report as answer to a "\33[6n" request
+            tty_cursor_handle_report(TTY.csParam1, TTY.csParam2);
+            return;
+        default:
+            TTY.state = Normal;
+            return;
+        }
     }
 }
 
@@ -239,12 +354,39 @@ int main() {
     set_terminal_for_raw_unbuffered_input();
     cold_boot();
     markab_init();
+    tty_cursor_request_position(CursorPosMaxPossible1);
     unsigned char control_c = 'C' - 64;
     for(;;) {
         // Block until input is available (or EOF)
         ISB_LEN = read(STDIN_FILENO, ISB, BUF_SIZE);
         if(ISB_LEN == 0) {
             goto done;  // end for EOF
+        }
+        // Dump input chars
+        int debug_enable = 0;
+        if(debug_enable) {
+            printf("\n===");
+            for(int i=0; i<ISB_LEN; i++) {
+                unsigned char c = ISB[i];
+                if(c == 27) {
+                    printf(" Esc");
+                } else if(c == ' ') {
+                    printf(" Spc");
+                } else if(c == 13) {
+                    printf(" Cr");
+                } else if(c < ' ') {
+                    printf(" ^%c", c+64);
+                } else if(c == ' ') {
+                    printf(" Spc");
+                } else if(c == 127) {
+                    printf(" Back");
+                } else if(c > 0xf7) {
+                    printf(" %u", c);
+                } else {
+                    printf(" %c", c);
+                }
+            }
+            printf(" ===\n");
         }
         // Feed all the input chars to the tty state machine
         for(int i=0; i<ISB_LEN; i++) {
