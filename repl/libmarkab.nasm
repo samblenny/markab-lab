@@ -1,8 +1,14 @@
-; Markab library providing Forth inner and outer interpreters
+; Copyright (c) 2022 Sam Blenny
+; SPDX-License-Identifier: MIT
+;
+; libmarkab implements inner and outer interpreters of the Markab Forth system.
+;
 
 bits 64
 default rel
 global markab_init
+
+extern mkb_host_write
 
 ;=============================
 section .data
@@ -224,7 +230,7 @@ lea ecx, [LoadScreen]
 sub W, ecx
 call mDotB.W
 call mCR
-jmp mExit                     ; exit
+ret                           ; exit
 
 mErr4LoopTimeout:             ; Handle loop timeout error
 lea W, [datErr4lt]            ; print error message
@@ -574,37 +580,18 @@ jmp mStrPut.W
 
 
 ;-----------------------------
-; Dictionary: Syscalls
-
-%define sys_read 0
-%define sys_write 1
-%define sys_exit 60
-%define stdin 0
-%define stdout 1
-
-%macro alignSyscall 0  ; Syscall with manual 16-byte align of esp
-  push rbp             ; preserve old rbp and rsp
-  mov rbp, rsp
-  and esp, -16         ; align rsp
-  syscall              ; align stack to System V ABI (maybe unnecessary?)
-  mov rsp, rbp         ; restore previous rsp and rbp
-  pop rbp
-%endmacro
+; Dictionary: Host API for IO
 
 mStrPut:               ; Write string [Pad] to stdout, clear [Pad]
 lea W, [Pad]
 .W:                    ; Write string [W] to stdout, clear [W]
-mov esi, W             ; *buf (note: W is eax, so save it first)
-xor eax, eax           ; rax=sys_write(rdi: fd, rsi: *buf, rdx: count)
-inc eax                ; rax=1 means sys_write
-mov edi, eax           ; rdi=1 means fd 1, which is stdout
-movzx edx, word [rsi]  ; count (string length is first word of string record)
-add esi, 2             ; string data area starts at third byte of Pad
-alignSyscall
+mov edi, W             ; *buf (note: W is eax, so save it first)
+movzx esi, word [rdi]  ; count (string length is first word of string record)
+add edi, 2             ; string data area starts at third byte of Pad
+push rbp               ; align stack to 16 bytes
+mov rbp, rsp
+and rsp, -16
+call mkb_host_write    ; call host api to write string to stdout
+mov rsp, rbp           ; restore stack to previous alignment
+pop rbp
 ret
-
-mExit:                 ; Exit process
-mov eax, sys_exit      ; rax=sys_exit(rdi: code)
-xor edi, edi           ; exit code = 0
-and esp, -16           ; align stack to System V ABI (maybe unnecessary?)
-syscall

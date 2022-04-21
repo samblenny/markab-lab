@@ -1,3 +1,10 @@
+# Copyright (c) 2022 Sam Blenny
+# SPDX-License-Identifier: MIT
+#
+# Makefile for Markab. This is developed and tested on Debian 11 (Bullseye)
+# with nasm and clang. For other build environments, YYMV.
+#
+
 .POSIX:
 .SUFFIXES:
 .PHONY: help all clean run dump

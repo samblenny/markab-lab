@@ -1,10 +1,24 @@
-#include <stdint.h>
+// Copyright (c) 2022 Sam Blenny
+// SPDX-License-Identifier: MIT
+//
+// Markab Forth System REPL
+//
+// The `#define _XOPEN_SOURCE 500` is to enable XOPEN (kinda like POSIX?)
+// features for signal handling, because I kept segfaulting and having to reset
+// my terminal to get my shell prompt working again. For background, refer to:
+// - `man signal sigaction sigaltstack`
+// - /usr/include/features.h (on Debian 11)
+// - https://pubs.opengroup.org/onlinepubs/007904875/basedefs/signal.h.html
+//
+#define _XOPEN_SOURCE 500
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
 #include "libmarkab.h"
+#include "markab_host_api.h"
 
 // Struct to hold original terminal config to be restored during exit
 struct termios old_config;
@@ -40,10 +54,53 @@ void restore_old_terminal_config() {
     tcsetattr(STDIN_FILENO, TCSANOW, &old_config);
 }
 
+// Restore old terminal config if process gets killed by a segfault, illegal
+// instruction, or whatever. Without this handler, sudden exits will leave the
+// terminal badly configured such that using the shell normally again will
+// require running `reset`.
+void catch_signal(int signal) {
+    tcsetattr(STDIN_FILENO, TCSANOW, &old_config);
+    switch(signal) {
+    case SIGSEGV:
+        fprintf(stderr, "[Segmentation Fault (restoring terminal config)]\n");
+        break;
+    case SIGILL:
+        fprintf(stderr, "[Illegal Instruction (restoring terminal config)]\n");
+        break;
+    default:
+        // See list in /usr/include/x86_64-linux-gnu/bits/signum-generic.h
+        fprintf(stderr, "[signal %u: restoring terminal config]\n", signal);
+    }
+    exit(1);
+}
+
+stack_t alt_stack;
+char stack_buf[SIGSTKSZ];
+
+// Set up an alternate stack for sigaction(SIGSEGV, ...) to use. Otherwise, if
+// the main stack got messed up, which it most likely did (because segfault),
+// trying to handle the first SIGSEGV will just segfault again before the
+// handler accomplishes anything useful.
+void init_alt_stack() {
+    alt_stack.ss_sp = stack_buf;
+    alt_stack.ss_size = SIGSTKSZ;
+    alt_stack.ss_flags = 0;
+    sigaltstack(&alt_stack, NULL);
+}
+
+// This needs `#define _XOPEN_SOURCE` to work right
 void set_terminal_for_raw_unbuffered_input() {
     // Set hook to restore original terminal attributes during exit
     tcgetattr(STDIN_FILENO, &old_config);
-    atexit(restore_old_terminal_config);
+    atexit(restore_old_terminal_config);  // Hook for normal exit
+    init_alt_stack();
+    struct sigaction a;
+    memset(&a, 0, sizeof(sigaction));
+    a.sa_handler = catch_signal;
+    sigfillset(&a.sa_mask);
+    a.sa_flags = SA_ONSTACK;
+    sigaction(SIGILL, &a, NULL);   // Hook for illegal instruction
+    sigaction(SIGSEGV, &a, NULL);  // Hook for segmentation fault
     // Configure terminal stdio for unbuffered raw input
     tcflag_t imask = ~(IXON|IXOFF|ISTRIP|INLCR|IGNCR|ICRNL);
     tcflag_t Lmask = ~(ICANON|ECHO|ECHONL|ISIG|IEXTEN);
@@ -145,8 +202,14 @@ void step_tty_state(unsigned char c) {
         }
         break;
     case EscEsc:
-        // For now, filter Meta-<whatever> sequences out of input stream. This
-        // catches stuff like Meta-Up (`Esc Esc [ A`).
+        switch(c) {
+        case '[':
+            break;
+        default:
+            // For now, filter Meta-<whatever> sequences out of input stream.
+            // This catches stuff like Meta-Up (`Esc Esc [ A`).
+            TTY.state = Normal;
+        }
         break;
     case EscSingleShift:
         // The SS2 (G2) single shift charset is boring. The SS3 (G3) charset
@@ -166,6 +229,10 @@ void step_tty_state(unsigned char c) {
         }
         break;
     }
+}
+
+size_t mkb_host_write(const void *buf, size_t count) {
+    return write(STDOUT_FILENO, buf, count);
 }
 
 int main() {
