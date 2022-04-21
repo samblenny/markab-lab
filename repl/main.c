@@ -4,6 +4,7 @@
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
+#include "libmarkab.h"
 
 // Struct to hold original terminal config to be restored during exit
 struct termios old_config;
@@ -346,6 +347,7 @@ void step_tty_state(unsigned char c) {
 int main() {
     set_terminal_for_raw_unbuffered_input();
     cold_boot();
+    markab_init();
     tty_cursor_request_position(CursorPosMaxPossible1);
     unsigned char control_c = 'C' - 64;
     for(;;) {

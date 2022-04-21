@@ -1,29 +1,24 @@
 .POSIX:
 .SUFFIXES:
-.PHONY: help all clean
-OBJECT_DIR=obj
-TARGET=main
+.PHONY: help all clean run dump
+CC=clang
 
-all: $(TARGET)
+all: main
 clean:
-	@rm -f $(TARGET)
-	@rm -rf $(OBJECT_DIR)
+	@rm -f main
+	@rm -rf obj
 
-run: $(TARGET)
+run: main
 	@./$<
 
-dump: $(TARGET)
+dump: main
 	@objdump --visualize-jumps -d -M intel $<
 	@readelf -x .data $<
 
-$(OBJECT_DIR)/%.o: %.nasm
-	@mkdir -p $(OBJECT_DIR)
+main: main.c obj/libmarkab.o
+	$(CC) -Wl,-export-dynamic -std=c99 -Wall -o $@ main.c obj/libmarkab.o
+
+# Enable `make obj/foo.o` to create object file `obj/foo.o` from `foo.nasm`
+obj/%.o: %.nasm
+	@mkdir -p obj
 	@nasm -f elf64 -w+all --reproducible -o $@ $<
-
-# Enable `make foo` to create the program `foo` from `foo.c`
-%: %.c
-	$(CC) -std=c99 -Wall -o $@ $<
-
-# Enable `make obj/bar.o` to create object file `obj/bar.o` from `bar.c`
-$(OBJECT_DIR)/%.o: %.c
-	$(CC) -std=c99 -Wall -o $@ $<
