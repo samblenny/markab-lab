@@ -21,6 +21,10 @@
 #include "libmarkab.h"
 #include "markab_host_api.h"
 
+//----------------
+//#define DEBUG_EN
+//----------------
+
 // Struct to hold original terminal config to be restored during exit
 struct termios old_config;
 
@@ -148,11 +152,108 @@ void cold_boot() {
     CURSOR_REQUEST = CursorPosCurrent;
 }
 
-void tib_backspace() {
-    // Delete one character
-    if(TIB_LEN > 0) {
-        TIB[TIB_LEN] = 0;
+// Peek at Unicode codepoint for UTF-8 seqence ending at TIB[index-1]
+uint32_t tib_peek_prev_code(size_t current_index) {
+    if(current_index == 0) {
+        return 0;
+    }
+    uint32_t code = 0;
+    uint32_t shift = 0;
+    for(int i=current_index; i>0;) {
+        i--;
+        uint8_t c = TIB[i];
+        if((c & 0xC0) == 0x80) {          // Continuation byte
+            code |= (c & 0x3F) << shift;
+            shift += 6;
+            continue;
+        }
+        if((c < 128) || (c > 0xF7)) {     // ASCII or invalid UTF-8 byte
+            code = c;
+        } else if((c & 0xE0) == 0xC0) {   // Leading byte of 2-byte sequence
+            code |= (c & 0x1F) << shift;
+        } else if((c & 0xF0) == 0xE0) {   // Leading byte of 3-byte sequence
+            code |= (c & 0x0F) << shift;
+        } else if((c & 0xF8) == 0xF0) {   // Leading byte of 4-byte sequence
+            code |= (c & 0x07) << shift;
+        }
+        break;
+    }
+    return code;
+}
+
+// Check if codepoint is Unicode Reginal Indicator Symbol Letter
+int is_flag_letter(uint32_t code) {
+    return (code >= 0x1F1E6) && (code <= 0x1F1FF);
+}
+
+// Check if codepoint is Unicode Emoji Modifier
+int is_emoji_modifier(uint32_t code) {
+    return (code >= 0x1F3FB) && (code <=0x1F3FF);
+}
+
+// Delete one UTF-8 grapheme cluster, which may be one or more UTF-8 codepoints
+// consisting of 1, some, or many bytes. This is intended to work with plain
+// ASCII, single-codepoint Unicode characters, and multi-codepoint Unicode
+// grapheme clusters. In particular, it should hopefully handle modern emoji.
+void tib_backspace(int max_depth) {
+    if(TIB_LEN == 0 || max_depth < 1) {
+        return;
+    }
+    uint32_t code = 0;
+    uint32_t shift = 0;
+    uint8_t c = 0;
+    // Delete the last UTF-8 sequence (1..4 bytes) in the TIB
+    for(; TIB_LEN>0;) {
         TIB_LEN--;
+        c = TIB[TIB_LEN];
+        TIB[TIB_LEN] = 0;
+        if((c & 0xC0) == 0x80) {          // Continuation byte
+            code |= (c & 0x3F) << shift;
+            shift += 6;
+            continue;
+        }
+        if((c < 128) || (c > 0xF7)) {     // ASCII or invalid UTF-8 byte
+            code = c;
+        } else if((c & 0xE0) == 0xC0) {   // Leading byte of 2-byte sequence
+            code |= (c & 0x1F) << shift;
+        } else if((c & 0xF0) == 0xE0) {   // Leading byte of 3-byte sequence
+            code |= (c & 0x0F) << shift;
+        } else if((c & 0xF8) == 0xF0) {   // Leading byte of 4-byte sequence
+            code |= (c & 0x07) << shift;
+        }
+        break;
+    }
+    #ifdef DEBUG_EN
+    printf(" delete: U+%04x\n", code);
+    #endif
+
+    // Check the value of the just-deleted codepoint, and the codepoint before
+    // that one, to recursively finish delete the rest of the current grapheme
+    // cluster. This is mainly for modern emoji.
+    uint32_t prev = tib_peek_prev_code(TIB_LEN);
+    switch(code) {
+    case 0xFE0F:                          // Variation selector (for emoji)
+    case 0x200D:                          // Zero width joiner
+        tib_backspace(max_depth-1);
+        return;
+    default:
+        // This uses special value of max_depth to prevent consuming more than
+        // two regional indicator letter codepoints at a time, because flags
+        // have two regional indicator letters. The point is to only delete the
+        // last flag, if there happens to be a sequence of flags.
+        if(is_flag_letter(code) && is_flag_letter(prev) && max_depth > 1) {
+            tib_backspace(1);
+            return;
+        }
+        if(is_emoji_modifier(code)) {
+            tib_backspace(max_depth-1);
+            return;
+        }
+        switch(prev) {
+        case 0x200D:                      // Zero width joiner
+            tib_backspace(max_depth-1);
+            return;
+        }
     }
 }
 
@@ -243,7 +344,7 @@ void step_tty_state(unsigned char c) {
             TTY.state = Esc;
             return;
         case 127:
-            tib_backspace();
+            tib_backspace(TIB_LEN);
             tty_update_line();
             return;
         case 'L'-64:
@@ -362,32 +463,31 @@ int main() {
         if(ISB_LEN == 0) {
             goto done;  // end for EOF
         }
+#ifdef DEBUG_EN
         // Dump input chars
-        int debug_enable = 0;
-        if(debug_enable) {
-            printf("\n===");
-            for(int i=0; i<ISB_LEN; i++) {
-                unsigned char c = ISB[i];
-                if(c == 27) {
-                    printf(" Esc");
-                } else if(c == ' ') {
-                    printf(" Spc");
-                } else if(c == 13) {
-                    printf(" Cr");
-                } else if(c < ' ') {
-                    printf(" ^%c", c+64);
-                } else if(c == ' ') {
-                    printf(" Spc");
-                } else if(c == 127) {
-                    printf(" Back");
-                } else if(c > 0xf7) {
-                    printf(" %u", c);
-                } else {
-                    printf(" %c", c);
-                }
+        printf("\n===");
+        for(int i=0; i<ISB_LEN; i++) {
+            unsigned char c = ISB[i];
+            if(c == 27) {
+                printf(" Esc");
+            } else if(c == ' ') {
+                printf(" Spc");
+            } else if(c == 13) {
+                printf(" Cr");
+            } else if(c < ' ') {
+                printf(" ^%c", c+64);
+            } else if(c == ' ') {
+                printf(" Spc");
+            } else if(c == 127) {
+                printf(" Back");
+            } else if(c >= 128) {
+                printf(" %02X", c);
+            } else {
+                printf(" %c", c);
             }
-            printf(" ===\n");
         }
+        printf(" ===\n");
+#endif
         // Feed all the input chars to the tty state machine
         for(int i=0; i<ISB_LEN; i++) {
             unsigned char c = ISB[i];
