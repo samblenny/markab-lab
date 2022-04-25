@@ -7,11 +7,10 @@
 bits 64
 default rel
 global markab_cold
+global markab_outer
 
 extern mkb_host_write
 extern mkb_host_step_stdin
-extern TIB
-extern TIB_LEN
 
 ;=============================
 section .data
@@ -107,6 +106,7 @@ datErr3btB:  db  4, 0, "  I:"
 datErr4lt:   db 22, 0, "Error #4 Loop timeout", 10
 datDotST:    db  4, 0, 10, " T "
 datDotSNone: db 15, 0, "Stack is empty", 10
+datOK        db  5, 0, "  OK", 10
 
 
 ;=============================
@@ -201,6 +201,11 @@ call mErr4LoopTimeout
 pop rbx
 pop rbp
 ret
+
+markab_outer:                 ; void markab_outer(rdi: u8 *buf, rsi: u32 count)
+lea W, [datOK]
+jmp mStrPut.W
+
 
 ;-----------------------------
 ; Dictionary: Error handling

@@ -274,8 +274,7 @@ void tib_insert(unsigned char c) {
 }
 
 void tib_cr() {
-    // TODO: Send the composed line somewhere to be interpreted
-    printf(" CR\n");
+    markab_outer(TIB, TIB_LEN);
     TIB_LEN = 0;
     TIB[TIB_LEN] = 0;
 }
