@@ -231,7 +231,7 @@ push rsi
 push rcx
 call doWord           ; void doWord(rdi: u8 *buf, rsi: count)
 pop rcx
-pop rsi               ; note: this is value from before `dec rsi`
+pop rsi
 pop rdi
 .skipDoWord:          ; prepare to find the next word
 inc rsi               ; new rdi is rdi+rsi+1 (+1 advances past space)
