@@ -99,6 +99,7 @@ align 16, db 0
 ;-----------------------------
 ; Strings {dword len, chars}
 
+datVersion:  db 39, 0, "Markab v0.0.1", 10, "type 'bye' or ^C to exit", 10
 datErr1se:   db 25, 0, "Error #1 Stack too empty", 10
 datErr2sf:   db 24, 0, "Error #2 Stack too full", 10
 datErr3btA:  db 22, 0, "Error #3 Bad token  T:"
@@ -160,11 +161,18 @@ mov T, W
 mov DSDeep, W
 mov RSDeep, W
 mov [Pad], W
-;.loadScreen:                  ; run the load screen
-;mov W, LoadScreen
-;call doInner
+lea W, datVersion             ; Print version string
+call mStrPut.W
+.loadScreen:                  ; run the load screen
+mov W, LoadScreen
+call doInner
 .OuterLoop:
+push rbp                      ; align stack to 16 bytes
+mov rbp, rsp
+and rsp, -16
 call mkb_host_step_stdin      ; step the non-blocking stdin state machine
+mov rsp, rbp                  ; restore stack to previous alignment
+pop rbp
 test rax, rax
 jz .OuterLoop                 ; loop until return value is non-zero
 .done:
@@ -202,10 +210,58 @@ pop rbx
 pop rbp
 ret
 
-markab_outer:                 ; void markab_outer(rdi: u8 *buf, rsi: u32 count)
+markab_outer:         ; void markab_outer(rdi: u8 *buf, rsi: u32 count)
+test rsi, rsi         ; end early if input buffer is empty
+jz .done
+mov rcx, rsi          ; for(rcx=count,rsi=0; rcx>0 && buf[rsi++]!=' '; rcx--)
+xor rsi, rsi
+.for:
+mov WB, ' '
+cmp WB, byte [rdi+rsi]
+jz .wordSpace
+dec rcx
+jz .wordEndBuf
+inc rsi
+jmp .for
+.wordSpace:           ; word is [rdi]..[rdi+rsi] (0-indexing cancels out ' ')
+test rsi, rsi         ; skip over leading spaces or consecutive spaces
+jz .skipDoWord
+push rdi              ; save registers to prepare for call
+push rsi
+push rcx
+call doWord           ; void doWord(rdi: u8 *buf, rsi: count)
+pop rcx
+pop rsi               ; note: this is value from before `dec rsi`
+pop rdi
+.skipDoWord:          ; prepare to find the next word
+inc rsi               ; new rdi is rdi+rsi+1 (+1 advances past space)
+add rdi, rsi
+xor rsi, rsi          ; new rsi is 0
+dec rcx               ; check if input buffer is empty yet
+jz .done
+jmp .for              ; continue parsing words from input buffer
+.wordEndBuf:          ; word is [rdi]..[rdi+rcx] (there was no space)
+inc rsi               ; convert from 0-indexed to count of bytes
+call doWord           ; void doWord(rdi: u8 *buf, rsi: count)
+.done:
 lea W, [datOK]
 jmp mStrPut.W
 
+doWord:               ; doWord(rdi: u8 *buf, rsi: count)
+push rbp              ; save arguments
+push rbx
+mov rbp, rdi          ; rbp = u8 *buf
+mov rbx, rsi          ; rbx = count
+call mSpace           ; print space
+mov W, ebx            ; print count
+call mDot.W
+call mSpace           ; print another space
+mov rdi, rbp          ; print word
+mov rsi, rbx
+call mStrPut.RdiRsi
+pop rbx               ; restore registers
+pop rbp
+ret
 
 ;-----------------------------
 ; Dictionary: Error handling
@@ -592,11 +648,12 @@ jmp mStrPut.W
 ; Dictionary: Host API for IO
 
 mStrPut:               ; Write string [Pad] to stdout, clear [Pad]
-lea W, [Pad]
+lea WQ, [Pad]
 .W:                    ; Write string [W] to stdout, clear [W]
-mov edi, W             ; *buf (note: W is eax, so save it first)
+mov rdi, WQ            ; *buf (note: W is eax, so save it first)
 movzx esi, word [rdi]  ; count (string length is first word of string record)
 add edi, 2             ; string data area starts at third byte of Pad
+.RdiRsi:               ; Do mkb_host_write(rdi: *buf, rsi: count)
 push rbp               ; align stack to 16 bytes
 mov rbp, rsp
 and rsp, -16
