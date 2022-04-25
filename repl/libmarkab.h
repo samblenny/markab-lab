@@ -7,6 +7,6 @@
 #ifndef LIBMARKAB_H
 #define LIBMARKAB_H
 
-extern void markab_init();
+extern void markab_cold();
 
 #endif

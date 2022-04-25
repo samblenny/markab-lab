@@ -38,6 +38,7 @@ size_t TIB_LEN = 0;
 // Input Stream Buffer: bytes read from stdin (includes escape sequences)
 unsigned char ISB[BUF_SIZE];
 size_t ISB_LEN;
+int STDIN_ISATTY = 0;
 
 // States of the terminal input state machine.
 // CSI stands for Control Sequence Intro, and it means `Esc [`.
@@ -123,19 +124,22 @@ void set_terminal_for_raw_unbuffered_input() {
     sigaction(SIGILL, &a, NULL);   // Hook for illegal instruction
     sigaction(SIGSEGV, &a, NULL);  // Hook for segmentation fault
     // Configure terminal stdio for unbuffered raw input
+    STDIN_ISATTY = isatty(STDIN_FILENO);
     tcflag_t imask = ~(IXON|IXOFF|ISTRIP|INLCR|IGNCR|ICRNL);
     tcflag_t Lmask = ~(ICANON|ECHO|ECHONL|ISIG|IEXTEN);
     struct termios new_config = old_config;
     new_config.c_iflag &= imask;
     new_config.c_lflag &= Lmask;
     new_config.c_cflag |= CS8;
+    new_config.c_cc[VMIN] = 0;   // read() can return 0 if buffer is empty
+    new_config.c_cc[VTIME] = 1;  // read() non-blocking timeout in deciseconds
     tcsetattr(STDIN_FILENO, TCSANOW, &new_config);
     // Configure terminal stdout for unbuffered output
     setbuf(stdout, NULL);
 }
 
 // Reset all state
-void cold_boot() {
+void reset_state() {
     for(int i=0; i<BUF_SIZE; i++) {
         TIB[i] = 0;
         ISB[i] = 0;
@@ -277,10 +281,16 @@ void tib_cr() {
 }
 
 void tty_cursor_goto(uint32_t row, uint32_t col) {
+    if(!STDIN_ISATTY) {
+        return;  // don't use ANSI escapes if STDIN is pipe or file
+    }
     printf("\33[%u;%uH", row, col);
 }
 
 void tty_cursor_request_position(cursorRequest_t crq) {
+    if(!STDIN_ISATTY) {
+        return;  // don't use ANSI escapes if STDIN is pipe or file
+    }
     // This may trigger a chain of stuff in the state machine
     CURSOR_REQUEST = crq;
     printf("\33[6n");
@@ -320,6 +330,9 @@ void tty_cursor_handle_report(uint32_t row, uint32_t col) {
 }
 
 void tty_update_line() {
+    if(!STDIN_ISATTY) {
+        return;  // don't use ANSI escapes if STDIN is pipe or file
+    }
     // Erase all of current line, move to column 1
     char *erase_line = "\33[2K\33[G";
     write(STDOUT_FILENO, erase_line, 7);
@@ -451,53 +464,63 @@ size_t mkb_host_write(const void *buf, size_t count) {
     return write(STDOUT_FILENO, buf, count);
 }
 
-int main() {
-    set_terminal_for_raw_unbuffered_input();
-    cold_boot();
-    markab_init();
-    tty_cursor_request_position(CursorPosMaxPossible1);
-    unsigned char control_c = 'C' - 64;
-    for(;;) {
-        // Block until input is available (or EOF)
-        ISB_LEN = read(STDIN_FILENO, ISB, BUF_SIZE);
-        if(ISB_LEN == 0) {
-            goto done;  // end for EOF
-        }
+// Do a non-blocking read from stdin to update the tty state machine
+// Return codes
+//  -1 --> EOF or ^C
+//   0 --> normal
+int mkb_host_step_stdin() {
+    // Block until input is available (or EOF)
+    ISB_LEN = read(STDIN_FILENO, ISB, BUF_SIZE);
+    if(ISB_LEN == 0 && !STDIN_ISATTY) {
+        return -1;  // end for EOF
+    }
 #ifdef DEBUG_EN
-        // Dump input chars
-        printf("\n===");
-        for(int i=0; i<ISB_LEN; i++) {
-            unsigned char c = ISB[i];
-            if(c == 27) {
-                printf(" Esc");
-            } else if(c == ' ') {
-                printf(" Spc");
-            } else if(c == 13) {
-                printf(" Cr");
-            } else if(c < ' ') {
-                printf(" ^%c", c+64);
-            } else if(c == ' ') {
-                printf(" Spc");
-            } else if(c == 127) {
-                printf(" Back");
-            } else if(c >= 128) {
-                printf(" %02X", c);
-            } else {
+    // Dump input chars
+    printf("\n===");
+    for(int i=0; i<ISB_LEN; i++) {
+        unsigned char c = ISB[i];
+        if(c == 27) {
+            printf(" Esc");
+        } else if(c == ' ') {
+            printf(" Spc");
+        } else if(c == 13) {
+            printf(" Cr");
+        } else if(c < ' ') {
+            printf(" ^%c", c+64);
+        } else if(c == ' ') {
+            printf(" Spc");
+        } else if(c == 127) {
+            printf(" Back");
+        } else if(c >= 128) {
+            printf(" %02X", c);
+        } else {
                 printf(" %c", c);
-            }
-        }
-        printf(" ===\n");
-#endif
-        // Feed all the input chars to the tty state machine
-        for(int i=0; i<ISB_LEN; i++) {
-            unsigned char c = ISB[i];
-            if(c == control_c) {
-                goto done;  // end for ^C
-            }
-            step_tty_state(c);
         }
     }
-done:
+    printf(" ===\n");
+#endif
+    // Feed all the input chars to the tty state machine
+    for(int i=0; i<ISB_LEN; i++) {
+        unsigned char c = ISB[i];
+        if(c == 'C' - 64) {
+            return -1;          // end for ^C
+        }
+        step_tty_state(c);
+    }
+    return 0;
+}
+
+int main() {
+    set_terminal_for_raw_unbuffered_input();
+    reset_state();
+    // Detect terminal window size
+    if(STDIN_ISATTY) {
+        tty_cursor_request_position(CursorPosMaxPossible1);
+    }
+    // Transfer control to Markab outer interpreter which is expected to
+    // 1. Repeatedly call mkb_host_step_stdin()
+    // 2. Not return until it is ready for the process to exit.
+    markab_cold();
     printf("\n");
     return 0;
     // There should be an atexit() hook happening here to restore the terminal

@@ -6,9 +6,12 @@
 
 bits 64
 default rel
-global markab_init
+global markab_cold
 
 extern mkb_host_write
+extern mkb_host_step_stdin
+extern TIB
+extern TIB_LEN
 
 ;=============================
 section .data
@@ -120,8 +123,6 @@ RSBase: resd RSMax            ; data stack (32-bit dword cells)
 
 align 16, resb 0              ; String buffers
 %define StrMax 1022           ; length of string data area
-TIB: resb 2+StrMax            ; terminal input buffer; word 0 is length
-align 16, resb 0
 Pad: resb 2+StrMax            ; string scratch buffer; word 0 is length
 
 align 16, resb 0              ; Error message buffers
@@ -152,17 +153,20 @@ section .text
 ;-----------------------------
 ; Library init entry point
 
-markab_init:
+markab_cold:
 enter 0, 0
 xor W, W                      ; init data stack registers
 mov T, W
 mov DSDeep, W
 mov RSDeep, W
-mov [TIB], W                  ; init string buffers
 mov [Pad], W
-.loadScreen:                  ; run the load screen
-mov W, LoadScreen
-call doInner
+;.loadScreen:                  ; run the load screen
+;mov W, LoadScreen
+;call doInner
+.OuterLoop:
+call mkb_host_step_stdin      ; step the non-blocking stdin state machine
+test rax, rax
+jz .OuterLoop                 ; loop until return value is non-zero
 .done:
 leave
 ret
