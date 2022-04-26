@@ -11,6 +11,8 @@
 // - https://pubs.opengroup.org/onlinepubs/007904875/basedefs/signal.h.html
 //
 #define _XOPEN_SOURCE 500
+#include <errno.h>      // EINTR
+#include <sys/ioctl.h>  // TIOCGWINSZ
 #include <signal.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -57,29 +59,27 @@ typedef struct {
     ttyInputState_t state;
     uint32_t csParam1;
     uint32_t csParam2;
-    uint32_t cursorRow;
-    uint32_t cursorCol;
     uint32_t maxRow;
     uint32_t maxCol;
 } ttyState_t;
 ttyState_t TTY;
 
-typedef enum {
-    CursorPosCurrent,
-    CursorPosMaxPossible1,
-    CursorPosMaxPossible2,
-} cursorRequest_t;
+// Alternate stack for SIGSEGV handler
+stack_t alt_stack;
+char stack_buf[SIGSTKSZ];
 
-cursorRequest_t CURSOR_REQUEST;
+// Flags
+int GOT_SIGWINCH = 0;
 
+// Exit hook handler to restore original terminal configuration
 void restore_old_terminal_config() {
     tcsetattr(STDIN_FILENO, TCSANOW, &old_config);
 }
 
-// Restore old terminal config if process gets killed by a segfault, illegal
-// instruction, or whatever. Without this handler, sudden exits will leave the
-// terminal badly configured such that using the shell normally again will
-// require running `reset`.
+// Handle signals. Mostly this is to restore old terminal config if process
+// gets killed by a segfault, illegal instruction, or whatever. Without this
+// handler, sudden exits will leave the terminal badly configured such that
+// using the shell normally again will require running `reset`.
 void catch_signal(int signal) {
     tcsetattr(STDIN_FILENO, TCSANOW, &old_config);
     switch(signal) {
@@ -96,8 +96,23 @@ void catch_signal(int signal) {
     exit(1);
 }
 
-stack_t alt_stack;
-char stack_buf[SIGSTKSZ];
+// Handle a window resize notification (quickly).
+void handle_sigwinch(int signal) {
+    // Doing stuff in this signal handler is risky due to potential concurrency
+    // issues, so just set a flag and go. The tty state machine will take care
+    // of detecting the new terminal size later.
+    GOT_SIGWINCH = 1;
+}
+
+// Detect terminal window size in rows and columns
+void update_terminal_size() {
+    struct winsize ws;
+    memset(&ws, 0, sizeof(ws));
+    ioctl(STDIN_FILENO, TIOCGWINSZ, &ws);
+    TTY.maxRow = ws.ws_row;
+    TTY.maxCol = ws.ws_col;
+    GOT_SIGWINCH = 0;
+}
 
 // Set up an alternate stack for sigaction(SIGSEGV, ...) to use. Otherwise, if
 // the main stack got messed up, which it most likely did (because segfault),
@@ -117,12 +132,14 @@ void set_terminal_for_raw_unbuffered_input() {
     atexit(restore_old_terminal_config);  // Hook for normal exit
     init_alt_stack();
     struct sigaction a;
-    memset(&a, 0, sizeof(sigaction));
+    memset(&a, 0, sizeof(a));
     a.sa_handler = catch_signal;
     sigfillset(&a.sa_mask);
     a.sa_flags = SA_ONSTACK;
     sigaction(SIGILL, &a, NULL);   // Hook for illegal instruction
     sigaction(SIGSEGV, &a, NULL);  // Hook for segmentation fault
+    a.sa_handler = handle_sigwinch;
+    sigaction(SIGWINCH, &a, NULL); // Hook for window resize notification
     // Configure terminal stdio for unbuffered raw input
     STDIN_ISATTY = isatty(STDIN_FILENO);
     tcflag_t imask = ~(IXON|IXOFF|ISTRIP|INLCR|IGNCR|ICRNL);
@@ -149,11 +166,8 @@ void reset_state() {
     TTY.state = Normal;
     TTY.csParam1 = 1;
     TTY.csParam2 = 1;
-    TTY.cursorRow = 0;
-    TTY.cursorCol = 0;
     TTY.maxRow = 0;
     TTY.maxCol = 0;
-    CURSOR_REQUEST = CursorPosCurrent;
 }
 
 // Peek at Unicode codepoint for UTF-8 seqence ending at TIB[index-1]
@@ -279,55 +293,6 @@ void tib_cr() {
     TIB[TIB_LEN] = 0;
 }
 
-void tty_cursor_goto(uint32_t row, uint32_t col) {
-    if(!STDIN_ISATTY) {
-        return;  // don't use ANSI escapes if STDIN is pipe or file
-    }
-    printf("\33[%u;%uH", row, col);
-}
-
-void tty_cursor_request_position(cursorRequest_t crq) {
-    if(!STDIN_ISATTY) {
-        return;  // don't use ANSI escapes if STDIN is pipe or file
-    }
-    // This may trigger a chain of stuff in the state machine
-    CURSOR_REQUEST = crq;
-    printf("\33[6n");
-}
-
-void tty_cursor_handle_report(uint32_t row, uint32_t col) {
-    switch(CURSOR_REQUEST) {
-    case CursorPosCurrent:
-        TTY.cursorRow = row;
-        TTY.cursorCol = col;
-        TTY.state = Normal;
-        return;
-    case CursorPosMaxPossible1:
-        // Save original cursor position
-        TTY.cursorRow = row;
-        TTY.cursorCol = col;
-        // Attempt to move to an offscreen cursor position that should clip
-        // the row and col to their maximum possible values
-        tty_cursor_goto(999, 999);
-        // Chain another request to get the clipped values and put the
-        // cursor back in its original position
-        tty_cursor_request_position(CursorPosMaxPossible2);
-        TTY.state = Normal;
-        return;
-    case CursorPosMaxPossible2:
-        // Save the maximum row and column
-        TTY.maxRow = row;
-        TTY.maxCol = col;
-        // Restore original cursor position. This needs CursorPosMaxPossible1
-        // to have already saved the original cursor position.
-        tty_cursor_goto(TTY.cursorRow, TTY.cursorCol);
-        // End the request
-        CURSOR_REQUEST = CursorPosCurrent;
-        TTY.state = Normal;
-        return;
-    }
-}
-
 void tty_update_line() {
     if(!STDIN_ISATTY) {
         return;  // don't use ANSI escapes if STDIN is pipe or file
@@ -359,9 +324,6 @@ void step_tty_state(unsigned char c) {
             tib_backspace(TIB_LEN);
             tty_update_line();
             return;
-        case 'L'-64:
-            // For Control-L, check window size
-            tty_cursor_request_position(CursorPosMaxPossible1);
         default:
             if(c < ' ' || c > 0xf7) {
                 // Ignore control characters and invalid UTF-8 bytes
@@ -450,7 +412,8 @@ void step_tty_state(unsigned char c) {
         switch(c) {
         case 'R':
             // Got cursor position report as answer to a "\33[6n" request
-            tty_cursor_handle_report(TTY.csParam1, TTY.csParam2);
+            // For now, just ignore this
+            TTY.state = Normal;
             return;
         default:
             TTY.state = Normal;
@@ -468,11 +431,23 @@ size_t mkb_host_write(const void *buf, size_t count) {
 //  -1 --> EOF or ^C
 //   0 --> normal
 int mkb_host_step_stdin() {
-    // Block until input is available (or EOF)
-    ISB_LEN = read(STDIN_FILENO, ISB, BUF_SIZE);
-    if(ISB_LEN == 0 && !STDIN_ISATTY) {
+    // Handle pending tasks
+    if(GOT_SIGWINCH) {
+        update_terminal_size();
+        GOT_SIGWINCH = 0;
+    }
+    // Check for input (read() is configured with a 0.1s timeout)
+    int result = read(STDIN_FILENO, ISB, BUF_SIZE);
+    if(result == 0 && !STDIN_ISATTY) {
         return -1;  // end for EOF
     }
+    if(result == EINTR) {
+        return 0;  // read() got interrupted by SIGWINCH signal
+    }
+    if(result < 0) {
+        return 0;  // Error (TODO: handle this better)
+    }
+    ISB_LEN = result;
 #ifdef DEBUG_EN
     // Dump input chars
     printf("\n===");
@@ -514,11 +489,8 @@ int main() {
     reset_state();
     // Detect terminal window size
     if(STDIN_ISATTY) {
-        tty_cursor_request_position(CursorPosMaxPossible1);
-        // Step the state machine a few times to finish window size detection
-        mkb_host_step_stdin();
-        mkb_host_step_stdin();
-        mkb_host_step_stdin();
+        // Use ioctl TIOCGWINSZ method to detect current terminal window size
+        update_terminal_size();
     }
     // Transfer control to Markab outer interpreter which is expected to
     // 1. Repeatedly call mkb_host_step_stdin()
