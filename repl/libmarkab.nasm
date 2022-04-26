@@ -17,87 +17,196 @@ section .data
 ;=============================
 
 ;-----------------------------
-; Compiled code ROM (tokens)
+; Jump table
+
+; mkTk is a macro to make a token by doing:
+; 1. Define a named token value for use in hand compiling bootstrapping words
+; 2. Add code address for the token to the jump table
+; 3. Increment the token value to prepare for next invocation of mkTk
+; For example:
+;    mkTk Foo
+;    mkTk Bar
+; expands to:
+;    %xdefine tFoo 0
+;    dw mFoo
+;    %xdefine tBar 1
+;    dw mBar
+%assign _tkVal 0              ; set initial token value
+%macro mkTk 1                 ; Make a jump table token
+  %xdefine t%[%1] _tkVal      ; define named token value: `tNop`, `tU8`, ...
+  dd m%[%1]                   ; add token's code address to jump table
+  %assign _tkVal _tkVal+1     ; increment token value
+%endmacro
+%macro mkEndJumpTable 0       ; Make end of jump table bounds checking token
+  %xdefine tEndJumpTable _tkVal
+  %undef _tkVal
+%endmacro
 
 align 16, db 0
-db "=== initROM: ==="
+db "== Jump Table =="
+align 16, db 0
+JumpTable:
+mkTk Nop
+mkTk Next                     ; Next gets handled specially by doInner
+mkTk Bye
+mkTk U8
+mkTk I8
+mkTk U16
+mkTk I16
+mkTk I32
+mkTk Dup
+mkTk Drop
+mkTk Swap
+mkTk Over
+mkTk DotS
+mkTk DotQuote
+mkTk Emit
+mkTk CR
+mkTk Dot
+mkTk Plus
+mkTk Minus
+mkTk Mul
+mkTk Div
+mkTk Mod
+mkTk DivMod
+mkTk Max
+mkTk Min
+mkTk Abs
+mkTk And
+mkTk Or
+mkTk Xor
+mkTk Not
+mkTk Less
+mkTk Greater
+mkTk Equal
+mkTk ZeroLess
+mkTk ZeroEqual
 
-%macro dbDotQuote 1           ; Compile a `." ..."` string with correct length
+mkEndJumpTable                ; define tEndJumpTable for token bounds checking
+
+
+;-----------------------------
+; Dictionary
+
+align 16, db 0
+db "== Dictionary =="
+align 16, db 0
+
+; === Notes on Nasm Macro Syntax ===
+; The macros here use some moderately fancy constructions:
+; 1. Macro Parameters Range: in `%macro foo 2-*`, the `-*` means the macro
+;    takes 2 or more parameters. The `%{2:-1}` matches a comma separated list
+;    of parameter 2 to the last parameter. So, `foo a, b, c, ...` means that
+;    `%1` expands to `a` and `%{2:-1}` expands to `b, c, ...`.
+; 2. Macro Pararameter Counter: `%0` expands to the number of parameters. This
+;    is useful for calculating the number of items in `%{2:-1}` for generating
+;    the .tokenCount field.
+; ==================================
+
+%assign _dyN 0                ; tail of dictionary list has null link
+%macro mkDyFirst 2-*          ; Make first dictionary linked list item
+  %strlen %%nameLen %1        ;   length of this word's name
+  %xdefine _dyThis dyN%[_dyN] ;   next item uses this label as its .link value
+  align 16, db 0
+  _dyThis:                    ;   relocatable label for this item
+  dd 0                        ;   .link = 0
+  db %%nameLen                ;   .nameLength = ...  (example:     3)
+  db %1                       ;   .name = ...        (example: "Nop")
+  db %0-1                     ;   .tokenCount
+  db %{2:-1}                  ;   .tokenValue = ...  (example:  tNop)
+%endmacro
+%macro mkDyItem 2-*           ; Add entry to dictionary linked list
+  %xdefine _dyPrev _dyThis    ;   save link label to previous item
+  %assign _dyN _dyN+1         ;   increment dictionary item label number
+  %xdefine _dyThis dyN%[_dyN] ;   make link label for this item
+  %strlen %%nameLen %1        ;   length of this word's name
+  align 16, db 0
+  _dyThis:                    ;   relocatable label for this item
+  dd _dyPrev                  ;   .link = ...        (example:  dyN0)
+  db %%nameLen                ;   .nameLength = ...  (example:     3)
+  db %1                       ;   .name = ...        (example: "Nop")
+  db %0-1                     ;   .tokenCount
+  db %{2:-1}                  ;   .tokenValue = ...  (example:  tNop)
+%endmacro
+%macro mkDyHead 0             ; Make dyHead pointing to head of dictionary
+  align 16, db 0
+  dyHead:
+  dd _dyThis
+  %undef _dyThis
+  %undef _dyPrev
+  %undef _dyN
+%endmacro
+
+mkDyFirst "Nop", tNop
+mkDyItem "Next", tNext
+mkDyItem "Bye", tBye
+mkDyItem "Dup", tDup
+mkDyItem "Drop", tDrop
+mkDyItem "Swap", tSwap
+mkDyItem "Over", tOver
+mkDyItem ".S", tDotS
+mkDyItem '."', tDotQuote
+mkDyItem "Emit", tEmit
+mkDyItem "CR", tCR
+mkDyItem ".", tDot
+mkDyItem "+", tPlus
+mkDyItem "-", tMinus
+mkDyItem "*", tMul
+mkDyItem "/", tDiv
+mkDyItem "Mod", tMod
+mkDyItem "/Mod", tDivMod
+mkDyItem "Max", tMax
+mkDyItem "Min", tMin
+mkDyItem "Abs", tAbs
+mkDyItem "And", tAnd
+mkDyItem "Or", tOr
+mkDyItem "Xor", tXor
+mkDyItem "Not", tNot
+mkDyItem "<", tLess
+mkDyItem ">", tGreater
+mkDyItem "=", tEqual
+mkDyItem "0<", tZeroLess
+mkDyItem "0=", tZeroEqual
+mkDyHead
+
+
+;-----------------------------
+; Compiled code ROM (tokens)
+
+%macro mkDotQuote 1           ; Compile a `." ..."` string with correct length
   %strlen %%mStrLen %1
-  db 10
+  db tDotQuote
   dw %%mStrLen
   db %1
 %endmacro
 
 align 16, db 0
+db "== LoadScreen =="
+align 16, db 0
 LoadScreen:                   ; Hand compiled load screen code
-dbDotQuote "2 1 + .S"
-db 2,2, 2,1, 14, 9
-dbDotQuote "Drop 1 3 - .S"
-db 6, 2,1, 2,3, 15, 9
-dbDotQuote "Drop 3 11 * .S"
-db 6, 2,3, 2,11, 16, 9
-dbDotQuote "Drop 2 5 Max .S"
-db 6, 2,2, 2,5, 20, 9
-dbDotQuote "Drop 3 1 Min .S"
-db 6, 2,3, 2,1, 21, 9
-
-db 1                               ; Next
-.end:
-
-
-;-----------------------------
-; Jump table
-
-%macro jt 2
-jt%[%1]: dd m%[%2]
-%endmacro
-
-align 16, db 0
-db "== JumpTable: =="
-align 16, db 0
-
-JumpTable:
-jt  0, Nop
-jt  1, Next                   ; This gets handled specially by doInner
-jt  2, LitB
-jt  3, LitW
-jt  4, LitD
-jt  5, Dup
-jt  6, Drop
-jt  7, Swap
-jt  8, Over
-jt  9, DotS
-jt 10, DotQuote
-jt 11, Emit
-jt 12, CR
-jt 13, Dot
-jt 14, Plus
-jt 15, Minus
-jt 16, Mul
-jt 17, Div
-jt 18, Mod
-jt 19, DivMod
-jt 20, Max
-jt 21, Min
-jt 22, Abs
-jt 23, And
-jt 24, Or
-jt 25, Xor
-jt 26, Not
-jt 27, LessThan
-jt 28, GreaterThan
-jt 29, Equal
-jt 30, ZeroLessThan
-jt 31, ZeroEqual
-
-align 16, db 0
-db "== EndJumpTbl =="
-align 16, db 0
+mkDotQuote "2 1 + .S"
+db tI8, 2, tI8, 1, tPlus, tDotS
+mkDotQuote "Drop 1 3 - .S"
+db tDrop, tU8, 1, tU8, 3, tMinus, tDotS
+mkDotQuote "Drop 3 11 * .S"
+db tDrop, tU8, 3, tU8, 11, tMul, tDotS
+mkDotQuote "Drop 11 3 / .S"
+db tDrop, tU8, 11, tU8, 3, tDiv, tDotS
+mkDotQuote "Drop 11 3 Mod .S"
+db tDrop, tU8,11, tU8,3, tMod, tDotS
+mkDotQuote "Drop 11 3 /Mod .S"
+db tDrop, tU8,11, tU8,3, tDivMod, tDotS
+mkDotQuote "Drop Drop -11 3 /Mod .S"
+db tDrop, tDrop, tI8,-11, tU8,3, tDivMod, tDotS
+; (CAUTION!) Token list must end with a `tNext`!
+db tNext
 
 
 ;-----------------------------
 ; Strings {dword len, chars}
+
+align 16, db 0
+db "== VM Strings =="
 
 datVersion:  db 39, 0, "Markab v0.0.1", 10, "type 'bye' or ^C to exit", 10
 datErr1se:   db 25, 0, "Error #1 Stack too empty", 10
@@ -109,6 +218,8 @@ datDotST:    db  4, 0, 10, " T "
 datDotSNone: db 15, 0, "Stack is empty", 10
 datOK        db  5, 0, "  OK", 10
 
+align 16, db 0
+db "=== End.data ==="
 
 ;=============================
 section .bss
@@ -130,6 +241,8 @@ align 16, resb 0              ; Error message buffers
 ErrToken: resd 1              ; value of current token
 ErrInst: resd 1               ; instruction pointer to current token
 
+align 16, resb 0              ; Virtual machine global state flags
+VMBye: resd 1                 ; 0 means bye has been invoked
 
 ;=============================
 section .text
@@ -161,12 +274,17 @@ mov T, W
 mov DSDeep, W
 mov RSDeep, W
 mov [Pad], W
+dec W                         ; init VM bye flag to false (-1)
+mov [VMBye], W
 lea W, datVersion             ; Print version string
 call mStrPut.W
 .loadScreen:                  ; run the load screen
 mov W, LoadScreen
 call doInner
 .OuterLoop:
+mov W, [VMBye]                ; Break loop if bye flag is set to true
+test W, W
+jz .done
 push rbp                      ; align stack to 16 bytes
 mov rbp, rsp
 and rsp, -16
@@ -192,9 +310,9 @@ align 16                      ; align loop to a cache line
 ;//////////////////////////////
 .for:
 movzx W, byte [rbp]           ; load token at I
-cmp WB, 1                     ; handle NEXT (token = 1) specially
+cmp WB, tNext                 ; handle `Next` specially
 je .done
-cmp WB, 32                    ; detect token beyond jump table range (CAUTION!)
+cmp WB, tEndJumpTable         ; detect token beyond jump table range (CAUTION!)
 jae mErr3BadToken
 lea edi, [JumpTable]          ; fetch jump table address
 mov esi, dword [rdi+4*WQ]
@@ -216,7 +334,10 @@ jz .done
 mov rcx, rsi          ; for(rcx=count,rsi=0; rcx>0 && buf[rsi++]!=' '; rcx--)
 xor rsi, rsi
 .for:
-mov WB, ' '
+mov W, [VMBye]        ; Break out of the loop if bye flag is set to true
+test W, W
+jz .done
+mov WB, ' '           ; look for a space
 cmp WB, byte [rdi+rsi]
 jz .wordSpace
 dec rcx
@@ -305,27 +426,41 @@ ret                           ; return control to interpreter
 
 ;-----------------------------
 ; Dictionary: Literals
+;
+; These are designed for efficient compiling of tokens to push signed 32-bit
+; numeric literals onto the stack for use with signed 32-bit math operations.
+;
 
-mLitB:                 ; LITB - Push an 8-bit byte literal with zero extend
-movzx W, byte [rbp]    ; read literal from token stream
-inc ebp                ; ajust I
+mU8:                          ; Push zero-extended unsigned 8-bit literal
+movzx W, byte [rbp]           ; read literal from token stream
+inc ebp                       ; ajust I
 jmp mPush
 
-mLitW:                 ; LITW - Push a 16-bit word literal with zero extend
-movzx W, word [rbp]    ; read literal from token stream
-add ebp, 2             ; adjust I
+mI8:                          ; Push sign-extended signed 8-bit literal
+movsx W, byte [rbp]           ; read literal from token stream
+inc ebp                       ; ajust I
 jmp mPush
 
-mLitD:                 ; LITD - Push a 32-bit dword literal with zero extend
-mov W, dword [rbp]     ; read literal from token stream
-add ebp, 4             ; adjust I
+mU16:                         ; Push zero-extended unsigned 16-bit literal
+movzx W, word [rbp]           ; read literal from token stream
+add ebp, 2                    ; adjust I
 jmp mPush
 
-mDotQuote:             ; Print string literal to stdout
-movzx ecx, word [rbp]  ; get length of string in bytes (for adjusting I)
-add cx, 2              ;   add 2 for length dword
-mov W, ebp             ; I (ebp) should be pointing to {length, chars}
-add ebp, ecx           ; adjust I past string
+mI16:                         ; Push sign-extended signed 16-bit literal
+movsx W, word [rbp]           ; read literal from token stream
+add ebp, 2                    ; adjust I
+jmp mPush
+
+mI32:                         ; Push signed 32-bit dword literal
+mov W, dword [rbp]            ; read literal from token stream
+add ebp, 4                    ; adjust I
+jmp mPush
+
+mDotQuote:                    ; Print string literal to stdout
+movzx ecx, word [rbp]         ; get length of string in bytes (for adjusting I)
+add cx, 2                     ;   add 2 for length dword
+mov W, ebp                    ; I (ebp) should be pointing to {length, chars}
+add ebp, ecx                  ; adjust I past string
 jmp mStrPut.W
 
 
@@ -498,7 +633,7 @@ jb mErr1Underflow
 not T
 ret
 
-mLessThan:                    ; <   ( 2nd T -- bool_is_2nd_less_than_T )
+mLess:                        ; <   ( 2nd T -- bool_is_2nd_less_than_T )
 call mMathDrop                ; drop leaves old T in W
 mov edi, T                    ; save value of old 2nd in edi
 xor T, T                      ; set new T to false (-1), assuming 2nd >= T
@@ -508,7 +643,7 @@ cmp edi, W                    ; test for 2nd < T
 cmovl T, esi                  ; if so, change new T to true
 ret
 
-mGreaterThan:                 ; >   ( 2nd T -- bool_is_2nd_greater_than_T )
+mGreater:                     ; >   ( 2nd T -- bool_is_2nd_greater_than_T )
 call mMathDrop                ; drop leaves old T in W
 mov edi, T                    ; save value of old 2nd in edi
 xor T, T                      ; set new T to true (0), assuming 2nd > T
@@ -528,7 +663,7 @@ cmp edi, W                    ; test for 2nd <> T   (`<>` means not-equal)
 cmovnz T, esi                 ; if so, change new T to false
 ret
 
-mZeroLessThan:                ; 0<   ( T -- bool_is_T_less_than_0 )
+mZeroLess:                    ; 0<   ( T -- bool_is_T_less_than_0 )
 cmp DSDeep, 1                 ; need at least 1 item on stack
 jb mErr1Underflow
 mov W, T
@@ -643,6 +778,14 @@ pop rbp
 lea W, [datDotSNone]
 jmp mStrPut.W
 
+
+;-----------------------------
+; Dictionary: Misc
+
+mBye:                         ; Set VM's bye flag to true
+xor W, W
+mov [VMBye], W
+ret
 
 ;-----------------------------
 ; Dictionary: Host API for IO

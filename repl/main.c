@@ -515,6 +515,10 @@ int main() {
     // Detect terminal window size
     if(STDIN_ISATTY) {
         tty_cursor_request_position(CursorPosMaxPossible1);
+        // Step the state machine a few times to finish window size detection
+        mkb_host_step_stdin();
+        mkb_host_step_stdin();
+        mkb_host_step_stdin();
     }
     // Transfer control to Markab outer interpreter which is expected to
     // 1. Repeatedly call mkb_host_step_stdin()
