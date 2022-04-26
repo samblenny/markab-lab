@@ -241,8 +241,6 @@ align 16, resb 0              ; Error message buffers
 ErrToken: resd 1              ; value of current token
 ErrInst: resd 1               ; instruction pointer to current token
 
-align 16, resb 0              ; Virtual machine global state flags
-VMBye: resd 1                 ; 0 means bye has been invoked
 
 ;=============================
 section .text
@@ -255,6 +253,8 @@ section .text
 %define W eax                 ; Working register, 32-bit zero-extended dword
 %define WQ rax                ; Working register, 64-bit qword (for pointers)
 %define WB al                 ; Working register, low byte
+
+%define VMBye r12d            ; Bye flag: 0 (true) means bye has been invoked
 
 %define T r13d                ; Top on stack, 32-bit zero-extended dword
 %define TB r13b               ; Top on stack, low byte
@@ -274,16 +274,15 @@ mov T, W
 mov DSDeep, W
 mov RSDeep, W
 mov [Pad], W
-dec W                         ; init VM bye flag to false (-1)
-mov [VMBye], W
+xor VMBye, VMBye              ; init VM bye flag to false (-1)
+dec VMBye
 lea W, datVersion             ; Print version string
 call mStrPut.W
 .loadScreen:                  ; run the load screen
 mov W, LoadScreen
 call doInner
 .OuterLoop:
-mov W, [VMBye]                ; Break loop if bye flag is set to true
-test W, W
+test VMBye, VMBye             ; Break loop if bye flag is set to true
 jz .done
 push rbp                      ; align stack to 16 bytes
 mov rbp, rsp
@@ -334,8 +333,7 @@ jz .done
 mov rcx, rsi          ; for(rcx=count,rsi=0; rcx>0 && buf[rsi++]!=' '; rcx--)
 xor rsi, rsi
 .for:
-mov W, [VMBye]        ; Break out of the loop if bye flag is set to true
-test W, W
+test VMBye, VMBye     ; Break out of the loop if bye flag is set to true
 jz .done
 mov WB, ' '           ; look for a space
 cmp WB, byte [rdi+rsi]
@@ -783,8 +781,7 @@ jmp mStrPut.W
 ; Dictionary: Misc
 
 mBye:                         ; Set VM's bye flag to true
-xor W, W
-mov [VMBye], W
+xor VMBye, VMBye
 ret
 
 ;-----------------------------
