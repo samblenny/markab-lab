@@ -209,14 +209,16 @@ align 16, db 0
 db "== VM Strings =="
 
 datVersion:  db 39, 0, "Markab v0.0.1", 10, "type 'bye' or ^C to exit", 10
-datErr1se:   db 25, 0, "Error #1 Stack too empty", 10
-datErr2sf:   db 24, 0, "Error #2 Stack too full", 10
-datErr3btA:  db 22, 0, "Error #3 Bad token  T:"
+datErr1se:   db 26, 0, " Error #1 Stack too empty", 10
+datErr2sf:   db 25, 0, " Error #2 Stack too full", 10
+datErr3btA:  db 23, 0, " Error #3 Bad token  T:"
 datErr3btB:  db  4, 0, "  I:"
-datErr4lt:   db 22, 0, "Error #4 Loop timeout", 10
 datDotST:    db  4, 0, 10, " T "
 datDotSNone: db 15, 0, "Stack is empty", 10
-datOK        db  5, 0, "  OK", 10
+datOK:       db  5, 0, "  OK", 10
+datNotFound: db 13, 0, "  Not Found: "
+datMatch:    db  8, 0, "  Match:"
+datSkip:     db  7, 0, "  Skip:"
 
 align 16, db 0
 db "=== End.data ==="
@@ -278,8 +280,8 @@ xor VMBye, VMBye              ; init VM bye flag to false (-1)
 dec VMBye
 lea W, datVersion             ; Print version string
 call mStrPut.W
-.loadScreen:                  ; run the load screen
-mov W, LoadScreen
+mov edi, -1                   ; load screen (rdi:tokenLen = 2^32-1)
+lea rsi, [LoadScreen]         ; rsi:tokens = pointer to LoadScreen
 call doInner
 .OuterLoop:
 test VMBye, VMBye             ; Break loop if bye flag is set to true
@@ -299,13 +301,11 @@ ret
 ;-----------------------------
 ; Interpreters
 
-doInner:                      ; Inner interpreter
+doInner:                      ; Inner interpreter (rdi: tokenLen, rsi:tokenPtr)
 push rbp
 push rbx
-mov ebp, W                    ; ebp = instruction pointer (I)
-xor ebx, ebx                  ; max loop iterations = 2^32 - 1
-dec ebx
-align 16                      ; align loop to a cache line
+mov rbp, rsi                  ; ebp = instruction pointer (I)
+mov rbx, rdi                  ; ebx = max loop iterations
 ;//////////////////////////////
 .for:
 movzx W, byte [rbp]           ; load token at I
@@ -318,10 +318,8 @@ mov esi, dword [rdi+4*WQ]
 inc ebp                       ; advance I
 call rsi                      ; jump (callee may adjust I for LITx)
 dec ebx
-jnz .for                      ; loop until timeout (or break by NEXT token)
+jnz .for                      ; loop until end of token count (or Next)
 ;//////////////////////////////
-.doneTimeout:                 ; alternate exit path when loop timed out
-call mErr4LoopTimeout
 .done:                        ; normal exit path
 pop rbx
 pop rbp
@@ -349,6 +347,8 @@ push rdi              ; save registers to prepare for call
 push rsi
 push rcx
 call doWord           ; void doWord(rdi: u8 *buf, rsi: count)
+test W, W             ; non-zero return value in W means error
+jnz .doneErr
 pop rcx
 pop rsi
 pop rdi
@@ -362,25 +362,76 @@ jmp .for              ; continue parsing words from input buffer
 .wordEndBuf:          ; word is [rdi]..[rdi+rcx] (there was no space)
 inc rsi               ; convert from 0-indexed to count of bytes
 call doWord           ; void doWord(rdi: u8 *buf, rsi: count)
+test W, W             ; non-zero return value in W means error
+jz .done
+.doneErr:
+jmp mCR               ; print CR for error (finish doWord's error message)
 .done:
+jmp mOK               ; print OK for success
+
+mOK:                  ; Print OK message
 lea W, [datOK]
 jmp mStrPut.W
 
 doWord:               ; doWord(rdi: u8 *buf, rsi: count)
 push rbp              ; save arguments
 push rbx
-mov rbp, rdi          ; rbp = u8 *buf
+mov rbp, rdi          ; rbp = *buf
 mov rbx, rsi          ; rbx = count
-call mSpace           ; print space
-mov W, ebx            ; print count
-call mDot.W
-call mSpace           ; print another space
-mov rdi, rbp          ; print word
+mov rdi, [dyHead]     ; Load head of dictionary list. Struct format is:
+                      ; {dd .link, db .nameLen, .name, db .tokenLen, .tokens}
+;/////////////////////
+.lengthCheck:
+xor W, W              ; Check: does .nameLen match the search word length?
+mov WB, byte [rdi+4]  ; WB = .nameLen (length of current dictionary item .name)
+cmp WB, bl            ; compare WB to search word length (count)
+jnz .nextItem         ; ...not a match, so follow link and check next entry
+.lengthMatch:
+movzx rcx, bl         ; rcx = length of dict word (same length as search word)
+xor W, W              ; for(i=0; search[i]==dictName[i] && i<count; i++)
+;/////////////////////
+.for:
+mov dl, [rbp+WQ]      ; load dl = search[i]
+lea rsi, [rdi+5]      ; check dl == dictName[i]
+cmp dl, [rsi+WQ]
+jnz .nextItem         ; break if bytes don't match
+inc W                 ; otherwise, continue
+dec rcx
+jnz .for              ; no more bytes to check means search word matches name
+;/////////////////////
+.wordMatch:           ; got a match, rsi+W now points to .tokenLen
+lea rcx, [rdi+5]      ; rcx = pointer to .tokenLen (skip .link and .nameLen)
+add rcx, WQ           ; ...(skip .name)
+xor rdi, rdi          ; rdi = value of .tokenLen
+mov dil, byte [rcx]
+inc rcx               ; rsi = pointer to .tokens
+mov rsi, rcx
+call doInner          ; doInner(rdi: tokenLen, rsi: tokensPointer)
+xor W, W              ; return true
+jmp .done
+;/////////////////////
+.nextItem:            ; follow link;
+mov W, [rdi]          ; check for null pointer (tail of list)
+test W, W
+jz .wordNotFound
+mov edi, W            ; rdi = pointer to next item in dictionary list
+jmp .lengthCheck      ; continue with match-checking loop
+;/////////////////////
+.wordNotFound:
+lea W, [datNotFound]  ; print not found error message
+call mStrPut.W
+mov rdi, rbp          ; print the word that wasn't found
 mov rsi, rbx
 call mStrPut.RdiRsi
+xor W, W              ; return false
+dec W
+;/////////////////////
+.done:
 pop rbx               ; restore registers
 pop rbp
 ret
+;/////////////////////
+
 
 ;-----------------------------
 ; Dictionary: Error handling
@@ -415,11 +466,6 @@ sub W, ecx
 call mDotB.W
 call mCR
 ret                           ; exit
-
-mErr4LoopTimeout:             ; Handle loop timeout error
-lea W, [datErr4lt]            ; print error message
-call mStrPut.W
-ret                           ; return control to interpreter
 
 
 ;-----------------------------
