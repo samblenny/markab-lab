@@ -508,7 +508,6 @@ int main() {
     // 1. Repeatedly call mkb_host_step_stdin()
     // 2. Not return until it is ready for the process to exit.
     markab_cold();
-    printf("\n");
     return 0;
     // There should be an atexit() hook happening here to restore the terminal
     // configuration.
