@@ -137,31 +137,31 @@ align 16, db 0
   %undef _dyN
 %endmacro
 
-mkDyFirst "Nop", tNop
-mkDyItem "Next", tNext
-mkDyItem "Bye", tBye
-mkDyItem "Dup", tDup
-mkDyItem "Drop", tDrop
-mkDyItem "Swap", tSwap
-mkDyItem "Over", tOver
-mkDyItem ".S", tDotS
+mkDyFirst "nop", tNop
+mkDyItem "next", tNext
+mkDyItem "bye", tBye
+mkDyItem "dup", tDup
+mkDyItem "drop", tDrop
+mkDyItem "swap", tSwap
+mkDyItem "over", tOver
+mkDyItem ".s", tDotS
 mkDyItem '."', tDotQuote
-mkDyItem "Emit", tEmit
-mkDyItem "CR", tCR
+mkDyItem "emit", tEmit
+mkDyItem "cr", tCR
 mkDyItem ".", tDot
 mkDyItem "+", tPlus
 mkDyItem "-", tMinus
 mkDyItem "*", tMul
 mkDyItem "/", tDiv
-mkDyItem "Mod", tMod
-mkDyItem "/Mod", tDivMod
-mkDyItem "Max", tMax
-mkDyItem "Min", tMin
-mkDyItem "Abs", tAbs
-mkDyItem "And", tAnd
-mkDyItem "Or", tOr
-mkDyItem "Xor", tXor
-mkDyItem "Not", tNot
+mkDyItem "mod", tMod
+mkDyItem "/mod", tDivMod
+mkDyItem "max", tMax
+mkDyItem "min", tMin
+mkDyItem "abs", tAbs
+mkDyItem "and", tAnd
+mkDyItem "or", tOr
+mkDyItem "xor", tXor
+mkDyItem "not", tNot
 mkDyItem "<", tLess
 mkDyItem ">", tGreater
 mkDyItem "=", tEqual
@@ -184,19 +184,19 @@ align 16, db 0
 db "== LoadScreen =="
 align 16, db 0
 LoadScreen:                   ; Hand compiled load screen code
-mkDotQuote "2 1 + .S"
+mkDotQuote "2 1 + .s"
 db tI8, 2, tI8, 1, tPlus, tDotS
-mkDotQuote "Drop 1 3 - .S"
+mkDotQuote "drop 1 3 - .s"
 db tDrop, tU8, 1, tU8, 3, tMinus, tDotS
-mkDotQuote "Drop 3 11 * .S"
+mkDotQuote "drop 3 11 * .s"
 db tDrop, tU8, 3, tU8, 11, tMul, tDotS
-mkDotQuote "Drop 11 3 / .S"
+mkDotQuote "drop 11 3 / .s"
 db tDrop, tU8, 11, tU8, 3, tDiv, tDotS
-mkDotQuote "Drop 11 3 Mod .S"
+mkDotQuote "drop 11 3 mod .s"
 db tDrop, tU8,11, tU8,3, tMod, tDotS
-mkDotQuote "Drop 11 3 /Mod .S"
+mkDotQuote "drop 11 3 /mod .s"
 db tDrop, tU8,11, tU8,3, tDivMod, tDotS
-mkDotQuote "Drop Drop -11 3 /Mod .S"
+mkDotQuote "drop drop -11 3 /mod .s"
 db tDrop, tDrop, tI8,-11, tU8,3, tDivMod, tDotS
 ; (CAUTION!) Token list must end with a `tNext`!
 db tNext
@@ -209,16 +209,14 @@ align 16, db 0
 db "== VM Strings =="
 
 datVersion:  db 39, 0, "Markab v0.0.1", 10, "type 'bye' or ^C to exit", 10
-datErr1se:   db 26, 0, " Error #1 Stack too empty", 10
-datErr2sf:   db 25, 0, " Error #2 Stack too full", 10
-datErr3btA:  db 23, 0, " Error #3 Bad token  T:"
+datErr1se:   db 24, 0, "  Error1 Stack underflow"
+datErr2sf:   db 19, 0, "  Error2 Stack full"
+datErr3btA:  db 24, 0, "  Error3 Bad token  T:"
 datErr3btB:  db  4, 0, "  I:"
 datDotST:    db  4, 0, 10, " T "
-datDotSNone: db 15, 0, "Stack is empty", 10
+datDotSNone: db 16, 0, "  Stack is empty"
 datOK:       db  5, 0, "  OK", 10
-datNotFound: db 13, 0, "  Not Found: "
-datMatch:    db  8, 0, "  Match:"
-datSkip:     db  7, 0, "  Skip:"
+datNotFound: db 13, 0, "  Not_Found: "
 
 align 16, db 0
 db "=== End.data ==="
@@ -256,7 +254,9 @@ section .text
 %define WQ rax                ; Working register, 64-bit qword (for pointers)
 %define WB al                 ; Working register, low byte
 
-%define VMBye r12d            ; Bye flag: 0 (true) means bye has been invoked
+%define VMBye 1               ; Bye bit: set means bye has been invoked
+%define VMErr 2               ; Err bit: set means error condition
+%define VMFlags r12b          ; Virtual machine status flags
 
 %define T r13d                ; Top on stack, 32-bit zero-extended dword
 %define TB r13b               ; Top on stack, low byte
@@ -276,16 +276,15 @@ mov T, W
 mov DSDeep, W
 mov RSDeep, W
 mov [Pad], W
-xor VMBye, VMBye              ; init VM bye flag to false (-1)
-dec VMBye
-lea W, datVersion             ; Print version string
+xor VMFlags, VMFlags          ; clear VM flags
+lea W, datVersion             ; print version string
 call mStrPut.W
 mov edi, -1                   ; load screen (rdi:tokenLen = 2^32-1)
 lea rsi, [LoadScreen]         ; rsi:tokens = pointer to LoadScreen
 call doInner
 .OuterLoop:
-test VMBye, VMBye             ; Break loop if bye flag is set to true
-jz .done
+test VMFlags, VMBye           ; Break loop if bye flag is set
+jnz .done
 push rbp                      ; align stack to 16 bytes
 mov rbp, rsp
 and rsp, -16
@@ -331,8 +330,8 @@ jz .done
 mov rcx, rsi          ; for(rcx=count,rsi=0; rcx>0 && buf[rsi++]!=' '; rcx--)
 xor rsi, rsi
 .for:
-test VMBye, VMBye     ; Break out of the loop if bye flag is set to true
-jz .done
+test VMFlags, VMBye   ; Break out of the loop if bye flag is set
+jnz .done
 mov WB, ' '           ; look for a space
 cmp WB, byte [rdi+rsi]
 jz .wordSpace
@@ -362,8 +361,9 @@ jmp .for              ; continue parsing words from input buffer
 .wordEndBuf:          ; word is [rdi]..[rdi+rcx] (there was no space)
 inc rsi               ; convert from 0-indexed to count of bytes
 call doWord           ; void doWord(rdi: u8 *buf, rsi: count)
-test W, W             ; non-zero return value in W means error
+test VMFlags, VMErr   ; non-zero VMErr flag means there was error (hide OK)
 jz .done
+and VMFlags, (~VMErr) ; clear error bit
 .doneErr:
 jmp mCR               ; print CR for error (finish doWord's error message)
 .done:
@@ -392,6 +392,16 @@ xor W, W              ; for(i=0; search[i]==dictName[i] && i<count; i++)
 ;/////////////////////
 .for:
 mov dl, [rbp+WQ]      ; load dl = search[i]
+cmp dl, 'A'           ; convert dl (search[i]) to lowercase without branching
+setae r10b
+cmp dl, 'Z'
+setbe r11b
+test r10b, r11b
+setnz r10b            ; ...at this point, r10 is set if dl is in 'A'..'Z'
+mov r11b, dl          ; ...speculatively prepare a lowercase (c+32) character
+add r11b, 32
+test r10b, r10b       ; ...swap in the lowercase char if dl was uppercase
+cmovnz dx, r11w
 lea rsi, [rdi+5]      ; check dl == dictName[i]
 cmp dl, [rsi+WQ]
 jnz .nextItem         ; break if bytes don't match
@@ -407,7 +417,6 @@ mov dil, byte [rcx]
 inc rcx               ; rsi = pointer to .tokens
 mov rsi, rcx
 call doInner          ; doInner(rdi: tokenLen, rsi: tokensPointer)
-xor W, W              ; return true
 jmp .done
 ;/////////////////////
 .nextItem:            ; follow link;
@@ -423,8 +432,7 @@ call mStrPut.W
 mov rdi, rbp          ; print the word that wasn't found
 mov rsi, rbx
 call mStrPut.RdiRsi
-xor W, W              ; return false
-dec W
+or VMFlags, VMErr     ; return with error condition
 ;/////////////////////
 .done:
 pop rbx               ; restore registers
@@ -439,13 +447,13 @@ ret
 mErr1Underflow:               ; Handle stack too empty error
 lea W, [datErr1se]            ; print error message
 call mStrPut.W
-xor DSDeep, DSDeep            ; clear stack
+or VMFlags, VMErr             ; set error condition flag (hide OK prompt)
 ret                           ; return control to interpreter
 
 mErr2Overflow:                ; Handle stack too full error
 lea W, [datErr2sf]            ; print error message
 call mStrPut.W
-xor DSDeep, DSDeep            ; clear stack
+or VMFlags, VMErr             ; set error condition flag (hide OK prompt)
 ret                           ; return control to interpreter
 
 mErr3BadToken:                ; Handle bad token error
@@ -465,6 +473,7 @@ lea ecx, [LoadScreen]
 sub W, ecx
 call mDotB.W
 call mCR
+or VMFlags, VMErr             ; set error condition flag (hide OK prompt)
 ret                           ; exit
 
 
@@ -756,6 +765,8 @@ jmp mStrPut
 ; Dictionary: Formatting
 
 mDotB:                ; Print T low byte to stdout (2 hex digits)
+cmp DSDeep, 1         ; need at least 1 item on stack
+jb mErr1Underflow
 mov W, T
 call mDrop
 .W:                   ; Print W low byte to stdout (2 hex digits)
@@ -764,8 +775,13 @@ mov ecx, 2            ; set digit count
 jmp mDot.W_ecx        ; use the digit conversion loop from mDot
 
 mDot:                 ; Print T to stdout (8 hex digits)
+cmp DSDeep, 1         ; need at least 1 item on stack
+jb mErr1Underflow
 mov W, T
+push WQ
 call mDrop
+call mSpace           ; add leading space if invoked as `.`
+pop WQ
 .W:                   ; Print W to stdout (8 hex digits)
 mov ecx, 8
 .W_ecx:               ; Print some (all?) of W to stdout (ecx hex digits)
@@ -827,7 +843,7 @@ jmp mStrPut.W
 ; Dictionary: Misc
 
 mBye:                         ; Set VM's bye flag to true
-xor VMBye, VMBye
+or VMFlags, VMBye
 ret
 
 ;-----------------------------
