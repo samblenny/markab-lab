@@ -59,7 +59,8 @@ mkTk Drop
 mkTk Swap
 mkTk Over
 mkTk DotS
-mkTk DotQuote
+mkTk DotQuoteC                ; compiled version of ."
+mkTk DotQuoteI                ; interpreted version of ."
 mkTk Emit
 mkTk CR
 mkTk Dot
@@ -145,7 +146,7 @@ mkDyItem "drop", tDrop
 mkDyItem "swap", tSwap
 mkDyItem "over", tOver
 mkDyItem ".s", tDotS
-mkDyItem '."', tDotQuote
+mkDyItem '."', tDotQuoteI     ; interpreted version of ."
 mkDyItem "emit", tEmit
 mkDyItem "cr", tCR
 mkDyItem ".", tDot
@@ -175,7 +176,7 @@ mkDyHead
 
 %macro mkDotQuote 1           ; Compile a `." ..."` string with correct length
   %strlen %%mStrLen %1
-  db tDotQuote
+  db tDotQuoteC
   dw %%mStrLen
   db %1
 %endmacro
@@ -209,10 +210,12 @@ align 16, db 0
 db "== VM Strings =="
 
 datVersion:  db 39, 0, "Markab v0.0.1", 10, "type 'bye' or ^C to exit", 10
-datErr1se:   db 24, 0, "  Error1 Stack underflow"
-datErr2sf:   db 19, 0, "  Error2 Stack full"
-datErr3btA:  db 24, 0, "  Error3 Bad token  T:"
+datErr1se:   db 22, 0, "  Err1 Stack underflow"
+datErr2sf:   db 17, 0, "  Err2 Stack full"
+datErr3btA:  db 22, 0, "  Err3 Bad token  T:"
 datErr3btB:  db  4, 0, "  I:"
+datErr4nq:   db 22, 0, "  Err4 No ending quote"
+datErr5af:   db 25, 0, "  Err5 Assertion failed: "
 datDotST:    db  4, 0, 10, " T "
 datDotSNone: db 16, 0, "  Stack is empty"
 datOK:       db  5, 0, "  OK", 10
@@ -241,10 +244,37 @@ align 16, resb 0              ; Error message buffers
 ErrToken: resd 1              ; value of current token
 ErrInst: resd 1               ; instruction pointer to current token
 
+align 16, resb 0
+TibPtr: resd 1                ; Pointer to terminal input buffer (TIB)
+TibLen: resd 1                ; Length of TIB (count of max available bytes)
+IN: resd 1                    ; Index into TIB of next available input byte
+
 
 ;=============================
 section .text
 ;=============================
+
+;-----------------------------
+; Debug macro
+
+%macro DEBUG 1
+  push rax
+  push rbx
+  push rcx
+  push rbp
+  push rdx
+  push rsi
+  push rdi
+  mov WB, %1
+  call mEmit.W
+  pop rdi
+  pop rsi
+  pop rdx
+  pop rbp
+  pop rcx
+  pop rbx
+  pop rax
+%endmacro
 
 
 ;-----------------------------
@@ -252,6 +282,7 @@ section .text
 
 %define W eax                 ; Working register, 32-bit zero-extended dword
 %define WQ rax                ; Working register, 64-bit qword (for pointers)
+%define WW ax                 ; Working register, 16-bit word
 %define WB al                 ; Working register, low byte
 
 %define VMBye 1               ; Bye bit: set means bye has been invoked
@@ -324,56 +355,89 @@ pop rbx
 pop rbp
 ret
 
-markab_outer:         ; void markab_outer(rdi: u8 *buf, rsi: u32 count)
-test rsi, rsi         ; end early if input buffer is empty
+; Interpret a line of text from the input stream
+;  void markab_outer(edi: u8 *buf, esi: u32 count)
+markab_outer:
+test esi, esi            ; end now if input buffer is empty
 jz .done
-mov rcx, rsi          ; for(rcx=count,rsi=0; rcx>0 && buf[rsi++]!=' '; rcx--)
-xor rsi, rsi
-.for:
-test VMFlags, VMBye   ; Break out of the loop if bye flag is set
+;////////////////////////
+                         ; Store arguments (approximate figForth TIB and IN)
+mov [TibPtr], edi        ; edi: pointer to input stream byte buffer
+mov [TibLen], esi        ; esi: count of available bytes in the input stream
+mov [IN], dword 0        ; index into TIB of next available input byte
+;////////////////////////
+.forNextWord:            ; Look ahead to find bounds of next word
+test VMFlags, VMBye      ; stop looking if bye flag is set
 jnz .done
-mov WB, ' '           ; look for a space
-cmp WB, byte [rdi+rsi]
+mov edi, [TibPtr]        ; edi = TIB base pointer
+mov ecx, [TibLen]        ; ecx = TIB length
+mov WB, 1                ; assert(TibLen <= StrMax, 1)
+cmp ecx, StrMax
+jnle mErr5Assert
+mov esi, [IN]            ; esi = IN (index to next available byte of TIB)
+cmp esi, ecx             ; stop looking if IN >= TibLen (ran out of bytes)
+jnl .done
+sub ecx, esi             ; ecx = TibLen - IN  (count of available bytes)
+;------------------------
+.forScanStart:           ; Skip spaces to find next word-start boundary
+mov WB, byte [rdi+rsi]   ; check if current byte is non-space
+cmp WB, ' '
+jne .forScanEnd          ; jump if [edi]!=' ' (found word-start boundary)
+inc esi                  ; advance esi past the ' '
+mov [IN], esi            ; update IN (save index to start of word)
+dec ecx                  ; loop if there are more bytes
+jnz .forScanStart
+jmp .done                ; jump if reached end of TIB (it was all spaces)
+;------------------------
+.forScanEnd:             ; Scan for space or end of stream (word-end boundary)
+mov WB, byte [rdi+rsi]
+cmp WB, ' '              ; look for a space
 jz .wordSpace
-dec rcx
+dec ecx                  ; loop if there are more bytes (detect end of stream)
 jz .wordEndBuf
-inc rsi
-jmp .for
-.wordSpace:           ; word is [rdi]..[rdi+rsi] (0-indexing cancels out ' ')
-test rsi, rsi         ; skip over leading spaces or consecutive spaces
-jz .skipDoWord
-push rdi              ; save registers to prepare for call
-push rsi
-push rcx
-call doWord           ; void doWord(rdi: u8 *buf, rsi: count)
-test W, W             ; non-zero return value in W means error
+inc esi                  ; advance index
+jmp .forScanEnd
+;////////////////////////
+                         ; Handle word terminated by space
+.wordSpace:              ; currently, IN is start index, esi is end index + 1
+mov W, [IN]              ; prepare arguments for calling doWord:
+sub esi, W               ; convert esi from index_of_word_end to word_length
+add edi, W               ; convert edi from TibPtr to start_of_word_pointer
+add W, esi               ; update IN to point 1 past the space
+inc W
+mov [IN], W
+call doWord              ; void doWord(rdi: u8 *buf, rsi: count)
+test VMFlags, VMErr      ; non-zero VMErr flag means there was error (hide OK)
 jnz .doneErr
-pop rcx
-pop rsi
-pop rdi
-.skipDoWord:          ; prepare to find the next word
-inc rsi               ; new rdi is rdi+rsi+1 (+1 advances past space)
-add rdi, rsi
-xor rsi, rsi          ; new rsi is 0
-dec rcx               ; check if input buffer is empty yet
-jz .done
-jmp .for              ; continue parsing words from input buffer
-.wordEndBuf:          ; word is [rdi]..[rdi+rcx] (there was no space)
-inc rsi               ; convert from 0-indexed to count of bytes
-call doWord           ; void doWord(rdi: u8 *buf, rsi: count)
-test VMFlags, VMErr   ; non-zero VMErr flag means there was error (hide OK)
-jz .done
-and VMFlags, (~VMErr) ; clear error bit
-.doneErr:
-jmp mCR               ; print CR for error (finish doWord's error message)
-.done:
-jmp mOK               ; print OK for success
-
-mOK:                  ; Print OK message
+jmp .forNextWord
+;------------------------
+                         ; Handle word terminated by CR (end of stream)
+.wordEndBuf:             ; word is [rdi]..[rdi+rcx] (there was no space)
+mov W, [IN]              ; prepare arguments for calling doWord:
+sub esi, W               ; convert esi from index_of_word_end to word_length
+inc esi
+add edi, W               ; convert edi from TibPtr to start_of_word_pointer
+call doWord              ; void doWord(rdi: u8 *buf, rsi: count)
+test VMFlags, VMErr      ; non-zero VMErr flag means there was error (hide OK)
+jz .done                 ; ...in that case, fall through to .doneErr
+;////////////////////////
+.doneErr:                ; Print CR (instead of OK) and clear the error bit
+and VMFlags, (~VMErr)
+jmp mCR
+;------------------------
+.done:                   ; Print OK for success
 lea W, [datOK]
 jmp mStrPut.W
 
-doWord:               ; doWord(rdi: u8 *buf, rsi: count)
+; Attempt to do the action for a word, potentially including:
+;   1. Interpret it according to the dictionary
+;   2. Push it to the stack as a number
+;   3. Print an error message
+; doWord(rdi: u8 *buf, rsi: countWord, rdx: countMax)
+; rdi: pointer to input stream buffer
+; rsi: count of bytes in this word
+; rdx: count of maximum available bytes in input stream (for compiling words)
+doWord:
 push rbp              ; save arguments
 push rbx
 mov rbp, rdi          ; rbp = *buf
@@ -476,6 +540,20 @@ call mCR
 or VMFlags, VMErr             ; set error condition flag (hide OK prompt)
 ret                           ; exit
 
+mErr4NoQuote:                 ; Error 4: unterminated quoted string
+lea W, [datErr4nq]            ; print error message
+call mStrPut.W
+or VMFlags, VMErr             ; set error condition flag (hide OK prompt)
+ret                           ; return control to interpreter
+
+mErr5Assert:                  ; Error 5: assertion failed (W: error code)
+push WQ
+lea W, [datErr5af]            ; print error message
+call mStrPut.W
+pop WQ
+call mDotB.W                  ; print error code
+or VMFlags, VMErr             ; set error condition flag (hide OK prompt)
+ret                           ; return control to interpreter
 
 ;-----------------------------
 ; Dictionary: Literals
@@ -509,12 +587,48 @@ mov W, dword [rbp]            ; read literal from token stream
 add ebp, 4                    ; adjust I
 jmp mPush
 
-mDotQuote:                    ; Print string literal to stdout
+mDotQuoteC:                   ; Print string literal to stdout (token compiled)
 movzx ecx, word [rbp]         ; get length of string in bytes (for adjusting I)
 add cx, 2                     ;   add 2 for length dword
 mov W, ebp                    ; I (ebp) should be pointing to {length, chars}
 add ebp, ecx                  ; adjust I past string
 jmp mStrPut.W
+
+; Print a string literal from the input stream to stdout (interpret mode)
+; input bytes come from TibPtr using TibLen and IN
+mDotQuoteI:
+mov esi, [TibPtr]        ; esi = TIB base pointer
+mov ecx, [TibLen]        ; ecx = TIB length
+mov WB, 2                ; assert(TibLen <= StrMax, 2)
+cmp ecx, StrMax
+jnle mErr5Assert
+mov W, [IN]              ; W = IN (index to next available byte of TIB)
+cmp W, ecx               ; stop looking if IN >= TibLen (ran out of bytes)
+jnl mErr4NoQuote
+sub ecx, W               ; ecx = TibLen - IN  (count of available bytes)
+add esi, W               ; esi = pointer to start of string (&TIB[IN])
+xor W, W                 ; W = starting index (0)
+;------------------------
+.forScanQuote:           ; Find a double quote (") character
+mov dl, byte [rsi+WQ]
+cmp dl, '"'
+je .foundQuote           ; jump if [rdi+rsi]=='"'
+inc W                    ; ...otherwise, advance the index
+dec ecx                  ; loop if there are more bytes
+jnz .forScanQuote
+jmp mErr4NoQuote         ; reaching end of TIB without a quote is an error
+;------------------------
+.foundQuote:             ; W is count of bytes copied to Pad
+push WQ
+call mSpace
+pop WQ
+mov edi, [TibPtr]        ; prepare for mStrPut.RdiRsi(rdi: *buf, rsi: count)
+mov ecx, [IN]
+add edi, ecx             ; edi = [TibPtr] + [IN]  (IN is start of string)
+mov esi, W               ; esi = count of string bytes before quote
+inc W                    ; add 1 to skip the quote character
+add [IN], W              ; update IN
+jmp mStrPut.RdiRsi       ; print string
 
 
 ;-----------------------------
