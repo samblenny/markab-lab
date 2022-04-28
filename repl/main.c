@@ -275,6 +275,21 @@ void tib_backspace(int max_depth) {
     }
 }
 
+// Clear screen and input buffer
+void tib_clear_screen() {
+    TIB_LEN = 0;                // clear input buffer
+    TIB[TIB_LEN] = 0;
+    printf("\33[H");            // cursor to top left
+    printf("\33[2J");           // clear entire screen
+    markab_outer(TIB, TIB_LEN); // trigger an OK prompt
+}
+
+void tib_cr() {
+    markab_outer(TIB, TIB_LEN);
+    TIB_LEN = 0;
+    TIB[TIB_LEN] = 0;
+}
+
 void tib_insert(unsigned char c) {
     if(c == 0 || c == 127 || c > 0xf7 || (TIB_LEN+1 >= BUF_SIZE)) {
         // Silently ignore nulls, backspaces, and invalid UTF-8 bytes. Or, if
@@ -284,12 +299,6 @@ void tib_insert(unsigned char c) {
     // Otherwise, insert the character
     TIB[TIB_LEN] = c;
     TIB_LEN++;
-    TIB[TIB_LEN] = 0;
-}
-
-void tib_cr() {
-    markab_outer(TIB, TIB_LEN);
-    TIB_LEN = 0;
     TIB[TIB_LEN] = 0;
 }
 
@@ -316,6 +325,9 @@ void step_tty_state(unsigned char c) {
         switch(c) {
         case 13:  // Enter key is CR (^M) since ICRNL|INLCR are turned off
             tib_cr();
+            return;
+        case 12:  // Form feed (^L) clears screen
+            tib_clear_screen();
             return;
         case 27:
             TTY.state = Esc;
