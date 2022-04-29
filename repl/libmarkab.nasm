@@ -82,6 +82,8 @@ mkTk Greater
 mkTk Equal
 mkTk ZeroLess
 mkTk ZeroEqual
+mkTk Hex
+mkTk Decimal
 
 mkEndJumpTable                ; define tEndJumpTable for token bounds checking
 
@@ -168,6 +170,8 @@ mkDyItem ">", tGreater
 mkDyItem "=", tEqual
 mkDyItem "0<", tZeroLess
 mkDyItem "0=", tZeroEqual
+mkDyItem "hex", tHex
+mkDyItem "decimal", tDecimal
 mkDyHead
 
 
@@ -216,10 +220,12 @@ datErr3btA:  db 22, 0, "  Err3 Bad token  T:"
 datErr3btB:  db  4, 0, "  I:"
 datErr4nq:   db 22, 0, "  Err4 No ending quote"
 datErr5af:   db 25, 0, "  Err5 Assertion failed: "
+datErr6of:   db 17, 0, "  Err6 Overflow: "
+datErr7nfd:  db 24, 0, "  Err7 Not found [dec]: "
+datErr7nfh:  db 24, 0, "  Err7 Not found [hex]: "
 datDotST:    db  4, 0, 10, " T "
 datDotSNone: db 16, 0, "  Stack is empty"
 datOK:       db  5, 0, "  OK", 10
-datNotFound: db 13, 0, "  Not_Found: "
 
 align 16, db 0
 db "=== End.data ==="
@@ -248,6 +254,9 @@ align 16, resb 0
 TibPtr: resd 1                ; Pointer to terminal input buffer (TIB)
 TibLen: resd 1                ; Length of TIB (count of max available bytes)
 IN: resd 1                    ; Index into TIB of next available input byte
+
+align 16, resb 0
+Base: resd 1                  ; Number base for numeric string conversions
 
 
 ;=============================
@@ -287,6 +296,7 @@ section .text
 
 %define VMBye 1               ; Bye bit: set means bye has been invoked
 %define VMErr 2               ; Err bit: set means error condition
+%define VMNaN 4               ; NaN bit: set means number conversion failed
 %define VMFlags r12b          ; Virtual machine status flags
 
 %define T r13d                ; Top on stack, 32-bit zero-extended dword
@@ -307,6 +317,7 @@ mov T, W
 mov DSDeep, W
 mov RSDeep, W
 mov [Pad], W
+call mDecimal                 ; default number base
 xor VMFlags, VMFlags          ; clear VM flags
 lea W, datVersion             ; print version string
 call mStrPut.W
@@ -491,8 +502,18 @@ mov edi, W            ; rdi = pointer to next item in dictionary list
 jmp .lengthCheck      ; continue with match-checking loop
 ;/////////////////////
 .wordNotFound:
-lea W, [datNotFound]  ; print not found error message
-call mStrPut.W
+mov rdi, rbp          ; prepare args for mNumber(edi: *buf, esi: count)
+mov rsi, rbx
+call mNumber          ; attempt to convert word as number
+test VMFlags, VMNaN   ; check if it worked
+jz .done
+and VMFlags, (~VMNaN) ; ...if not, clear the NaN flag and show an error
+lea W, [datErr7nfd]   ; load err not found error message (decimal version)
+lea edx, [datErr7nfh] ; swap error message for hex version if base is 16
+mov ecx, [Base]
+cmp cl, 16
+cmove W, edx
+call mStrPut.W        ; print the not found error prefix
 mov rdi, rbp          ; print the word that wasn't found
 mov rsi, rbx
 call mStrPut.RdiRsi
@@ -554,6 +575,17 @@ pop WQ
 call mDotB.W                  ; print error code
 or VMFlags, VMErr             ; set error condition flag (hide OK prompt)
 ret                           ; return control to interpreter
+
+mErr6Overflow:                ; Error 6: overflow, args{rdi: *buf, rsi: count}
+push rdi
+push rsi
+lea W, [datErr6of]            ; print error message
+call mStrPut.W
+pop rsi
+pop rdi
+call mStrPut.RdiRsi           ; print word that caused the problem
+or VMFlags, VMErr
+ret
 
 ;-----------------------------
 ; Dictionary: Literals
@@ -852,6 +884,115 @@ test W, W                     ; check if old T was zero (set ZF for W and W)
 cmove T, edi                  ; if so, change new T to true
 ret
 
+
+;-----------------------------
+; Dictionary: Numbers
+
+mHex:                         ; Set number base to 16
+mov [Base], dword 16
+ret
+
+mDecimal:                     ; Set number base to 10
+mov [Base], dword 10
+ret
+
+mNumber:              ; Parse & push i32 from word (rdi: *buf, rsi: count)
+mov WB, 3             ; assert count > 0
+test rsi, rsi
+jz mErr5Assert
+;---------------------
+xor r8, r8            ; zero index
+xor r9, r9            ; zero ASCII digit
+mov ecx, esi          ; rcx = count of bytes in word buffer
+;---------------------
+mov W, [Base]         ; assert that base is 10 or 16 and jump accordingly
+cmp WB, 10
+jz .decimal           ; use decimal conversion
+cmp WB, 16
+jz .hex               ; use hex conversion
+mov WB, 4
+jmp mErr5Assert       ; oops... Base is not valid
+;/////////////////////
+.decimal:             ; Attempt to convert word as signed decimal number
+xor WQ, WQ            ; zero accumulator
+mov r9b, [rdi]        ; check for leading "-" indicating negative
+cmp dl, '-'
+setz r10b             ; r10b: set means negative, clear means positive
+jnz .forDigits        ; jump if positive, otherwise continue to .negative
+;---------------------
+.negative:            ; Skip '-' byte if negative
+inc r8                ; advance index
+dec rcx               ; decrement loop limit counter
+jz .doneNaN
+;---------------------
+.forDigits:           ; Convert decimal digits
+mov r9b, [rdi+r8]     ; get next byte of word (maybe digit, or maybe not)
+sub r9b, '0'          ; attempt to convert from ASCII digit to uint8
+cmp r9b, 9
+jnbe .doneNaN         ; jump to error if result is greater than uint8(9)
+imul WQ, 10           ; scale accumulator
+add WQ, r9            ; add value of digit to accumulator
+jo mErr6Overflow      ; check for 64-bit overflow now (31-bit comes later)
+inc r8                ; keep looping until end of word
+dec rcx
+jnz .forDigits
+;---------------------
+cmp WQ, 0x7fffffff    ; Check for 31-bit overflow. At this point,
+ja mErr6Overflow      ;   valid accumulator range is 0..(2^32)-1
+jmp .done             ; making it here means successful decimal conversion
+;/////////////////////
+.hex:                 ; Attempt to convert as 32-bit hex number
+xor WQ, WQ            ; zero accumulator
+;---------------------
+.forHexDigits:        ; Attempt to convert word as unsigned hex number
+mov r9b, [rdi+r8]     ; get next byte of word (maybe digit, or maybe not)
+sub r9b, '0'          ; attempt to convert from ASCII digit to uint8
+cmp r9b, 9
+jbe .goodHexDigit
+;---------------------
+                      ; Attempt to convert from A..F to 10..15
+sub r9b, 7            ; 'A'-'0' = 17 --> 'A'-'0'-7 = 10
+cmp r9b, 10           ; set r10b if digit >= 'A'
+setae r10b
+cmp r9b, 15           ; set r11b if digit <= 'F'
+setbe r11b
+test r10b, r11b       ; jump if ((digit >= 'A') && (digit <= 'F'))
+jnz .goodHexDigit
+;---------------------
+                      ; Attempt to convert from a..f to 10..15
+sub r9b, 32           ; 'a'-'0' = 49 --> 'a'-'0'-7-32 = 10
+cmp r9b, 10           ; set r10b if digit >= 'a'
+setae r10b
+cmp r9b, 15           ; set r11b if digit <= 'f'
+setbe r11b
+test r10b, r11b       ; jump if ((digit < 'a') || (digit > 'f'))
+jz .doneNaN
+;---------------------
+.goodHexDigit
+imul WQ, 16           ; scale accumulator
+add WQ, r9            ; add value of digit to accumulator
+jo mErr6Overflow      ; check for 64-bit overflow now (32-bit comes later)
+inc r8                ; keep looping until end of word
+dec rcx
+jnz .forHexDigits
+;---------------------
+xor rcx, rcx          ; prepare rcx with 0x00000000fffffffff
+dec ecx
+cmp WQ, rcx           ; check accumulator for 32-bit overflow
+ja mErr6Overflow
+                      ; making it here means successful conversion, so..
+xor r10, r10          ; clear sign flag (r10b) and continue to .done
+;/////////////////////
+.done:                ; Conversion okay, so adjust sign and push to stack
+mov r11, WQ           ; prepare twos-complement negation of accumulator
+neg r11
+test r10b, r10b       ; check if the negative flag was set for a '-'
+cmovnz WQ, r11        ; ...if so, swap accumulator value for its negative
+jmp mPush             ; push the number
+;---------------------
+.doneNaN:             ; failed conversion, signal NaN
+or VMFlags, VMNaN
+ret
 
 ;-----------------------------
 ; Dictionary: Strings
