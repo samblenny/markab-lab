@@ -3,6 +3,19 @@
 ;
 ; libmarkab implements inner and outer interpreters of the Markab Forth system.
 ;
+; Sample output (result of ready prompt, loadscreen, then typing "bye" + CR):
+; ```
+; Markab v0.0.1
+; type 'bye' or ^C to exit
+; hex 2 1 + .s cr  3
+; 1 3 - .s cr  3 FFFFFFFE
+; ff 11 * .s cr  3 FFFFFFFE 10EF
+; 1c 3 / .s cr  3 FFFFFFFE 10EF 9
+; decimal 11 3 mod .s cr  3 -2 4335 9 2
+; 11 3 /mod .s cr  3 -2 4335 9 2 2 3
+; -11 3 /mod .s cr  3 -2 4335 9 2 2 3 -2 -3
+; bye  OK
+; ```
 
 bits 64
 default rel
@@ -189,20 +202,20 @@ align 16, db 0
 db "== LoadScreen =="
 align 16, db 0
 LoadScreen:                   ; Hand compiled load screen code
-mkDotQuote "2 1 + .s"
-db tI8, 2, tI8, 1, tPlus, tDotS
-mkDotQuote "drop 1 3 - .s"
-db tDrop, tU8, 1, tU8, 3, tMinus, tDotS
-mkDotQuote "drop 3 11 * .s"
-db tDrop, tU8, 3, tU8, 11, tMul, tDotS
-mkDotQuote "drop 11 3 / .s"
-db tDrop, tU8, 11, tU8, 3, tDiv, tDotS
-mkDotQuote "drop 11 3 mod .s"
-db tDrop, tU8,11, tU8,3, tMod, tDotS
-mkDotQuote "drop 11 3 /mod .s"
-db tDrop, tU8,11, tU8,3, tDivMod, tDotS
-mkDotQuote "drop drop -11 3 /mod .s"
-db tDrop, tDrop, tI8,-11, tU8,3, tDivMod, tDotS
+mkDotQuote "hex 2 1 + .s cr"
+db tHex, tI8, 2, tI8, 1, tPlus, tDotS, tCR
+mkDotQuote "1 3 - .s cr"
+db tU8, 1, tU8, 3, tMinus, tDotS, tCR
+mkDotQuote "ff 11 * .s cr"
+db tU8, 0xff, tU8, 0x11, tMul, tDotS, tCR
+mkDotQuote "1c 3 / .s cr"
+db tU8, 0x1c, tU8, 3, tDiv, tDotS, tCR
+mkDotQuote "decimal 11 3 mod .s cr"
+db tDecimal, tU8,11, tU8,3, tMod, tDotS, tCR
+mkDotQuote "11 3 /mod .s cr"
+db tU8,11, tU8,3, tDivMod, tDotS, tCR
+mkDotQuote "-11 3 /mod .s cr"
+db tI8,-11, tU8,3, tDivMod, tDotS, tCR
 ; (CAUTION!) Token list must end with a `tNext`!
 db tNext
 
@@ -245,6 +258,8 @@ RSBase: resd RSMax            ; data stack (32-bit dword cells)
 align 16, resb 0              ; String buffers
 %define StrMax 1022           ; length of string data area
 Pad: resb 2+StrMax            ; string scratch buffer; word 0 is length
+PadRtl: resb StrMax+2         ; right-to-left buffer for formatting numbers;
+                              ; word [PadRtl+StrMax] is index first used byte
 
 align 16, resb 0              ; Error message buffers
 ErrToken: resd 1              ; value of current token
@@ -550,13 +565,18 @@ mov [ErrInst], W
 lea W, [datErr3btA]           ; print error message
 call mStrPut.W
 mov W, [ErrToken]             ; print token value
-call mDotB.W
+call mDot.W
 lea W, [datErr3btB]           ; print token instruction pointer
 call mStrPut.W
+mov W, [Base]                 ; push number base
+push WQ
+call mHex                     ; print instruction pointer in hex
 mov W, [ErrInst]
 lea ecx, [LoadScreen]
 sub W, ecx
-call mDotB.W
+call mDot.W
+pop WQ                        ; pop number base
+mov [Base], W
 call mCR
 or VMFlags, VMErr             ; set error condition flag (hide OK prompt)
 ret                           ; exit
@@ -572,7 +592,7 @@ push WQ
 lea W, [datErr5af]            ; print error message
 call mStrPut.W
 pop WQ
-call mDotB.W                  ; print error code
+call mDot.W                   ; print error code
 or VMFlags, VMErr             ; set error condition flag (hide OK prompt)
 ret                           ; return control to interpreter
 
@@ -968,7 +988,7 @@ setbe r11b
 test r10b, r11b       ; jump if ((digit < 'a') || (digit > 'f'))
 jz .doneNaN
 ;---------------------
-.goodHexDigit
+.goodHexDigit:
 imul WQ, 16           ; scale accumulator
 add WQ, r9            ; add value of digit to accumulator
 jo mErr6Overflow      ; check for 64-bit overflow now (32-bit comes later)
@@ -1019,78 +1039,177 @@ jmp mStrPut
 ;-----------------------------
 ; Dictionary: Formatting
 
-mDotB:                ; Print T low byte to stdout (2 hex digits)
-cmp DSDeep, 1         ; need at least 1 item on stack
-jb mErr1Underflow
-mov W, T
-call mDrop
-.W:                   ; Print W low byte to stdout (2 hex digits)
-shl W, 24             ; shift low byte to high byte since mDot starts there
-mov ecx, 2            ; set digit count
-jmp mDot.W_ecx        ; use the digit conversion loop from mDot
-
-mDot:                 ; Print T to stdout (8 hex digits)
+mDot:                 ; Print T using number base
 cmp DSDeep, 1         ; need at least 1 item on stack
 jb mErr1Underflow
 mov W, T
 push WQ
 call mDrop
-call mSpace           ; add leading space if invoked as `.`
 pop WQ
-.W:                   ; Print W to stdout (8 hex digits)
-mov ecx, 8
-.W_ecx:               ; Print some (all?) of W to stdout (ecx hex digits)
-lea edi, [Pad]        ; set string struct length in Pad
-mov word [rdi], cx
-add edi, 2            ; advance dest ptr to start of string bytes
-.for:
-mov r8d, W            ; get the high nibble of W
-shr r8d, 28
-shl W, 4              ; shift that nibble off the high end of W
-add r8d, '0'          ; convert nibble assuming its value is in 0..9
-mov r9d, r8d
-add r9d, 'A'-'0'-10   ; but, if value was >= 10, use hex digit instead
-cmp r8b, '9'
-cmova r8d, r9d
-mov byte [rdi], r8b   ; append digit to string bytes of [Pad]
-inc edi
-dec ecx
-jnz .for
-lea W, [Pad]          ; print it
-jmp mStrPut.W
+.W:                   ; Print W using number base
+push WQ
+call mFmtRtlClear     ; clear number formatting buffer
+pop WQ
+mov rdi, WQ
+call mFmtRtlInt32     ; format W
+call mFmtRtlSpace     ; add a space
+call mFmtRtlPut       ; print number formatting buffer
 
-mDotS:                        ; Nondestructively print hexdump of stack
-push rbp
-mov ecx, DSDeep
-cmp cl, 0
-je .empty
-cmp cl, 1                     ; format T if data stack depth >= 1
-jb .done
-lea W, [datDotST]             ; T gets special label since it's not a number
-call mStrPut.W
-mov W, T                      ; prepare for printing T's value
-xor ebp, ebp                  ; start loop counter at 1, for T's iteration
-inc ebp
-jmp .forPrintValue            ; for T, skip past numeric label & memory fetch
+mFmtRtlClear:            ; Clear PadRtl with 'x' and reset index to leftmost
+mov rcx, StrMax
+mov WB, 'x'
 .for:
-mov W, ebp
-call mDotB.W                  ; print stack depth numeric label (2 is below T)
-call mSpace
-mov W, DSDeep                 ; fetch stack value (this gets skipped for T)
-sub W, ebp
-mov W, [DSBase+4*W]
-.forPrintValue:               ; print the value (for both T and memory items)
-call mDot.W
-call mCR
-inc ebp
-cmp ebp, DSDeep
-jbe .for                      ; loop in range 1..DSDeep
-.done:                        ; clean up (normal exit point)
-pop rbp
+mov [PadRtl+rcx], WB
+dec rcx
+jnz .for
+lea rdi, [PadRtl+StrMax]
+mov [rdi], word StrMax
 ret
-.empty:                       ; alternate exit point for case of empty stack
+
+mFmtRtlSpace:            ; Insert (rtl) a space into the PadRtl buffer
+xor rdi, rdi
+mov dil, ' '
+jmp mFmtRtlInsert
+
+mFmtRtlMinus:            ; Insert (rtl) a '-' into the PadRtl buffer
+xor rdi, rdi
+mov dil, '-'
+jmp mFmtRtlInsert
+
+mFmtRtlInsert:           ; Insert (rtl) byte from rdi into the PadRtl buffer
+xor rsi, rsi             ; load index of leftmost byte
+mov si, [PadRtl+StrMax]
+mov WB, 5                ; assert(index <= max valid index value, 5)
+cmp si, StrMax
+ja mErr5Assert
+mov WB, 6                ; assert(index >= min valid index value, 6)
+cmp si, 1
+jb mErr5Assert
+dec rsi                  ; dec rsi to get next available byte
+mov [PadRtl+rsi], dil    ; store whatever was in low byte of rdi
+mov [PadRtl+StrMax], si  ; store the new leftmost byte index
+ret
+
+mFmtRtlPut:              ; Print the contents of PadRtl
+xor rcx, rcx             ; rcx = index to leftmost used byte of PadRtl
+mov cx, [PadRtl+StrMax]
+push rcx
+xor rsi, rsi             ; rsi = size of PadRtl (index to rightmost byte + 1)
+mov si, StrMax
+sub si, cx               ; rsi = count of string bytes in PadRtl
+mov WB, 7                ; assert(((rsi >= 0) && (rsi < StrMax)), 7)
+cmp si, StrMax
+jnb mErr5Assert
+pop rcx
+lea rdi, [PadRtl+rcx]    ; prepare for mStrPut.RdiRsi(rdi: *buf, rsi: count)
+call mStrPut.RdiRsi      ; print format string
+jmp mFmtRtlClear         ; clear format string
+
+; Format an int32, right aligned in PadRtl, according to current number base.
+;
+; This formats a number from rdi into PadRtl, using an algorithm that puts
+; digits into the buffer moving from right to left. The idea is to match the
+; order of divisions, which necessarily produces digits in least-significant to
+; most-significant order. This is intended for building a string from several
+; numbers in a row (like with .S).
+;
+; Arguments: {rdi: number_to_format}
+mFmtRtlInt32:
+xor rsi, rsi          ; rsi = index to leftmost used byte of PadRtl
+mov si, [PadRtl+StrMax]
+mov WB, 8             ; assert(index to PadRtl leftmost byte is in range, 8)
+cmp rsi, StrMax
+ja mErr5Assert
+mov WB, 9             ; assert(PadRtl has room for another number, 9)
+cmp si, 22
+jna mErr5Assert
+test edi, 0x80000000  ; check dividend's sign bit (32-bit)
+setnz r10b            ; save sign bit in r10b
+mov eax, edi          ; rax (WQ) = dividend
+neg edi               ; prepare negated value of dividend
+mov ecx, [Base]       ; rcx = current number base
+cmp cl, 10            ; if ((rdi<0) && ([Base] == 10)) { rax = abs(rdi) }
+setz r11b             ; (this does i32 for decimal or u32 for hex)
+and r10b, r11b
+cmovnz rax, rdi       ; rax = dividend (for base 10, abs(dividend))
+;/////////////////////
+.forDigit:
+                      ; Calculate value of least-significant digit (use Base)
+dec rsi               ; decrement index into PadRtl
+xor rdx, rdx          ; zero high register of dividend (may contain remainder)
+idiv rcx              ; idiv args {[rdx:rax]: dividend, operand: divisor}
+                      ; idiv result {rax: quotient, rdx: remainder}
+;---------------------
+                      ; Convert from number in 0..15 to {'0'..'9', 'A'..'F'}
+mov r11b, dl          ; prepare ASCII digit as n-10+'A' (in case n in 10..15)
+add r11b, ('A'-10)
+add dl, '0'           ; prepare ASCII digit as n+'0' (in case n in 0..9)
+cmp dl, '9'           ; rdx = pick the appropriate ASCII digit
+cmova rdx, r11
+mov [PadRtl+rsi], dl  ; store digit in rightmost unused byte
+test rax, rax         ; stop if quotient was zero
+jz .done
+test rsi, rsi         ; stop if buffer is full
+jz .doneError
+jmp .forDigit         ; loop if buffer still has room for another digit
+;/////////////////////
+.done:
+mov [PadRtl+StrMax], si  ; store updated index to PadRtl's leftmost used byte
+test r10b, r10b       ; check if a '-' is needed
+jnz .doneNegative
+ret
+;---------------------
+.doneNegative;        ; add a '-' if base is decimal and sign is negative
+jmp mFmtRtlMinus
+;---------------------
+.doneError:
+mov W, 10             ; show error, assert(true, 10), if buffer got full. This
+jmp mErr5Assert       ;   should not happen unless there is a logic error
+
+
+; Nondestructively print stack in current number base.
+;
+; The indexing math is tricky. The stack depth (DSDeep) tracks total cells on
+; the stack, including T, which is a register. So, the number of stack cells in
+; memory is DSDeep-1. Some examples:
+;
+;   DSDeep   Top  Second_cell  Third_cell  Fourth_cell
+;        0    --           --          --           --
+;        1     T           --          --           --
+;        2     T   [DSBase+0]          --           --
+;        3     T   [DSBase+4]  [DSBase+0]           --
+;        4     T   [DSBase+8]  [DSBase+4]   [DSBase+0]
+;
+mDotS:
+push rbp
+cmp DSDeep, 0         ; if stack is empty, print the empty message
+je .doneEmpty
+call mFmtRtlClear     ; otherwise, prepare the formatting buffer
+;---------------------
+xor ebp, ebp          ; start index at 1 because of T
+inc ebp
+mov edi, T            ; prepare for mFmtRtlInt32(edi: T)
+;---------------------
+.for:                 ; Format stack cells
+call mFmtRtlInt32     ; format(edi: current stack cell) into PadRtl
+call mFmtRtlSpace     ; add a space (rtl, so space goes to left of number)
+inc ebp               ; inc index
+cmp ebp, DSDeep       ; stop if all stack cells have been formatted
+ja .done
+mov W, DSDeep         ; otherwise, prepare for mFmtRtlInt32(rdi: stack cell)
+sub W, ebp            ; load next cell
+mov edi, [DSBase+4*W]
+jmp .for              ; keep looping
+;---------------------
+.done:
 pop rbp
-lea W, [datDotSNone]
+call mFmtRtlSpace     ; add a space (remember this is right to left)
+call mFmtRtlPut       ; print the format buffer
+ret
+;---------------------
+.doneEmpty:
+pop rbp
+lea W, [datDotSNone]  ; print empty stack message
 jmp mStrPut.W
 
 
