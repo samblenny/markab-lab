@@ -561,9 +561,7 @@ ret                           ; return control to interpreter
 mErr3BadToken:                ; Handle bad token error
 movzx W, byte [rbp]           ; save value of token
 mov [ErrToken], W
-mov W, ebp                    ; save instruction pointer to token
-sub W, LoadScreen
-mov [ErrInst], W
+mov [ErrInst], ebp            ; save instruction pointer to token
 lea W, [datErr3btA]           ; print error message
 call mStrPut.W
 mov W, [ErrToken]             ; print token value
@@ -574,8 +572,6 @@ mov W, [Base]                 ; push number base
 push WQ
 call mHex                     ; print instruction pointer in hex
 mov W, [ErrInst]
-lea ecx, [LoadScreen]
-sub W, ecx
 call mDot.W
 pop WQ                        ; pop number base
 mov [Base], W
