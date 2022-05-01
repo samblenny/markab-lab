@@ -71,6 +71,7 @@ mkTk Dup
 mkTk Drop
 mkTk Swap
 mkTk Over
+mkTk ClearStack
 mkTk DotS
 mkTk DotQuoteC                ; compiled version of ."
 mkTk DotQuoteI                ; interpreted version of ."
@@ -160,6 +161,7 @@ mkDyItem "dup", tDup
 mkDyItem "drop", tDrop
 mkDyItem "swap", tSwap
 mkDyItem "over", tOver
+mkDyItem "clearstack", tClearStack
 mkDyItem ".s", tDotS
 mkDyItem '."', tDotQuoteI     ; interpreted version of ."
 mkDyItem "emit", tEmit
@@ -713,6 +715,10 @@ jb mErr1Underflow
 sub WB, 2
 mov W, [DSBase+4*W]
 jmp mPush
+
+mClearStack:                  ; CLEARSTACK - Drop all stack cells
+xor DSDeep, DSDeep
+ret
 
 mPush:                        ; PUSH - Push W to data stack
 cmp DSDeep, DSMax
