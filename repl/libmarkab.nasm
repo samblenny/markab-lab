@@ -936,7 +936,7 @@ jmp mErr5Assert       ; oops... Base is not valid
 .decimal:             ; Attempt to convert word as signed decimal number
 xor WQ, WQ            ; zero accumulator
 mov r9b, [rdi]        ; check for leading "-" indicating negative
-cmp dl, '-'
+cmp r9b, '-'
 setz r10b             ; r10b: set means negative, clear means positive
 jnz .forDigits        ; jump if positive, otherwise continue to .negative
 ;---------------------
