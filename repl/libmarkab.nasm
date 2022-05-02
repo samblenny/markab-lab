@@ -3,28 +3,17 @@
 ;
 ; libmarkab implements inner and outer interpreters of the Markab Forth system.
 ;
-; Sample output (result of ready prompt, loadscreen, then typing `.s`, CR,
-; `.s clearstack`, CR, `bye`, CR):
+; Sample output (result of ready prompt, loadscreen, then typing `bye`, CR):
 ; ```
 ; Markab v0.0.1
 ; type 'bye' or ^C to exit
-; hex 2 1 + .s cr
-; 1 3 - .s cr
-; ff 11 * .s cr
-; 1c 3 / .s cr
-; decimal 11 3 mod .s cr
-; 11 3 /mod .s cr
-; -11 3 /mod .s cr
-;   3
-;   3 FFFFFFFE
-;   3 FFFFFFFE 10EF
-;   3 FFFFFFFE 10EF 9
-;   3 -2 4335 9 2
-;   3 -2 4335 9 2 2 3
-;   3 -2 4335 9 2 2 3 -2 -3
-;   OK
-; .s  3 -2 4335 9 2 2 3 -2 -3  OK
-; clearstack .s  Stack is empty  OK
+;  __  __          _        _
+; |  \/  |__ _ _ _| |____ _| |__
+; | |\/| / _` | '_| / / _` | '_ \
+; |_|  |_\__,_|_| |_\_\__,_|_.__/
+;
+;   1 2 3
+;   7  OK
 ; bye  OK
 ; ```
 
@@ -86,8 +75,10 @@ mkTk ClearStack
 mkTk DotS
 mkTk DotQuoteC                ; compiled version of ."
 mkTk DotQuoteI                ; interpreted version of ."
+mkTk Paren
 mkTk Emit
 mkTk CR
+mkTk Space
 mkTk Dot
 mkTk Plus
 mkTk Minus
@@ -175,8 +166,10 @@ mkDyItem "over", tOver
 mkDyItem "clearstack", tClearStack
 mkDyItem ".s", tDotS
 mkDyItem '."', tDotQuoteI     ; interpreted version of ."
+mkDyItem "(", tParen
 mkDyItem "emit", tEmit
 mkDyItem "cr", tCR
+mkDyItem "space", tSpace
 mkDyItem ".", tDot
 mkDyItem "+", tPlus
 mkDyItem "-", tMinus
@@ -238,6 +231,7 @@ datErr5af:   db 25, 0, "  Err5 Assertion failed: "
 datErr6of:   db 17, 0, "  Err6 Overflow: "
 datErr7nfd:  db 24, 0, "  Err7 Not found [dec]: "
 datErr7nfh:  db 24, 0, "  Err7 Not found [hex]: "
+datErr8np:   db  0, 0, "  Err8 No closing ')'"
 datDotST:    db  4, 0, 10, " T "
 datDotSNone: db 16, 0, "  Stack is empty"
 datOK:       db  5, 0, "  OK", 10
@@ -339,16 +333,11 @@ xor VMFlags, VMFlags          ; clear VM flags
 lea W, datVersion             ; print version string
 call mStrPut.W
 ;-----------------------------
-                              ; Interpret load screen
-mov edi, Screen0              ; mStrPut.RdiRsi(edi: *buf, esi: count)
+mov edi, Screen0              ; Interpret loadscreen
 mov esi, [Screen0Len]
-call mStrPut.RdiRsi
-mov edi, Screen0              ; markab_outer(edi: *buf, esi: count)
-mov esi, [Screen0Len]
-call markab_outer
+call markab_outer             ; markab_outer(edi: *buf, esi: count)
 ;-----------------------------
-                              ; Begin outer loop
-.OuterLoop:
+.OuterLoop:                   ; Begin outer loop
 test VMFlags, VMBye           ; Break loop if bye flag is set
 jnz .done
 push rbp                      ; align stack to 16 bytes
@@ -626,6 +615,12 @@ call mStrPut.RdiRsi           ; print word that caused the problem
 or VMFlags, VMErr
 ret
 
+mErr8NoParen:                 ; Error 8: comment had '(' without matching ')'
+lea W, [datErr8np]
+call mStrPut.W
+or VMFlags, VMErr
+ret
+
 ;-----------------------------
 ; Dictionary: Literals
 ;
@@ -668,38 +663,52 @@ jmp mStrPut.W
 ; Print a string literal from the input stream to stdout (interpret mode)
 ; input bytes come from TibPtr using TibLen and IN
 mDotQuoteI:
-mov esi, [TibPtr]        ; esi = TIB base pointer
-mov ecx, [TibLen]        ; ecx = TIB length
-mov WB, 2                ; assert(TibLen <= StrMax, 2)
-cmp ecx, StrMax
-jnle mErr5Assert
-mov W, [IN]              ; W = IN (index to next available byte of TIB)
-cmp W, ecx               ; stop looking if IN >= TibLen (ran out of bytes)
-jnl mErr4NoQuote
-sub ecx, W               ; ecx = TibLen - IN  (count of available bytes)
-add esi, W               ; esi = pointer to start of string (&TIB[IN])
-xor W, W                 ; W = starting index (0)
+mov edi, [TibPtr]        ; edi = TIB base pointer
+mov esi, [TibLen]        ; esi = TIB length
+mov ecx, [IN]            ; ecx = IN (index to next available byte of TIB)
+cmp esi, ecx             ; stop looking if TibLen <= IN (ran out of bytes)
+jna mErr4NoQuote
 ;------------------------
 .forScanQuote:           ; Find a double quote (") character
-mov dl, byte [rsi+WQ]
-cmp dl, '"'
-je .foundQuote           ; jump if [rdi+rsi]=='"'
-inc W                    ; ...otherwise, advance the index
-dec ecx                  ; loop if there are more bytes
+mov WB, [rdi+rcx]        ; check if current byte is '"'
+cmp WB, '"'
+jz .done                 ; if so, stop looking
+inc ecx                  ; otherwise, advance the index
+cmp esi, ecx             ; loop if there are more bytes
 jnz .forScanQuote
 jmp mErr4NoQuote         ; reaching end of TIB without a quote is an error
 ;------------------------
-.foundQuote:             ; W is count of bytes copied to Pad
-push WQ
-call mSpace
-pop WQ
-mov edi, [TibPtr]        ; prepare for mStrPut.RdiRsi(rdi: *buf, rsi: count)
-mov ecx, [IN]
-add edi, ecx             ; edi = [TibPtr] + [IN]  (IN is start of string)
-mov esi, W               ; esi = count of string bytes before quote
-inc W                    ; add 1 to skip the quote character
-add [IN], W              ; update IN
-jmp mStrPut.RdiRsi       ; print string
+.done:
+mov W, [IN]
+mov esi, ecx             ; ecx-[IN] is count of bytes copied to Pad
+sub esi, W
+add edi, W               ; edi = [TibPtr] + (ecx-[IN]) (old edi was [TibPtr])
+inc ecx                  ; store new IN (skip string and closing '"')
+mov [IN], ecx
+jmp mStrPut.RdiRsi       ; print it: mStrPut.RdiRsi(rdi: *buf, rsi: count)
+
+; Paren comment: skip input text until ")"
+;   input bytes come from TibPtr using TibLen and IN
+mParen:
+mov edi, [TibPtr]        ; edi = TIB base pointer
+mov esi, [TibLen]        ; esi = TIB length
+mov ecx, [IN]            ; ecx = IN (index to next available byte of TIB
+cmp esi, ecx             ; stop looking if TibLen <= IN (ran out of bytes)
+jna mErr8NoParen
+;------------------------
+.forScanParen:
+mov WB, [rdi+rcx]        ; check if current byte is ')'
+cmp WB, ')'
+jz .done                 ; if so, stop looking
+inc ecx                  ; otherwise, continue with next byte
+cmp esi, ecx             ; loop until index >= TibLen
+ja .forScanParen
+jmp mErr8NoParen         ; oops, end of TIB reached without finding ")"
+;------------------------
+.done:
+inc ecx
+mov [IN], ecx
+ret
 
 
 ;-----------------------------

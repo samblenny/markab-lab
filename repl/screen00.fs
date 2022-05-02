@@ -1,7 +1,7 @@
-hex 2 1 + .s cr
-1 3 - .s cr
-ff 11 * .s cr
-1c 3 / .s cr
-decimal 11 3 mod .s cr
-11 3 /mod .s cr
--11 3 /mod .s cr
+( This is the Markab loadscreen)
+."  __  __          _        _" cr
+." |  \/  |__ _ _ _| |____ _| |__" cr
+." | |\/| / _` | '_| / / _` | '_ \" cr
+." |_|  |_\__,_|_| |_\_\__,_|_.__/" cr
+cr
+1 2 3 .s * + cr .s clearstack
