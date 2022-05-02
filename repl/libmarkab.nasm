@@ -3,17 +3,28 @@
 ;
 ; libmarkab implements inner and outer interpreters of the Markab Forth system.
 ;
-; Sample output (result of ready prompt, loadscreen, then typing "bye" + CR):
+; Sample output (result of ready prompt, loadscreen, then typing `.s`, CR,
+; `.s clearstack`, CR, `bye`, CR):
 ; ```
 ; Markab v0.0.1
 ; type 'bye' or ^C to exit
-; hex 2 1 + .s cr  3
-; 1 3 - .s cr  3 FFFFFFFE
-; ff 11 * .s cr  3 FFFFFFFE 10EF
-; 1c 3 / .s cr  3 FFFFFFFE 10EF 9
-; decimal 11 3 mod .s cr  3 -2 4335 9 2
-; 11 3 /mod .s cr  3 -2 4335 9 2 2 3
-; -11 3 /mod .s cr  3 -2 4335 9 2 2 3 -2 -3
+; hex 2 1 + .s cr
+; 1 3 - .s cr
+; ff 11 * .s cr
+; 1c 3 / .s cr
+; decimal 11 3 mod .s cr
+; 11 3 /mod .s cr
+; -11 3 /mod .s cr
+;   3
+;   3 FFFFFFFE
+;   3 FFFFFFFE 10EF
+;   3 FFFFFFFE 10EF 9
+;   3 -2 4335 9 2
+;   3 -2 4335 9 2 2 3
+;   3 -2 4335 9 2 2 3 -2 -3
+;   OK
+; .s  3 -2 4335 9 2 2 3 -2 -3  OK
+; clearstack .s  Stack is empty  OK
 ; bye  OK
 ; ```
 
@@ -203,23 +214,12 @@ mkDyHead
 align 16, db 0
 db "== LoadScreen =="
 align 16, db 0
-LoadScreen:                   ; Hand compiled load screen code
-mkDotQuote "hex 2 1 + .s cr"
-db tHex, tI8, 2, tI8, 1, tPlus, tDotS, tCR
-mkDotQuote "1 3 - .s cr"
-db tU8, 1, tU8, 3, tMinus, tDotS, tCR
-mkDotQuote "ff 11 * .s cr"
-db tU8, 0xff, tU8, 0x11, tMul, tDotS, tCR
-mkDotQuote "1c 3 / .s cr"
-db tU8, 0x1c, tU8, 3, tDiv, tDotS, tCR
-mkDotQuote "decimal 11 3 mod .s cr"
-db tDecimal, tU8,11, tU8,3, tMod, tDotS, tCR
-mkDotQuote "11 3 /mod .s cr"
-db tU8,11, tU8,3, tDivMod, tDotS, tCR
-mkDotQuote "-11 3 /mod .s cr"
-db tI8,-11, tU8,3, tDivMod, tDotS, tCR
-; (CAUTION!) Token list must end with a `tNext`!
-db tNext
+Screen0:                   ; load screen text (Markab Forth source code)
+incbin "screen00.fs"
+EndScreen0: db 0
+align 16, db 0
+Screen0Len:                ; length of load screen text in bytes
+dd (EndScreen0 - Screen0)
 
 
 ;-----------------------------
@@ -338,9 +338,16 @@ call mDecimal                 ; default number base
 xor VMFlags, VMFlags          ; clear VM flags
 lea W, datVersion             ; print version string
 call mStrPut.W
-mov edi, -1                   ; load screen (rdi:tokenLen = 2^32-1)
-lea rsi, [LoadScreen]         ; rsi:tokens = pointer to LoadScreen
-call doInner
+;-----------------------------
+                              ; Interpret load screen
+mov edi, Screen0              ; mStrPut.RdiRsi(edi: *buf, esi: count)
+mov esi, [Screen0Len]
+call mStrPut.RdiRsi
+mov edi, Screen0              ; markab_outer(edi: *buf, esi: count)
+mov esi, [Screen0Len]
+call markab_outer
+;-----------------------------
+                              ; Begin outer loop
 .OuterLoop:
 test VMFlags, VMBye           ; Break loop if bye flag is set
 jnz .done
@@ -409,8 +416,15 @@ sub ecx, esi             ; ecx = TibLen - IN  (count of available bytes)
 ;------------------------
 .forScanStart:           ; Skip spaces to find next word-start boundary
 mov WB, byte [rdi+rsi]   ; check if current byte is non-space
-cmp WB, ' '
-jne .forScanEnd          ; jump if [edi]!=' ' (found word-start boundary)
+cmp WB, ' '              ; calculate r10b = ((WB==' ')||(WB==10)||(WB==13))
+sete r10b
+cmp WB, 10               ; check for LF
+sete r11b
+or r10b, r11b
+cmp WB, 13               ; check for CR
+sete r11b
+or r10b, r11b            ; r10b will be set if WB is in (' ', LF, CR)
+jz .forScanEnd           ; jump if r10b is set (found word-start boundary)
 inc esi                  ; advance esi past the ' '
 mov [IN], esi            ; update IN (save index to start of word)
 dec ecx                  ; loop if there are more bytes
@@ -419,8 +433,15 @@ jmp .done                ; jump if reached end of TIB (it was all spaces)
 ;------------------------
 .forScanEnd:             ; Scan for space or end of stream (word-end boundary)
 mov WB, byte [rdi+rsi]
-cmp WB, ' '              ; look for a space
-jz .wordSpace
+cmp WB, ' '              ; check for space
+sete r10b
+cmp WB, 10               ; check for LF
+sete r11b
+or r10b, r11b
+cmp WB, 13               ; check for CR
+sete r11b
+or r10b, r11b            ; r10b will be set if WB is in (' ', LF, CR)
+jnz .wordSpace
 dec ecx                  ; loop if there are more bytes (detect end of stream)
 jz .wordEndBuf
 inc esi                  ; advance index

@@ -25,7 +25,6 @@ dump: main
 main: main.c obj/libmarkab.o
 	$(CC) -O2 -Wl,-export-dynamic -std=c99 -Wall -o $@ main.c obj/libmarkab.o
 
-# Enable `make obj/foo.o` to create object file `obj/foo.o` from `foo.nasm`
-obj/%.o: %.nasm
+obj/libmarkab.o: libmarkab.nasm screen00.fs
 	@mkdir -p obj
 	@nasm -f elf64 -w+all --reproducible -o $@ $<
