@@ -453,9 +453,6 @@ int mkb_host_step_stdin() {
     if(result == 0 && !STDIN_ISATTY) {
         return -1;  // end for EOF
     }
-    if(result == EINTR) {
-        return 0;  // read() got interrupted by SIGWINCH signal
-    }
     if(result < 0) {
         return 0;  // Error (TODO: handle this better)
     }
