@@ -3,7 +3,7 @@
 ;
 ; libmarkab implements inner and outer interpreters of the Markab Forth system.
 ;
-; Sample output (result of ready prompt, loadscreen, then typing `bye`, CR):
+; Sample output:
 ; ```
 ; Markab v0.0.1
 ; type 'bye' or ^C to exit
@@ -11,9 +11,13 @@
 ; |  \/  |__ _ _ _| |____ _| |__
 ; | |\/| / _` | '_| / / _` | '_ \
 ; |_|  |_\__,_|_| |_\_\__,_|_.__/
-;
+
 ;   1 2 3
 ;   7  OK
+; foo  Err7 Not found [dec]: foo
+; : fOo  OK
+; foo  OK
+; FOO  OK
 ; bye  OK
 ; ```
 
@@ -76,6 +80,7 @@ mkTk DotS
 mkTk DotQuoteC                ; compiled version of ."
 mkTk DotQuoteI                ; interpreted version of ."
 mkTk Paren
+mkTk Colon
 mkTk Emit
 mkTk CR
 mkTk Space
@@ -122,76 +127,77 @@ align 16, db 0
 ;    the .tokenCount field.
 ; ==================================
 
-%assign _dyN 0                ; tail of dictionary list has null link
-%macro mkDyFirst 2-*          ; Make first dictionary linked list item
+%assign _vN 0                 ; tail of dictionary list has null link
+%macro mkVoc0First 2-*        ; Make first dictionary linked list item
   %strlen %%nameLen %1        ;   length of this word's name
-  %xdefine _dyThis dyN%[_dyN] ;   next item uses this label as its .link value
+  %xdefine _vThis vN%[_vN]    ;   next item uses this label as its .link value
   align 16, db 0
-  _dyThis:                    ;   relocatable label for this item
+  _vThis:                     ;   relocatable label for this item
   dd 0                        ;   .link = 0
   db %%nameLen                ;   .nameLength = ...  (example:     3)
   db %1                       ;   .name = ...        (example: "Nop")
   db %0-1                     ;   .tokenCount
   db %{2:-1}                  ;   .tokenValue = ...  (example:  tNop)
 %endmacro
-%macro mkDyItem 2-*           ; Add entry to dictionary linked list
-  %xdefine _dyPrev _dyThis    ;   save link label to previous item
-  %assign _dyN _dyN+1         ;   increment dictionary item label number
-  %xdefine _dyThis dyN%[_dyN] ;   make link label for this item
+%macro mkVoc0Item 2-*         ; Add entry to dictionary linked list
+  %xdefine _vPrev _vThis      ;   save link label to previous item
+  %assign _vN _vN+1           ;   increment dictionary item label number
+  %xdefine _vThis vN%[_vN]    ;   make link label for this item
   %strlen %%nameLen %1        ;   length of this word's name
   align 16, db 0
-  _dyThis:                    ;   relocatable label for this item
-  dd _dyPrev                  ;   .link = ...        (example:  dyN0)
+  _vThis:                     ;   relocatable label for this item
+  dd _vPrev                   ;   .link = ...        (example:  dyN0)
   db %%nameLen                ;   .nameLength = ...  (example:     3)
   db %1                       ;   .name = ...        (example: "Nop")
   db %0-1                     ;   .tokenCount
   db %{2:-1}                  ;   .tokenValue = ...  (example:  tNop)
 %endmacro
-%macro mkDyHead 0             ; Make dyHead pointing to head of dictionary
+%macro mkVoc0Head 0           ; Make Voc0Head pointing to head of dictionary
   align 16, db 0
-  dyHead:
-  dd _dyThis
-  %undef _dyThis
-  %undef _dyPrev
-  %undef _dyN
+  Voc0Head:
+  dd _vThis
+  %undef _vThis
+  %undef _vPrev
+  %undef _vN
 %endmacro
 
-mkDyFirst "nop", tNop
-mkDyItem "next", tNext
-mkDyItem "bye", tBye
-mkDyItem "dup", tDup
-mkDyItem "drop", tDrop
-mkDyItem "swap", tSwap
-mkDyItem "over", tOver
-mkDyItem "clearstack", tClearStack
-mkDyItem ".s", tDotS
-mkDyItem '."', tDotQuoteI     ; interpreted version of ."
-mkDyItem "(", tParen
-mkDyItem "emit", tEmit
-mkDyItem "cr", tCR
-mkDyItem "space", tSpace
-mkDyItem ".", tDot
-mkDyItem "+", tPlus
-mkDyItem "-", tMinus
-mkDyItem "*", tMul
-mkDyItem "/", tDiv
-mkDyItem "mod", tMod
-mkDyItem "/mod", tDivMod
-mkDyItem "max", tMax
-mkDyItem "min", tMin
-mkDyItem "abs", tAbs
-mkDyItem "and", tAnd
-mkDyItem "or", tOr
-mkDyItem "xor", tXor
-mkDyItem "not", tNot
-mkDyItem "<", tLess
-mkDyItem ">", tGreater
-mkDyItem "=", tEqual
-mkDyItem "0<", tZeroLess
-mkDyItem "0=", tZeroEqual
-mkDyItem "hex", tHex
-mkDyItem "decimal", tDecimal
-mkDyHead
+mkVoc0First "nop", tNop
+mkVoc0Item "next", tNext
+mkVoc0Item "bye", tBye
+mkVoc0Item "dup", tDup
+mkVoc0Item "drop", tDrop
+mkVoc0Item "swap", tSwap
+mkVoc0Item "over", tOver
+mkVoc0Item "clearstack", tClearStack
+mkVoc0Item ".s", tDotS
+mkVoc0Item '."', tDotQuoteI     ; interpreted version of ."
+mkVoc0Item "(", tParen
+mkVoc0Item ":", tColon
+mkVoc0Item "emit", tEmit
+mkVoc0Item "cr", tCR
+mkVoc0Item "space", tSpace
+mkVoc0Item ".", tDot
+mkVoc0Item "+", tPlus
+mkVoc0Item "-", tMinus
+mkVoc0Item "*", tMul
+mkVoc0Item "/", tDiv
+mkVoc0Item "mod", tMod
+mkVoc0Item "/mod", tDivMod
+mkVoc0Item "max", tMax
+mkVoc0Item "min", tMin
+mkVoc0Item "abs", tAbs
+mkVoc0Item "and", tAnd
+mkVoc0Item "or", tOr
+mkVoc0Item "xor", tXor
+mkVoc0Item "not", tNot
+mkVoc0Item "<", tLess
+mkVoc0Item ">", tGreater
+mkVoc0Item "=", tEqual
+mkVoc0Item "0<", tZeroLess
+mkVoc0Item "0=", tZeroEqual
+mkVoc0Item "hex", tHex
+mkVoc0Item "decimal", tDecimal
+mkVoc0Head
 
 
 ;-----------------------------
@@ -231,7 +237,10 @@ datErr5af:   db 25, 0, "  Err5 Assertion failed: "
 datErr6of:   db 17, 0, "  Err6 Overflow: "
 datErr7nfd:  db 24, 0, "  Err7 Not found [dec]: "
 datErr7nfh:  db 24, 0, "  Err7 Not found [hex]: "
-datErr8np:   db  0, 0, "  Err8 No closing ')'"
+datErr8np:   db 21, 0, "  Err8 No closing ')'"
+datErr9df:   db 25, 0, "  Err9 Dictionary is full"
+datErr10en:  db 23, 0, "  Err10 Expected a name"
+datErr11ntl: db 21, 0, "  Err11 Name too long"
 datDotST:    db  4, 0, 10, " T "
 datDotSNone: db 16, 0, "  Stack is empty"
 datOK:       db  5, 0, "  OK", 10
@@ -268,6 +277,13 @@ IN: resd 1                    ; Index into TIB of next available input byte
 
 align 16, resb 0
 Base: resd 1                  ; Number base for numeric string conversions
+
+align 16, resb 0              ; User dictionary (Vocabulary 1)
+Voc1: resq 1024               ; Start of dictionary memory
+Voc1E: resq 1                 ; End of dictionary memory
+%define Voc1Len (Voc1E-Voc1)  ; Length of dictionary memory in bytes
+DP: resd 1                    ; index to next free byte of dictionary
+Last: resd 1                  ; pointer to head of dictionary
 
 
 ;=============================
@@ -328,6 +344,8 @@ mov T, W
 mov DSDeep, W
 mov RSDeep, W
 mov [Pad], W
+mov [Last], dword Voc0Head    ; dictionary head starts at head of core vocab
+mov [DP], W                   ; vocab 1 dictionary pointer starts at 0
 call mDecimal                 ; default number base
 xor VMFlags, VMFlags          ; clear VM flags
 lea W, datVersion             ; print version string
@@ -480,7 +498,7 @@ push rbp              ; save arguments
 push rbx
 mov rbp, rdi          ; rbp = *buf
 mov rbx, rsi          ; rbx = count
-mov rdi, [dyHead]     ; Load head of dictionary list. Struct format is:
+mov rdi, [Last]       ; Load head of dictionary list. Struct format is:
                       ; {dd .link, db .nameLen, .name, db .tokenLen, .tokens}
 ;/////////////////////
 .lengthCheck:
@@ -556,17 +574,18 @@ ret
 ;-----------------------------
 ; Dictionary: Error handling
 
-mErr1Underflow:               ; Handle stack too empty error
-lea W, [datErr1se]            ; print error message
+mErrPutW:                     ; Print error from W and set error flag
 call mStrPut.W
 or VMFlags, VMErr             ; set error condition flag (hide OK prompt)
-ret                           ; return control to interpreter
+ret
 
-mErr2Overflow:                ; Handle stack too full error
+mErr1Underflow:               ; Error 1: Stack underflow
+lea W, [datErr1se]
+jmp mErrPutW
+
+mErr2Overflow:                ; Error 2: Stack overflow
 lea W, [datErr2sf]            ; print error message
-call mStrPut.W
-or VMFlags, VMErr             ; set error condition flag (hide OK prompt)
-ret                           ; return control to interpreter
+jmp mErrPutW
 
 mErr3BadToken:                ; Handle bad token error
 movzx W, byte [rbp]           ; save value of token
@@ -591,9 +610,7 @@ ret                           ; exit
 
 mErr4NoQuote:                 ; Error 4: unterminated quoted string
 lea W, [datErr4nq]            ; print error message
-call mStrPut.W
-or VMFlags, VMErr             ; set error condition flag (hide OK prompt)
-ret                           ; return control to interpreter
+jmp mErrPutW
 
 mErr5Assert:                  ; Error 5: assertion failed (W: error code)
 push WQ
@@ -617,9 +634,20 @@ ret
 
 mErr8NoParen:                 ; Error 8: comment had '(' without matching ')'
 lea W, [datErr8np]
-call mStrPut.W
-or VMFlags, VMErr
-ret
+jmp mErrPutW
+
+mErr9DictFull:                ; Error 9: Dictionary is full
+lea W, [datErr9df]
+jmp mErrPutW
+
+mErr10ExpectedName:           ; Error 10: Expected a name
+lea W, [datErr10en]
+jmp mErrPutW
+
+mErr11NameTooLong:            ; Error 11: Name too long
+lea W, [datErr11ntl]
+jmp mErrPutW
+
 
 ;-----------------------------
 ; Dictionary: Literals
@@ -708,6 +736,190 @@ jmp mErr8NoParen         ; oops, end of TIB reached without finding ")"
 .done:
 inc ecx
 mov [IN], ecx
+ret
+
+;-----------------------------
+; Compiling words
+
+mColon:                       ; COLON - define a word
+mov edi, [DP]                 ; load dictionary pointer (index into Voc1)
+push rdi                      ; save [DP] in case we want to roll back changes
+call mCreate                  ; add name from input stream to dictionary
+test VMFlags, VMErr           ; stop and roll back dictionary if it failed
+jnz .doneErr
+;-----------------------------
+mov esi, [DP]                 ; load dictionary pointer (updated by create)
+mov W, esi                    ; check if there is room to add tokens
+add W, 2
+cmp W, Voc1Len                ; if not, stop with an error
+jnb .doneErrFull
+mov [Voc1+esi], byte 1        ; otherwise, append {.tokenLen: 1}
+inc esi
+mov [Voc1+esi], byte tNext    ; append {.tokens: tNext}
+inc esi
+mov [DP], esi
+;-----------------------------
+.done:
+pop rdi                       ; commit dictionary changes
+lea W, [Voc1+edi]
+mov [Last], W
+ret
+;-----------------------------
+.doneErrFull:
+pop rdi                       ; roll back dictionary changes
+mov [DP], edi
+jmp mErr9DictFull             ; show error message
+;-----------------------------
+.doneErr:
+pop rdi                       ; roll back dictionary changes
+mov [DP], edi
+ret
+
+; CREATE - Add a name to the dictionary
+; struct format is: {dd .link, db .nameLen, <name>, db .tokenLen, .tokens}
+mCreate:
+mov edi, Voc1            ; load dictionary base address
+mov esi, [DP]            ; load dictionary pointer (index relative to Voc1)
+mov W, esi               ; check if dictionary has room for a link (4 bytes)
+add W, 4
+cmp W, Voc1Len           ; stop if dictionary is full
+jnb mErr9DictFull
+;------------------------
+push rsi                 ; save a copy of [DP] to use for rollback if needed
+mov W, [Last]            ; append {.link: [Last]} to dictionary
+mov [edi+esi], W
+add esi, 4               ; update [DP]
+mov [DP], esi
+push rsi                 ; store pointer to {.nameLen, <name>}
+call mWord               ; append word from [TIB+IN] as {.nameLen, <name>}
+pop rsi                  ; load pointer to {.nameLen, <name>}
+test VMFlags, VMErr      ; check for errors
+jnz .doneErr
+;------------------------
+                         ; Lowercase the name so case-insensitive lookups work
+lea rdi, [Voc1+rsi]      ; prepare {rdi, rsi} args for the name that was just
+movzx rsi, byte [rdi]    ;   stored at [Voc1+DP] (for DP from before mWord)
+inc rdi                  ; skip the length byte of {db .nameLen, <name>}
+call mLowercase          ; mLowercase(rdi: *buf, rsi: count)
+;------------------------
+.done:
+pop rsi                  ; commit dictionary changes
+ret
+;------------------------
+.doneErr:
+pop rsi                  ; roll back dictionary changes
+mov [DP], esi
+ret
+
+; WORD - Copy a word from [TIB+IN] to [Voc1+DP]
+mWord:
+mov edi, [TibPtr]        ; load input bufffer base pointer
+mov esi, [IN]            ; load input buffer index
+mov ecx, [TibLen]        ; load input buffer length
+cmp rsi, rcx             ; stop if no bytes are available in input buffer
+jnb .doneErr
+;////////////////////////
+.forScanStart:           ; Skip spaces to find next word-start boundary
+mov WB, byte [rdi+rsi]   ; check if current byte is non-space
+cmp WB, ' '              ; calculate r10b = ((WB==' ')||(WB==10)||(WB==13))
+sete r10b
+cmp WB, 10               ; check for LF
+sete r11b
+or r10b, r11b
+cmp WB, 13               ; check for CR
+sete r11b
+or r10b, r11b            ; r10b will be set if WB is in (' ', LF, CR)
+jz .forScanEnd           ; jump if word-start boundary was found
+inc rsi                  ; otherwise, advance past the ' '
+mov [IN], rsi            ; update IN (save index to start of word)
+cmp rsi, rcx             ; loop if there are more bytes
+jb .forScanStart
+jmp .doneErr             ; jump if reached end of TIB (it was all spaces)
+;------------------------
+.forScanEnd:             ; Scan for space or end of stream (word-end boundary)
+mov WB, byte [rdi+rsi]
+cmp WB, ' '              ; check for space
+sete r10b
+cmp WB, 10               ; check for LF
+sete r11b
+or r10b, r11b
+cmp WB, 13               ; check for CR
+sete r11b
+or r10b, r11b            ; r10b will be set if WB is in (' ', LF, CR)
+jnz .wordSpace
+inc rsi
+cmp rsi, rcx
+jb .forScanEnd           ; loop if there are more bytes (detect end of stream)
+;////////////////////////
+                         ; Handle word terminated by end of stream
+.wordEndBuf:             ; currently: {[IN]: start index, rsi: end index}
+mov W, [IN]              ; prepare arguments for calling doWord:
+sub esi, W               ; convert esi from index_of_word_end to word_length
+add edi, W               ; convert edi from TibPtr to start_of_word_pointer
+mov W, [IN]              ; update [IN]
+add W, esi
+mov [IN], W
+jmp .copyWordRdiRsi
+;------------------------
+                         ; Handle word terminated by space, LF, or CR
+.wordSpace:              ; currently: {[IN]: start index, rsi: end index + 1}
+mov W, [IN]              ; prepare word as {rdi: *buf, rsi: count}
+sub esi, W               ; convert rsi from index_of_word_end to word_length
+add edi, W               ; convert rdi from TibPtr to start_of_word_pointer
+add W, esi               ; update IN to point 1 past the space
+inc W
+mov [IN], W              ; (then fall through to copy word)
+;////////////////////////
+.copyWordRdiRsi:         ; Copy word {rdi: *buf, rsi: count} to [Voc1+[DP]]
+mov r8d, Voc1            ; load dictionary base address
+mov r9d, [DP]            ; load dictionary pointer (index relative to Voc1)
+mov W, r9d               ; check if dictionary has room for the name
+inc W                    ;  add 1 for {.nameLen: <byte>}
+add W, esi               ;  add byte count for {.name: <name>}
+cmp W, Voc1Len           ; stop if dictionary is full
+jnb mErr9DictFull
+mov W, esi               ; stop if word is too long (max 255 bytes)
+cmp W, 255
+ja mErr11NameTooLong
+;------------------------
+mov [r8d+r9d], sil       ; store {.nameLen: <byte count>}
+inc r9d
+xor rcx, rcx             ; zero source index
+.forCopy:
+mov WB, [rdi+rcx]        ; load [TIB+IN+rcx]
+mov [r8d+r9d], WB        ; store [Voc1+DP+rcx] (one byte of {.name: <name>})
+inc rcx                  ; keep looping while i<rsi
+inc r9d
+cmp rcx, rsi
+jb .forCopy
+;////////////////////////
+.done:
+mov [DP], r9d            ; store the new dictionary pointer
+ret
+;------------------------
+.doneErr:
+call mErr10ExpectedName
+ret
+
+; Convert string at {rdi: *buf, rsi: count} to lowercase (modify in place)
+mLowercase:
+xor ecx, ecx
+.for:
+mov WB, [rdi+rcx]     ; load [rdi+i] for i in 0..(rsi-1)
+cmp WB, 'A'           ; convert WB to lowercase without branching
+setae r10b
+cmp WB, 'Z'
+setbe r11b
+test r10b, r11b
+setnz r10b            ; ...at this point, r10 is set if dl is in 'A'..'Z'
+mov r11b, WB          ; ...speculatively prepare a lowercase (c+32) character
+add r11b, 32
+test r10b, r10b       ; ...swap in the lowercase char if needed
+cmovnz W, r11d
+mov [rdi+rcx], WB     ; store the lowercased byte
+inc ecx
+dec esi               ; loop until all bytes have been checked
+jnz .for
 ret
 
 
@@ -1191,7 +1403,7 @@ test r10b, r10b       ; check if a '-' is needed
 jnz .doneNegative
 ret
 ;---------------------
-.doneNegative;        ; add a '-' if base is decimal and sign is negative
+.doneNegative:        ; add a '-' if base is decimal and sign is negative
 jmp mFmtRtlMinus
 ;---------------------
 .doneError:
