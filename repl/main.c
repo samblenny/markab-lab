@@ -148,8 +148,10 @@ void set_terminal_for_raw_unbuffered_input() {
     new_config.c_iflag &= imask;
     new_config.c_lflag &= Lmask;
     new_config.c_cflag |= CS8;
-    new_config.c_cc[VMIN] = 0;   // read() can return 0 if buffer is empty
-    new_config.c_cc[VTIME] = 1;  // read() non-blocking timeout in deciseconds
+    if(STDIN_ISATTY) {
+        new_config.c_cc[VMIN] = 0;   // read() can return 0 if buffer is empty
+        new_config.c_cc[VTIME] = 1;  // read() non-blocking timeout (unit 0.1s)
+    }
     tcsetattr(STDIN_FILENO, TCSANOW, &new_config);
     // Configure terminal stdout for unbuffered output
     setbuf(stdout, NULL);
@@ -302,21 +304,27 @@ void tib_insert(unsigned char c) {
     TIB[TIB_LEN] = 0;
 }
 
-void tty_update_line() {
+void tty_update_line(int last_char_is_cr) {
     if(!STDIN_ISATTY) {
-        return;  // don't use ANSI escapes if STDIN is pipe or file
+        // If STDIN is pipe or file, print the input buffer only for CR or EOF,
+        // and do not use any ANSI escape sequences
+        if(last_char_is_cr) {
+            write(STDOUT_FILENO, TIB, TIB_LEN);
+        }
+    } else {
+        // When STDIN is a TTY, for each new character, erase all of the
+        // current line with an ANSI escape sequence and move back to column 1
+        char *erase_line = "\33[2K\33[G";
+        write(STDOUT_FILENO, erase_line, 7);
+        // If the input buffer is too long, show only the tail of the buffer
+        if(TTY.maxCol < TIB_LEN) {
+            size_t diff = TIB_LEN - TTY.maxCol;
+            write(STDOUT_FILENO, TIB+diff, TTY.maxCol);
+            return;
+        }
+        // Otherwise, show the whole input buffer
+        write(STDOUT_FILENO, TIB, TIB_LEN);
     }
-    // Erase all of current line, move to column 1
-    char *erase_line = "\33[2K\33[G";
-    write(STDOUT_FILENO, erase_line, 7);
-    // If the input buffer is too long, show only the end
-    if(TTY.maxCol < TIB_LEN) {
-        size_t diff = TIB_LEN - TTY.maxCol;
-        write(STDOUT_FILENO, TIB+diff, TTY.maxCol);
-        return;
-    }
-    // Otherwise, show the whole input buffer
-    write(STDOUT_FILENO, TIB, TIB_LEN);
 }
 
 void step_tty_state(unsigned char c) {
@@ -324,6 +332,9 @@ void step_tty_state(unsigned char c) {
     case Normal:
         switch(c) {
         case 13:  // Enter key is CR (^M) since ICRNL|INLCR are turned off
+            if(!STDIN_ISATTY) {
+                tty_update_line(1);
+            }
             tib_cr();
             return;
         case 12:  // Form feed (^L) clears screen
@@ -334,7 +345,7 @@ void step_tty_state(unsigned char c) {
             return;
         case 127:
             tib_backspace(TIB_LEN);
-            tty_update_line();
+            tty_update_line(0);
             return;
         default:
             if(c < ' ' || c > 0xf7) {
@@ -343,7 +354,7 @@ void step_tty_state(unsigned char c) {
             }
             // Handle normal character or UTF-8 byte
             tib_insert(c);
-            tty_update_line();
+            tty_update_line(0);
             return;
         }
     case Esc:
@@ -451,7 +462,10 @@ int mkb_host_step_stdin() {
     // Check for input (read() is configured with a 0.1s timeout)
     int result = read(STDIN_FILENO, ISB, BUF_SIZE);
     if(result == 0 && !STDIN_ISATTY) {
-        return -1;  // end for EOF
+        // In case of EOF when reading from file or pipe, insert CR, then stop
+        unsigned char cr = 13;
+        step_tty_state(cr);
+        return -1;
     }
     if(result < 0) {
         return 0;  // Error (TODO: handle this better)
