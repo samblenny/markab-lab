@@ -34,86 +34,18 @@ section .data
 ;=============================
 
 ;-----------------------------
-; Jump table
-
-; mkTk is a macro to make a token by doing:
-; 1. Define a named token value for use in hand compiling bootstrapping words
-; 2. Add code address for the token to the jump table
-; 3. Increment the token value to prepare for next invocation of mkTk
-; For example:
-;    mkTk Foo
-;    mkTk Bar
-; expands to:
-;    %xdefine tFoo 0
-;    dw mFoo
-;    %xdefine tBar 1
-;    dw mBar
-%assign _tkVal 0              ; set initial token value
-%macro mkTk 1                 ; Make a jump table token
-  %xdefine t%[%1] _tkVal      ; define named token value: `tNop`, `tU8`, ...
-  dd m%[%1]                   ; add token's code address to jump table
-  %assign _tkVal _tkVal+1     ; increment token value
-%endmacro
-%macro mkEndJumpTable 0       ; Make end of jump table bounds checking token
-  %xdefine tEndJumpTable _tkVal
-  %undef _tkVal
-%endmacro
-
-align 16, db 0
-db "== Jump Table =="
-align 16, db 0
-JumpTable:
-mkTk Nop
-mkTk Next                     ; Next gets handled specially by doInner
-mkTk Bye
-mkTk U8
-mkTk I8
-mkTk U16
-mkTk I16
-mkTk I32
-mkTk Dup
-mkTk Drop
-mkTk Swap
-mkTk Over
-mkTk ClearStack
-mkTk DotS
-mkTk DotQuoteC                ; compiled version of ."
-mkTk DotQuoteI                ; interpreted version of ."
-mkTk Paren
-mkTk Colon
-mkTk Emit
-mkTk CR
-mkTk Space
-mkTk Dot
-mkTk Plus
-mkTk Minus
-mkTk Mul
-mkTk Div
-mkTk Mod
-mkTk DivMod
-mkTk Max
-mkTk Min
-mkTk Abs
-mkTk And
-mkTk Or
-mkTk Xor
-mkTk Not
-mkTk Less
-mkTk Greater
-mkTk Equal
-mkTk ZeroLess
-mkTk ZeroEqual
-mkTk Hex
-mkTk Decimal
-
-mkEndJumpTable                ; define tEndJumpTable for token bounds checking
-
-
-;-----------------------------
-; Dictionary
-
-align 16, db 0
-db "== Dictionary =="
+; Codegen Import
+;
+; This includes:
+; 1. `%define t...` defines for VM instruction token values (e.g. tNext)
+; 2. Jump table including:
+;    - JumpTable: label for start of jump table
+;    - JumpTableLen: define for length of jump table (to check valid tokens)
+; 3. Dictionary data structure for vocab 0 (built-in words):
+;    - Voc0Head: head of dictionary linked list
+;    - Voc0TokPtr: start address of compiled tokens (to be copied at runtime)
+;    - Voc0TokLen: length in bytes of compiled tokens (for copying at runtime)
+;
 %include "voc0.nasm"
 
 
@@ -300,7 +232,7 @@ mov rbx, rdi                  ; ebx = max loop iterations
 movzx W, byte [rbp]           ; load token at I
 cmp WB, tNext                 ; handle `Next` specially
 je .done
-cmp WB, tEndJumpTable         ; detect token beyond jump table range (CAUTION!)
+cmp WB, JumpTableLen          ; detect token beyond jump table range (CAUTION!)
 jae mErr3BadToken
 lea edi, [JumpTable]          ; fetch jump table address
 mov esi, dword [rdi+4*WQ]
