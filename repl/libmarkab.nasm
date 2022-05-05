@@ -43,8 +43,6 @@ section .data
 ;    - JumpTableLen: define for length of jump table (to check valid tokens)
 ; 3. Dictionary data structure for vocab 0 (built-in words):
 ;    - Voc0Head: head of dictionary linked list
-;    - Voc0TokPtr: start address of compiled tokens (to be copied at runtime)
-;    - Voc0TokLen: length in bytes of compiled tokens (for copying at runtime)
 ;
 %include "voc0.nasm"
 

@@ -12,12 +12,11 @@ label: dd .link                 ; link to previous list entry
 """
 
 # These are names and long names for words in Markab Forth's core dictionary
-# (Voc0). Names are spelled as you would type into Forth source code. As such,
-# they include characters that are not valid for labels in assembly source
-# code. The long names are spelled out like the traditional Forth
-# pronunciations, and are valid as assembly source code labels. To avoid
-# conflicts with amd64 instructions (`nop`, `div`, etc.), the Markab source
-# code uses prefixes for token definitions and labels for token code.
+# (Voc0). Names are spelled as Forth source code. Long names are spelled out
+# similar to traditional Forth pronunciations, using only characters that are
+# valid in NASM assembly source code labels. To avoid conflicts with amd64
+# instructions (`nop`, `div`, etc.), the Markab source code uses prefixes for
+# its token definitions and code labels.
 #
 # For example: in `%define tMul ...` and `mMul: ...`, the long name is `Mul`
 # and the prefixes are `t` (for token definition) and `m` for code label.
