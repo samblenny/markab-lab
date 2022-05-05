@@ -88,6 +88,7 @@ datErr8np:   db 21, 0, "  Err8 No closing ')'"
 datErr9df:   db 25, 0, "  Err9 Dictionary is full"
 datErr10en:  db 23, 0, "  Err10 Expected a name"
 datErr11ntl: db 21, 0, "  Err11 Name too long"
+datErr12dbz: db 22, 0, "  Err12 Divide by zero"
 datDotST:    db  4, 0, 10, " T "
 datDotSNone: db 16, 0, "  Stack is empty"
 datOK:       db  5, 0, "  OK", 10
@@ -495,6 +496,10 @@ mErr11NameTooLong:            ; Error 11: Name too long
 lea W, [datErr11ntl]
 jmp mErrPutW
 
+mErr12DivideByZero:           ; Error 12: Divide by zero
+lea W, [datErr12dbz]
+jmp mErrPutW
+
 
 ;-----------------------------
 ; Dictionary: Literals
@@ -857,6 +862,8 @@ ret
 
 mDiv:                         ; /   ( 2nd T -- <quotient 2nd/T> )
 call mMathDrop                ; after drop, old value of T is in W
+test W, W                     ; make sure divisor is not 0
+jz mErr12DivideByZero
 cdq                           ; sign extend eax (W, old T) into rax
 mov rdi, WQ                   ; save old T in rdi (use qword to prep for idiv)
 mov W, T                      ; prepare dividend (old 2nd) in rax
@@ -867,6 +874,8 @@ ret
 
 mMod:                         ; MOD   ( 2nd T -- <remainder 2nd/T> )
 call mMathDrop                ; after drop, old value of T is in W
+test W, W                     ; make sure divisor is not 0
+jz mErr12DivideByZero
 cdq                           ; sign extend eax (W, old T) into rax
 mov rdi, WQ                   ; save old T in rdi (use qword to prep for idiv)
 mov W, T                      ; prepare dividend (old 2nd) in rax
@@ -878,6 +887,8 @@ ret
 mDivMod:                      ; /MOD   for 2nd/T: ( 2nd T -- rem quot )
 cmp DSDeep, 2                 ; make sure there are 2 items on the stack
 jb mErr1Underflow
+test T, T                     ; make sure divisor is not 0
+jz mErr12DivideByZero
 mov ecx, DSDeep               ; fetch old 2nd as dividend to eax (W)
 sub cl, 2
 mov W, [DSBase+4*ecx]
