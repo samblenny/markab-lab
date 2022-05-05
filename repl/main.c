@@ -89,6 +89,9 @@ void catch_signal(int signal) {
     case SIGILL:
         fprintf(stderr, "[Illegal Instruction (restoring terminal config)]\n");
         break;
+    case SIGFPE:
+        fprintf(stderr, "[Floating Point Error (restoring terminal config)]\n");
+        break;
     default:
         // See list in /usr/include/x86_64-linux-gnu/bits/signum-generic.h
         fprintf(stderr, "[signal %u: restoring terminal config]\n", signal);
@@ -138,6 +141,7 @@ void set_terminal_for_raw_unbuffered_input() {
     a.sa_flags = SA_ONSTACK;
     sigaction(SIGILL, &a, NULL);   // Hook for illegal instruction
     sigaction(SIGSEGV, &a, NULL);  // Hook for segmentation fault
+    sigaction(SIGFPE, &a, NULL);   // Hook for floating point errors
     a.sa_handler = handle_sigwinch;
     sigaction(SIGWINCH, &a, NULL); // Hook for window resize notification
     // Configure terminal stdio for unbuffered raw input
