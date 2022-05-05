@@ -25,6 +25,9 @@ dump: main
 main: main.c obj/libmarkab.o
 	$(CC) -O2 -Wl,-export-dynamic -std=c99 -Wall -o $@ main.c obj/libmarkab.o
 
-obj/libmarkab.o: libmarkab.nasm screen00.fs
+obj/libmarkab.o: libmarkab.nasm screen00.fs voc0.nasm
 	@mkdir -p obj
-	@nasm -f elf64 -w+all --reproducible -o $@ $<
+	nasm -f elf64 -w+all --reproducible -o $@ $<
+
+voc0.nasm: voc0_codegen.py
+	python3 voc0_codegen.py > voc0.nasm
