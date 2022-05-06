@@ -41,10 +41,10 @@ section .data
 ; 2. Jump table including:
 ;    - JumpTable: label for start of jump table
 ;    - JumpTableLen: define for length of jump table (to check valid tokens)
-; 3. Dictionary data structure for vocab 0 (built-in words):
-;    - Voc0Head: head of dictionary linked list
+; 3. Data structure for dictionary 0 (built-in words):
+;    - Dct0Head: head of dictionary linked list
 ;
-%include "voc0.nasm"
+%include "generated_data.nasm"
 
 
 ;-----------------------------
@@ -126,10 +126,10 @@ IN: resd 1                    ; Index into TIB of next available input byte
 align 16, resb 0
 Base: resd 1                  ; Number base for numeric string conversions
 
-align 16, resb 0              ; User dictionary (Vocabulary 1)
-Voc1: resq 1024               ; Start of dictionary memory
-Voc1E: resq 1                 ; End of dictionary memory
-%define Voc1Len (Voc1E-Voc1)  ; Length of dictionary memory in bytes
+align 16, resb 0              ; User dictionary (Dictionary 2)
+Dct2: resq 1024               ; Start of dictionary memory
+Dct2E: resq 1                 ; End of dictionary memory
+%define Dct2Len (Dct2E-Dct2)  ; Length of dictionary memory in bytes
 DP: resd 1                    ; index to next free byte of dictionary
 Last: resd 1                  ; pointer to head of dictionary
 
@@ -192,8 +192,8 @@ mov T, W
 mov DSDeep, W
 mov RSDeep, W
 mov [Pad], W
-mov [Last], dword Voc0Head    ; dictionary head starts at head of core vocab
-mov [DP], W                   ; vocab 1 dictionary pointer starts at 0
+mov [Last], dword Dct0Head    ; dictionary head starts at head of Dct0
+mov [DP], W                   ; dictionary pointer starts at 0
 call mDecimal                 ; default number base
 xor VMFlags, VMFlags          ; clear VM flags
 lea W, datVersion             ; print version string
@@ -594,7 +594,7 @@ ret
 ; Compiling words
 
 mColon:                       ; COLON - define a word
-mov edi, [DP]                 ; load dictionary pointer (index into Voc1)
+mov edi, [DP]                 ; load dictionary pointer (index into Dct2)
 push rdi                      ; save [DP] in case we want to roll back changes
 call mCreate                  ; add name from input stream to dictionary
 test VMFlags, VMErr           ; stop and roll back dictionary if it failed
@@ -603,17 +603,17 @@ jnz .doneErr
 mov esi, [DP]                 ; load dictionary pointer (updated by create)
 mov W, esi                    ; check if there is room to add tokens
 add W, 2
-cmp W, Voc1Len                ; if not, stop with an error
+cmp W, Dct2Len                ; if not, stop with an error
 jnb .doneErrFull
-mov [Voc1+esi], byte 1        ; otherwise, append {.tokenLen: 1}
+mov [Dct2+esi], byte 1        ; otherwise, append {.tokenLen: 1}
 inc esi
-mov [Voc1+esi], byte tNext    ; append {.tokens: tNext}
+mov [Dct2+esi], byte tNext    ; append {.tokens: tNext}
 inc esi
 mov [DP], esi
 ;-----------------------------
 .done:
 pop rdi                       ; commit dictionary changes
-lea W, [Voc1+edi]
+lea W, [Dct2+edi]
 mov [Last], W
 ret
 ;-----------------------------
@@ -630,11 +630,11 @@ ret
 ; CREATE - Add a name to the dictionary
 ; struct format is: {dd .link, db .nameLen, <name>, db .tokenLen, .tokens}
 mCreate:
-mov edi, Voc1            ; load dictionary base address
-mov esi, [DP]            ; load dictionary pointer (index relative to Voc1)
+mov edi, Dct2            ; load dictionary base address
+mov esi, [DP]            ; load dictionary pointer (index relative to Dct2)
 mov W, esi               ; check if dictionary has room for a link (4 bytes)
 add W, 4
-cmp W, Voc1Len           ; stop if dictionary is full
+cmp W, Dct2Len           ; stop if dictionary is full
 jnb mErr9DictFull
 ;------------------------
 push rsi                 ; save a copy of [DP] to use for rollback if needed
@@ -649,8 +649,8 @@ test VMFlags, VMErr      ; check for errors
 jnz .doneErr
 ;------------------------
                          ; Lowercase the name so case-insensitive lookups work
-lea rdi, [Voc1+rsi]      ; prepare {rdi, rsi} args for the name that was just
-movzx rsi, byte [rdi]    ;   stored at [Voc1+DP] (for DP from before mWord)
+lea rdi, [Dct2+rsi]      ; prepare {rdi, rsi} args for the name that was just
+movzx rsi, byte [rdi]    ;   stored at [Dct2+DP] (for DP from before mWord)
 inc rdi                  ; skip the length byte of {db .nameLen, <name>}
 call mLowercase          ; mLowercase(rdi: *buf, rsi: count)
 ;------------------------
@@ -663,7 +663,7 @@ pop rsi                  ; roll back dictionary changes
 mov [DP], esi
 ret
 
-; WORD - Copy a word from [TIB+IN] to [Voc1+DP]
+; WORD - Copy a word from [TIB+IN] to [Dct2+DP]
 mWord:
 mov edi, [TibPtr]        ; load input bufffer base pointer
 mov esi, [IN]            ; load input buffer index
@@ -722,13 +722,13 @@ add W, esi               ; update IN to point 1 past the space
 inc W
 mov [IN], W              ; (then fall through to copy word)
 ;////////////////////////
-.copyWordRdiRsi:         ; Copy word {rdi: *buf, rsi: count} to [Voc1+[DP]]
-mov r8d, Voc1            ; load dictionary base address
-mov r9d, [DP]            ; load dictionary pointer (index relative to Voc1)
+.copyWordRdiRsi:         ; Copy word {rdi: *buf, rsi: count} to [Dct2+[DP]]
+mov r8d, Dct2            ; load dictionary base address
+mov r9d, [DP]            ; load dictionary pointer (index relative to Dct2)
 mov W, r9d               ; check if dictionary has room for the name
 inc W                    ;  add 1 for {.nameLen: <byte>}
 add W, esi               ;  add byte count for {.name: <name>}
-cmp W, Voc1Len           ; stop if dictionary is full
+cmp W, Dct2Len           ; stop if dictionary is full
 jnb mErr9DictFull
 mov W, esi               ; stop if word is too long (max 255 bytes)
 cmp W, 255
@@ -739,7 +739,7 @@ inc r9d
 xor rcx, rcx             ; zero source index
 .forCopy:
 mov WB, [rdi+rcx]        ; load [TIB+IN+rcx]
-mov [r8d+r9d], WB        ; store [Voc1+DP+rcx] (one byte of {.name: <name>})
+mov [r8d+r9d], WB        ; store [Dct2+DP+rcx] (one byte of {.name: <name>})
 inc rcx                  ; keep looping while i<rsi
 inc r9d
 cmp rcx, rsi
