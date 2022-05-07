@@ -48,19 +48,12 @@ section .data
 
 
 ;-----------------------------
-; Compiled code ROM (tokens)
-
-%macro mkDotQuote 1           ; Compile a `." ..."` string with correct length
-  %strlen %%mStrLen %1
-  db tDotQuoteC
-  dw %%mStrLen
-  db %1
-%endmacro
+; Loadscreen
 
 align 16, db 0
 db "== LoadScreen =="
 align 16, db 0
-Screen0:                   ; load screen text (Markab Forth source code)
+Screen0:                   ; load screen text (text with Forth source code)
 incbin "screen00.fs"
 EndScreen0: db 0
 align 16, db 0
@@ -81,19 +74,19 @@ db "== VM Strings =="
 %endmacro
 
 datVersion:  mkStr `Markab v0.0.1\ntype 'bye' or ^C to exit\n`
-datErr1se:   mkStr "  Err1 Stack underflow"
-datErr2sf:   mkStr "  Err2 Stack full"
-datErr3bt:   mkStr "  Err3 Bad token, (T IP) ="
-datErr4nq:   mkStr `  Err4 Expected \"`
-datErr5af:   mkStr "  Err5 Assertion failed: "
-datErr6of:   mkStr "  Err6 Overflow: "
-datErr7nfd:  mkStr "  Err7 Not found [dec]: "
-datErr7nfh:  mkStr "  Err7 Not found [hex]: "
-datErr8np:   mkStr "  Err8 Expected )"
-datErr9df:   mkStr "  Err9 Dictionary is full"
-datErr10en:  mkStr "  Err10 Expected a name"
-datErr11ntl: mkStr "  Err11 Name too long"
-datErr12dbz: mkStr "  Err12 Divide by zero"
+datErr1se:   mkStr "  E1 Stack underflow"
+datErr2sf:   mkStr "  E2 Stack full"
+datErr3bt:   mkStr "  E3 Bad token: "
+datErr4nq:   mkStr `  E4 Expected \"`
+datErr5af:   mkStr "  E5 Assertion failed: "
+datErr6of:   mkStr "  E6 Overflow: "
+datErr7nfd:  mkStr "  E7 ? "
+datErr7nfh:  mkStr "  E7 [hex] ? "
+datErr8np:   mkStr "  E8 Expected )"
+datErr9df:   mkStr "  E9 Dictionary full"
+datErr10en:  mkStr "  E10 Expected name"
+datErr11ntl: mkStr "  E11 Name too long"
+datErr12dbz: mkStr "  E12 Divide by 0"
 datDotSNone: mkStr "  Stack is empty"
 datOK:       mkStr `  OK\n`
 
