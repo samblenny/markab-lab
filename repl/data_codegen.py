@@ -9,9 +9,10 @@ This is how I bootstrap the VM token instruction set and dictionaries for
 built-in words.
 
 Dct0 struct format is:
-label: dd .link                 ; link to previous list entry
-       db .nameLen, <name>      ; name of word
-       db .tokenLen, <tokens>   ; compiled tokens for action of word
+label: dd .link             ; link to previous list entry
+       db .nameLen, <name>  ; name of word
+       db .wordType         ; type of word: 0:token, 1:var, 2:code
+       (db|dw) .param       ; parameter: (db token|dw varPtr|dw codePtr)
 """
 
 # These are VM instruction token names for generating source code of token
@@ -24,7 +25,7 @@ label: dd .link                 ; link to previous list entry
 TOKENS = """
 Next Nop Bye Dup Drop Swap Over ClearStack DotS DotQuoteI Paren Colon Emit
 CR Space Dot Plus Minus Mul Div Mod DivMod Max Min Abs And Or Xor Not Less
-Greater Equal ZeroLess ZeroEqual Hex Decimal
+Greater Equal ZeroLess ZeroEqual Hex Decimal Fetch Store ByteFetch ByteStore
 """
 
 # These are names and tokens for words in Markab Forth's core dictionary
@@ -72,6 +73,10 @@ not Not
 0= ZeroEqual
 hex Hex
 decimal Decimal
+@ Fetch
+! Store
+b@ ByteFetch
+b! ByteStore
 """
 
 def list_of_words(text):
@@ -110,7 +115,7 @@ def make_dictionary0():
     token = "t" + long_name                # change long name into token macro
     fmtLink = f"{label}: dd {link}"        # link to previous item in list
     fmtName = f"{indent}db {len(name)}, {quote}{name}{quote}"
-    fmtToks = f"{indent}db 1, {token}"
+    fmtToks = f"{indent}db 0, {token}"
     items += [f"{fmtLink}\n{fmtName}\n{fmtToks}\n{indent}align 16, db 0"]
     serial += 1
     link = label

@@ -87,6 +87,8 @@ datErr9df:   mkStr "  E9 Dictionary full"
 datErr10en:  mkStr "  E10 Expected name"
 datErr11ntl: mkStr "  E11 Name too long"
 datErr12dbz: mkStr "  E12 Divide by 0"
+datErr13aor: mkStr "  E13 Address out of range"
+datErr14bwt: mkStr "  E14 Bad word type"
 datDotSNone: mkStr "  Stack is empty"
 datOK:       mkStr `  OK\n`
 
@@ -115,19 +117,27 @@ section .bss
 %define DSMax 17              ; total size of data stack (T + 16 dwords)
 %define RSMax 16              ; total size of return stack (16 dwords)
 %define StrMax 1022           ; length of string data area
-%define DctMax 16384          ; dictionary length = 16 KiB
+%define DctMax 16384          ; dictionary length
 %define DctReserve 256        ; dictionary reserved bytes (space for mWord)
+%define VarMax 16384          ; bytes for user-defined variables
+%define CodeMax 16384         ; bytes for user-defined words (token code)
 
-dwordBuf DSBase, DSMax-1      ; data stack (size excludes top item T)
+dwordBuf DSBase, DSMax-1      ; Data stack (size excludes top item T)
 dwordBuf RSBase, RSMax        ; Return stack for token interpreter
 
-byteBuf Pad, 2+StrMax         ; string scratch buffer; word 0 is length
-byteBuf PadRtl, StrMax+2      ; right-to-left buffer for formatting numbers;
+byteBuf Pad, 2+StrMax         ; String scratch buffer; word 0 is length
+byteBuf PadRtl, StrMax+2      ; Right-to-left buffer for formatting numbers;
                               ; word [PadRtl+StrMax] is index first used byte
 
+byteBuf VarMem, VarMax        ; Start of user-defined variables memory
+dwordVar VarP                 ; Index to next free byte of variables memory
+
+byteBuf CodeMem, CodeMax      ; Start of user-defined compiled code memory
+dwordVar CodeP                ; Index to next free byte of compiled code memory
+
 byteBuf Dct2, DctMax          ; Start of user dictionary (Dictionary 2)
-dwordVar DP                   ; index to next free byte of dictionary
-dwordVar Last                 ; pointer to head of dictionary
+dwordVar DP                   ; Index to next free byte of dictionary
+dwordVar Last                 ; Pointer to head of dictionary
 
 dwordVar TibPtr               ; Pointer to terminal input buffer (TIB)
 dwordVar TibLen               ; Length of TIB (count of max available bytes)
@@ -196,6 +206,8 @@ mov RSDeep, W
 mov [Pad], W
 mov [Last], dword Dct0Head    ; dictionary head starts at head of Dct0
 mov [DP], W                   ; dictionary pointer starts at 0
+mov [VarP], W                 ; variables memory pointer starts at 0
+mov [CodeP], W                ; code memory pointer starts at 0
 call mDecimal                 ; default number base
 xor VMFlags, VMFlags          ; clear VM flags
 lea W, datVersion             ; print version string
@@ -309,7 +321,7 @@ push rbx
 mov rbp, rdi          ; rbp = *buf
 mov rbx, rsi          ; rbx = count
 mov edi, [Last]       ; Load head of dictionary list. Struct format is:
-                      ; {dd .link, db .nameLen, .name, db .tokenLen, .tokens}
+                      ; {dd .link, db .nameLen, .name, db .wordType, .param}
 ;/////////////////////
 .lengthCheck:
 xor W, W              ; Check: does .nameLen match the search word length?
@@ -339,14 +351,31 @@ inc W                 ; otherwise, continue
 dec rcx
 jnz .for              ; no more bytes to check means search word matches name
 ;/////////////////////
-.wordMatch:           ; got a match, rsi+W now points to .tokenLen
-lea rcx, [rdi+5]      ; rcx = pointer to .tokenLen (skip .link and .nameLen)
-add rcx, WQ           ; ...(skip .name)
-xor rdi, rdi          ; rdi = value of .tokenLen
+.wordMatch:           ; got a match, rsi+WQ now points to .wordType
+lea rcx, [rdi+5]      ; rcx = ptr to .wordType (skip .link, .nameLen, name)
+add rcx, WQ
+xor rdi, rdi          ; rdi = value of .wordType
 mov dil, byte [rcx]
-inc rcx               ; rsi = pointer to .tokens
+cmp dil, 2            ; check for .wordType==2 --> .param is dw code pointer
+je .paramDwCodeP
+cmp dil, 1            ; check for .wordType==1 --> .param is dw var pointer
+je .paramDwVarP
+test dil, dil         ; check for .wordType==0 --> .param is db token
+jnz .doneBadWordType
+;---------------------
+.paramDbToken:
+mov dil, 1            ; rdi = 1 (tokenLen)
+inc rcx               ; rsi = pointer to .param
 mov rsi, rcx
 call doInner          ; doInner(rdi: tokenLen, rsi: tokensPointer)
+jmp .done
+;---------------------
+.paramDwCodeP:
+; TODO: jump to code pointer
+jmp .done
+;---------------------
+.paramDwVarP:
+; TODO: push parameter (dw address)
 jmp .done
 ;/////////////////////
 .nextItem:            ; follow link;
@@ -378,6 +407,11 @@ or VMFlags, VMErr     ; return with error condition
 pop rbx               ; restore registers
 pop rbp
 ret
+;---------------------
+.doneBadWordType:
+pop rbx
+pop rbp
+jmp mErr14BadWordType
 ;/////////////////////
 
 
@@ -450,6 +484,14 @@ jmp mErrPutW
 
 mErr12DivideByZero:           ; Error 12: Divide by zero
 lea W, [datErr12dbz]
+jmp mErrPutW
+
+mErr13AddressOOR:             ; Error 13: Address out of range
+lea W, [datErr13aor]
+jmp mErrPutW
+
+mErr14BadWordType:            ; Error 14: Bad word type
+lea W, [datErr14bwt]
 jmp mErrPutW
 
 
@@ -1067,6 +1109,62 @@ jmp mPush             ; push the number
 .doneNaN:             ; failed conversion, signal NaN
 or VMFlags, VMNaN
 ret
+
+;-----------------------------
+; Dictionary: Fetch and Store
+
+mFetch:                     ; Fetch: pop addr, load & push dword [VarMem+addr]
+cmp DSDeep, 1               ; make sure stack has at least 1 item (address)
+jb mErr1Underflow
+mov W, T                    ; make sure address is in range
+add W, 4
+cmp W, VarMax
+jnb mErr13AddressOOR
+mov T, [VarMem+T]           ; pop addr, load dword, push dword
+ret
+
+mStore:                     ; Store dword (second) at address (T)
+cmp DSDeep, 2               ; make sure stack depth >= 2 items (data, address)
+jb mErr1Underflow
+mov W, T                    ; make sure address is in range
+add W, 4
+cmp W, VarMax
+jnb mErr13AddressOOR
+mov edi, T                  ; save address
+dec DSDeep                  ; drop address
+mov T, [DSBase+4*DSDeep-4]  ; T now contains the data dword from former second
+mov [VarMem+edi], T         ; store data at [VarMem+addr]
+dec DSDeep                  ; drop data dword
+mov T, [DSBase+4*DSDeep-4]
+ret
+
+mByteFetch:                 ; Fetch: pop addr, load & push byte [VarMem+addr]
+cmp DSDeep, 1               ; make sure stack has at least 1 item (address)
+jb mErr1Underflow
+mov W, T                    ; make sure address is in range
+add W, 1
+cmp W, VarMax
+jnb mErr13AddressOOR
+xor W, W                    ; pop addr, load dword
+mov WB, byte [VarMem+T]
+mov T, W                    ; push dword
+ret
+
+mByteStore:                 ; Store low byte of (second) at address (T)
+cmp DSDeep, 2               ; make sure stack depth >= 2 items (data, address)
+jb mErr1Underflow
+mov W, T                    ; make sure address is in range
+add W, 1
+cmp W, VarMax
+jnb mErr13AddressOOR
+mov edi, T                  ; save address
+dec DSDeep                  ; drop address
+mov T, [DSBase+4*DSDeep-4]  ; T now contains the data dword from former second
+mov byte [VarMem+edi], TB   ; store data at [VarMem+addr]
+dec DSDeep                  ; drop data dword
+mov T, [DSBase+4*DSDeep-4]
+ret
+
 
 ;-----------------------------
 ; Dictionary: Strings
