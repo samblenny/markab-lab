@@ -232,24 +232,31 @@ push rbp
 push rbx
 mov rbp, rsi                  ; ebp = instruction pointer (I)
 mov rbx, rdi                  ; ebx = max loop iterations
-;//////////////////////////////
+;/////////////////////////////
 .for:
 movzx W, byte [rbp]           ; load token at I
 cmp WB, tNext                 ; handle `Next` specially
 je .done
 cmp WB, JumpTableLen          ; detect token beyond jump table range (CAUTION!)
-jae mErr3BadToken
+jae .doneBadToken
 lea edi, [JumpTable]          ; fetch jump table address
 mov esi, dword [rdi+4*WQ]
 inc ebp                       ; advance I
 call rsi                      ; jump (callee may adjust I for LITx)
 dec ebx
 jnz .for                      ; loop until end of token count (or Next)
-;//////////////////////////////
+;/////////////////////////////
 .done:                        ; normal exit path
 pop rbx
 pop rbp
 ret
+;-----------------------------
+.doneBadToken:                ; exit path for invalid token
+call mErr3BadToken
+pop rbx
+pop rbp
+ret
+
 
 ; Interpret a line of text from the input stream
 ;  void markab_outer(edi: u8 *buf, esi: u32 count)
