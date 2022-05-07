@@ -74,23 +74,28 @@ dd (EndScreen0 - Screen0)
 align 16, db 0
 db "== VM Strings =="
 
-datVersion:  db 39, 0, "Markab v0.0.1", 10, "type 'bye' or ^C to exit", 10
-datErr1se:   db 22, 0, "  Err1 Stack underflow"
-datErr2sf:   db 17, 0, "  Err2 Stack full"
-datErr3btA:  db 22, 0, "  Err3 Bad token  T:"
-datErr3btB:  db  4, 0, "  I:"
-datErr4nq:   db 17, 0, "  Err4 Expected ", '"'
-datErr5af:   db 25, 0, "  Err5 Assertion failed: "
-datErr6of:   db 17, 0, "  Err6 Overflow: "
-datErr7nfd:  db 24, 0, "  Err7 Not found [dec]: "
-datErr7nfh:  db 24, 0, "  Err7 Not found [hex]: "
-datErr8np:   db 17, 0, "  Err8 Expected )"
-datErr9df:   db 25, 0, "  Err9 Dictionary is full"
-datErr10en:  db 23, 0, "  Err10 Expected a name"
-datErr11ntl: db 21, 0, "  Err11 Name too long"
-datErr12dbz: db 22, 0, "  Err12 Divide by zero"
-datDotSNone: db 16, 0, "  Stack is empty"
-datOK:       db  5, 0, "  OK", 10
+%macro mkStr 1             ; Make string with a 2-byte length prefix
+  %strlen %%mStrLen %1     ; calculate length string
+  dw %%mStrLen             ; 2 byte length
+  db %1                    ; <length> bytes of string
+%endmacro
+
+datVersion:  mkStr `Markab v0.0.1\ntype 'bye' or ^C to exit\n`
+datErr1se:   mkStr "  Err1 Stack underflow"
+datErr2sf:   mkStr "  Err2 Stack full"
+datErr3bt:   mkStr "  Err3 Bad token, (T IP) ="
+datErr4nq:   mkStr `  Err4 Expected \"`
+datErr5af:   mkStr "  Err5 Assertion failed: "
+datErr6of:   mkStr "  Err6 Overflow: "
+datErr7nfd:  mkStr "  Err7 Not found [dec]: "
+datErr7nfh:  mkStr "  Err7 Not found [hex]: "
+datErr8np:   mkStr "  Err8 Expected )"
+datErr9df:   mkStr "  Err9 Dictionary is full"
+datErr10en:  mkStr "  Err10 Expected a name"
+datErr11ntl: mkStr "  Err11 Name too long"
+datErr12dbz: mkStr "  Err12 Divide by zero"
+datDotSNone: mkStr "  Stack is empty"
+datOK:       mkStr `  OK\n`
 
 align 16, db 0
 db "=== End.data ==="
@@ -129,9 +134,6 @@ byteBuf PadRtl, StrMax+2      ; right-to-left buffer for formatting numbers;
 byteBuf Dct2, DctMax          ; Start of user dictionary (Dictionary 2)
 dwordVar DP                   ; index to next free byte of dictionary
 dwordVar Last                 ; pointer to head of dictionary
-
-dwordVar ErrToken             ; value of token involved in error
-dwordVar ErrInst              ; instruction pointer to token involved in error
 
 dwordVar TibPtr               ; Pointer to terminal input buffer (TIB)
 dwordVar TibLen               ; Length of TIB (count of max available bytes)
@@ -437,6 +439,8 @@ ret
 
 mErrPutW:                     ; Print error from W and set error flag
 call mStrPut.W
+; continue to mErr
+mErr:
 or VMFlags, VMErr             ; set error condition flag (hide OK prompt)
 ret
 
@@ -448,26 +452,14 @@ mErr2Overflow:                ; Error 2: Stack overflow
 lea W, [datErr2sf]            ; print error message
 jmp mErrPutW
 
-mErr3BadToken:                ; Handle bad token error
-movzx W, byte [rbp]           ; save value of token
-mov [ErrToken], W
-mov [ErrInst], ebp            ; save instruction pointer to token
-lea W, [datErr3btA]           ; print error message
+mErr3BadToken:                ; Error 3: Bad token (rbp: instruction pointer)
+lea W, [datErr3bt]            ; print error message
 call mStrPut.W
-mov W, [ErrToken]             ; print token value
+movzx W, byte [rbp]           ; load token value
+call mDot.W                   ; print token value
+mov W, ebp                    ; print token's instruction pointer
 call mDot.W
-lea W, [datErr3btB]           ; print token instruction pointer
-call mStrPut.W
-mov W, [Base]                 ; push number base
-push WQ
-call mHex                     ; print instruction pointer in hex
-mov W, [ErrInst]
-call mDot.W
-pop WQ                        ; pop number base
-mov [Base], W
-call mCR
-or VMFlags, VMErr             ; set error condition flag (hide OK prompt)
-ret                           ; exit
+jmp mErr
 
 mErr4NoQuote:                 ; Error 4: unterminated quoted string
 lea W, [datErr4nq]            ; print error message
