@@ -681,7 +681,7 @@ sete r11b
 or r10b, r11b            ; r10b will be set if WB is in (' ', LF, CR)
 jz .forScanEnd           ; jump if word-start boundary was found
 inc rsi                  ; otherwise, advance past the ' '
-mov [IN], rsi            ; update IN (save index to start of word)
+mov [IN], esi            ; update IN (save index to start of word)
 cmp rsi, rcx             ; loop if there are more bytes
 jb .forScanStart
 jmp .doneErr             ; jump if reached end of TIB (it was all spaces)
