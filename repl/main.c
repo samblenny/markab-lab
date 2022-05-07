@@ -92,6 +92,9 @@ void catch_signal(int signal) {
     case SIGFPE:
         fprintf(stderr, "[Floating Point Error (restoring terminal config)]\n");
         break;
+    case SIGBUS:
+        fprintf(stderr, "[Bus Error (restoring terminal config)]\n");
+        break;
     default:
         // See list in /usr/include/x86_64-linux-gnu/bits/signum-generic.h
         fprintf(stderr, "[signal %u: restoring terminal config]\n", signal);
@@ -142,6 +145,7 @@ void set_terminal_for_raw_unbuffered_input() {
     sigaction(SIGILL, &a, NULL);   // Hook for illegal instruction
     sigaction(SIGSEGV, &a, NULL);  // Hook for segmentation fault
     sigaction(SIGFPE, &a, NULL);   // Hook for floating point errors
+    sigaction(SIGBUS, &a, NULL);   // Hook for bus errors
     a.sa_handler = handle_sigwinch;
     sigaction(SIGWINCH, &a, NULL); // Hook for window resize notification
     // Configure terminal stdio for unbuffered raw input
