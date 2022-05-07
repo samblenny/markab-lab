@@ -116,6 +116,7 @@ section .bss
 %define RSMax 16              ; total size of return stack (16 dwords)
 %define StrMax 1022           ; length of string data area
 %define DctMax 16384          ; dictionary length = 16 KiB
+%define DctReserve 256        ; dictionary reserved bytes (space for mWord)
 
 dwordBuf DSBase, DSMax-1      ; data stack (size excludes top item T)
 dwordBuf RSBase, RSMax        ; Return stack for token interpreter
@@ -254,92 +255,45 @@ ret
 
 
 ; Interpret a line of text from the input stream
-;  void markab_outer(edi: u8 *buf, esi: u32 count)
+;  markab_outer(edi: *buf, esi: count)
 markab_outer:
+push rbp
 test esi, esi            ; end now if input buffer is empty
 jz .done
-;////////////////////////
-                         ; Store arguments (approximate figForth TIB and IN)
-mov [TibPtr], edi        ; edi: pointer to input stream byte buffer
-mov [TibLen], esi        ; esi: count of available bytes in the input stream
-mov [IN], dword 0        ; index into TIB of next available input byte
-;////////////////////////
-.forNextWord:            ; Look ahead to find bounds of next word
-test VMFlags, VMBye      ; stop looking if bye flag is set
-jnz .done
-mov edi, [TibPtr]        ; edi = TIB base pointer
-mov ecx, [TibLen]        ; ecx = TIB length
-mov WB, 1                ; assert(TibLen <= StrMax, 1)
-cmp ecx, StrMax
-jnle mErr5Assert
-mov esi, [IN]            ; esi = IN (index to next available byte of TIB)
-cmp esi, ecx             ; stop looking if IN >= TibLen (ran out of bytes)
-jnl .done
-sub ecx, esi             ; ecx = TibLen - IN  (count of available bytes)
 ;------------------------
-.forScanStart:           ; Skip spaces to find next word-start boundary
-mov WB, byte [rdi+rsi]   ; check if current byte is non-space
-cmp WB, ' '              ; calculate r10b = ((WB==' ')||(WB==10)||(WB==13))
-sete r10b
-cmp WB, 10               ; check for LF
-sete r11b
-or r10b, r11b
-cmp WB, 13               ; check for CR
-sete r11b
-or r10b, r11b            ; r10b will be set if WB is in (' ', LF, CR)
-jz .forScanEnd           ; jump if r10b is set (found word-start boundary)
-inc esi                  ; advance esi past the ' '
-mov [IN], esi            ; update IN (save index to start of word)
-dec ecx                  ; loop if there are more bytes
-jnz .forScanStart
-jmp .done                ; jump if reached end of TIB (it was all spaces)
-;------------------------
-.forScanEnd:             ; Scan for space or end of stream (word-end boundary)
-mov WB, byte [rdi+rsi]
-cmp WB, ' '              ; check for space
-sete r10b
-cmp WB, 10               ; check for LF
-sete r11b
-or r10b, r11b
-cmp WB, 13               ; check for CR
-sete r11b
-or r10b, r11b            ; r10b will be set if WB is in (' ', LF, CR)
-jnz .wordSpace
-dec ecx                  ; loop if there are more bytes (detect end of stream)
-jz .wordEndBuf
-inc esi                  ; advance index
-jmp .forScanEnd
+mov [TibPtr], edi        ; save pointer to input stream byte buffer
+mov [TibLen], esi        ; save count of available bytes in the input stream
+mov [IN], dword 0        ; reset index into TIB of next available input byte
 ;////////////////////////
-                         ; Handle word terminated by space
-.wordSpace:              ; currently, IN is start index, esi is end index + 1
-mov W, [IN]              ; prepare arguments for calling doWord:
-sub esi, W               ; convert esi from index_of_word_end to word_length
-add edi, W               ; convert edi from TibPtr to start_of_word_pointer
-add W, esi               ; update IN to point 1 past the space
-inc W
-mov [IN], W
-call doWord              ; void doWord(rdi: u8 *buf, rsi: count)
-test VMFlags, VMErr      ; non-zero VMErr flag means there was error (hide OK)
+.forNextWord:
+mov W, [IN]              ; stop if there are no more bytes left in buffer
+cmp W, [TibLen]
+jnb .done
+mov ebp, [DP]            ; save old DP (where word will get copied to)
+call mWord               ; copy a word from [TIB+IN] to [Dct2+DP]
+mov [DP], ebp            ; put DP back where it was
+test VMFlags, VMErr      ; stop if error while copying word
 jnz .doneErr
-jmp .forNextWord
 ;------------------------
-                         ; Handle word terminated by CR (end of stream)
-.wordEndBuf:             ; word is [rdi]..[rdi+rcx] (there was no space)
-mov W, [IN]              ; prepare arguments for calling doWord:
-sub esi, W               ; convert esi from index_of_word_end to word_length
-inc esi
-add edi, W               ; convert edi from TibPtr to start_of_word_pointer
-call doWord              ; void doWord(rdi: u8 *buf, rsi: count)
-test VMFlags, VMErr      ; non-zero VMErr flag means there was error (hide OK)
-jz .done                 ; ...in that case, fall through to .doneErr
+                         ; Prepare args for doWord(rdi: *buf, rsi: count)
+lea rdi, [rbp+Dct2]      ;  load pointer to length of word [Dct2+DP]
+movzx esi, byte [rdi]    ;  load length of copied word in bytes
+inc rdi                  ;  advance pointer to start of string (Dct2+DP+1)
+call doWord              ; doWord(rdi: *buf, rsi: count)
+test VMFlags, VMErr      ; stop if error while running word
+jnz .doneErr
+test VMFlags, VMBye      ; continue unless bye flag was set
+jz .forNextWord
 ;////////////////////////
-.doneErr:                ; Print CR (instead of OK) and clear the error bit
-and VMFlags, (~VMErr)
-jmp mCR
-;------------------------
 .done:                   ; Print OK for success
+pop rbp
 lea W, [datOK]
 jmp mStrPut.W
+;------------------------
+.doneErr:                ; Print CR (instead of OK) and clear the error bit
+pop rbp
+and VMFlags, (~VMErr)
+jmp mCR
 
 ; Attempt to do the action for a word, potentially including:
 ;   1. Interpret it according to the dictionary
@@ -630,8 +584,8 @@ ret
 mCreate:
 mov edi, Dct2            ; load dictionary base address
 mov esi, [DP]            ; load dictionary pointer (index relative to Dct2)
-mov W, esi               ; check if dictionary has room for a link (4 bytes)
-add W, 4
+mov W, esi               ; check if dictionary has room (link + reserve)
+add W, (4+DctReserve)
 cmp W, DctMax            ; stop if dictionary is full
 jnb mErr9DictFull
 ;------------------------
