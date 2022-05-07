@@ -352,7 +352,7 @@ push rbp              ; save arguments
 push rbx
 mov rbp, rdi          ; rbp = *buf
 mov rbx, rsi          ; rbx = count
-mov rdi, [Last]       ; Load head of dictionary list. Struct format is:
+mov edi, [Last]       ; Load head of dictionary list. Struct format is:
                       ; {dd .link, db .nameLen, .name, db .tokenLen, .tokens}
 ;/////////////////////
 .lengthCheck:
