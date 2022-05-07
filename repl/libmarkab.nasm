@@ -99,38 +99,45 @@ db "=== End.data ==="
 section .bss
 ;=============================
 
-align 16, resb 0              ; Data stack
+%macro byteBuf 2
+  align 16, resb 0
+  %1: resb %2
+  align 16, resb 0
+%endmacro
+%macro dwordBuf 2
+  align 16, resb 0
+  %1: resd %2
+  align 16, resb 0
+%endmacro
+%macro dwordVar 1
+  align 4, resb 0
+  %1: resd 1
+%endmacro
+
 %define DSMax 17              ; total size of data stack (T + 16 dwords)
-DSBase: resd DSMax-1          ; data stack (excludes T; 32-bit dword cells)
-
-align 16, resb 0              ; Return stack (for token interpreter)
 %define RSMax 16              ; total size of return stack (16 dwords)
-RSBase: resd RSMax            ; data stack (32-bit dword cells)
-
-align 16, resb 0              ; String buffers
 %define StrMax 1022           ; length of string data area
-Pad: resb 2+StrMax            ; string scratch buffer; word 0 is length
-PadRtl: resb StrMax+2         ; right-to-left buffer for formatting numbers;
+%define DctMax 16384          ; dictionary length = 16 KiB
+
+dwordBuf DSBase, DSMax-1      ; data stack (size excludes top item T)
+dwordBuf RSBase, RSMax        ; Return stack for token interpreter
+
+byteBuf Pad, 2+StrMax         ; string scratch buffer; word 0 is length
+byteBuf PadRtl, StrMax+2      ; right-to-left buffer for formatting numbers;
                               ; word [PadRtl+StrMax] is index first used byte
 
-align 16, resb 0              ; Error message buffers
-ErrToken: resd 1              ; value of current token
-ErrInst: resd 1               ; instruction pointer to current token
+byteBuf Dct2, DctMax          ; Start of user dictionary (Dictionary 2)
+dwordVar DP                   ; index to next free byte of dictionary
+dwordVar Last                 ; pointer to head of dictionary
 
-align 16, resb 0
-TibPtr: resd 1                ; Pointer to terminal input buffer (TIB)
-TibLen: resd 1                ; Length of TIB (count of max available bytes)
-IN: resd 1                    ; Index into TIB of next available input byte
+dwordVar ErrToken             ; value of token involved in error
+dwordVar ErrInst              ; instruction pointer to token involved in error
 
-align 16, resb 0
-Base: resd 1                  ; Number base for numeric string conversions
+dwordVar TibPtr               ; Pointer to terminal input buffer (TIB)
+dwordVar TibLen               ; Length of TIB (count of max available bytes)
+dwordVar IN                   ; Index into TIB of next available input byte
+dwordVar Base                 ; Number base for numeric string conversions
 
-align 16, resb 0              ; User dictionary (Dictionary 2)
-Dct2: resq 1024               ; Start of dictionary memory
-Dct2E: resq 1                 ; End of dictionary memory
-%define Dct2Len (Dct2E-Dct2)  ; Length of dictionary memory in bytes
-DP: resd 1                    ; index to next free byte of dictionary
-Last: resd 1                  ; pointer to head of dictionary
 
 
 ;=============================
@@ -602,7 +609,7 @@ jnz .doneErr
 mov esi, [DP]                 ; load dictionary pointer (updated by create)
 mov W, esi                    ; check if there is room to add tokens
 add W, 2
-cmp W, Dct2Len                ; if not, stop with an error
+cmp W, DctMax                 ; if not, stop with an error
 jnb .doneErrFull
 mov [Dct2+esi], byte 1        ; otherwise, append {.tokenLen: 1}
 inc esi
@@ -633,7 +640,7 @@ mov edi, Dct2            ; load dictionary base address
 mov esi, [DP]            ; load dictionary pointer (index relative to Dct2)
 mov W, esi               ; check if dictionary has room for a link (4 bytes)
 add W, 4
-cmp W, Dct2Len           ; stop if dictionary is full
+cmp W, DctMax            ; stop if dictionary is full
 jnb mErr9DictFull
 ;------------------------
 push rsi                 ; save a copy of [DP] to use for rollback if needed
@@ -727,7 +734,7 @@ mov r9d, [DP]            ; load dictionary pointer (index relative to Dct2)
 mov W, r9d               ; check if dictionary has room for the name
 inc W                    ;  add 1 for {.nameLen: <byte>}
 add W, esi               ;  add byte count for {.name: <name>}
-cmp W, Dct2Len           ; stop if dictionary is full
+cmp W, DctMax            ; stop if dictionary is full
 jnb mErr9DictFull
 mov W, esi               ; stop if word is too long (max 255 bytes)
 cmp W, 255
