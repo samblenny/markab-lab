@@ -16,8 +16,8 @@ clearstack
 ( 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17  OK) .s
 ( error)          dup
 ( error)         over
-( ... 17 16  OK) swap
-( ... 15 17  OK) drop
+( ... 17 16  OK) swap .s
+( ... 15 17  OK) drop .s
 clearstack
 ( error) 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18
 ( 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17  OK) .s
