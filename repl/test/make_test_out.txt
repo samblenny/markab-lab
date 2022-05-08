@@ -1,0 +1,99 @@
+Markab v0.0.1
+type 'bye' or ^C to exit
+ __  __          _        _
+|  \/  |__ _ _ _| |____ _| |__
+| |\/| / _` | '_| / / _` | '_ \
+|_|  |_\__,_|_| |_\_\__,_|_.__/
+
+  1 2 3
+  7  OK
+( === test/fetch_store.fs ===)  OK
+( -- These should all give errors: --)  OK
+-1 @  E13 Address out of range
+-1 b@  E13 Address out of range
+16384 @  E13 Address out of range
+16383 @  E13 Address out of range
+16382 @  E13 Address out of range
+16381 @  E13 Address out of range
+16384 b@  E13 Address out of range
+clearstack  OK
+1 16384 !  E13 Address out of range
+1 16383 !  E13 Address out of range
+1 16382 !  E13 Address out of range
+1 16381 !  E13 Address out of range
+1 16384 !  E13 Address out of range
+clearstack  OK
+( -- These should give OK: --)  OK
+1 0 !  OK
+0 @ . 1  OK
+2 0 b!  OK
+0 b@ . 2  OK
+-1 16380 !  OK
+16380 @ . -1  OK
+35 16383 b!  OK
+16383 b@ . 35  OK
+( === test/comments.fs ===)  OK
+( -- These should give errors: --)  OK
+( CR)             (  E8 Expected )
+( space CR)       (   E8 Expected )
+( space space CR) (    E8 Expected )
+( space word CR)  ( word  E8 Expected )
+( -- These should give OK: --)  OK
+( )  OK
+(  )  OK
+( word)  OK
+( === test/dotquote.fs ===)  OK
+( -- These should give errors: --)  OK
+( no space)      .""  E7 ? .""
+( CR)            ."  E4 Expected "
+( space CR)      ."   E4 Expected "
+( space word CR) ." word  E4 Expected "
+( -- These should give OK: --)  OK
+." "  OK
+."  "   OK
+." word"word  OK
+."  word" word  OK
+( === test/stack.fs ===)  OK
+clearstack  OK
+( 1  OK)     1    .s  1  OK
+( 1 1  OK)   dup  .s  1 1  OK
+( 1  OK)     drop .s  1  OK
+( 1 2  OK)   2    .s  1 2  OK
+( 2 1  OK)   swap .s  2 1  OK
+( 2 1 2  OK) over .s  2 1 2  OK
+clearstack  OK
+( error)      dup  E2 Stack full
+( error)     drop  E1 Stack underflow
+( error)     swap  E1 Stack underflow
+( error)     over  E1 Stack underflow
+clearstack  OK
+( OK)    1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17  OK
+( 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17  OK) .s  1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17  OK
+( error)          dup  E2 Stack full
+( error)         over  E2 Stack full
+( ... 17 16  OK) swap  OK
+( ... 15 17  OK) drop  OK
+clearstack  OK
+( error) 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18  E2 Stack full
+( 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17  OK) .s  1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17  OK
+clearstack  OK
+( Stack is empty) .s  Stack is empty  OK
+( === test/math.fs ===)  OK
+clearstack  OK
+( 6  OK)                        3  3 + . 6  OK
+( 1  OK)                        6  5 - . 1  OK
+( -19  OK)                      1 20 - . -19  OK
+( 19  OK)                     -19 -1 * . 19  OK
+( 2147483647  OK) hex 7fffffff decimal . 2147483647  OK
+( 3FFF0001  OK)        hex 7fff 7fff * . 3FFF0001  OK
+( error)                           1 0 /  E12 Divide by 0
+( error)                         1 0 mod  E12 Divide by 0
+( error)                        1 0 /mod  E12 Divide by 0
+( 2  OK)             clearstack 9 4 / .s  2  OK
+( 1  OK)           clearstack 9 4 mod .s  1  OK
+( 1 2 OK)         clearstack 9 4 /mod .s  1 2  OK
+( error)                   hex 1ffffeeee  E6 Overflow: 1ffffeeee
+( 0  OK)                  ffffffff 1 + . 0  OK
+( 1 OK)                 7fffffff dup * . 1  OK
+( FFFFFFFF  OK)         decimal -1 hex . FFFFFFFF  OK
+  OK

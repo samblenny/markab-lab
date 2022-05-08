@@ -1,4 +1,5 @@
-( these should all produce errors)
+( === test/fetch_store.fs ===)
+( -- These should all give errors: --)
 -1 @
 -1 b@
 16384 @
@@ -13,7 +14,7 @@ clearstack
 1 16381 !
 1 16384 !
 clearstack
-( these should work)
+( -- These should give OK: --)
 1 0 !
 0 @ .
 2 0 b!

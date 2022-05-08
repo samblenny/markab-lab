@@ -5,8 +5,6 @@
 ;
 ; Sample output:
 ; ```
-; $ make test
-; ./main < tests/fetch_store.fs
 ; Markab v0.0.1
 ; type 'bye' or ^C to exit
 ;  __  __          _        _
@@ -16,31 +14,6 @@
 ;
 ;   1 2 3
 ;   7  OK
-; ( these should all produce errors)  OK
-; -1 @  E13 Address out of range
-; -1 b@  E13 Address out of range
-; 16384 @  E13 Address out of range
-; 16383 @  E13 Address out of range
-; 16382 @  E13 Address out of range
-; 16381 @  E13 Address out of range
-; 16384 b@  E13 Address out of range
-; clearstack  OK
-; 1 16384 !  E13 Address out of range
-; 1 16383 !  E13 Address out of range
-; 1 16382 !  E13 Address out of range
-; 1 16381 !  E13 Address out of range
-; 1 16384 !  E13 Address out of range
-; clearstack  OK
-; ( these should work)  OK
-; 1 0 !  OK
-; 0 @ . 1  OK
-; 2 0 b!  OK
-; 0 b@ . 2  OK
-; -1 16380 !  OK
-; 16380 @ . -1  OK
-; 35 16383 b!  OK
-; 16383 b@ . 35  OK
-;   OK
 ; ```
 
 bits 64

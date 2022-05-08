@@ -9,6 +9,9 @@
 .SUFFIXES:
 .PHONY: help all clean run dump test
 CC=clang
+TESTS_OUT=test/make_test_out.txt
+TESTS=test/fetch_store.fs test/comments.fs test/dotquote.fs test/stack.fs \
+ test/math.fs
 
 all: main
 clean:
@@ -22,8 +25,8 @@ dump: main
 	@objdump --visualize-jumps -d -M intel $<
 	@readelf -x .data $<
 
-test: main tests/fetch_store.fs
-	./main < tests/fetch_store.fs
+test: main $(TESTS)
+	cat $(TESTS) | ./main | tee $(TESTS_OUT)
 
 main: main.c obj/libmarkab.o
 	$(CC) -O2 -Wl,-export-dynamic -std=c99 -Wall -o $@ main.c obj/libmarkab.o
