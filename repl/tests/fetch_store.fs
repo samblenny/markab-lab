@@ -14,9 +14,11 @@ clearstack
 1 16384 !
 clearstack
 ( these should work)
+1 0 !
 0 @ .
+2 0 b!
 0 b@ .
 -1 16380 !
-hex 11 decimal 16383 b!
-16380 @ hex . decimal
-16383 b@ hex . decimal
+16380 @ .
+35 16383 b!
+16383 b@ .

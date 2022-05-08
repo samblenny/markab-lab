@@ -32,12 +32,14 @@
 ; 1 16384 !  E13 Address out of range
 ; clearstack  OK
 ; ( these should work)  OK
-; 0 @ . 0  OK
-; 0 b@ . 0  OK
+; 1 0 !  OK
+; 0 @ . 1  OK
+; 2 0 b!  OK
+; 0 b@ . 2  OK
 ; -1 16380 !  OK
-; hex 11 decimal 16383 b!  OK
-; 16380 @ hex . decimal 11FFFFFF  OK
-; 16383 b@ hex . decimal 11  OK
+; 16380 @ . -1  OK
+; 35 16383 b!  OK
+; 16383 b@ . 35  OK
 ;   OK
 ; ```
 
