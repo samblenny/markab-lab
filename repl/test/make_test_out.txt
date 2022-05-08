@@ -62,7 +62,7 @@ clearstack  OK
 ( 2 1  OK)   swap .s  2 1  OK
 ( 2 1 2  OK) over .s  2 1 2  OK
 clearstack  OK
-( error)      dup  E2 Stack full
+( error)      dup  E1 Stack underflow
 ( error)     drop  E1 Stack underflow
 ( error)     swap  E1 Stack underflow
 ( error)     over  E1 Stack underflow

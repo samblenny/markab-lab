@@ -774,8 +774,8 @@ mNext:                        ; NEXT - (nop) this gets handled by doInner
 ret
 
 mDup:                         ; DUP - Push T
-cmp DSDeepB, 1
-jb mErr2Overflow
+test DSDeep, DSDeep           ; check if stack is empty
+jz mErr1Underflow
 mov W, T
 jmp mPush
 
