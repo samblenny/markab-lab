@@ -5,20 +5,40 @@
 ;
 ; Sample output:
 ; ```
+; $ make test
+; ./main < tests/fetch_store.fs
 ; Markab v0.0.1
 ; type 'bye' or ^C to exit
 ;  __  __          _        _
 ; |  \/  |__ _ _ _| |____ _| |__
 ; | |\/| / _` | '_| / / _` | '_ \
 ; |_|  |_\__,_|_| |_\_\__,_|_.__/
-
+;
 ;   1 2 3
 ;   7  OK
-; foo  Err7 Not found [dec]: foo
-; : fOo  OK
-; foo  OK
-; FOO  OK
-; bye  OK
+; ( these should all produce errors)  OK
+; -1 @  E13 Address out of range
+; -1 b@  E13 Address out of range
+; 16384 @  E13 Address out of range
+; 16383 @  E13 Address out of range
+; 16382 @  E13 Address out of range
+; 16381 @  E13 Address out of range
+; 16384 b@  E13 Address out of range
+; clearstack  OK
+; 1 16384 !  E13 Address out of range
+; 1 16383 !  E13 Address out of range
+; 1 16382 !  E13 Address out of range
+; 1 16381 !  E13 Address out of range
+; 1 16384 !  E13 Address out of range
+; clearstack  OK
+; ( these should work)  OK
+; 0 @ . 0  OK
+; 0 b@ . 0  OK
+; -1 16380 !  OK
+; hex 11 decimal 16383 b!  OK
+; 16380 @ hex . decimal 11FFFFFF  OK
+; 16383 b@ hex . decimal 11  OK
+;   OK
 ; ```
 
 bits 64
@@ -1116,8 +1136,10 @@ ret
 mFetch:                     ; Fetch: pop addr, load & push dword [VarMem+addr]
 cmp DSDeep, 1               ; make sure stack has at least 1 item (address)
 jb mErr1Underflow
-mov W, T                    ; make sure address is in range
-add W, 4
+test T, T                   ; make sure address is in range (0<=addr<VarMax-3)
+jl mErr13AddressOOR
+mov W, T
+add W, 3
 cmp W, VarMax
 jnb mErr13AddressOOR
 mov T, [VarMem+T]           ; pop addr, load dword, push dword
@@ -1126,8 +1148,10 @@ ret
 mStore:                     ; Store dword (second) at address (T)
 cmp DSDeep, 2               ; make sure stack depth >= 2 items (data, address)
 jb mErr1Underflow
-mov W, T                    ; make sure address is in range
-add W, 4
+test T, T                   ; make sure address is in range (0<=addr<VarMax-3)
+jl mErr13AddressOOR
+mov W, T
+add W, 3
 cmp W, VarMax
 jnb mErr13AddressOOR
 mov edi, T                  ; save address
@@ -1141,9 +1165,9 @@ ret
 mByteFetch:                 ; Fetch: pop addr, load & push byte [VarMem+addr]
 cmp DSDeep, 1               ; make sure stack has at least 1 item (address)
 jb mErr1Underflow
-mov W, T                    ; make sure address is in range
-add W, 1
-cmp W, VarMax
+test T, T                   ; make sure address is in range (0<=addr<VarMax)
+jl mErr13AddressOOR
+cmp T, VarMax
 jnb mErr13AddressOOR
 xor W, W                    ; pop addr, load dword
 mov WB, byte [VarMem+T]
@@ -1153,9 +1177,9 @@ ret
 mByteStore:                 ; Store low byte of (second) at address (T)
 cmp DSDeep, 2               ; make sure stack depth >= 2 items (data, address)
 jb mErr1Underflow
-mov W, T                    ; make sure address is in range
-add W, 1
-cmp W, VarMax
+test T, T                   ; make sure address is in range (0<=addr<VarMax)
+jl mErr13AddressOOR
+cmp T, VarMax
 jnb mErr13AddressOOR
 mov edi, T                  ; save address
 dec DSDeep                  ; drop address

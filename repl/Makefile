@@ -7,7 +7,7 @@
 
 .POSIX:
 .SUFFIXES:
-.PHONY: help all clean run dump
+.PHONY: help all clean run dump test
 CC=clang
 
 all: main
@@ -21,6 +21,9 @@ run: main
 dump: main
 	@objdump --visualize-jumps -d -M intel $<
 	@readelf -x .data $<
+
+test: main tests/fetch_store.fs
+	./main < tests/fetch_store.fs
 
 main: main.c obj/libmarkab.o
 	$(CC) -O2 -Wl,-export-dynamic -std=c99 -Wall -o $@ main.c obj/libmarkab.o

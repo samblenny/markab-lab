@@ -339,6 +339,11 @@ void step_tty_state(unsigned char c) {
     switch(TTY.state) {
     case Normal:
         switch(c) {
+        case 10:
+            // When reading from file or pipe, translate LF to CR
+            if(STDIN_ISATTY) {
+                break;
+            }
         case 13:  // Enter key is CR (^M) since ICRNL|INLCR are turned off
             if(!STDIN_ISATTY) {
                 tty_update_line(1);
