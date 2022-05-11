@@ -360,7 +360,7 @@ push rbx
 mov rbp, rdi          ; rbp = *buf
 mov rbx, rsi          ; rbx = count
 mov edi, [Last]       ; Load head of dictionary list. Struct format is:
-                      ; {dd .link, db .nameLen, .name, db .wordType, .param}
+                   ; {dd .link, db .nameLen, .name, db .wordType, db|dw .param}
 ;/////////////////////
 .lengthCheck:
 xor W, W              ; Check: does .nameLen match the search word length?
@@ -774,7 +774,7 @@ and VMFlags, (~VMCompile)   ; clear the compile mode flag
 ret
 
 ; CREATE - Add a name to the dictionary
-; struct format: {dd .link, db .nameLen, <name>, db .wordType, (db|dd) .param}
+; struct format: {dd .link, db .nameLen, <name>, db .wordType, (db|dw) .param}
 mCreate:
 mov edi, Dct2            ; load dictionary base address
 mov esi, [DP]            ; load dictionary pointer (index relative to Dct2)
