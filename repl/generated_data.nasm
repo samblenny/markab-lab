@@ -48,6 +48,8 @@
 %define tStore       37
 %define tByteFetch   38
 %define tByteStore   39
+%define tSemiColon   40
+%define tDotQuoteC   41
 
 
 ;------------------------------------------------------------------------
@@ -98,8 +100,10 @@ dd mFetch       ; 36
 dd mStore       ; 37
 dd mByteFetch   ; 38
 dd mByteStore   ; 39
+dd mSemiColon   ; 40
+dd mDotQuoteC   ; 41
 
-%define JumpTableLen 40
+%define JumpTableLen 42
 
 
 ;-------------------------------------------------------------
@@ -261,7 +265,12 @@ Dct0_037: dd Dct0_036
           db 2, "b@"
           db 0, tByteFetch
           align 16, db 0
-Dct0Head: dd Dct0_037
+Dct0_038: dd Dct0_037
           db 2, "b!"
           db 0, tByteStore
           align 16, db 0
+Dct0Head: dd Dct0_038
+          db 1, ";"
+          db 0, tSemiColon
+          align 16, db 0
+Dct0End: db 0

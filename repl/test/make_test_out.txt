@@ -96,4 +96,12 @@ clearstack  OK
 ( 0  OK)                  ffffffff 1 + . 0  OK
 ( 1 OK)                 7fffffff dup * . 1  OK
 ( FFFFFFFF  OK)         decimal -1 hex . FFFFFFFF  OK
+( === test/colon_defs.fs ===)  OK
+(  OK)    : a ;               a  OK
+( B  OK)  : b ."  B" ;        b B  OK
+(  OK)    : c ( comment) ;    c  OK
+( 3  OK)  : d 1 2 * 1 +  . ;  d 3  OK
+( error)  :  E10 Expected name
+( error)  : e  E18 Expected ;
+( error)  : ;  E18 Expected ;
   OK

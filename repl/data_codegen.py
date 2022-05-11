@@ -26,6 +26,7 @@ TOKENS = """
 Next Nop Bye Dup Drop Swap Over ClearStack DotS DotQuoteI Paren Colon Emit
 CR Space Dot Plus Minus Mul Div Mod DivMod Max Min Abs And Or Xor Not Less
 Greater Equal ZeroLess ZeroEqual Hex Decimal Fetch Store ByteFetch ByteStore
+SemiColon DotQuoteC
 """
 
 # These are names and tokens for words in Markab Forth's core dictionary
@@ -77,6 +78,7 @@ decimal Decimal
 ! Store
 b@ ByteFetch
 b! ByteStore
+; SemiColon
 """
 
 def list_of_words(text):
@@ -162,6 +164,7 @@ db "== Dictionary =="
 
 align 16, db 0
 {DCT0}
+Dct0End: db 0
 """.strip()
 
 print(TEMPLATE)

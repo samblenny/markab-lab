@@ -84,6 +84,11 @@ datErr11ntl: mkStr "  E11 Name too long"
 datErr12dbz: mkStr "  E12 Divide by 0"
 datErr13aor: mkStr "  E13 Address out of range"
 datErr14bwt: mkStr "  E14 Bad word type"
+datErr15cmf: mkStr "  E15 Code memory full"
+datErr16vmf: mkStr "  E16 Variable memory full"
+datErr17snc: mkStr "  E17 ; when not compiling"
+datErr18esc: mkStr "  E18 Expected ;"
+datErr19bcp: mkStr "  E19 Bad code pointer"
 datDotSNone: mkStr "  Stack is empty"
 datOK:       mkStr `  OK\n`
 
@@ -179,6 +184,7 @@ section .text
 %define VMBye 1               ; Bye bit: set means bye has been invoked
 %define VMErr 2               ; Err bit: set means error condition
 %define VMNaN 4               ; NaN bit: set means number conversion failed
+%define VMCompile 8           ; Compile bit: set means compile mode is active
 %define VMFlags r12b          ; Virtual machine status flags
 
 %define T r13d                ; Top on stack, 32-bit zero-extended dword
@@ -199,7 +205,8 @@ mov T, W
 mov DSDeep, W
 mov RSDeep, W
 mov [Pad], W
-mov [Last], dword Dct0Head    ; dictionary head starts at head of Dct0
+mov ecx, Dct0Head
+mov [Last], ecx               ; dictionary head starts at head of Dct0
 mov [DP], W                   ; dictionary pointer starts at 0
 mov [VarP], W                 ; variables memory pointer starts at 0
 mov [CodeP], W                ; code memory pointer starts at 0
@@ -230,9 +237,23 @@ ret
 ;-----------------------------
 ; Interpreters
 
-doInner:                      ; Inner interpreter (rdi: tokenLen, rsi:tokenPtr)
+doInner:                      ; Inner interpreter (rdi: tokenLen, rsi: tokenPtr)
 push rbp
 push rbx
+mov W, CodeMem                ; check if CodeMem <= esi < (CodeMem+CodeMax)
+cmp W, esi
+setbe r10b
+add W, CodeMax
+cmp esi, W
+setb r11b
+and r10b, r11b                ; r10b = (CodeMem <= esi < (CodeMem+CodeMax)
+cmp esi, Dct0Tail             ; check if Dct0Tail <= esi < Dct0End
+setae cl
+cmp esi, Dct0End
+setb r11b
+and cl, r11b                  ; cl = (Dct0Tail <= esi < Dct0End)
+or r10b, cl                   ; r10b = esi is in Dct0 or Dct2
+jz .doneBadCodePointer        ; stop if code pointer is out of range
 mov rbp, rsi                  ; ebp = instruction pointer (I)
 mov rbx, rdi                  ; ebx = max loop iterations
 ;/////////////////////////////
@@ -247,7 +268,11 @@ mov esi, dword [rdi+4*WQ]
 inc ebp                       ; advance I
 call rsi                      ; jump (callee may adjust I for LITx)
 dec ebx
-jnz .for                      ; loop until end of token count (or Next)
+setnz r10b                    ; check that loop limit has not expired
+test VMFlags, VMErr           ; check that last call did not set error flag
+setz r11b
+test r10b, r11b
+jnz .for                      ; keep looping if checks passed
 ;/////////////////////////////
 .done:                        ; normal exit path
 pop rbx
@@ -256,6 +281,12 @@ ret
 ;-----------------------------
 .doneBadToken:                ; exit path for invalid token
 call mErr3BadToken
+pop rbx
+pop rbp
+ret
+;-----------------------------
+.doneBadCodePointer:          ; exit path for bad code pointer
+call mErr19BadCodePointer
 pop rbx
 pop rbp
 ret
@@ -292,12 +323,25 @@ jnz .doneErr
 test VMFlags, VMBye      ; continue unless bye flag was set
 jz .forNextWord
 ;////////////////////////
-.done:                   ; Print OK for success
+.done:                   ; Print OK for success (unless compile still active)
+test VMFlags, VMCompile  ; make sure compile mode is not still active
+jnz .doneStillCompiling
 pop rbp
 lea W, [datOK]
 jmp mStrPut.W
 ;------------------------
-.doneErr:                ; Print CR (instead of OK) and clear the error bit
+.doneStillCompiling:
+and VMFlags, (~VMCompile)     ; clear compiling flag
+                              ; roll back to before the unfinished define
+mov edi, [Last]               ; load unfinished dictionary entry
+mov esi, [rdi]                ; rsi = {dd .link} (link to last valid entry)
+mov [Last], esi               ; roll back the dictionary head
+                              ; TODO: decide if I care how this leaks memory
+                              ; (because it doesn't roll back VarP or CodeP)
+call mErr18ExpectedSemiColon
+                              ; fall through to .doneErr
+;------------------------
+.doneErr:                     ; Print CR (instead of OK) and clear the error bit
 pop rbp
 and VMFlags, (~VMErr)
 jmp mCR
@@ -351,6 +395,7 @@ lea rcx, [rdi+5]      ; rcx = ptr to .wordType (skip .link, .nameLen, name)
 add rcx, WQ
 xor rdi, rdi          ; rdi = value of .wordType
 mov dil, byte [rcx]
+inc rcx               ; advance rcx to .param
 cmp dil, 2            ; check for .wordType==2 --> .param is dw code pointer
 je .paramDwCodeP
 cmp dil, 1            ; check for .wordType==1 --> .param is dw var pointer
@@ -359,14 +404,47 @@ test dil, dil         ; check for .wordType==0 --> .param is db token
 jnz .doneBadWordType
 ;---------------------
 .paramDbToken:
-mov dil, 1            ; rdi = 1 (tokenLen)
-inc rcx               ; rsi = pointer to .param
-mov rsi, rcx
-call doInner          ; doInner(rdi: tokenLen, rsi: tokensPointer)
+mov dil, 1               ; rdi = 1 (tokenLen)
+mov rsi, rcx             ; rsi = pointer to .param (holding db token)
+test VMFlags, VMCompile  ; if compiling and word is non-immediate, branch
+setnz r10b               ;  set means (compile mode active)
+mov WB, [rsi]            ; check for `;` (immediate word)
+cmp WB, tSemiColon
+setnz r11b               ; set means (token != `;`)
+and r10b, r11b
+cmp WB, tDotQuoteI       ; check for `."` (another immediate word)
+setnz r11b
+and r10b, r11b
+cmp WB, tParen           ; check for `(` (yet another immediate word)
+setnz r11b
+and r10b, r11b
+jnz .compileDbToken      ; if compiling non-immediate word: jump
+call doInner             ; else: doInner(rdi: tokenLen, rsi: tokenPtr)
 jmp .done
 ;---------------------
-.paramDwCodeP:
-; TODO: jump to code pointer
+.compileDbToken:         ; Compile this token into token memory
+mov ecx, [CodeP]
+cmp ecx, CodeMax         ; make sure code memory has available space
+jnb .doneCodeMemFull
+mov esi, CodeMem         ; store the token
+mov [rsi+rcx], WB
+inc ecx                  ; advance the code pointer
+mov [CodeP], ecx
+jmp .done
+;---------------------
+.paramDwCodeP:            ; Handle compiled code-pointer word (rsi: CodeP)
+xor edi, edi              ; .tokenLen = lots (tNext should return before then)
+dec edi
+xor esi, esi              ; esi = code pointer from [rcx=.param]
+mov si, word [rcx]        ; CAUTION! code pointer parameter is _word_
+lea rsi, [CodeMem+esi]    ; esi = CodeMem+[.param]
+test VMFlags, VMCompile   ; if compile mode: branch
+jnz .compileDwCodeP
+call doInner              ; else: doInner(rdi: tokenLen, rsi: tokenPtr)
+jmp .done
+;---------------------
+.compileDwCodeP:
+; TODO: compile code to jump to another word (push IP to return stack, etc)
 jmp .done
 ;---------------------
 .paramDwVarP:
@@ -407,6 +485,11 @@ ret
 pop rbx
 pop rbp
 jmp mErr14BadWordType
+;---------------------
+.doneCodeMemFull:
+pop rbx
+pop rbp
+jmp mErr15CodeMemFull
 ;/////////////////////
 
 
@@ -489,6 +572,26 @@ mErr14BadWordType:            ; Error 14: Bad word type
 lea W, [datErr14bwt]
 jmp mErrPutW
 
+mErr15CodeMemFull:            ; Error 15: Code memory full
+lea W, [datErr15cmf]
+jmp mErrPutW
+
+mErr16VarMemFull:             ; Error 16: Variable memory full
+lea W, [datErr16vmf]
+jmp mErrPutW
+
+mErr17SemiColon:              ; Error 17: ; when not compiling
+lea W, [datErr17snc]
+jmp mErrPutW
+
+mErr18ExpectedSemiColon:      ; Error 18: Expected ;
+lea W, [datErr18esc]
+jmp mErrPutW
+
+mErr19BadCodePointer:         ; Error 19: Bad code pointer
+lea W, [datErr19bcp]
+jmp mErrPutW
+
 
 ;-----------------------------
 ; Dictionary: Literals
@@ -524,7 +627,7 @@ jmp mPush
 
 mDotQuoteC:                   ; Print string literal to stdout (token compiled)
 movzx ecx, word [rbp]         ; get length of string in bytes (for adjusting I)
-add cx, 2                     ;   add 2 for length dword
+add ecx, 2                    ;   add 2 for length word
 mov W, ebp                    ; I (ebp) should be pointing to {length, chars}
 add ebp, ecx                  ; adjust I past string
 jmp mStrPut.W
@@ -541,20 +644,56 @@ jna mErr4NoQuote
 .forScanQuote:           ; Find a double quote (") character
 mov WB, [rdi+rcx]        ; check if current byte is '"'
 cmp WB, '"'
-jz .done                 ; if so, stop looking
+jz .finish               ; if so, stop looking
 inc ecx                  ; otherwise, advance the index
 cmp esi, ecx             ; loop if there are more bytes
 jnz .forScanQuote
 jmp mErr4NoQuote         ; reaching end of TIB without a quote is an error
 ;------------------------
-.done:
+.finish:
 mov W, [IN]
 mov esi, ecx             ; ecx-[IN] is count of bytes copied to Pad
 sub esi, W
 add edi, W               ; edi = [TibPtr] + (ecx-[IN]) (old edi was [TibPtr])
 inc ecx                  ; store new IN (skip string and closing '"')
 mov [IN], ecx
-jmp mStrPut.RdiRsi       ; print it: mStrPut.RdiRsi(rdi: *buf, rsi: count)
+;------------------------
+test VMFlags, VMCompile  ; check if compiled version if compile mode active
+jz mStrPut.RdiRsi        ; nope: do mStrPut.RdiRsi(rdi: *buf, rsi: count)
+;------------------------
+.compileMode:
+test esi, esi            ; stop now if string is empty (optimize it out)
+jz .done
+mov ecx, [CodeP]         ; check if code memory has space
+mov W, ecx
+add W, esi               ; number of characters in the string
+add W, 3                 ; 1 byte for token, 2 more bytes for length
+cmp W, CodeMax
+jnb mErr15CodeMemFull
+mov r10, rdi             ; r10 = save source string pointer
+mov r11, rsi             ; r11 = save source string byte count
+mov edi, CodeMem         ; edi = code memory base address
+mov WB, tDotQuoteC       ; [edi+CodeP] = token for compiled version of ."
+mov [edi+ecx], WB
+inc ecx                  ; advance CodeP
+mov [edi+ecx], si        ; store string length (TODO: integer overflow?)
+add ecx, 2               ; advance CodeP
+;------------------------
+mov r9, r11              ; loop limit counter = saved source string length
+mov rsi, r10             ; rsi = saved source string pointer
+xor r8d, r8d             ; zero source index
+xor W, W
+.forCopy:
+mov WB, [esi+r8d]        ; load source byte from TIB
+mov [edi+ecx], WB        ; store dest byte in CodeMem
+inc ecx                  ; advance source index (CodeP)
+inc r8d                  ; advance destination index (0..source_lenth-1)
+dec r9d                  ; check loop limit
+jnz .forCopy
+mov [CodeP], ecx         ; update [CodeP]
+;------------------------
+.done:
+ret
 
 ; Paren comment: skip input text until ")"
 ;   input bytes come from TibPtr using TibLen and IN
@@ -590,20 +729,23 @@ test VMFlags, VMErr           ; stop and roll back dictionary if it failed
 jnz .doneErr
 ;-----------------------------
 mov esi, [DP]                 ; load dictionary pointer (updated by create)
-mov W, esi                    ; check if there is room to add tokens
-add W, 2
+mov W, esi                    ; check if there is room to add a code pointer
+add W, 3
+add W, DctReserve
 cmp W, DctMax                 ; if not, stop with an error
 jnb .doneErrFull
-mov [Dct2+esi], byte 1        ; otherwise, append {.tokenLen: 1}
+mov [Dct2+esi], byte 2        ; append {.wordType: 2} (type is code pointer)
 inc esi
-mov [Dct2+esi], byte tNext    ; append {.tokens: tNext}
-inc esi
+mov W, [CodeP]                ; CAUTION! code pointer in dictionary is _word_
+mov word [Dct2+esi], WW       ; append {.param: dw [CodeP]} (the code pointer)
+add esi, 2
 mov [DP], esi
 ;-----------------------------
 .done:
 pop rdi                       ; commit dictionary changes
 lea W, [Dct2+edi]
 mov [Last], W
+or VMFlags, VMCompile         ; set compile mode
 ret
 ;-----------------------------
 .doneErrFull:
@@ -616,8 +758,23 @@ pop rdi                       ; roll back dictionary changes
 mov [DP], edi
 ret
 
+mSemiColon:                   ; SEMICOLON - end definition of a new word
+test VMFlags, VMCompile       ; if not in compile mode, invoking ; is an error
+jz mErr17SemiColon
+mov ecx, [CodeP]
+cmp ecx, CodeMax            ; make sure code memory has available space
+jnb mErr15CodeMemFull
+xor rdi, rdi                ; store a Next token in code memory
+mov dil, tNext
+mov esi, CodeMem
+mov [rsi+rcx], dil
+inc ecx                     ; advance the code pointer
+mov [CodeP], ecx
+and VMFlags, (~VMCompile)   ; clear the compile mode flag
+ret
+
 ; CREATE - Add a name to the dictionary
-; struct format is: {dd .link, db .nameLen, <name>, db .tokenLen, .tokens}
+; struct format: {dd .link, db .nameLen, <name>, db .wordType, (db|dd) .param}
 mCreate:
 mov edi, Dct2            ; load dictionary base address
 mov esi, [DP]            ; load dictionary pointer (index relative to Dct2)
@@ -739,6 +896,7 @@ mov [DP], r9d            ; store the new dictionary pointer
 ret
 ;------------------------
 .doneErr:
+and VMFlags, ~VMCompile  ; clear compile flag
 call mErr10ExpectedName
 ret
 
@@ -1207,7 +1365,7 @@ call mFmtRtlSpace     ; add a space
 call mFmtRtlPut       ; print number formatting buffer
 
 mFmtRtlClear:            ; Clear PadRtl with 'x' and reset index to leftmost
-mov rcx, StrMax
+mov ecx, StrMax
 mov WB, 'x'
 .for:
 mov [PadRtl+rcx], WB
