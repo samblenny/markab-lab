@@ -209,7 +209,7 @@ uint32_t tib_peek_prev_code(size_t current_index) {
     return code;
 }
 
-// Check if codepoint is Unicode Reginal Indicator Symbol Letter
+// Check if codepoint is Unicode Regional Indicator Symbol Letter
 int is_flag_letter(uint32_t code) {
     return (code >= 0x1F1E6) && (code <= 0x1F1FF);
 }
