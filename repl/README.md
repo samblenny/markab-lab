@@ -12,7 +12,7 @@ This is a work in progress.
 1. Clone the repo on linux system with a 64-bit Intel or AMD CPU. I'm using
    Debian 11 (Bullseye), but other distros will probably work fine.
 
-2. Make sure you have `make`, `clang`, and `nasm` installed.
+2. Make sure you have `make`, `clang`, `python3`, and `nasm` installed.
 
 3. Run tests: `make test` (output should match
    [test/make_test_out.txt](test/make_test_out.txt)). Note that `make test`
