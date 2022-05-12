@@ -50,6 +50,11 @@
 %define tByteStore   39
 %define tSemiColon   40
 %define tDotQuoteC   41
+%define tU8          42
+%define tU16         43
+%define tI8          44
+%define tI16         45
+%define tI32         46
 
 
 ;------------------------------------------------------------------------
@@ -102,8 +107,13 @@ dd mByteFetch   ; 38
 dd mByteStore   ; 39
 dd mSemiColon   ; 40
 dd mDotQuoteC   ; 41
+dd mU8          ; 42
+dd mU16         ; 43
+dd mI8          ; 44
+dd mI16         ; 45
+dd mI32         ; 46
 
-%define JumpTableLen 42
+%define JumpTableLen 47
 
 
 ;-------------------------------------------------------------

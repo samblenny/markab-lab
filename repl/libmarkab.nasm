@@ -461,7 +461,7 @@ jmp .lengthCheck      ; continue with match-checking loop
 .wordNotFound:
 mov rdi, rbp          ; prepare args for mNumber(edi: *buf, esi: count)
 mov rsi, rbx
-call mNumber          ; attempt to convert word as number
+call mNumber          ; attempt to convert word as number (push or compile)
 test VMFlags, VMNaN   ; check if it worked
 jz .done
 and VMFlags, (~VMNaN) ; ...if not, clear the NaN flag and show an error
@@ -1252,16 +1252,73 @@ ja mErr6Overflow
                       ; making it here means successful conversion, so..
 xor r10, r10          ; clear sign flag (r10b) and continue to .done
 ;/////////////////////
-.done:                ; Conversion okay, so adjust sign and push to stack
-mov r11, WQ           ; prepare twos-complement negation of accumulator
+.done:                   ; Conversion okay, so adjust sign and push to stack
+mov r11, WQ              ; prepare twos-complement negation of accumulator
 neg r11
-test r10b, r10b       ; check if the negative flag was set for a '-'
-cmovnz WQ, r11        ; ...if so, swap accumulator value for its negative
-jmp mPush             ; push the number
+test r10b, r10b          ; check if the negative flag was set for a '-'
+cmovnz WQ, r11           ; ...if so, swap accumulator value for its negative
+test VMFlags, VMCompile  ; check if compile mode is active
+jz mPush                 ; if not compiling: push the number
 ;---------------------
-.doneNaN:             ; failed conversion, signal NaN
+.compileLiteral:         ; else: compile number into code memory
+mov ecx, [CodeP]         ; make sure code memory has available space
+mov ecx, 5
+cmp ecx, CodeMax
+jnb mErr15CodeMemFull    ; stop if code memory is full
+mov ecx, [CodeP]         ; else: prepare destination pointer
+mov edi, CodeMem
+cmp W, 0                 ; find most compact literal to accurately store W
+jl .compileNegative
+cmp W, 255
+jbe .compileU8           ; number fits in 0..255     --> use U8
+cmp W, 65535
+jbe .compileU16          ; fits in 256..65535        --> use U16
+jmp .compileI32          ; fits in 65535..2147483647 --> use I32
+.compileNegative:
+cmp W, -127
+jge .compileI8           ; fits in -127..-1     --> use I8
+cmp W, -32768
+jge .compileI16          ; fits in -32768..-128 --> use I16 (otherwise, I32)
+.compileI32:             ; compile as 4-byte signed literal
+mov [edi+ecx], byte tI32
+inc ecx
+mov [edi+ecx], W
+add ecx, 4
+mov [CodeP], ecx
+ret
+.compileU16:             ; compile as 2-byte unsigned literal
+mov [edi+ecx], byte tU16
+inc ecx
+mov [edi+ecx], WW
+add ecx, 2
+mov [CodeP], ecx
+ret
+.compileU8:              ; compile as 1-byte unsigned literal
+mov [edi+ecx], byte tU8
+inc ecx
+mov [edi+ecx], WB
+add ecx, 1
+mov [CodeP], ecx
+ret
+.compileI16:             ; compile as 2-byte signed literal
+mov [edi+ecx], byte tI16
+inc ecx
+mov [edi+ecx], WW
+add ecx, 2
+mov [CodeP], ecx
+ret
+.compileI8:              ; compile as 1-byte signed literal
+mov [edi+ecx], byte tI8
+inc ecx
+mov [edi+ecx], WB
+add ecx, 1
+mov [CodeP], ecx
+ret
+;---------------------
+.doneNaN:                ; failed conversion, signal NaN
 or VMFlags, VMNaN
 ret
+
 
 ;-----------------------------
 ; Dictionary: Fetch and Store

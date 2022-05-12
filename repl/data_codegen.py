@@ -26,7 +26,7 @@ TOKENS = """
 Next Nop Bye Dup Drop Swap Over ClearStack DotS DotQuoteI Paren Colon Emit
 CR Space Dot Plus Minus Mul Div Mod DivMod Max Min Abs And Or Xor Not Less
 Greater Equal ZeroLess ZeroEqual Hex Decimal Fetch Store ByteFetch ByteStore
-SemiColon DotQuoteC
+SemiColon DotQuoteC U8 U16 I8 I16 I32
 """
 
 # These are names and tokens for words in Markab Forth's core dictionary
@@ -35,8 +35,8 @@ SemiColon DotQuoteC
 # allowable for assembly language labels.
 #
 # The main difference between DCT0_LIST and TOKENS is that DCT0_LIST does not
-# include Next. This is because Next is meant to be used as machine code for
-# returning from the end of a compiled word.
+# include Next, SemiColon, and some other tokens that are only used as part of
+# compiled words.
 #
 DCT0_LIST = """
 nop Nop

@@ -104,4 +104,12 @@ clearstack  OK
 ( error)  :  E10 Expected name
 ( error)  : e  E18 Expected ;
 ( error)  : ;  E18 Expected ;
+(  OK)       decimal : f -2147483647 -32768 -128 -1 .s ;  OK
+(  OK)  hex : g 80000001 ffff8000 ffffff80 ffffffff .s ;  OK
+( -2147483647 -32768 -128 -1  OK)   decimal clearstack f  -2147483647 -32768 -128 -1  OK
+( -2147483647 -32768 -128 -1  OK)           clearstack g  -2147483647 -32768 -128 -1  OK
+(  OK)         decimal : h 2147483647 65535 255 1 0 .s ;  OK
+(  OK)                 hex : i 7fffffff ffff ff 1 0 .s ;  OK
+( 2147483647 65535 255 1 0  OK)     decimal clearstack h  2147483647 65535 255 1 0  OK
+( 2147483647 65535 255 1 0  OK)             clearstack i  2147483647 65535 255 1 0  OK
   OK
