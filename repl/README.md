@@ -14,7 +14,10 @@ This is a work in progress.
 
 2. Make sure you have `make`, `clang`, and `nasm` installed.
 
-3. Run tests: `make test`
+3. Run tests: `make test` (output should match
+   [test/make_test_out.txt](test/make_test_out.txt)). Note that `make test`
+   will overwrite `test/make_test_out.txt` because I use `git diff` to check
+   for regressions.
 
 4. Run the shell: `make run`
 
