@@ -113,19 +113,21 @@ clearstack  OK
 ( 2147483647 65535 255 1 0  OK)     decimal clearstack h  2147483647 65535 255 1 0  OK
 ( 2147483647 65535 255 1 0  OK)             clearstack i  2147483647 65535 255 1 0  OK
 ( --- Test nested function calls ---)  OK
-(  OK)    : fib swap over + dup . ;  OK
-(  OK)                 : a 1 1 .s ;  OK
-(  OK)            : b fib fib fib ;  OK
-(  OK)     : c clearstack a b b b ;  OK
-( 1 1 2 3 5 8 13 21 34 55 89  OK) c  1 1 2 3 5 8 13 21 34 55 89  OK
+(  OK)       : f0 swap dup . over + ;  OK
+(  OK)                : f1 f0 f0 f0 ;  OK
+(  OK)       : fib 1 dup f1 f1 f1 . ;  OK
+( 1 1 2 3 5 8 13 21 34 55 89  OK) fib 1 1 2 3 5 8 13 21 34 89  OK
 clearstack  OK
+( --- Test implicit tail call ---)  OK
+(  OK) : start 1 .  : continue 2 . 3 . ;  OK
+( 1 2 3  OK)                       start 1 2 3  OK
+( 2 3  OK)                      continue 2 3  OK
 ( --- Test maxing out return stack ---)  OK
-(  OK)   : f1 0  : f2 1 + 42 emit f2 ;  OK
-( ***************** E21...)         f1*****************  E21 Return stack full
-( * E21...)                         f1*  E21 Return stack full
-(  OK)                     clearreturn  OK
-( ***************** E21...)         f1*****************  E21 Return stack full
-(  OK)                     clearreturn  OK
-(  17 1 17  OK)                     .s  17 1 17  OK
+(  OK)     : f1 0  : f2 1 + 42 emit f2 ;  OK
+( ***************** E21...)           f1*****************  E21 Return stack full
+( * E21...)                           f1*  E21 Return stack full
+clearreturn  OK
+( ***************** E21...)           f1*****************  E21 Return stack full
+(  17 1 17  OK)           clearreturn .s  17 1 17  OK
 clearstack  OK
   OK
