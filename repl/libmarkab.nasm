@@ -89,6 +89,8 @@ datErr16vmf: mkStr "  E16 Variable memory full"
 datErr17snc: mkStr "  E17 ; when not compiling"
 datErr18esc: mkStr "  E18 Expected ;"
 datErr19bcp: mkStr "  E19 Bad code pointer"
+datErr20rsu: mkStr "  E20 Return stack underflow"
+datErr21rsf: mkStr "  E21 Return stack full"
 datDotSNone: mkStr "  Stack is empty"
 datOK:       mkStr `  OK\n`
 
@@ -143,7 +145,7 @@ dwordVar TibPtr               ; Pointer to terminal input buffer (TIB)
 dwordVar TibLen               ; Length of TIB (count of max available bytes)
 dwordVar IN                   ; Index into TIB of next available input byte
 dwordVar Base                 ; Number base for numeric string conversions
-
+dwordVar EmitBuf              ; Buffer for emit to use
 
 
 ;=============================
@@ -185,6 +187,7 @@ section .text
 %define VMErr 2               ; Err bit: set means error condition
 %define VMNaN 4               ; NaN bit: set means number conversion failed
 %define VMCompile 8           ; Compile bit: set means compile mode is active
+%define VMNext 16             ; Next bit: set means got next in outermost word
 %define VMFlags r12b          ; Virtual machine status flags
 
 %define T r13d                ; Top on stack, 32-bit zero-extended dword
@@ -259,8 +262,6 @@ mov rbx, rdi                  ; ebx = max loop iterations
 ;/////////////////////////////
 .for:
 movzx W, byte [rbp]           ; load token at I
-cmp WB, tNext                 ; handle `Next` specially
-je .done
 cmp WB, JumpTableLen          ; detect token beyond jump table range (CAUTION!)
 jae .doneBadToken
 lea edi, [JumpTable]          ; fetch jump table address
@@ -271,10 +272,14 @@ dec ebx
 setnz r10b                    ; check that loop limit has not expired
 test VMFlags, VMErr           ; check that last call did not set error flag
 setz r11b
+and r10b, r11b
+test VMFlags, VMNext          ; check that last call was not an ending next
+setz r11b
 test r10b, r11b
 jnz .for                      ; keep looping if checks passed
 ;/////////////////////////////
 .done:                        ; normal exit path
+and VMFlags, (~VMNext)        ; clear VMNext flag
 pop rbx
 pop rbp
 ret
@@ -412,6 +417,9 @@ mov WB, [rsi]            ; check for `;` (immediate word)
 cmp WB, tSemiColon
 setnz r11b               ; set means (token != `;`)
 and r10b, r11b
+cmp WB, tColon           ; check for `:`
+setnz r11b
+and r10b, r11b
 cmp WB, tDotQuoteI       ; check for `."` (another immediate word)
 setnz r11b
 and r10b, r11b
@@ -435,16 +443,29 @@ jmp .done
 .paramDwCodeP:            ; Handle compiled code-pointer word (rsi: CodeP)
 xor edi, edi              ; .tokenLen = lots (tNext should return before then)
 dec edi
-xor esi, esi              ; esi = code pointer from [rcx=.param]
-mov si, word [rcx]        ; CAUTION! code pointer parameter is _word_
-lea rsi, [CodeMem+esi]    ; esi = CodeMem+[.param]
+xor r8d, r8d              ; r8d = code pointer from [rcx=.param]
+mov r8w, word [rcx]       ; CAUTION! code pointer parameter is _word_
+lea rsi, [CodeMem+r8d]    ; esi = CodeMem+[.param]
 test VMFlags, VMCompile   ; if compile mode: branch
 jnz .compileDwCodeP
 call doInner              ; else: doInner(rdi: tokenLen, rsi: tokenPtr)
 jmp .done
 ;---------------------
-.compileDwCodeP:
-; TODO: compile code to jump to another word (push IP to return stack, etc)
+.compileDwCodeP:          ; Compile call to a code pointer (rsi: CodeP)
+mov ecx, [CodeP]          ; make sure code memory has available space
+add ecx, 3
+cmp ecx, CodeMax
+jnb .doneCodeMemFull
+sub ecx, 3
+mov edi, CodeMem          ; store the Call token
+mov WB, tCall
+mov [rdi+rcx], byte WB
+inc ecx                   ; advance code pointer (+1 for byte)
+cmp r8w, CodeMax          ; check if address is within the acceptable range
+jnb .doneBadPointer       ;   stop if out of range
+mov [rdi+rcx], word r8w   ; store the call address (_word_ index into CodeMem)
+add ecx, 2                ; advance code pointer (+2 for _word_)
+mov [CodeP], ecx          ; store code pointer
 jmp .done
 ;---------------------
 .paramDwVarP:
@@ -490,6 +511,11 @@ jmp mErr14BadWordType
 pop rbx
 pop rbp
 jmp mErr15CodeMemFull
+;---------------------
+.doneBadPointer:
+pop rbx
+pop rbp
+jmp mErr19BadCodePointer
 ;/////////////////////
 
 
@@ -592,6 +618,14 @@ mErr19BadCodePointer:         ; Error 19: Bad code pointer
 lea W, [datErr19bcp]
 jmp mErrPutW
 
+mErr20ReturnUnderflow:        ; Error 20: Return stack underflow
+lea W, [datErr20rsu]
+jmp mErrPutW
+
+mErr21ReturnFull:             ; Error 21: Return stack full
+lea W, [datErr21rsf]
+jmp mErrPutW
+
 
 ;-----------------------------
 ; Dictionary: Literals
@@ -626,7 +660,7 @@ add ebp, 4                    ; adjust I
 jmp mPush
 
 mDotQuoteC:                   ; Print string literal to stdout (token compiled)
-movzx ecx, word [rbp]         ; get length of string in bytes (for adjusting I)
+movzx ecx, word [rbp]         ; get length of string in bytes (to adjust I)
 add ecx, 2                    ;   add 2 for length word
 mov W, ebp                    ; I (ebp) should be pointing to {length, chars}
 add ebp, ecx                  ; adjust I past string
@@ -762,15 +796,17 @@ mSemiColon:                   ; SEMICOLON - end definition of a new word
 test VMFlags, VMCompile       ; if not in compile mode, invoking ; is an error
 jz mErr17SemiColon
 mov ecx, [CodeP]
-cmp ecx, CodeMax            ; make sure code memory has available space
+inc ecx
+cmp ecx, CodeMax              ; make sure code memory has available space
 jnb mErr15CodeMemFull
-xor rdi, rdi                ; store a Next token in code memory
+dec ecx
+xor rdi, rdi                  ; store a Next token in code memory
 mov dil, tNext
 mov esi, CodeMem
 mov [rsi+rcx], dil
-inc ecx                     ; advance the code pointer
+inc ecx                       ; advance the code pointer
 mov [CodeP], ecx
-and VMFlags, (~VMCompile)   ; clear the compile mode flag
+and VMFlags, (~VMCompile)     ; clear the compile mode flag
 ret
 
 ; CREATE - Add a name to the dictionary
@@ -928,9 +964,6 @@ ret
 mNop:                         ; NOP - do nothing
 ret
 
-mNext:                        ; NEXT - (nop) this gets handled by doInner
-ret
-
 mDup:                         ; DUP - Push T
 test DSDeep, DSDeep           ; check if stack is empty
 jz mErr1Underflow
@@ -975,6 +1008,66 @@ dec DSDeep                    ; new_depth = old_depth-1
 mov W, DSDeep                 ; new second item index = old_depth-2+1-1
 dec W
 mov T, [DSBase+4*W]
+ret
+
+;-----------------------------
+; Return stack
+
+mRPushW:                      ; Push W to return stack
+cmp RSDeep, RSMax
+jnb mErr21ReturnFull
+mov [RSBase+4*RSDeep], W      ; store W
+inc RSDeep                    ; update return stack depth
+ret
+
+mRPopW:                       ; RPOP - Pop from return stack to W
+cmp RSDeep, 1
+jb mErr20ReturnUnderflow
+dec RSDeep                    ; new_depth = old_depth-1
+mov W, [RSBase+4*RSDeep]      ; W = item at offset old_depth-1 (old top item)
+ret
+
+mClearReturn:                 ; Clear the return stack
+xor RSDeep, RSDeep
+ret
+
+mJump:                        ; Jump -- set the VM token instruction pointer
+; TODO: implement this
+ret
+
+mCall:                        ; Call -- make a VM token call
+movzx edi, word [rbp]         ; read pointer literal address from token stream
+add ebp, 2                    ; advance I (ebp) past the address literal
+cmp di, CodeMax               ; check if pointer is in range for CodeMem
+jnb mErr19BadCodePointer      ; if not: stop
+push rdi                      ; save the call address (dereferenced pointer)
+mov W, ebp                    ; push I (ebp) to return stack
+call mRPushW
+pop rdi                       ; retrieve the call address
+lea ebp, [edi+CodeMem]        ; set I (ebp) to the call address
+ret
+
+mNext:                        ; NEXT - Return from end of word
+test RSDeep, RSDeep           ; in case of empty return stack, set VMNext flag
+jz .doneFinal
+call mRPopW                   ; pop the return address (should be in CodeMem)
+test VMFlags, VMErr
+jnz .doneErr
+mov edi, CodeMem              ; check if 0<=pointer<CodeMem
+cmp W, edi
+setae r10b                    ; r10b = (W >= CodeMem)
+add edi, CodeMax
+cmp W, edi
+setb r11b                     ; r11b = (W < CodeMem+CodeMax)
+test r10b, r11b
+jz mErr19BadCodePointer       ; if target address is not valid: stop
+.done:
+mov ebp, W                    ; else: set token pointer to return address
+ret
+.doneFinal:
+or VMFlags, VMNext            ; set VMNext flag marking end of outermost word
+ret
+.doneErr:
 ret
 
 
@@ -1393,13 +1486,16 @@ jmp mEmit.W
 
 mEmit:                 ; Print low byte of T as ascii char to stdout
 mov W, T
+push WQ
 call mDrop
+pop WQ
 .W:                    ; Print low byte of W as ascii char to stdout
-shl W, 24              ; Prepare W as string struct {db 1, 0, ascii, 0}
-shr W, 8
-mov WB, 1
-mov [dword Pad], W     ; Store string struct in Pad
-jmp mStrPut
+movzx esi, WB          ; store WB in [edi: EmitBuf]
+mov edi, EmitBuf
+mov [edi], esi
+xor esi, esi           ; esi = 1 (count of bytes in *edi)
+inc esi
+jmp mStrPut.RdiRsi
 
 
 ;-----------------------------

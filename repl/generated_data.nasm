@@ -55,6 +55,9 @@
 %define tI8          44
 %define tI16         45
 %define tI32         46
+%define tJump        47
+%define tCall        48
+%define tClearReturn  49
 
 
 ;------------------------------------------------------------------------
@@ -112,8 +115,11 @@ dd mU16         ; 43
 dd mI8          ; 44
 dd mI16         ; 45
 dd mI32         ; 46
+dd mJump        ; 47
+dd mCall        ; 48
+dd mClearReturn  ; 49
 
-%define JumpTableLen 47
+%define JumpTableLen 50
 
 
 ;-------------------------------------------------------------
@@ -279,8 +285,12 @@ Dct0_038: dd Dct0_037
           db 2, "b!"
           db 0, tByteStore
           align 16, db 0
-Dct0Head: dd Dct0_038
+Dct0_039: dd Dct0_038
           db 1, ";"
           db 0, tSemiColon
+          align 16, db 0
+Dct0Head: dd Dct0_039
+          db 11, "clearreturn"
+          db 0, tClearReturn
           align 16, db 0
 Dct0End: db 0
