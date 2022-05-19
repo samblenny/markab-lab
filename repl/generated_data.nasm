@@ -131,166 +131,162 @@ db "== Dictionary =="
 align 16, db 0
 Dct0Tail: dd 0
           db 3, "nop"
-          db 0, tNop
+          db 0, tNop, tNext
           align 16, db 0
 Dct0_001: dd Dct0Tail
           db 3, "bye"
-          db 0, tBye
+          db 0, tBye, tNext
           align 16, db 0
 Dct0_002: dd Dct0_001
           db 3, "dup"
-          db 0, tDup
+          db 0, tDup, tNext
           align 16, db 0
 Dct0_003: dd Dct0_002
           db 4, "drop"
-          db 0, tDrop
+          db 0, tDrop, tNext
           align 16, db 0
 Dct0_004: dd Dct0_003
           db 4, "swap"
-          db 0, tSwap
+          db 0, tSwap, tNext
           align 16, db 0
 Dct0_005: dd Dct0_004
           db 4, "over"
-          db 0, tOver
+          db 0, tOver, tNext
           align 16, db 0
 Dct0_006: dd Dct0_005
           db 10, "clearstack"
-          db 0, tClearStack
+          db 0, tClearStack, tNext
           align 16, db 0
 Dct0_007: dd Dct0_006
           db 2, ".s"
-          db 0, tDotS
+          db 0, tDotS, tNext
           align 16, db 0
 Dct0_008: dd Dct0_007
           db 2, '."'
-          db 0, tDotQuoteI
+          db 0, tDotQuoteI, tNext
           align 16, db 0
 Dct0_009: dd Dct0_008
           db 1, "("
-          db 0, tParen
+          db 0, tParen, tNext
           align 16, db 0
 Dct0_010: dd Dct0_009
           db 1, ":"
-          db 0, tColon
+          db 0, tColon, tNext
           align 16, db 0
 Dct0_011: dd Dct0_010
           db 4, "emit"
-          db 0, tEmit
+          db 0, tEmit, tNext
           align 16, db 0
 Dct0_012: dd Dct0_011
           db 2, "cr"
-          db 0, tCR
+          db 0, tCR, tNext
           align 16, db 0
 Dct0_013: dd Dct0_012
           db 5, "space"
-          db 0, tSpace
+          db 0, tSpace, tNext
           align 16, db 0
 Dct0_014: dd Dct0_013
           db 1, "."
-          db 0, tDot
+          db 0, tDot, tNext
           align 16, db 0
 Dct0_015: dd Dct0_014
           db 1, "+"
-          db 0, tPlus
+          db 0, tPlus, tNext
           align 16, db 0
 Dct0_016: dd Dct0_015
           db 1, "-"
-          db 0, tMinus
+          db 0, tMinus, tNext
           align 16, db 0
 Dct0_017: dd Dct0_016
           db 1, "*"
-          db 0, tMul
+          db 0, tMul, tNext
           align 16, db 0
 Dct0_018: dd Dct0_017
           db 1, "/"
-          db 0, tDiv
+          db 0, tDiv, tNext
           align 16, db 0
 Dct0_019: dd Dct0_018
           db 3, "mod"
-          db 0, tMod
+          db 0, tMod, tNext
           align 16, db 0
 Dct0_020: dd Dct0_019
           db 4, "/mod"
-          db 0, tDivMod
+          db 0, tDivMod, tNext
           align 16, db 0
 Dct0_021: dd Dct0_020
           db 3, "max"
-          db 0, tMax
+          db 0, tMax, tNext
           align 16, db 0
 Dct0_022: dd Dct0_021
           db 3, "min"
-          db 0, tMin
+          db 0, tMin, tNext
           align 16, db 0
 Dct0_023: dd Dct0_022
           db 3, "abs"
-          db 0, tAbs
+          db 0, tAbs, tNext
           align 16, db 0
 Dct0_024: dd Dct0_023
           db 3, "and"
-          db 0, tAnd
+          db 0, tAnd, tNext
           align 16, db 0
 Dct0_025: dd Dct0_024
           db 2, "or"
-          db 0, tOr
+          db 0, tOr, tNext
           align 16, db 0
 Dct0_026: dd Dct0_025
           db 3, "xor"
-          db 0, tXor
+          db 0, tXor, tNext
           align 16, db 0
 Dct0_027: dd Dct0_026
           db 3, "not"
-          db 0, tNot
+          db 0, tNot, tNext
           align 16, db 0
 Dct0_028: dd Dct0_027
           db 1, "<"
-          db 0, tLess
+          db 0, tLess, tNext
           align 16, db 0
 Dct0_029: dd Dct0_028
           db 1, ">"
-          db 0, tGreater
+          db 0, tGreater, tNext
           align 16, db 0
 Dct0_030: dd Dct0_029
           db 1, "="
-          db 0, tEqual
+          db 0, tEqual, tNext
           align 16, db 0
 Dct0_031: dd Dct0_030
           db 2, "0<"
-          db 0, tZeroLess
+          db 0, tZeroLess, tNext
           align 16, db 0
 Dct0_032: dd Dct0_031
           db 2, "0="
-          db 0, tZeroEqual
+          db 0, tZeroEqual, tNext
           align 16, db 0
 Dct0_033: dd Dct0_032
           db 3, "hex"
-          db 0, tHex
+          db 0, tHex, tNext
           align 16, db 0
 Dct0_034: dd Dct0_033
           db 7, "decimal"
-          db 0, tDecimal
+          db 0, tDecimal, tNext
           align 16, db 0
 Dct0_035: dd Dct0_034
           db 1, "@"
-          db 0, tFetch
+          db 0, tFetch, tNext
           align 16, db 0
 Dct0_036: dd Dct0_035
           db 1, "!"
-          db 0, tStore
+          db 0, tStore, tNext
           align 16, db 0
 Dct0_037: dd Dct0_036
           db 2, "b@"
-          db 0, tByteFetch
+          db 0, tByteFetch, tNext
           align 16, db 0
 Dct0_038: dd Dct0_037
           db 2, "b!"
-          db 0, tByteStore
+          db 0, tByteStore, tNext
           align 16, db 0
-Dct0_039: dd Dct0_038
+Dct0Head: dd Dct0_038
           db 1, ";"
-          db 0, tSemiColon
-          align 16, db 0
-Dct0Head: dd Dct0_039
-          db 11, "clearreturn"
-          db 0, tClearReturn
+          db 0, tSemiColon, tNext
           align 16, db 0
 Dct0End: db 0

@@ -79,7 +79,6 @@ decimal Decimal
 b@ ByteFetch
 b! ByteStore
 ; SemiColon
-clearreturn ClearReturn
 """
 
 def list_of_words(text):
@@ -118,7 +117,11 @@ def make_dictionary0():
     token = "t" + long_name                # change long name into token macro
     fmtLink = f"{label}: dd {link}"        # link to previous item in list
     fmtName = f"{indent}db {len(name)}, {quote}{name}{quote}"
-    fmtToks = f"{indent}db 0, {token}"
+    # There is a tNext after each token so that it's possible to invoke the
+    #  inner interpreter with an instruction cycle limit > 1 without it
+    #  running through the dictionary attempting to execute links and whatnot
+    #  as if they were tokens
+    fmtToks = f"{indent}db 0, {token}, tNext"
     items += [f"{fmtLink}\n{fmtName}\n{fmtToks}\n{indent}align 16, db 0"]
     serial += 1
     link = label

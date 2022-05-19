@@ -24,11 +24,18 @@ clearstack
 (  OK) : start 1 .  : continue 2 . 3 . ;
 ( 1 2 3  OK)                       start
 ( 2 3  OK)                      continue
-( --- Test maxing out return stack ---)
-(  OK)     : f1 0  : f2 1 + 42 emit f2 ;
-( ***************** E21...)           f1
-( * E21...)                           f1
-clearreturn
-( ***************** E21...)           f1
-(  17 1 17  OK)           clearreturn .s
 clearstack
+( --- Test maxing out return stack ---)
+(  OK)  : rs0 0 space : rs1 1 + 42 emit rs1 nop ;
+(     nop here stops tail call optimization ^^^ )
+( ***************** E21...)        clearstack rs0
+( ***************** E21...)                   rs0
+( ^^ note auto-recovery from full return stack)
+(  17 17  OK)                                  .s
+( --- Test tail call optimization ---)
+(  OK)   : tc0 0 . ;  : tc1 1 . tc0 ;
+( 1 0  OK)             clearstack tc1
+(  OK)       : tc2 0  : tc3 1 + tc3 ;
+(       infinite tail recursion ^^^ )
+(  E22...)             clearstack tc2
+(  174762  OK)                     .s
