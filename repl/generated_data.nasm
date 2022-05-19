@@ -58,6 +58,7 @@
 %define tJump        47
 %define tCall        48
 %define tClearReturn  49
+%define tZeroNext    50
 
 
 ;------------------------------------------------------------------------
@@ -118,8 +119,9 @@ dd mI32         ; 46
 dd mJump        ; 47
 dd mCall        ; 48
 dd mClearReturn  ; 49
+dd mZeroNext    ; 50
 
-%define JumpTableLen 50
+%define JumpTableLen 51
 
 
 ;-------------------------------------------------------------
@@ -285,8 +287,12 @@ Dct0_038: dd Dct0_037
           db 2, "b!"
           db 0, tByteStore, tNext
           align 16, db 0
-Dct0Head: dd Dct0_038
+Dct0_039: dd Dct0_038
           db 1, ";"
           db 0, tSemiColon, tNext
+          align 16, db 0
+Dct0Head: dd Dct0_039
+          db 2, "0;"
+          db 0, tZeroNext, tNext
           align 16, db 0
 Dct0End: db 0
