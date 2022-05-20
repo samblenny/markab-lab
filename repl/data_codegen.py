@@ -23,7 +23,7 @@ label: dd .link             ; link to previous list entry
 # Markab's source code.
 #
 TOKENS = """
-Next Nop Bye Dup Drop Swap Over ClearStack DotS DotQuoteI Paren Colon Emit
+Return Nop Bye Dup Drop Swap Over ClearStack DotS DotQuoteI Paren Colon Emit
 CR Space Dot Plus Minus Mul Div Mod DivMod Max Min Abs And Or Xor Not Less
 Greater Equal ZeroLess ZeroEqual Hex Decimal Fetch Store ByteFetch ByteStore
 SemiColon DotQuoteC U8 U16 I8 I16 I32 Jump Call ClearReturn ZeroNext
@@ -118,11 +118,11 @@ def make_dictionary0():
     token = "t" + long_name                # change long name into token macro
     fmtLink = f"{label}: dd {link}"        # link to previous item in list
     fmtName = f"{indent}db {len(name)}, {quote}{name}{quote}"
-    # There is a tNext after each token so that it's possible to invoke the
+    # There is a tReturn after each token so that it's possible to invoke the
     #  inner interpreter with an instruction cycle limit > 1 without it
     #  running through the dictionary attempting to execute links and whatnot
     #  as if they were tokens
-    fmtToks = f"{indent}db 0, {token}, tNext"
+    fmtToks = f"{indent}db 0, {token}, tReturn"
     items += [f"{fmtLink}\n{fmtName}\n{fmtToks}\n{indent}align 16, db 0"]
     serial += 1
     link = label

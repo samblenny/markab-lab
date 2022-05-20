@@ -32,7 +32,7 @@ section .data
 ; Codegen Import
 ;
 ; This includes:
-; 1. `%define t...` defines for VM instruction token values (e.g. tNext)
+; 1. `%define t...` defines for VM instruction token values (e.g. tReturn)
 ; 2. Jump table including:
 ;    - JumpTable: label for start of jump table
 ;    - JumpTableLen: define for length of jump table (to check valid tokens)
@@ -459,7 +459,7 @@ mov [CodeP], ecx
 jmp .done
 ;---------------------
 .paramDwCodeP:            ; Handle compiled code-pointer word (rsi: CodeP)
-xor edi, edi              ; .tokenLen = lots (tNext should return before then)
+xor edi, edi              ; .tokenLen = lots (tReturn should happen first)
 mov edi, 0x7ffff
 xor r8d, r8d              ; r8d = code pointer from [rcx=.param]
 mov r8w, word [rcx]       ; CAUTION! code pointer parameter is _word_
@@ -836,7 +836,7 @@ jz .rewriteTailCall
 ;-----------------------------
 .normalNext:
 xor rsi, rsi                  ; store a Next token in code memory
-mov sil, tNext
+mov sil, tReturn
 mov [rdi+rcx], sil
 inc ecx                       ; advance the code pointer
 mov [CodeP], ecx
@@ -1100,10 +1100,10 @@ mZeroNext                     ; Return from word if top of stack is zero
 cmp DSDeep, 1                 ; make sure there is at least 1 item on stack
 jb mErr1Underflow
 test T, T                     ; check if top item is 0
-jz mNext                      ; if so: return from word
+jz mReturn                    ; if so: return from word
 ret                           ; else: do nothing
 
-mNext:                        ; NEXT - Return from end of word
+mReturn:                      ; Return from end of word
 test RSDeep, RSDeep           ; in case of empty return stack, set VMNext flag
 jz .doneFinal
 call mRPopW                   ; pop the return address (should be in CodeMem)
