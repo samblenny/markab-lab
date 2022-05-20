@@ -195,10 +195,8 @@ section .text
 
 %define T r13d                ; Top on stack, 32-bit zero-extended dword
 %define TB r13b               ; Top on stack, low byte
-%define DSDeep r14d           ; Current depth of data stack (including T)
-%define DSDeepB r14d          ; Current depth of data stack, low byte
-%define RSDeep r15d           ; Current depth of return stack
-%define RSDeepB r15d          ; Current depth of return stack, low byte
+%define DSDeep xmm0           ; Depth of data stack (includes T, NOTE! XMM0)
+%define RSDeep xmm1           ; Depth of return stack (NOTE! XMM1 register)
 
 
 ;-----------------------------
@@ -208,8 +206,8 @@ markab_cold:
 enter 0, 0
 xor W, W                      ; init data stack registers
 mov T, W
-mov DSDeep, W
-mov RSDeep, W
+movq DSDeep, WQ
+movq RSDeep, WQ
 mov [Pad], W
 mov ecx, Dct0Head
 mov [Last], ecx               ; dictionary head starts at head of Dct0
@@ -1009,70 +1007,79 @@ mNop:                         ; NOP - do nothing
 ret
 
 mDup:                         ; DUP - Push T
-test DSDeep, DSDeep           ; check if stack is empty
+movq rdi, DSDeep              ; check if stack is empty
+test rdi, rdi
 jz mErr1Underflow
 mov W, T
 jmp mPush
 
 mSwap:                        ; SWAP - Swap T and second item on stack
-mov W, DSDeep
-cmp WB, 2
+movq rdi, DSDeep              ; check if stack depth is >= 2
+cmp dil, 2
 jb mErr1Underflow
-sub WB, 2
-xchg T, [DSBase+4*W]
+sub edi, 2
+xchg T, [DSBase+4*edi]
 ret
 
 mOver:                        ; OVER - Push second item on stack
-mov W, DSDeep
-cmp WB, 2
+movq rdi, DSDeep              ; check if stack depth is >= 2
+cmp dil, 2
 jb mErr1Underflow
-sub WB, 2
-mov W, [DSBase+4*W]
+sub edi, 2
+mov W, [DSBase+4*edi]
 jmp mPush
 
 mClearStack:                  ; CLEARSTACK - Drop all stack cells
-xor DSDeep, DSDeep
+xor rdi, rdi
+movq DSDeep, rdi
 ret
 
 mPush:                        ; PUSH - Push W to data stack
-cmp DSDeep, DSMax
+movq rdi, DSDeep
+cmp dil, DSMax
 jnb mErr2Overflow
-mov edi, W                    ; save W before relative address calculation
-mov esi, DSDeep               ; calculate store index of old_depth-2+1
-dec esi
-mov [DSBase+4*esi], T         ; store old value of T
-mov T, edi                    ; set T to caller's value of W
-inc DSDeep                    ; this depth includes T + (DSMax-1) memory items
+mov esi, W                    ; save W before relative address calculation
+dec edi                       ; calculate store index of old_depth-2+1
+mov [DSBase+4*edi], T         ; store old value of T
+mov T, esi                    ; set T to caller's value of W
+add edi, 2                    ; CAUTION! `add di, 2` or `dil, 2` _not_ okay!
+movq DSDeep, rdi              ; this depth includes T + (DSMax-1) memory items
 ret
 
 mDrop:                        ; DROP - discard (pop) T
-cmp DSDeep, 1
+movq rdi, DSDeep              ; check if stack depth >= 1
+cmp dil, 1
 jb mErr1Underflow
-dec DSDeep                    ; new_depth = old_depth-1
-mov W, DSDeep                 ; new second item index = old_depth-2+1-1
-dec W
-mov T, [DSBase+4*W]
+dec rdi                       ; new_depth = old_depth-1
+movq DSDeep, rdi
+dec rdi                       ; convert depth to second item index (old_depth-2)
+mov T, [DSBase+4*edi]
 ret
 
 ;-----------------------------
 ; Return stack, call, jumps
 
 mRPushW:                      ; Push W to return stack
-cmp RSDeep, RSMax
+movq rdi, RSDeep
+cmp dil, RSMax
 jnb mErr21ReturnFull
-mov [RSBase+4*RSDeep], W      ; store W
-inc RSDeep                    ; update return stack depth
+mov [RSBase+4*edi], W         ; store W
+inc rdi                       ; update return stack depth
+movq RSDeep, rdi
 ret
 
 mRPopW:                       ; RPOP - Pop from return stack to W
-cmp RSDeep, 1
+movq rdi, RSDeep
+cmp dil, 1
 jb mErr20ReturnUnderflow
-dec RSDeep                    ; new_depth = old_depth-1
-mov W, [RSBase+4*RSDeep]      ; W = item at offset old_depth-1 (old top item)
+dec rdi                       ; new_depth = old_depth-1
+movq RSDeep, rdi
+mov W, [RSBase+4*edi]         ; W = item at offset old_depth-1 (old top item)
 ret
 
 mClearReturn:                 ; Clear the return stack
-xor RSDeep, RSDeep
+xor rdi, rdi
+movq RSDeep, rdi
 and VMFlags, (~VMRetFull)     ; clear the return full flag
 ret
 
@@ -1096,15 +1103,17 @@ pop rdi                       ; retrieve the call address
 lea ebp, [edi+CodeMem]        ; set I (ebp) to the call address
 ret
 
-mNext                         ; Return from word if top of stack is zero
-cmp DSDeep, 1                 ; make sure there is at least 1 item on stack
+mNext:                        ; Return from word if top of stack is zero
+movq rdi, DSDeep              ; make sure there is at least 1 item on stack
+cmp dil, 1
 jb mErr1Underflow
 test T, T                     ; check if top item is 0
 jz mReturn                    ; if so: return from word
 ret                           ; else: do nothing
 
 mReturn:                      ; Return from end of word
-test RSDeep, RSDeep           ; in case of empty return stack, set VMNext flag
+movq rdi, RSDeep
+test rdi, rdi                 ; in case of empty return stack, set VMNext flag
 jz .doneFinal
 call mRPopW                   ; pop the return address (should be in CodeMem)
 test VMFlags, VMErr
@@ -1131,14 +1140,15 @@ ret
 ; Dictionary: Math ops
 
 mMathDrop:                    ; Shared drop preamble for 2-operand math ops
-cmp DSDeep, 2                 ; make sure there are 2 items on the stack
+movq rdi, DSDeep              ; make sure there are 2 items on the stack
+cmp dil, 2
 jb mErr1Underflow
-mov edi, T                    ; save value of old top item
-dec DSDeep                    ; do a drop
-mov W, DSDeep
-dec W
-mov T, [DSBase+4*W]
-mov W, edi                    ; leave old T in eax (W) for use with math ops
+mov esi, T                    ; save value of old top item
+dec edi                       ; do a drop
+movq DSDeep, rdi
+dec edi
+mov T, [DSBase+4*edi]
+mov W, esi                    ; leave old T in eax (W) for use with math ops
 ret
 
 mPlus:                        ; +   ( 2nd T -- 2nd+T )
@@ -1181,12 +1191,12 @@ mov T, edx                    ; new T is remainder from edx
 ret
 
 mDivMod:                      ; /MOD   for 2nd/T: ( 2nd T -- rem quot )
-cmp DSDeep, 2                 ; make sure there are 2 items on the stack
+movq rcx, DSDeep              ; make sure there are 2 items on the stack
+cmp cl, 2
 jb mErr1Underflow
 test T, T                     ; make sure divisor is not 0
 jz mErr12DivideByZero
-mov ecx, DSDeep               ; fetch old 2nd as dividend to eax (W)
-sub cl, 2
+sub ecx, 2                    ; fetch old 2nd as dividend to eax (W)
 mov W, [DSBase+4*ecx]
 cdq                           ; sign extend old 2nd in eax to rax
 idiv T                        ; signed divide 2nd/T (rax:quot, rdx:rem)
@@ -1209,7 +1219,8 @@ cmovg T, W                    ; if old 2nd was more, then use old T for new T
 ret
 
 mAbs:                         ; ABS   ( T -- abs_of_T )
-cmp DSDeep, 1                 ; need at least 1 item on stack
+movq rdi, DSDeep              ; need at least 1 item on stack
+cmp dil, 1
 jb mErr1Underflow
 mov W, T
 neg W                         ; check if negated value of old T is positive
@@ -1245,7 +1256,8 @@ xor T, W
 ret
 
 mNot:                         ; NOT   ( T -- bitwise_negate_T )
-cmp DSDeep, 1                 ; need at least 1 item on stack
+movq rdi, DSDeep              ; need at least 1 item on stack
+cmp dil, 1
 jb mErr1Underflow
 not T
 ret
@@ -1281,7 +1293,8 @@ cmovnz T, esi                 ; if so, change new T to false
 ret
 
 mZeroLess:                    ; 0<   ( T -- bool_is_T_less_than_0 )
-cmp DSDeep, 1                 ; need at least 1 item on stack
+movq rdi, DSDeep              ; need at least 1 item on stack
+cmp dil, 1
 jb mErr1Underflow
 mov W, T
 xor T, T                      ; set T to false (-1)
@@ -1292,7 +1305,8 @@ cmovs T, edi                  ; if so, change new T to true
 ret
 
 mZeroEqual:                   ; 0=   ( T -- bool_is_T_equal_0 )
-cmp DSDeep, 1                 ; need at least 1 item on stack
+movq rdi, DSDeep              ; need at least 1 item on stack
+cmp dil, 1
 jb mErr1Underflow
 mov W, T                      ; save value of T
 xor T, T                      ; set T to false (-1)
@@ -1473,7 +1487,8 @@ ret
 ; Dictionary: Fetch and Store
 
 mFetch:                     ; Fetch: pop addr, load & push dword [VarMem+addr]
-cmp DSDeep, 1               ; make sure stack has at least 1 item (address)
+movq rdi, DSDeep            ; need at least 1 item on stack
+cmp dil, 1
 jb mErr1Underflow
 test T, T                   ; make sure address is in range (0<=addr<VarMax-3)
 jl mErr13AddressOOR
@@ -1485,7 +1500,8 @@ mov T, [VarMem+T]           ; pop addr, load dword, push dword
 ret
 
 mStore:                     ; Store dword (second) at address (T)
-cmp DSDeep, 2               ; make sure stack depth >= 2 items (data, address)
+movq rsi, DSDeep            ; make sure stack depth >= 2 items (data, address)
+cmp sil, 2
 jb mErr1Underflow
 test T, T                   ; make sure address is in range (0<=addr<VarMax-3)
 jl mErr13AddressOOR
@@ -1494,15 +1510,17 @@ add W, 3
 cmp W, VarMax
 jnb mErr13AddressOOR
 mov edi, T                  ; save address
-dec DSDeep                  ; drop address
-mov T, [DSBase+4*DSDeep-4]  ; T now contains the data dword from former second
+dec rsi                     ; drop address
+mov T, [DSBase+4*esi-4]     ; T now contains the data dword from former second
 mov [VarMem+edi], T         ; store data at [VarMem+addr]
-dec DSDeep                  ; drop data dword
-mov T, [DSBase+4*DSDeep-4]
+dec rsi                     ; drop data dword
+movq DSDeep, rsi
+mov T, [DSBase+4*esi-4]
 ret
 
 mByteFetch:                 ; Fetch: pop addr, load & push byte [VarMem+addr]
-cmp DSDeep, 1               ; make sure stack has at least 1 item (address)
+movq rdi, DSDeep            ; make sure stack has at least 1 item (address)
+cmp dil, 1
 jb mErr1Underflow
 test T, T                   ; make sure address is in range (0<=addr<VarMax)
 jl mErr13AddressOOR
@@ -1514,18 +1532,20 @@ mov T, W                    ; push dword
 ret
 
 mByteStore:                 ; Store low byte of (second) at address (T)
-cmp DSDeep, 2               ; make sure stack depth >= 2 items (data, address)
+movq rdi, DSDeep            ; make sure stack depth >= 2 items (data, address)
+cmp dil, 2
 jb mErr1Underflow
 test T, T                   ; make sure address is in range (0<=addr<VarMax)
 jl mErr13AddressOOR
 cmp T, VarMax
 jnb mErr13AddressOOR
-mov edi, T                  ; save address
-dec DSDeep                  ; drop address
-mov T, [DSBase+4*DSDeep-4]  ; T now contains the data dword from former second
-mov byte [VarMem+edi], TB   ; store data at [VarMem+addr]
-dec DSDeep                  ; drop data dword
-mov T, [DSBase+4*DSDeep-4]
+mov esi, T                  ; save address
+dec edi                     ; drop address
+mov T, [DSBase+4*edi-4]     ; T now contains the data dword from former second
+mov byte [VarMem+esi], TB   ; store data at [VarMem+addr]
+dec edi                     ; drop data dword
+movq DSDeep, rdi
+mov T, [DSBase+4*edi-4]
 ret
 
 
@@ -1558,7 +1578,8 @@ jmp mStrPut.RdiRsi
 ; Dictionary: Formatting
 
 mDot:                 ; Print T using number base
-cmp DSDeep, 1         ; need at least 1 item on stack
+movq rdi, DSDeep      ; need at least 1 item on stack
+cmp dil, 1
 jb mErr1Underflow
 mov W, T
 push WQ
@@ -1700,8 +1721,9 @@ jmp mErr5Assert       ;   should not happen unless there is a logic error
 ;
 mDotS:
 push rbp
-cmp DSDeep, 0         ; if stack is empty, print the empty message
-je .doneEmpty
+movq rdi, DSDeep
+test rdi, rdi         ; if stack is empty, print the empty message
+jz .doneEmpty
 call mFmtRtlClear     ; otherwise, prepare the formatting buffer
 ;---------------------
 xor ebp, ebp          ; start index at 1 because of T
@@ -1712,10 +1734,10 @@ mov edi, T            ; prepare for mFmtRtlInt32(edi: T)
 call mFmtRtlInt32     ; format(edi: current stack cell) into PadRtl
 call mFmtRtlSpace     ; add a space (rtl, so space goes to left of number)
 inc ebp               ; inc index
-cmp ebp, DSDeep       ; stop if all stack cells have been formatted
+movq WQ, DSDeep       ; stop if all stack cells have been formatted
+cmp ebp, W
 ja .done
-mov W, DSDeep         ; otherwise, prepare for mFmtRtlInt32(rdi: stack cell)
-sub W, ebp            ; load next cell
+sub W, ebp            ; otherwise, prepare for mFmtRtlInt32(rdi: stack cell)
 mov edi, [DSBase+4*W]
 jmp .for              ; keep looping
 ;---------------------
