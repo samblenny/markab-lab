@@ -1096,7 +1096,7 @@ pop rdi                       ; retrieve the call address
 lea ebp, [edi+CodeMem]        ; set I (ebp) to the call address
 ret
 
-mZeroNext                     ; Return from word if top of stack is zero
+mNext                         ; Return from word if top of stack is zero
 cmp DSDeep, 1                 ; make sure there is at least 1 item on stack
 jb mErr1Underflow
 test T, T                     ; check if top item is 0
