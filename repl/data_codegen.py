@@ -24,9 +24,9 @@ label: dd .link             ; link to previous list entry
 #
 TOKENS = """
 Return Nop Bye Dup Drop Swap Over ClearStack DotS DotQuoteI Paren Colon Emit
-CR Space Dot Plus Minus Mul Div Mod DivMod Max Min Abs And Or Xor Not Less
+CR Space Dot Plus Minus Mul Div Mod DivMod Max Min Abs And Or Xor Invert Less
 Greater Equal ZeroLess ZeroEqual Hex Decimal Fetch Store ByteFetch ByteStore
-SemiColon DotQuoteC U8 U16 I8 I16 I32 Jump Call ClearReturn Next
+SemiColon DotQuoteC U8 U16 I8 I16 I32 Jump Call ClearReturn Next Negate
 """
 
 # These are names and tokens for words in Markab Forth's core dictionary
@@ -56,6 +56,7 @@ space Space
 . Dot
 + Plus
 - Minus
+negate Negate
 * Mul
 / Div
 mod Mod
@@ -66,7 +67,7 @@ abs Abs
 and And
 or Or
 xor Xor
-not Not
+invert Invert
 < Less
 > Greater
 = Equal

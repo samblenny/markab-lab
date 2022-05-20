@@ -16,3 +16,9 @@ clearstack
 ( 0  OK)                  ffffffff 1 + .
 ( 1 OK)                 7fffffff dup * .
 ( FFFFFFFF  OK)         decimal -1 hex .
+( 0  OK)                      0 negate .
+( FFFFFFFF  OK)               0 invert .
+( 1  OK)         decimal -1 hex negate .
+( 0  OK)         decimal -1 hex invert .
+( FFFFFFFF  OK)               1 negate .
+( FFFFFFFE  OK)               1 invert .

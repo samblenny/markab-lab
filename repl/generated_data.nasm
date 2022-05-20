@@ -36,7 +36,7 @@
 %define tAnd         25
 %define tOr          26
 %define tXor         27
-%define tNot         28
+%define tInvert      28
 %define tLess        29
 %define tGreater     30
 %define tEqual       31
@@ -59,6 +59,7 @@
 %define tCall        48
 %define tClearReturn  49
 %define tNext        50
+%define tNegate      51
 
 
 ;------------------------------------------------------------------------
@@ -97,7 +98,7 @@ dd mAbs         ; 24
 dd mAnd         ; 25
 dd mOr          ; 26
 dd mXor         ; 27
-dd mNot         ; 28
+dd mInvert      ; 28
 dd mLess        ; 29
 dd mGreater     ; 30
 dd mEqual       ; 31
@@ -120,8 +121,9 @@ dd mJump        ; 47
 dd mCall        ; 48
 dd mClearReturn  ; 49
 dd mNext        ; 50
+dd mNegate      ; 51
 
-%define JumpTableLen 51
+%define JumpTableLen 52
 
 
 ;-------------------------------------------------------------
@@ -200,98 +202,102 @@ Dct0_016: dd Dct0_015
           db 0, tMinus, tReturn
           align 16, db 0
 Dct0_017: dd Dct0_016
+          db 6, "negate"
+          db 0, tNegate, tReturn
+          align 16, db 0
+Dct0_018: dd Dct0_017
           db 1, "*"
           db 0, tMul, tReturn
           align 16, db 0
-Dct0_018: dd Dct0_017
+Dct0_019: dd Dct0_018
           db 1, "/"
           db 0, tDiv, tReturn
           align 16, db 0
-Dct0_019: dd Dct0_018
+Dct0_020: dd Dct0_019
           db 3, "mod"
           db 0, tMod, tReturn
           align 16, db 0
-Dct0_020: dd Dct0_019
+Dct0_021: dd Dct0_020
           db 4, "/mod"
           db 0, tDivMod, tReturn
           align 16, db 0
-Dct0_021: dd Dct0_020
+Dct0_022: dd Dct0_021
           db 3, "max"
           db 0, tMax, tReturn
           align 16, db 0
-Dct0_022: dd Dct0_021
+Dct0_023: dd Dct0_022
           db 3, "min"
           db 0, tMin, tReturn
           align 16, db 0
-Dct0_023: dd Dct0_022
+Dct0_024: dd Dct0_023
           db 3, "abs"
           db 0, tAbs, tReturn
           align 16, db 0
-Dct0_024: dd Dct0_023
+Dct0_025: dd Dct0_024
           db 3, "and"
           db 0, tAnd, tReturn
           align 16, db 0
-Dct0_025: dd Dct0_024
+Dct0_026: dd Dct0_025
           db 2, "or"
           db 0, tOr, tReturn
           align 16, db 0
-Dct0_026: dd Dct0_025
+Dct0_027: dd Dct0_026
           db 3, "xor"
           db 0, tXor, tReturn
           align 16, db 0
-Dct0_027: dd Dct0_026
-          db 3, "not"
-          db 0, tNot, tReturn
-          align 16, db 0
 Dct0_028: dd Dct0_027
+          db 6, "invert"
+          db 0, tInvert, tReturn
+          align 16, db 0
+Dct0_029: dd Dct0_028
           db 1, "<"
           db 0, tLess, tReturn
           align 16, db 0
-Dct0_029: dd Dct0_028
+Dct0_030: dd Dct0_029
           db 1, ">"
           db 0, tGreater, tReturn
           align 16, db 0
-Dct0_030: dd Dct0_029
+Dct0_031: dd Dct0_030
           db 1, "="
           db 0, tEqual, tReturn
           align 16, db 0
-Dct0_031: dd Dct0_030
+Dct0_032: dd Dct0_031
           db 2, "0<"
           db 0, tZeroLess, tReturn
           align 16, db 0
-Dct0_032: dd Dct0_031
+Dct0_033: dd Dct0_032
           db 2, "0="
           db 0, tZeroEqual, tReturn
           align 16, db 0
-Dct0_033: dd Dct0_032
+Dct0_034: dd Dct0_033
           db 3, "hex"
           db 0, tHex, tReturn
           align 16, db 0
-Dct0_034: dd Dct0_033
+Dct0_035: dd Dct0_034
           db 7, "decimal"
           db 0, tDecimal, tReturn
           align 16, db 0
-Dct0_035: dd Dct0_034
+Dct0_036: dd Dct0_035
           db 1, "@"
           db 0, tFetch, tReturn
           align 16, db 0
-Dct0_036: dd Dct0_035
+Dct0_037: dd Dct0_036
           db 1, "!"
           db 0, tStore, tReturn
           align 16, db 0
-Dct0_037: dd Dct0_036
+Dct0_038: dd Dct0_037
           db 2, "b@"
           db 0, tByteFetch, tReturn
           align 16, db 0
-Dct0_038: dd Dct0_037
+Dct0_039: dd Dct0_038
           db 2, "b!"
           db 0, tByteStore, tReturn
           align 16, db 0
-Dct0_039: dd Dct0_038
+Dct0_040: dd Dct0_039
           db 1, ";"
           db 0, tSemiColon, tReturn
           align 16, db 0
-Dct0Head: dd Dct0_039
+Dct0Head: dd Dct0_040
           db 4, "next"
           db 0, tNext, tReturn
           align 16, db 0

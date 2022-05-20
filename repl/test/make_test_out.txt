@@ -96,6 +96,12 @@ clearstack  OK
 ( 0  OK)                  ffffffff 1 + . 0  OK
 ( 1 OK)                 7fffffff dup * . 1  OK
 ( FFFFFFFF  OK)         decimal -1 hex . FFFFFFFF  OK
+( 0  OK)                      0 negate . 0  OK
+( FFFFFFFF  OK)               0 invert . FFFFFFFF  OK
+( 1  OK)         decimal -1 hex negate . 1  OK
+( 0  OK)         decimal -1 hex invert . 0  OK
+( FFFFFFFF  OK)               1 negate . FFFFFFFF  OK
+( FFFFFFFE  OK)               1 invert . FFFFFFFE  OK
 ( === test/colon_defs.fs ===)  OK
 (  OK)    : a ;               a  OK
 ( B  OK)  : b ."  B" ;        b B  OK

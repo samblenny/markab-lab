@@ -1161,6 +1161,14 @@ call mMathDrop
 sub T, W
 ret
 
+mNegate:                      ; Negate T (two's complement)
+movq rdi, DSDeep              ; need at least 1 item on stack
+cmp dil, 1
+jb mErr1Underflow
+neg T
+ret
+
+
 mMul:                         ; *   ( 2nd T -- 2nd*T )
 call mMathDrop
 imul T, W                     ; imul is signed multiply (mul is unsigned)
@@ -1235,9 +1243,8 @@ ret
 ; Forth's boolean constants are not like C booleans. In Forth,
 ;   True value:   0 (all bits clear)
 ;   False value: -1 (all bits set)
-; This allows for sneaky tricks such as using the `AND`, `OR`, `XOR`, and `NOT`
-; words to act as both bitwise and boolean operators. Also, false shows up in a
-; hexdump as `FFFFFFFF`, so "F's for False" is a good mnemonic.
+; This allows for sneaky tricks such as using the `AND`, `OR`, `XOR`, and
+; `INVERT` to act as both bitwise and boolean operators.
 ; =====================
 
 mAnd:                         ; AND   ( 2nd T -- bitwise_and_2nd_T )
@@ -1255,11 +1262,11 @@ call mMathDrop
 xor T, W
 ret
 
-mNot:                         ; NOT   ( T -- bitwise_negate_T )
+mInvert:                      ; Invert all bits of T (one's complement)
 movq rdi, DSDeep              ; need at least 1 item on stack
 cmp dil, 1
 jb mErr1Underflow
-not T
+not T                         ; note amd64 not opcode is one's complement
 ret
 
 mLess:                        ; <   ( 2nd T -- bool_is_2nd_less_than_T )
