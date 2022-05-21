@@ -335,6 +335,35 @@ void tty_update_line(int last_char_is_cr) {
     }
 }
 
+// CAUTION! There is some weird stuff (violates System V ABI conventions?)
+// going on here with libmarkab using SSE registers (xmm0, xmm1, ...) to
+// preserve its virtual machine state. In order to avoid badness with
+// corruption of those registers, it is important that step_tty_state() does
+// not directly or indirectly call any functions that use SSE registers to pass
+// floating point arguments or return values.
+//
+// This code is currently okay by that measure. But, it would be easy to cause
+// major breakage, with non-intuitive side-effects at a distance, by simply
+// calling some library function that uses floating point (perhaps trig
+// functions for audio synthesis?).
+//
+// It would not work for libmarkab to just push the SSE registers before
+// calling this function, then pop them after it returns. The problem is, this
+// function calls tib_clear_screen() and tib_cr(), both of which call back into
+// libmarkab with markab_outer(). Because of that, markab_outer() necessarily
+// modifies the SSE registers while this function is still running. So, popping
+// the SSE registers after this function returns would corrupt the state
+// changes made by markab_outer(). That would totally break the libmarkab
+// virtual machine. I tested that. It was bad.
+//
+// So, the current design has a dangerous footgun that needs to be made safer.
+// For now though (2022-05-20), it's more important to me to have additional
+// registers available to the Forth VM so that I can use them for building out
+// the compiler.
+//
+// TODO: Re-design the terminal input state machine so that step_tty_state()
+// sets a flag or something rather than calling into libmarkab::markab_outer().
+//
 void step_tty_state(unsigned char c) {
     switch(TTY.state) {
     case Normal:

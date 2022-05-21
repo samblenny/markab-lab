@@ -1777,10 +1777,18 @@ mov rdi, WQ            ; *buf (note: W is eax, so save it first)
 movzx esi, word [rdi]  ; count (string length is first word of string record)
 add edi, 2             ; string data area starts at third byte of Pad
 .RdiRsi:               ; Do mkb_host_write(rdi: *buf, rsi: count)
+movq r10, DSDeep       ; Save SSE registers
+push r10
+movq r11, RSDeep
+push r11
 push rbp               ; align stack to 16 bytes
 mov rbp, rsp
 and rsp, -16
 call mkb_host_write    ; call host api to write string to stdout
 mov rsp, rbp           ; restore stack to previous alignment
 pop rbp
+pop r11                ; Restore SSE registers
+movq RSDeep, r11
+pop r10
+movq DSDeep, r10
 ret
