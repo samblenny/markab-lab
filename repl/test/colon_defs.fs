@@ -11,9 +11,9 @@
 ( -2147483647 -32768 -128 -1  OK)   decimal clearstack f
 ( -2147483647 -32768 -128 -1  OK)           clearstack g
 (  OK)         decimal : h 2147483647 65535 255 1 0 .s ;
-(  OK)                 hex : i 7fffffff ffff ff 1 0 .s ;
+(  OK)                 hex : k 7fffffff ffff ff 1 0 .s ;
 (  2147483647 65535 255 1 0  OK)    decimal clearstack h
-(  2147483647 65535 255 1 0  OK)            clearstack i
+(  2147483647 65535 255 1 0  OK)            clearstack k
 ( I'm a train  OK)           : 🚆 ."  I'm a train" ;  🚆
 ( --- Test nested function calls ---)
 (  OK)       : f0 swap dup . over + ;

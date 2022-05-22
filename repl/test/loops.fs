@@ -1,8 +1,8 @@
 ( === test/loops.fs ===)
-( the 0; word returns if top of stack is 0)
-(  OK)        : 9down 9    : L1 next 1 - dup .    L1 ;
+clearstack
+(  OK)           : 9down 9 >r   : L1 next i .     L1 ;
 ( 8 7 6 5 4 3 2 1 0  OK)                         9down
-(  OK)        : 9up 9    : L2 next 1 - 8 over - . L2 ;
+(  OK)           : 9up 9 >r     : L2 next 8 i - . L2 ;
 ( 0 1 2 3 4 5 6 7 8  OK)                           9up
-(  OK)        : 9under -9  : L3 next 1 + dup .    L3 ;
+(  OK)           : 9under 9 >r  : L3 next 0 i - . L3 ;
 ( -8 -7 -6 -5 -4 -3 -2 -1 0  OK)                9under

@@ -27,6 +27,7 @@ Return Nop Bye Dup Drop Swap Over ClearStack DotS DotQuoteI Paren Colon Emit
 CR Space Dot Plus Minus Mul Div Mod DivMod Max Min Abs And Or Xor Invert Less
 Greater Equal ZeroLess ZeroEqual Hex Decimal Fetch Store ByteFetch ByteStore
 SemiColon DotQuoteC U8 U16 I8 I16 I32 Jump Call ClearReturn Next Negate
+ToR RFrom I DotRet
 """
 
 # These are names and tokens for words in Markab Forth's core dictionary
@@ -81,6 +82,10 @@ b@ ByteFetch
 b! ByteStore
 ; SemiColon
 next Next
+>r ToR
+r> RFrom
+i I
+.ret DotRet
 """
 
 def list_of_words(text):

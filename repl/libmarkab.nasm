@@ -574,7 +574,9 @@ jmp mErr19BadCodePointer
 
 mErrPutW:                     ; Print error from W and set error flag
 call mStrPut.W
-; continue to mErr
+or VMFlags, VMErr
+ret
+
 mErr:
 or VMFlags, VMErr             ; set error condition flag (hide OK prompt)
 ret
@@ -649,10 +651,12 @@ lea W, [datErr14bwt]
 jmp mErrPutW
 
 mErr15CodeMemFull:            ; Error 15: Code memory full
+and VMFlags, ~VMCompile       ; clear compile flag (avoid cascading errors)
 lea W, [datErr15cmf]
 jmp mErrPutW
 
 mErr16VarMemFull:             ; Error 16: Variable memory full
+and VMFlags, ~VMCompile       ; clear compile flag (avoid cascading errors)
 lea W, [datErr16vmf]
 jmp mErrPutW
 
@@ -661,18 +665,23 @@ lea W, [datErr17snc]
 jmp mErrPutW
 
 mErr18ExpectedSemiColon:      ; Error 18: Expected ;
+and VMFlags, ~VMCompile       ; clear compile flag (avoid cascading errors)
 lea W, [datErr18esc]
 jmp mErrPutW
 
 mErr19BadCodePointer:         ; Error 19: Bad code pointer
-lea W, [datErr19bcp]
+call mRPopW                   ; get rid of the offending pointer (print it?)
+and VMFlags, ~VMCompile       ; clear compile flag (avoid cascading errors)
+lea W, [datErr19bcp]          ; print the error
 jmp mErrPutW
 
 mErr20ReturnUnderflow:        ; Error 20: Return stack underflow
+and VMFlags, ~VMCompile       ; clear compile flag (avoid cascading errors)
 lea W, [datErr20rsu]
 jmp mErrPutW
 
 mErr21ReturnFull:             ; Error 21: Return stack full
+and VMFlags, ~VMCompile       ; clear compile flag (avoid cascading errors)
 or VMFlags, VMRetFull         ; set return full flag
 lea W, [datErr21rsf]
 jmp mErrPutW
@@ -1077,15 +1086,17 @@ add edi, 2                    ; CAUTION! `add di, 2` or `dil, 2` _not_ okay!
 movq DSDeep, rdi              ; this depth includes T + (DSMax-1) memory items
 ret
 
-mDrop:                        ; DROP - discard (pop) T
+mDrop:                        ; DROP - pop T, saving a copy in W
 movq rdi, DSDeep              ; check if stack depth >= 1
 cmp dil, 1
 jb mErr1Underflow
 dec rdi                       ; new_depth = old_depth-1
 movq DSDeep, rdi
+mov W, T
 dec rdi                       ; convert depth to second item index (old_depth-2)
 mov T, [DSBase+4*edi]
 ret
+
 
 ;-----------------------------
 ; Return stack, call, jumps
@@ -1110,6 +1121,25 @@ movq RSDeep, rdi
 mov W, R                      ; W = old R
 dec rdi                       ; calculate fetch index (old depth - 2)
 mov R, [RSBase+4*edi]         ; new R = pop item of the return stack
+ret
+
+mI:                           ; I -- push loop counter to data stack
+movq rdi, RSDeep              ; make sure return stack isn't empty
+cmp dil, 1
+jb mErr20ReturnUnderflow
+mov W, R                      ; push copy of R to data stack
+jmp mPush
+
+mToR:                         ; >R -- Move T to R
+call mDrop                    ; copy T to W
+test VMFlags, VMErr           ; check if it worked
+jz mRPushW                    ; if so: push W (old T) to return stack
+ret
+
+mRFrom:                       ; R> -- Move R to T
+call mRPopW                   ; copy R to W
+test VMFlags, VMErr           ; check if it worked
+jz mPush                      ; if so: push W (old R) to data stack
 ret
 
 mClearReturn:                 ; Clear the return stack
@@ -1138,13 +1168,18 @@ pop rdi                       ; retrieve the call address
 lea ebp, [edi+CodeMem]        ; set I (ebp) to the call address
 ret
 
-mNext:                        ; Return from word if top of stack is zero
-movq rdi, DSDeep              ; make sure there is at least 1 item on stack
+mNext:                ; If R is zero, drop R and return, otherwise decrement R
+movq rdi, RSDeep              ; make sure return stack is not empty
 cmp dil, 1
-jb mErr1Underflow
-test T, T                     ; check if top item is 0
-jz mReturn                    ; if so: return from word
-ret                           ; else: do nothing
+jb mErr20ReturnUnderflow
+test R, R                     ; check if R is 0
+jz .doneRet                   ; if so: finish up
+dec R                         ; else: decrement R
+ret
+.doneRet:                     ; end of loop: drop R and return
+call mRPopW
+test VMFlags, VMErr
+jz mReturn
 
 mReturn:                      ; Return from end of word
 movq rdi, RSDeep
@@ -1781,6 +1816,40 @@ cmp ebp, W
 ja .done
 sub W, ebp            ; otherwise, prepare for mFmtRtlInt32(rdi: stack cell)
 mov edi, [DSBase+4*W]
+jmp .for              ; keep looping
+;---------------------
+.done:
+pop rbp
+call mFmtRtlSpace     ; add a space (remember this is right to left)
+call mFmtRtlPut       ; print the format buffer
+ret
+;---------------------
+.doneEmpty:
+pop rbp
+lea W, [datDotSNone]  ; print empty stack message
+jmp mStrPut.W
+
+
+mDotRet:              ; Nondestructively print return stack in current base
+push rbp
+movq rdi, RSDeep
+test rdi, rdi         ; if stack is empty, print the empty message
+jz .doneEmpty
+call mFmtRtlClear     ; otherwise, prepare the formatting buffer
+;---------------------
+xor ebp, ebp          ; start index at 1 because of R
+inc ebp
+mov edi, R            ; prepare for mFmtRtlInt32(edi: R)
+;---------------------
+.for:                 ; Format stack cells
+call mFmtRtlInt32     ; format(edi: current stack cell) into PadRtl
+call mFmtRtlSpace     ; add a space (rtl, so space goes to left of number)
+inc ebp               ; inc index
+movq WQ, RSDeep       ; stop if all stack cells have been formatted
+cmp ebp, W
+ja .done
+sub W, ebp            ; otherwise, prepare for mFmtRtlInt32(rdi: stack cell)
+mov edi, [RSBase+4*W]
 jmp .for              ; keep looping
 ;---------------------
 .done:

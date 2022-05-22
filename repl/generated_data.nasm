@@ -60,6 +60,10 @@
 %define tClearReturn  49
 %define tNext        50
 %define tNegate      51
+%define tToR         52
+%define tRFrom       53
+%define tI           54
+%define tDotRet      55
 
 
 ;------------------------------------------------------------------------
@@ -122,8 +126,12 @@ dd mCall        ; 48
 dd mClearReturn  ; 49
 dd mNext        ; 50
 dd mNegate      ; 51
+dd mToR         ; 52
+dd mRFrom       ; 53
+dd mI           ; 54
+dd mDotRet      ; 55
 
-%define JumpTableLen 52
+%define JumpTableLen 56
 
 
 ;-------------------------------------------------------------
@@ -297,8 +305,24 @@ Dct0_040: dd Dct0_039
           db 1, ";"
           db 0, tSemiColon, tReturn
           align 16, db 0
-Dct0Head: dd Dct0_040
+Dct0_041: dd Dct0_040
           db 4, "next"
           db 0, tNext, tReturn
+          align 16, db 0
+Dct0_042: dd Dct0_041
+          db 2, ">r"
+          db 0, tToR, tReturn
+          align 16, db 0
+Dct0_043: dd Dct0_042
+          db 2, "r>"
+          db 0, tRFrom, tReturn
+          align 16, db 0
+Dct0_044: dd Dct0_043
+          db 1, "i"
+          db 0, tI, tReturn
+          align 16, db 0
+Dct0Head: dd Dct0_044
+          db 4, ".ret"
+          db 0, tDotRet, tReturn
           align 16, db 0
 Dct0End: db 0
