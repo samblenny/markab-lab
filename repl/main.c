@@ -30,16 +30,6 @@
 // Struct to hold original terminal config to be restored during exit
 struct termios old_config;
 
-// Size for buffers
-#define BUF_SIZE 1024
-
-// Text Input Buffer: line of text currently being edited
-unsigned char TIB[BUF_SIZE];
-size_t TIB_LEN = 0;
-
-// Input Stream Buffer: bytes read from stdin (includes escape sequences)
-unsigned char ISB[BUF_SIZE];
-size_t ISB_LEN;
 int STDIN_ISATTY = 0;
 
 // States of the terminal input state machine.
@@ -168,11 +158,9 @@ void set_terminal_for_raw_unbuffered_input() {
 // Reset all state
 void reset_state() {
     for(int i=0; i<BUF_SIZE; i++) {
-        TIB[i] = 0;
-        ISB[i] = 0;
+        mkb_host_TIB[i] = 0;
     }
-    TIB_LEN = 0;
-    ISB_LEN = 0;
+    mkb_host_TIB_LEN = 0;
     TTY.state = Normal;
     TTY.csParam1 = 1;
     TTY.csParam2 = 1;
@@ -180,7 +168,7 @@ void reset_state() {
     TTY.maxCol = 0;
 }
 
-// Peek at Unicode codepoint for UTF-8 seqence ending at TIB[index-1]
+// Peek at Unicode codepoint for UTF-8 seqence ending at mkb_host_TIB[index-1]
 uint32_t tib_peek_prev_code(size_t current_index) {
     if(current_index == 0) {
         return 0;
@@ -189,7 +177,7 @@ uint32_t tib_peek_prev_code(size_t current_index) {
     uint32_t shift = 0;
     for(int i=current_index; i>0;) {
         i--;
-        uint8_t c = TIB[i];
+        uint8_t c = mkb_host_TIB[i];
         if((c & 0xC0) == 0x80) {          // Continuation byte
             code |= (c & 0x3F) << shift;
             shift += 6;
@@ -224,17 +212,17 @@ int is_emoji_modifier(uint32_t code) {
 // ASCII, single-codepoint Unicode characters, and multi-codepoint Unicode
 // grapheme clusters. In particular, it should hopefully handle modern emoji.
 void tib_backspace(int max_depth) {
-    if(TIB_LEN == 0 || max_depth < 1) {
+    if(mkb_host_TIB_LEN == 0 || max_depth < 1) {
         return;
     }
     uint32_t code = 0;
     uint32_t shift = 0;
     uint8_t c = 0;
-    // Delete the last UTF-8 sequence (1..4 bytes) in the TIB
-    for(; TIB_LEN>0;) {
-        TIB_LEN--;
-        c = TIB[TIB_LEN];
-        TIB[TIB_LEN] = 0;
+    // Delete the last UTF-8 sequence (1..4 bytes) in the mkb_host_TIB
+    for(; mkb_host_TIB_LEN>0;) {
+        mkb_host_TIB_LEN--;
+        c = mkb_host_TIB[mkb_host_TIB_LEN];
+        mkb_host_TIB[mkb_host_TIB_LEN] = 0;
         if((c & 0xC0) == 0x80) {          // Continuation byte
             code |= (c & 0x3F) << shift;
             shift += 6;
@@ -258,7 +246,7 @@ void tib_backspace(int max_depth) {
     // Check the value of the just-deleted codepoint, and the codepoint before
     // that one, to recursively finish delete the rest of the current grapheme
     // cluster. This is mainly for modern emoji.
-    uint32_t prev = tib_peek_prev_code(TIB_LEN);
+    uint32_t prev = tib_peek_prev_code(mkb_host_TIB_LEN);
     switch(code) {
     case 0xFE0F:                          // Variation selector (for emoji)
     case 0x200D:                          // Zero width joiner
@@ -287,29 +275,22 @@ void tib_backspace(int max_depth) {
 
 // Clear screen and input buffer
 void tib_clear_screen() {
-    TIB_LEN = 0;                // clear input buffer
-    TIB[TIB_LEN] = 0;
-    printf("\33[H");            // cursor to top left
-    printf("\33[2J");           // clear entire screen
-    markab_outer(TIB, TIB_LEN); // trigger an OK prompt
-}
-
-void tib_cr() {
-    markab_outer(TIB, TIB_LEN);
-    TIB_LEN = 0;
-    TIB[TIB_LEN] = 0;
+    mkb_host_TIB_LEN = 0;                 // clear input buffer
+    mkb_host_TIB[mkb_host_TIB_LEN] = 0;
+    printf("\33[H");                      // cursor to top left
+    printf("\33[2J");                     // clear entire screen
 }
 
 void tib_insert(unsigned char c) {
-    if(c == 0 || c == 127 || c > 0xf7 || (TIB_LEN+1 >= BUF_SIZE)) {
+    if(c == 0 || c == 127 || c > 0xf7 || (mkb_host_TIB_LEN+1 >= BUF_SIZE)) {
         // Silently ignore nulls, backspaces, and invalid UTF-8 bytes. Or, if
         // buffer is already full, ignore all characters.
         return;
     }
     // Otherwise, insert the character
-    TIB[TIB_LEN] = c;
-    TIB_LEN++;
-    TIB[TIB_LEN] = 0;
+    mkb_host_TIB[mkb_host_TIB_LEN] = c;
+    mkb_host_TIB_LEN++;
+    mkb_host_TIB[mkb_host_TIB_LEN] = 0;
 }
 
 void tty_update_line(int last_char_is_cr) {
@@ -317,7 +298,7 @@ void tty_update_line(int last_char_is_cr) {
         // If STDIN is pipe or file, print the input buffer only for CR or EOF,
         // and do not use any ANSI escape sequences
         if(last_char_is_cr) {
-            write(STDOUT_FILENO, TIB, TIB_LEN);
+            write(STDOUT_FILENO, mkb_host_TIB, mkb_host_TIB_LEN);
         }
     } else {
         // When STDIN is a TTY, for each new character, erase all of the
@@ -325,46 +306,22 @@ void tty_update_line(int last_char_is_cr) {
         char *erase_line = "\33[2K\33[G";
         write(STDOUT_FILENO, erase_line, 7);
         // If the input buffer is too long, show only the tail of the buffer
-        if(TTY.maxCol < TIB_LEN) {
-            size_t diff = TIB_LEN - TTY.maxCol;
-            write(STDOUT_FILENO, TIB+diff, TTY.maxCol);
+        if(TTY.maxCol < mkb_host_TIB_LEN) {
+            size_t diff = mkb_host_TIB_LEN - TTY.maxCol;
+            write(STDOUT_FILENO, mkb_host_TIB+diff, TTY.maxCol);
             return;
         }
         // Otherwise, show the whole input buffer
-        write(STDOUT_FILENO, TIB, TIB_LEN);
+        write(STDOUT_FILENO, mkb_host_TIB, mkb_host_TIB_LEN);
     }
 }
 
-// CAUTION! There is some weird stuff (violates System V ABI conventions?)
-// going on here with libmarkab using SSE registers (xmm0, xmm1, ...) to
-// preserve its virtual machine state. In order to avoid badness with
-// corruption of those registers, it is important that step_tty_state() does
-// not directly or indirectly call any functions that use SSE registers to pass
-// floating point arguments or return values.
-//
-// This code is currently okay by that measure. But, it would be easy to cause
-// major breakage, with non-intuitive side-effects at a distance, by simply
-// calling some library function that uses floating point (perhaps trig
-// functions for audio synthesis?).
-//
-// It would not work for libmarkab to just push the SSE registers before
-// calling this function, then pop them after it returns. The problem is, this
-// function calls tib_clear_screen() and tib_cr(), both of which call back into
-// libmarkab with markab_outer(). Because of that, markab_outer() necessarily
-// modifies the SSE registers while this function is still running. So, popping
-// the SSE registers after this function returns would corrupt the state
-// changes made by markab_outer(). That would totally break the libmarkab
-// virtual machine. I tested that. It was bad.
-//
-// So, the current design has a dangerous footgun that needs to be made safer.
-// For now though (2022-05-20), it's more important to me to have additional
-// registers available to the Forth VM so that I can use them for building out
-// the compiler.
-//
-// TODO: Re-design the terminal input state machine so that step_tty_state()
-// sets a flag or something rather than calling into libmarkab::markab_outer().
-//
-void step_tty_state(unsigned char c) {
+// Return codes
+//   0 --> normal (editing in progress, char is not CR)
+//   1 --> got a CR (line is ready to be interpreted)
+int step_tty_state(unsigned char c) {
+    int rNORMAL = 0;
+    int rCR = 1;
     switch(TTY.state) {
     case Normal:
         switch(c) {
@@ -377,114 +334,114 @@ void step_tty_state(unsigned char c) {
             if(!STDIN_ISATTY) {
                 tty_update_line(1);
             }
-            tib_cr();
-            return;
+            return rCR;
         case 12:  // Form feed (^L) clears screen
             tib_clear_screen();
-            return;
+            return rCR;
         case 27:
             TTY.state = Esc;
-            return;
+            return rNORMAL;
         case 127:
-            tib_backspace(TIB_LEN);
+            tib_backspace(mkb_host_TIB_LEN);
             tty_update_line(0);
-            return;
+            return rNORMAL;
         default:
             if(c < ' ' || c > 0xf7) {
                 // Ignore control characters and invalid UTF-8 bytes
-                return;
+                return rNORMAL;
             }
             // Handle normal character or UTF-8 byte
             tib_insert(c);
             tty_update_line(0);
-            return;
+            return rNORMAL;
         }
     case Esc:
         switch(c) {
         case 'N':
         case 'O':
             TTY.state = EscSingleShift;
-            return;
+            return rNORMAL;
         case '[':
             TTY.state = EscCSIntro;
-            return;
+            return rNORMAL;
         case 27:
             TTY.state = EscEsc;
-            return;
+            return rNORMAL;
         default:
             // Switch back to normal mode if the escape sequence was not one of
             // the mode-shifting sequences that we know about
             TTY.state = Normal;
-            return;
+            return rNORMAL;
         }
     case EscEsc:
         switch(c) {
         case '[':
             // This is the third byte of a meta-key combo escape sequence
-            return;
+            return rNORMAL;
         default:
             // For now, filter Meta-<whatever> sequences out of input stream.
             // This catches stuff like Meta-Up (`Esc Esc [ A`).
             TTY.state = Normal;
-            return;
+            return rNORMAL;
         }
     case EscSingleShift:
         // The SS2 (G2) single shift charset is boring. The SS3 (G3) charset
         // has F1..F4. But, for now, just filter out all of that stuff.
         TTY.state = Normal;
-        return;
+        return rNORMAL;
     case EscCSIntro:
         TTY.csParam1 = 0;
         TTY.csParam2 = 0;
         if(c >= '0' && c <= '9') {
             TTY.csParam1 = c - '0';
             TTY.state = EscCSParam1;
-            return;
+            return rNORMAL;
         }
         switch(c) {
         case ';':
             TTY.state = EscCSParam2;
-            return;
+            return rNORMAL;
         default:
             // This is the spot to parse and handle arrow keys:
             //    'A': up, 'B': down, 'C': right, 'D': left
             // But, for now, just filter them out.
             TTY.state = Normal;
-            return;
+            return rNORMAL;
         }
     case EscCSParam1:
         if(c >= '0' && c <= '9') {
             TTY.csParam1 *= 10;
             TTY.csParam1 += c - '0';
-            return;
+            return rNORMAL;
         }
         switch(c) {
         case ';':
             TTY.state = EscCSParam2;
-            return;
+            return rNORMAL;
         default:
             // Getting a `~` here means F-key, Ins, Del, PgUp, PgDn, etc.
             // depending on the value of parameter 1
             TTY.state = Normal;
-            return;
+            return rNORMAL;
         };
     case EscCSParam2:
         if(c >= '0' && c <= '9') {
             TTY.csParam2 *= 10;
             TTY.csParam2 += c - '0';
-            return;
+            return rNORMAL;
         }
         switch(c) {
         case 'R':
             // Got cursor position report as answer to a "\33[6n" request
             // For now, just ignore this
             TTY.state = Normal;
-            return;
+            return rNORMAL;
         default:
             TTY.state = Normal;
-            return;
+            return rNORMAL;
         }
     }
+    return rNORMAL;
 }
 
 size_t mkb_host_write(const void *buf, size_t count) {
@@ -494,7 +451,8 @@ size_t mkb_host_write(const void *buf, size_t count) {
 // Do a non-blocking read from stdin to update the tty state machine
 // Return codes
 //  -1 --> EOF or ^C
-//   0 --> normal
+//   0 --> normal (line editing in progress)
+//   1 --> newline (line of input is ready for interpreter)
 int mkb_host_step_stdin() {
     // Handle pending tasks
     if(GOT_SIGWINCH) {
@@ -502,7 +460,13 @@ int mkb_host_step_stdin() {
         GOT_SIGWINCH = 0;
     }
     // Check for input (read() is configured with a 0.1s timeout)
-    int result = read(STDIN_FILENO, ISB, BUF_SIZE);
+    //
+    // Note: Reading only 1 character at a time is potentially inefficient, but
+    // it helps to make sure that LF or CR line terminations do not end up in
+    // the middle of the buffer. So, doing it this way makes the buffering logic
+    // simpler.
+    unsigned char c;
+    int result = read(STDIN_FILENO, &c, 1);
     if(result == 0 && !STDIN_ISATTY) {
         // In case of EOF when reading from file or pipe, insert CR, then stop
         unsigned char cr = 13;
@@ -512,41 +476,36 @@ int mkb_host_step_stdin() {
     if(result < 0) {
         return 0;  // Error (TODO: handle this better)
     }
-    ISB_LEN = result;
+    if(result == 0) {
+        return 0;  // This is normal when no input is ready
+    }
 #ifdef DEBUG_EN
     // Dump input chars
     printf("\n===");
-    for(int i=0; i<ISB_LEN; i++) {
-        unsigned char c = ISB[i];
-        if(c == 27) {
-            printf(" Esc");
-        } else if(c == ' ') {
-            printf(" Spc");
-        } else if(c == 13) {
-            printf(" Cr");
-        } else if(c < ' ') {
-            printf(" ^%c", c+64);
-        } else if(c == ' ') {
-            printf(" Spc");
-        } else if(c == 127) {
-            printf(" Back");
-        } else if(c >= 128) {
-            printf(" %02X", c);
-        } else {
-                printf(" %c", c);
-        }
+    if(c == 27) {
+        printf(" Esc");
+    } else if(c == ' ') {
+        printf(" Spc");
+    } else if(c == 13) {
+        printf(" Cr");
+    } else if(c < ' ') {
+        printf(" ^%c", c+64);
+    } else if(c == ' ') {
+        printf(" Spc");
+    } else if(c == 127) {
+        printf(" Back");
+    } else if(c >= 128) {
+        printf(" %02X", c);
+    } else {
+        printf(" %c", c);
     }
     printf(" ===\n");
 #endif
-    // Feed all the input chars to the tty state machine
-    for(int i=0; i<ISB_LEN; i++) {
-        unsigned char c = ISB[i];
-        if(c == 'C' - 64) {
-            return -1;          // end for ^C
-        }
-        step_tty_state(c);
+    // Feed the input byte to the tty state machine
+    if(c == 'C' - 64) {
+        return -1;             // end for ^C
     }
-    return 0;
+    return step_tty_state(c);  // returns 1 for CR, 0 otherwise
 }
 
 int main() {

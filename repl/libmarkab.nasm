@@ -19,10 +19,12 @@
 bits 64
 default rel
 global markab_cold
-global markab_outer
 
 extern mkb_host_write
 extern mkb_host_step_stdin
+extern mkb_host_TIB
+extern mkb_host_TIB_LEN
+
 
 ;=============================
 section .data
@@ -143,8 +145,9 @@ byteBuf Dct2, DctMax          ; Start of user dictionary (Dictionary 2)
 dwordVar DP                   ; Index to next free byte of dictionary
 dwordVar Last                 ; Pointer to head of dictionary
 
-dwordVar TibPtr               ; Pointer to terminal input buffer (TIB)
-dwordVar TibLen               ; Length of TIB (count of max available bytes)
+dwordVar TIB                  ; Pointer to terminal input buffer (TIB)
+dwordVar TIB_LEN              ; Length of TIB (count of max available bytes)
+
 dwordVar IN                   ; Index into TIB of next available input byte
 dwordVar Base                 ; Number base for numeric string conversions
 dwordVar EmitBuf              ; Buffer for emit to use
@@ -220,21 +223,49 @@ xor VMFlags, VMFlags          ; clear VM flags
 lea W, datVersion             ; print version string
 call mStrPut.W
 ;-----------------------------
+movq r10, DSDeep              ; Save SSE registers
+push r10
+movq r11, RSDeep
+push r11
+push rbp                      ; align stack to 16 bytes
+mov rbp, rsp
+and rsp, -16
 mov edi, Screen0              ; Interpret loadscreen
 mov esi, [Screen0Len]
 call markab_outer             ; markab_outer(edi: *buf, esi: count)
+mov rsp, rbp                  ; restore stack to previous alignment
+pop rbp
+pop r11                       ; Restore SSE registers
+movq RSDeep, r11
+pop r10
+movq DSDeep, r10
 ;-----------------------------
 .OuterLoop:                   ; Begin outer loop
 test VMFlags, VMBye           ; Break loop if bye flag is set
 jnz .done
+movq r10, DSDeep              ; Save SSE registers
+push r10
+movq r11, RSDeep
+push r11
 push rbp                      ; align stack to 16 bytes
 mov rbp, rsp
 and rsp, -16
 call mkb_host_step_stdin      ; step the non-blocking stdin state machine
 mov rsp, rbp                  ; restore stack to previous alignment
 pop rbp
-test rax, rax
-jz .OuterLoop                 ; loop until return value is non-zero
+pop r11                       ; Restore SSE registers
+movq RSDeep, r11
+pop r10
+movq DSDeep, r10
+cmp al, 0                     ; check return value
+je .OuterLoop                 ; result = 0: keep looping
+jl .done                      ; result < 0: exit interpreter
+mov edi, mkb_host_TIB         ; result > 0: interpret a line of text from TIB
+mov esi, [mkb_host_TIB_LEN]
+call markab_outer             ;  call outer interpreter
+xor eax, eax                  ;  clear the input buffer
+mov [mkb_host_TIB_LEN], eax
+jmp .OuterLoop                ;  keep looping
 .done:
 leave
 ret
@@ -319,13 +350,13 @@ push rbp
 test esi, esi            ; end now if input buffer is empty
 jz .done
 ;------------------------
-mov [TibPtr], edi        ; save pointer to input stream byte buffer
-mov [TibLen], esi        ; save count of available bytes in the input stream
+mov [TIB], edi           ; save pointer to input stream byte buffer
+mov [TIB_LEN], esi       ; save count of available bytes in the input stream
 mov [IN], dword 0        ; reset index into TIB of next available input byte
 ;////////////////////////
 .forNextWord:
 mov W, [IN]              ; stop if there are no more bytes left in buffer
-cmp W, [TibLen]
+cmp W, [TIB_LEN]
 jnb .done
 mov ebp, [DP]            ; save old DP (where word will get copied to)
 call mWord               ; copy a word from [TIB+IN] to [Dct2+DP]
@@ -690,12 +721,12 @@ add ebp, ecx                  ; adjust I past string
 jmp mStrPut.W
 
 ; Print a string literal from the input stream to stdout (interpret mode)
-; input bytes come from TibPtr using TibLen and IN
+; input bytes come from TIB using TibLen and IN
 mDotQuoteI:
-mov edi, [TibPtr]        ; edi = TIB base pointer
-mov esi, [TibLen]        ; esi = TIB length
+mov edi, [TIB]           ; edi = TIB base pointer
+mov esi, [TIB_LEN]       ; esi = TIB length
 mov ecx, [IN]            ; ecx = IN (index to next available byte of TIB)
-cmp esi, ecx             ; stop looking if TibLen <= IN (ran out of bytes)
+cmp esi, ecx             ; stop looking if TIB_LEN <= IN (ran out of bytes)
 jna mErr4NoQuote
 ;------------------------
 .forScanQuote:           ; Find a double quote (") character
@@ -711,7 +742,7 @@ jmp mErr4NoQuote         ; reaching end of TIB without a quote is an error
 mov W, [IN]
 mov esi, ecx             ; ecx-[IN] is count of bytes copied to Pad
 sub esi, W
-add edi, W               ; edi = [TibPtr] + (ecx-[IN]) (old edi was [TibPtr])
+add edi, W               ; edi = [TIB] + (ecx-[IN]) (old edi was [TIB])
 inc ecx                  ; store new IN (skip string and closing '"')
 mov [IN], ecx
 ;------------------------
@@ -753,12 +784,12 @@ mov [CodeP], ecx         ; update [CodeP]
 ret
 
 ; Paren comment: skip input text until ")"
-;   input bytes come from TibPtr using TibLen and IN
+;   input bytes come from TIB using TIB_LEN and IN
 mParen:
-mov edi, [TibPtr]        ; edi = TIB base pointer
-mov esi, [TibLen]        ; esi = TIB length
+mov edi, [TIB]           ; edi = TIB base pointer
+mov esi, [TIB_LEN]       ; esi = TIB length
 mov ecx, [IN]            ; ecx = IN (index to next available byte of TIB
-cmp esi, ecx             ; stop looking if TibLen <= IN (ran out of bytes)
+cmp esi, ecx             ; stop looking if TIB_LEN <= IN (ran out of bytes)
 jna mErr8NoParen
 ;------------------------
 .forScanParen:
@@ -766,7 +797,7 @@ mov WB, [rdi+rcx]        ; check if current byte is ')'
 cmp WB, ')'
 jz .done                 ; if so, stop looking
 inc ecx                  ; otherwise, continue with next byte
-cmp esi, ecx             ; loop until index >= TibLen
+cmp esi, ecx             ; loop until index >= TIB_LEN
 ja .forScanParen
 jmp mErr8NoParen         ; oops, end of TIB reached without finding ")"
 ;------------------------
@@ -889,9 +920,9 @@ ret
 
 ; WORD - Copy a word from [TIB+IN] to [Dct2+DP]
 mWord:
-mov edi, [TibPtr]        ; load input bufffer base pointer
+mov edi, [TIB]           ; load input buffer base pointer
 mov esi, [IN]            ; load input buffer index
-mov ecx, [TibLen]        ; load input buffer length
+mov ecx, [TIB_LEN]       ; load input buffer length
 cmp rsi, rcx             ; stop if no bytes are available in input buffer
 jnb .doneErr
 ;////////////////////////
@@ -931,7 +962,7 @@ jb .forScanEnd           ; loop if there are more bytes (detect end of stream)
 .wordEndBuf:             ; currently: {[IN]: start index, rsi: end index}
 mov W, [IN]              ; prepare arguments for calling doWord:
 sub esi, W               ; convert esi from index_of_word_end to word_length
-add edi, W               ; convert edi from TibPtr to start_of_word_pointer
+add edi, W               ; convert edi from TIB to start_of_word_pointer
 mov W, [IN]              ; update [IN]
 add W, esi
 mov [IN], W
@@ -941,7 +972,7 @@ jmp .copyWordRdiRsi
 .wordSpace:              ; currently: {[IN]: start index, rsi: end index + 1}
 mov W, [IN]              ; prepare word as {rdi: *buf, rsi: count}
 sub esi, W               ; convert rsi from index_of_word_end to word_length
-add edi, W               ; convert rdi from TibPtr to start_of_word_pointer
+add edi, W               ; convert rdi from TIB to start_of_word_pointer
 add W, esi               ; update IN to point 1 past the space
 inc W
 mov [IN], W              ; (then fall through to copy word)
