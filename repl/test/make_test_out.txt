@@ -133,10 +133,10 @@ clearstack  OK
 ( --- Test maxing out return stack ---)  OK
 (  OK)  : rs0 0 space : rs1 1 + 42 emit rs1 nop ;  OK
 (     nop here stops tail call optimization ^^^ )  OK
-( ***************** E21...)        clearstack rs0 *****************  E21 Return stack full
-( ***************** E21...)                   rs0 *****************  E21 Return stack full
+( ***************** E21...)        clearstack rs0 ******************  E21 Return stack full
+( ***************** E21...)                   rs0 ******************  E21 Return stack full
 ( ^^ note auto-recovery from full return stack)  OK
-(  17 17  OK)                                  .s  17 17  OK
+(  17 17  OK)                                  .s  18 18  OK
 ( --- Test tail call optimization ---)  OK
 (  OK)   : tc0 0 . ;  : tc1 1 . tc0 ;  OK
 ( 1 0  OK)             clearstack tc1 1 0  OK

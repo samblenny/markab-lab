@@ -120,7 +120,7 @@ section .bss
 %endmacro
 
 %define DSMax 17              ; total size of data stack (T + 16 dwords)
-%define RSMax 16              ; total size of return stack (16 dwords)
+%define RSMax 17              ; total size of return stack (R + 16 dwords)
 %define StrMax 1022           ; length of string data area
 %define DctMax 16384          ; dictionary length
 %define DctReserve 256        ; dictionary reserved bytes (space for mWord)
@@ -128,7 +128,7 @@ section .bss
 %define CodeMax 16384         ; bytes for user-defined words (token code)
 
 dwordBuf DSBase, DSMax-1      ; Data stack (size excludes top item T)
-dwordBuf RSBase, RSMax        ; Return stack for token interpreter
+dwordBuf RSBase, RSMax-1      ; Return stack (size excludes top item R)
 
 byteBuf Pad, 2+StrMax         ; String scratch buffer; word 0 is length
 byteBuf PadRtl, StrMax+2      ; Right-to-left buffer for formatting numbers;
@@ -192,12 +192,13 @@ section .text
 %define VMErr 2               ; Err bit: set means error condition
 %define VMNaN 4               ; NaN bit: set means number conversion failed
 %define VMCompile 8           ; Compile bit: set means compile mode is active
-%define VMNext 16             ; Next bit: set means got next in outermost word
+%define VMReturn 16           ; Return bit: set means end of outermost word
 %define VMRetFull 32          ; Return stack full bit: what it sounds like
 %define VMFlags r12b          ; Virtual machine status flags
 
-%define T r13d                ; Top on stack, 32-bit zero-extended dword
-%define TB r13b               ; Top on stack, low byte
+%define T r13d                ; Top item of data stack (32-bits)
+%define TB r13b               ; Top item of data stack (low byte)
+%define R r15d                ; Return stack top item (32-bits)
 %define DSDeep xmm0           ; Depth of data stack (includes T, NOTE! XMM0)
 %define RSDeep xmm1           ; Depth of return stack (NOTE! XMM1 register)
 
@@ -307,13 +308,13 @@ dec ebx                       ; decrement loop limit counter
 jz .doneLoopLimit             ; check that loop limit has not expired
 test VMFlags, VMErr           ; check that last call did not set error flag
 setz r10b
-test VMFlags, VMNext          ; check that last call was not an ending next
+test VMFlags, VMReturn        ; check that last call was not an ending return
 setz r11b
 test r10b, r11b
 jnz .for                      ; keep looping if checks passed
 ;/////////////////////////////
 .done:                        ; normal exit path
-and VMFlags, (~VMNext)        ; clear VMNext flag
+and VMFlags, (~VMReturn)      ; clear VMReturn flag
 pop rbx
 pop rbp
 ret
@@ -1069,10 +1070,9 @@ mPush:                        ; PUSH - Push W to data stack
 movq rdi, DSDeep
 cmp dil, DSMax
 jnb mErr2Overflow
-mov esi, W                    ; save W before relative address calculation
 dec edi                       ; calculate store index of old_depth-2+1
 mov [DSBase+4*edi], T         ; store old value of T
-mov T, esi                    ; set T to caller's value of W
+mov T, W                      ; set T to caller's value of W
 add edi, 2                    ; CAUTION! `add di, 2` or `dil, 2` _not_ okay!
 movq DSDeep, rdi              ; this depth includes T + (DSMax-1) memory items
 ret
@@ -1094,18 +1094,22 @@ mRPushW:                      ; Push W to return stack
 movq rdi, RSDeep
 cmp dil, RSMax
 jnb mErr21ReturnFull
-mov [RSBase+4*edi], W         ; store W
-inc rdi                       ; update return stack depth
-movq RSDeep, rdi
+dec edi                       ; calculate store index (subtract 1 for R)
+mov [RSBase+4*edi], R         ; push old R to return stack
+mov R, W                      ; new R = W
+add edi, 2                    ; calculate new stack depth
+movq RSDeep, rdi              ; update stack depth
 ret
 
 mRPopW:                       ; RPOP - Pop from return stack to W
 movq rdi, RSDeep
 cmp dil, 1
 jb mErr20ReturnUnderflow
-dec rdi                       ; new_depth = old_depth-1
+dec rdi                       ; calculate new return stack depth
 movq RSDeep, rdi
-mov W, [RSBase+4*edi]         ; W = item at offset old_depth-1 (old top item)
+mov W, R                      ; W = old R
+dec rdi                       ; calculate fetch index (old depth - 2)
+mov R, [RSBase+4*edi]         ; new R = pop item of the return stack
 ret
 
 mClearReturn:                 ; Clear the return stack
@@ -1144,7 +1148,7 @@ ret                           ; else: do nothing
 
 mReturn:                      ; Return from end of word
 movq rdi, RSDeep
-test rdi, rdi                 ; in case of empty return stack, set VMNext flag
+test rdi, rdi                 ; in case of empty return stack, set VMReturn
 jz .doneFinal
 call mRPopW                   ; pop the return address (should be in CodeMem)
 test VMFlags, VMErr
@@ -1160,8 +1164,8 @@ jz mErr19BadCodePointer       ; if target address is not valid: stop
 .done:
 mov ebp, W                    ; else: set token pointer to return address
 ret
-.doneFinal:
-or VMFlags, VMNext            ; set VMNext flag marking end of outermost word
+.doneFinal:                   ; set VMReturn flag marking end of outermost word
+or VMFlags, VMReturn
 ret
 .doneErr:
 ret
