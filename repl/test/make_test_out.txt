@@ -152,3 +152,22 @@ clearstack  OK
 ( 0 1 2 3 4 5 6 7 8  OK)                           9up 0 1 2 3 4 5 6 7 8  OK
 (  OK)           : 9under 9 >r  : L3 next 0 i - . L3 ;  OK
 ( -8 -7 -6 -5 -4 -3 -2 -1 0  OK)                9under -8 -7 -6 -5 -4 -3 -2 -1 0  OK
+( === tests/fizzbuzz.fs ===)  OK
+( for integers 1..n, print:            )  OK
+(  n divisible by 3       -> "Fizz"    )  OK
+(  n divisible by 5       -> "Buzz"    )  OK
+(  n divisible by both    -> "FizzBuzz")  OK
+(  n divisible by neither -> n         )  OK
+( for `0=`, `=`, etc, true is 0, false is 0xffffffff)  OK
+( `factors` pushes 1 for divisible by 3, 2 for 5, and 3 for 15)  OK
+: if-eq-push-1 = invert 1 and ;  OK
+: if-1-f  1 if-eq-push-1 >r  next ."  Fz"   r> drop ;  OK
+: if-2-b  2 if-eq-push-1 >r  next ."  Bz"   r> drop ;  OK
+: if-3-fb 3 if-eq-push-1 >r  next ."  FzBz" r> drop ;  OK
+: if-0-.  0 if-eq-push-1 >r  next .         r> drop ;  OK
+: factors dup  3 mod 0= invert 1 and  swap 5 mod 0= invert 2 and  or ;  OK
+: fbz-inner dup factors  dup if-1-f  dup if-2-b  dup if-3-fb  if-0-. ;  OK
+: n! 0 ! ;  OK
+: n@ 0 @ ;  OK
+: fbz dup n! >r space  : fbz_ next n@ i - fbz-inner fbz_ ;  OK
+( 1 2 Fz 4 Bz Fz 7 8 Fz Bz 11 Fz 13 14 FzBz 16  OK) 16 fbz  1 2 Fz 4 Bz Fz 7 8 Fz Bz 11 Fz 13 14 FzBz 16  OK
