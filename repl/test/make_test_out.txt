@@ -175,9 +175,7 @@ clearstack  OK
 (  OK)  : a 1 >r 2 >r 3 >r .ret r> r> r> ;  OK
 (  1 2 3  OK)                            a  1 2 3  OK
 (  OK)                : broken 1 >r .ret ;  OK
-(  E19 Bad code pointer)            broken  1  E20 Return stack underflow  E19 Bad code pointer
-( ---------------- TODO: fix this!  ^^^^^)  OK
+(  E19 Bad return address)          broken  1  E19 Bad return address
 (   Stack is empty  OK)               .ret  Stack is empty  OK
-  OK
-( >r should not be defined when not compiling)  1 >r  E20 Return stack underflow  E19 Bad code pointer
+( >r should not be defined when not compiling)  1 >r  E19 Bad return address
 ( ------------------------ TODO: also fix this! ^^^)  OK

@@ -90,7 +90,7 @@ datErr15cmf: mkStr "  E15 Code memory full"
 datErr16vmf: mkStr "  E16 Variable memory full"
 datErr17snc: mkStr "  E17 ; when not compiling"
 datErr18esc: mkStr "  E18 Expected ;"
-datErr19bcp: mkStr "  E19 Bad code pointer"
+datErr19bcp: mkStr "  E19 Bad return address"
 datErr20rsu: mkStr "  E20 Return stack underflow"
 datErr21rsf: mkStr "  E21 Return stack full"
 datErr22ltl: mkStr "  E22 Loop too long"
@@ -290,7 +290,7 @@ cmp esi, Dct0End
 setb r11b
 and cl, r11b                  ; cl = (Dct0Tail <= esi < Dct0End)
 or r10b, cl                   ; r10b = esi is in Dct0 or Dct2
-jz .doneBadCodePointer        ; stop if code pointer is out of range
+jz .doneBadReturnAddress      ; stop if code pointer is out of range
 mov rbp, rsi                  ; ebp = instruction pointer (I)
 mov rbx, rdi                  ; ebx = max loop iterations
 ;/////////////////////////////
@@ -302,19 +302,23 @@ lea edi, [JumpTable]          ; fetch jump table address
 mov esi, dword [rdi+4*WQ]
 inc ebp                       ; advance I
 call rsi                      ; jump (callee may adjust I for LITx)
-test VMFlags, VMRetFull       ; check that the return stack isn't full
-jnz .doneRetFull              ;   if so, handle it to avoid cascading errors
-dec ebx                       ; decrement loop limit counter
-jz .doneLoopLimit             ; check that loop limit has not expired
-test VMFlags, VMErr           ; check that last call did not set error flag
-setz r10b
-test VMFlags, VMReturn        ; check that last call was not an ending return
-setz r11b
-test r10b, r11b
-jnz .for                      ; keep looping if checks passed
+test VMFlags, VMErr           ; stop if token had an error
+jnz .doneErr
+test VMFlags, VMRetFull       ; stop if return stack is full
+jnz .doneRetFull
+test VMFlags, VMReturn        ; stop if token was an ending return
+jnz .done
+dec ebx                       ; stop if loop limit has been reached
+jz .doneLoopLimit
+jmp .for                      ; keep looping if checks passed
 ;/////////////////////////////
 .done:                        ; normal exit path
 and VMFlags, (~VMReturn)      ; clear VMReturn flag
+pop rbx
+pop rbp
+ret
+;-----------------------------
+.doneErr:                     ; exit path for error (leave VMErr flag set!)
 pop rbx
 pop rbp
 ret
@@ -325,8 +329,8 @@ pop rbx
 pop rbp
 ret
 ;-----------------------------
-.doneBadCodePointer:          ; exit path for bad code pointer
-call mErr19BadCodePointer
+.doneBadReturnAddress:        ; exit path for bad return address
+call mErr19BadReturnAddress
 pop rbx
 pop rbp
 ret
@@ -565,7 +569,7 @@ jmp mErr15CodeMemFull
 .doneBadPointer:
 pop rbx
 pop rbp
-jmp mErr19BadCodePointer
+jmp mErr19BadReturnAddress
 ;/////////////////////
 
 
@@ -651,12 +655,10 @@ lea W, [datErr14bwt]
 jmp mErrPutW
 
 mErr15CodeMemFull:            ; Error 15: Code memory full
-and VMFlags, ~VMCompile       ; clear compile flag (avoid cascading errors)
 lea W, [datErr15cmf]
 jmp mErrPutW
 
 mErr16VarMemFull:             ; Error 16: Variable memory full
-and VMFlags, ~VMCompile       ; clear compile flag (avoid cascading errors)
 lea W, [datErr16vmf]
 jmp mErrPutW
 
@@ -665,23 +667,18 @@ lea W, [datErr17snc]
 jmp mErrPutW
 
 mErr18ExpectedSemiColon:      ; Error 18: Expected ;
-and VMFlags, ~VMCompile       ; clear compile flag (avoid cascading errors)
 lea W, [datErr18esc]
 jmp mErrPutW
 
-mErr19BadCodePointer:         ; Error 19: Bad code pointer
-call mRPopW                   ; get rid of the offending pointer (print it?)
-and VMFlags, ~VMCompile       ; clear compile flag (avoid cascading errors)
-lea W, [datErr19bcp]          ; print the error
+mErr19BadReturnAddress:       ; Error 19: Bad return address
+lea W, [datErr19bcp]
 jmp mErrPutW
 
 mErr20ReturnUnderflow:        ; Error 20: Return stack underflow
-and VMFlags, ~VMCompile       ; clear compile flag (avoid cascading errors)
 lea W, [datErr20rsu]
 jmp mErrPutW
 
 mErr21ReturnFull:             ; Error 21: Return stack full
-and VMFlags, ~VMCompile       ; clear compile flag (avoid cascading errors)
 or VMFlags, VMRetFull         ; set return full flag
 lea W, [datErr21rsf]
 jmp mErrPutW
@@ -1152,7 +1149,7 @@ mJump:                        ; Jump -- set the VM token instruction pointer
 movzx edi, word [rbp]         ; read pointer literal address from token stream
 add ebp, 2                    ; advance I (ebp) past the address literal
 cmp di, CodeMax               ; check if pointer is in range for CodeMem
-jnb mErr19BadCodePointer      ; if not: stop
+jnb mErr19BadReturnAddress    ; if not: stop
 lea ebp, [edi+CodeMem]        ; set I (ebp) to the jump address
 ret
 
@@ -1160,7 +1157,7 @@ mCall:                        ; Call -- make a VM token call
 movzx edi, word [rbp]         ; read pointer literal address from token stream
 add ebp, 2                    ; advance I (ebp) past the address literal
 cmp di, CodeMax               ; check if pointer is in range for CodeMem
-jnb mErr19BadCodePointer      ; if not: stop
+jnb mErr19BadReturnAddress    ; if not: stop
 push rdi                      ; save the call address (dereferenced pointer)
 mov W, ebp                    ; push I (ebp) to return stack
 call mRPushW
@@ -1180,6 +1177,7 @@ ret
 call mRPopW
 test VMFlags, VMErr
 jz mReturn
+ret
 
 mReturn:                      ; Return from end of word
 movq rdi, RSDeep
@@ -1195,7 +1193,7 @@ add edi, CodeMax
 cmp W, edi
 setb r11b                     ; r11b = (W < CodeMem+CodeMax)
 test r10b, r11b
-jz mErr19BadCodePointer       ; if target address is not valid: stop
+jz mErr19BadReturnAddress     ; if target address is not valid: stop
 .done:
 mov ebp, W                    ; else: set token pointer to return address
 ret
