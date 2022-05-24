@@ -11,7 +11,8 @@
 CC=clang
 TESTS_OUT=test/make_test_out.txt
 TESTS=test/fetch_store.fs test/comments.fs test/dotquote.fs test/stack.fs \
- test/math.fs test/colon_defs.fs test/loops.fs test/fizzbuzz.fs
+ test/math.fs test/colon_defs.fs test/loops.fs test/fizzbuzz.fs \
+ test/return_stack.fs
 
 all: main
 clean:
