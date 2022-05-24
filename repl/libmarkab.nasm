@@ -90,7 +90,7 @@ datErr15cmf: mkStr "  E15 Code memory full"
 datErr16vmf: mkStr "  E16 Variable memory full"
 datErr17snc: mkStr "  E17 ; when not compiling"
 datErr18esc: mkStr "  E18 Expected ;"
-datErr19bcp: mkStr "  E19 Bad return address"
+datErr19ba:  mkStr "  E19 Bad address"
 datErr20rsu: mkStr "  E20 Return stack underflow"
 datErr21rsf: mkStr "  E21 Return stack full"
 datErr22ltl: mkStr "  E22 Loop too long"
@@ -290,7 +290,7 @@ cmp esi, Dct0End
 setb r11b
 and cl, r11b                  ; cl = (Dct0Tail <= esi < Dct0End)
 or r10b, cl                   ; r10b = esi is in Dct0 or Dct2
-jz .doneBadReturnAddress      ; stop if code pointer is out of range
+jz .doneBadAddress            ; stop if code pointer is out of range
 mov rbp, rsi                  ; ebp = instruction pointer (I)
 mov rbx, rdi                  ; ebx = max loop iterations
 ;/////////////////////////////
@@ -329,8 +329,8 @@ pop rbx
 pop rbp
 ret
 ;-----------------------------
-.doneBadReturnAddress:        ; exit path for bad return address
-call mErr19BadReturnAddress
+.doneBadAddress:              ; exit path for bad jump or return address
+call mErr19BadAddress
 pop rbx
 pop rbp
 ret
@@ -516,7 +516,7 @@ lea W, [rdi+rcx]          ; remember code pointer to token for this call to
 mov [CodeCallP], W        ;   help the tail-call optimizer (see mSemiColon)
 inc ecx                   ; advance code pointer (+1 for byte)
 cmp r8w, CodeMax          ; check if address is within the acceptable range
-jnb .doneBadPointer       ;   stop if out of range
+jnb .doneBadAddress       ;   stop if out of range
 mov [rdi+rcx], word r8w   ; store the call address (_word_ index into CodeMem)
 add ecx, 2                ; advance code pointer (+2 for _word_)
 mov [CodeP], ecx          ; store code pointer
@@ -566,10 +566,10 @@ pop rbx
 pop rbp
 jmp mErr15CodeMemFull
 ;---------------------
-.doneBadPointer:
+.doneBadAddress:
 pop rbx
 pop rbp
-jmp mErr19BadReturnAddress
+jmp mErr19BadAddress
 ;/////////////////////
 
 
@@ -670,8 +670,8 @@ mErr18ExpectedSemiColon:      ; Error 18: Expected ;
 lea W, [datErr18esc]
 jmp mErrPutW
 
-mErr19BadReturnAddress:       ; Error 19: Bad return address
-lea W, [datErr19bcp]
+mErr19BadAddress:             ; Error 19: Bad address
+lea W, [datErr19ba]
 jmp mErrPutW
 
 mErr20ReturnUnderflow:        ; Error 20: Return stack underflow
@@ -1149,7 +1149,7 @@ mJump:                        ; Jump -- set the VM token instruction pointer
 movzx edi, word [rbp]         ; read pointer literal address from token stream
 add ebp, 2                    ; advance I (ebp) past the address literal
 cmp di, CodeMax               ; check if pointer is in range for CodeMem
-jnb mErr19BadReturnAddress    ; if not: stop
+jnb mErr19BadAddress          ; if not: stop
 lea ebp, [edi+CodeMem]        ; set I (ebp) to the jump address
 ret
 
@@ -1157,7 +1157,7 @@ mCall:                        ; Call -- make a VM token call
 movzx edi, word [rbp]         ; read pointer literal address from token stream
 add ebp, 2                    ; advance I (ebp) past the address literal
 cmp di, CodeMax               ; check if pointer is in range for CodeMem
-jnb mErr19BadReturnAddress    ; if not: stop
+jnb mErr19BadAddress          ; if not: stop
 push rdi                      ; save the call address (dereferenced pointer)
 mov W, ebp                    ; push I (ebp) to return stack
 call mRPushW
@@ -1193,7 +1193,7 @@ add edi, CodeMax
 cmp W, edi
 setb r11b                     ; r11b = (W < CodeMem+CodeMax)
 test r10b, r11b
-jz mErr19BadReturnAddress     ; if target address is not valid: stop
+jz mErr19BadAddress           ; if target address is not valid: stop
 .done:
 mov ebp, W                    ; else: set token pointer to return address
 ret
