@@ -64,6 +64,8 @@
 %define tRFrom       53
 %define tI           54
 %define tDotRet      55
+%define tWordStore   56
+%define tWordFetch   57
 
 
 ;------------------------------------------------------------------------
@@ -130,8 +132,10 @@ dd mToR         ; 52
 dd mRFrom       ; 53
 dd mI           ; 54
 dd mDotRet      ; 55
+dd mWordStore   ; 56
+dd mWordFetch   ; 57
 
-%define JumpTableLen 56
+%define JumpTableLen 58
 
 
 ;-------------------------------------------------------------
@@ -231,18 +235,22 @@ db 2, "b@", 0, tByteFetch, tReturn
 dw 352
 db 2, "b!", 0, tByteStore, tReturn
 dw 360
-db 1, ";", 0, tSemiColon, tReturn
+db 2, "w@", 0, tWordFetch, tReturn
 dw 368
+db 2, "w!", 0, tWordStore, tReturn
+dw 376
+db 1, ";", 0, tSemiColon, tReturn
+dw 384
 db 4, "next", 0, tNext, tReturn
-dw 375
+dw 391
 db 2, ">r", 0, tToR, tReturn
-dw 385
-db 2, "r>", 0, tRFrom, tReturn
-dw 393
-db 1, "i", 0, tI, tReturn
 dw 401
+db 2, "r>", 0, tRFrom, tReturn
+dw 409
+db 1, "i", 0, tI, tReturn
+dw 417
 db 4, ".ret", 0, tDotRet, tReturn
 Voc0End: db 0
 align 16, db 0
-Voc0Len: dd Voc0End - Voc0  ; 418
-Voc0Head: dd 408
+Voc0Len: dd Voc0End - Voc0  ; 434
+Voc0Head: dd 424

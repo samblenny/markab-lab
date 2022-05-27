@@ -27,7 +27,7 @@ Return Nop Bye Dup Drop Swap Over ClearStack DotS DotQuoteI Paren Colon Emit
 CR Space Dot Plus Minus Mul Div Mod DivMod Max Min Abs And Or Xor Invert Less
 Greater Equal ZeroLess ZeroEqual Hex Decimal Fetch Store ByteFetch ByteStore
 SemiColon DotQuoteC U8 U16 I8 I16 I32 Jump Call ClearReturn Next Negate
-ToR RFrom I DotRet
+ToR RFrom I DotRet WordStore WordFetch
 """
 
 # These are names and tokens for words in markabForth's core dictionary. Names
@@ -79,6 +79,8 @@ decimal Decimal
 ! Store
 b@ ByteFetch
 b! ByteStore
+w@ WordFetch
+w! WordStore
 ; SemiColon
 next Next
 >r ToR
