@@ -11,27 +11,24 @@ type 'bye' or ^C to exit
 ( -- These should all give errors: --)  OK
 -1 @  E13 Address out of range
 -1 b@  E13 Address out of range
-16384 @  E13 Address out of range
-16383 @  E13 Address out of range
-16382 @  E13 Address out of range
-16381 @  E13 Address out of range
-16384 b@  E13 Address out of range
+65536 @  E13 Address out of range
+65545 @  E13 Address out of range
+65534 @  E13 Address out of range
+65533 @  E13 Address out of range
+65536 b@  E13 Address out of range
 clearstack  OK
-1 16384 !  E13 Address out of range
-1 16383 !  E13 Address out of range
-1 16382 !  E13 Address out of range
-1 16381 !  E13 Address out of range
-1 16384 !  E13 Address out of range
+1 65536 !  E13 Address out of range
+1 65535 !  E13 Address out of range
+1 65534 !  E13 Address out of range
+1 65533 !  E13 Address out of range
+1 65536 !  E13 Address out of range
 clearstack  OK
 ( -- These should give OK: --)  OK
-1 0 !  OK
-0 @ . 1  OK
-2 0 b!  OK
-0 b@ . 2  OK
--1 16380 !  OK
-16380 @ . -1  OK
-35 16383 b!  OK
-16383 b@ . 35  OK
+1 60000 !  OK
+60000 @ . 1  OK
+2 60000 b!  OK
+60000 b@ . 2  OK
+  OK
 ( === test/comments.fs ===)  OK
 ( -- These should give errors: --)  OK
 ( CR)             (  E8 Expected )
@@ -104,78 +101,8 @@ clearstack  OK
 ( FFFFFFFE  OK)               1 invert . FFFFFFFE  OK
 ( === test/colon_defs.fs ===)  OK
 (  OK)    : a ;               a  OK
-( B  OK)  : b ."  B" ;        b B  OK
+( B  OK)  : b ."  B" ;        b  OK
 (  OK)    : c ( comment) ;    c  OK
-( 3  OK)  : d 1 2 * 1 +  . ;  d 3  OK
+( 3  OK)  : d 1 2 * 1 +  . ;  d  OK
 ( error)  :  E10 Expected name
-( error)  : e  E18 Expected ;
-( error)  : ;  E18 Expected ;
-(  OK)       decimal : f -2147483647 -32768 -128 -1 .s ;  OK
-(  OK)  hex : g 80000001 ffff8000 ffffff80 ffffffff .s ;  OK
-( -2147483647 -32768 -128 -1  OK)   decimal clearstack f  -2147483647 -32768 -128 -1  OK
-( -2147483647 -32768 -128 -1  OK)           clearstack g  -2147483647 -32768 -128 -1  OK
-(  OK)         decimal : h 2147483647 65535 255 1 0 .s ;  OK
-(  OK)                 hex : k 7fffffff ffff ff 1 0 .s ;  OK
-(  2147483647 65535 255 1 0  OK)    decimal clearstack h  2147483647 65535 255 1 0  OK
-(  2147483647 65535 255 1 0  OK)            clearstack k  2147483647 65535 255 1 0  OK
-( I'm a train  OK)           : 🚆 ."  I'm a train" ;  🚆 I'm a train  OK
-( --- Test nested function calls ---)  OK
-(  OK)       : f0 swap dup . over + ;  OK
-(  OK)                : f1 f0 f0 f0 ;  OK
-(  OK)       : fib 1 dup f1 f1 f1 . ;  OK
-( 1 1 2 3 5 8 13 21 34 55 89  OK) fib 1 1 2 3 5 8 13 21 34 89  OK
-clearstack  OK
-( --- Test implicit tail call ---)  OK
-(  OK) : start 1 .  : continue 2 . 3 . ;  OK
-( 1 2 3  OK)                       start 1 2 3  OK
-( 2 3  OK)                      continue 2 3  OK
-clearstack  OK
-( --- Test maxing out return stack ---)  OK
-(  OK)  : rs0 0 space : rs1 1 + 42 emit rs1 nop ;  OK
-(     nop here stops tail call optimization ^^^ )  OK
-( ***************** E21...)        clearstack rs0 ******************  E21 Return stack full
-( ***************** E21...)                   rs0 ******************  E21 Return stack full
-( ^^ note auto-recovery from full return stack)  OK
-(  17 17  OK)                                  .s  18 18  OK
-( --- Test tail call optimization ---)  OK
-(  OK)   : tc0 0 . ;  : tc1 1 . tc0 ;  OK
-( 1 0  OK)             clearstack tc1 1 0  OK
-(  OK)       : tc2 0  : tc3 1 + tc3 ;  OK
-(       infinite tail recursion ^^^ )  OK
-(  E22...)             clearstack tc2  E22 Loop too long
-(  174762  OK)                     .s  174762  OK
-( === test/loops.fs ===)  OK
-clearstack  OK
-(  OK)           : 9down 9 >r   : L1 next i .     L1 ;  OK
-( 8 7 6 5 4 3 2 1 0  OK)                         9down 8 7 6 5 4 3 2 1 0  OK
-(  OK)           : 9up 9 >r     : L2 next 8 i - . L2 ;  OK
-( 0 1 2 3 4 5 6 7 8  OK)                           9up 0 1 2 3 4 5 6 7 8  OK
-(  OK)           : 9under 9 >r  : L3 next 0 i - . L3 ;  OK
-( -8 -7 -6 -5 -4 -3 -2 -1 0  OK)                9under -8 -7 -6 -5 -4 -3 -2 -1 0  OK
-( === tests/fizzbuzz.fs ===)  OK
-( for integers 1..n, print:            )  OK
-(  n divisible by 3       -> "Fizz"    )  OK
-(  n divisible by 5       -> "Buzz"    )  OK
-(  n divisible by both    -> "FizzBuzz")  OK
-(  n divisible by neither -> n         )  OK
-( for `0=`, `=`, etc, true is 0, false is 0xffffffff)  OK
-( `factors` pushes 1 for divisible by 3, 2 for 5, and 3 for 15)  OK
-: if-eq-push-1 = invert 1 and ;  OK
-: if-1-f  1 if-eq-push-1 >r  next ."  Fz"   r> drop ;  OK
-: if-2-b  2 if-eq-push-1 >r  next ."  Bz"   r> drop ;  OK
-: if-3-fb 3 if-eq-push-1 >r  next ."  FzBz" r> drop ;  OK
-: if-0-.  0 if-eq-push-1 >r  next .         r> drop ;  OK
-: factors dup  3 mod 0= invert 1 and  swap 5 mod 0= invert 2 and  or ;  OK
-: fbz-inner dup factors  dup if-1-f  dup if-2-b  dup if-3-fb  if-0-. ;  OK
-: n! 0 ! ;  OK
-: n@ 0 @ ;  OK
-: fbz dup n! >r space  : fbz_ next n@ i - fbz-inner fbz_ ;  OK
-( 1 2 Fz 4 Bz Fz 7 8 Fz Bz 11 Fz 13 14 FzBz 16  OK) 16 fbz  1 2 Fz 4 Bz Fz 7 8 Fz Bz 11 Fz 13 14 FzBz 16  OK
-( === tests/return_stack.fs ===)  OK
-(  OK)  : a 1 >r 2 >r 3 >r .ret r> r> r> ;  OK
-(  1 2 3  OK)                            a  1 2 3  OK
-(  OK)                : broken 1 >r .ret ;  OK
-(  E19 Bad address)                 broken  1  E19 Bad address
-(   Stack is empty  OK)               .ret  Stack is empty  OK
-( >r should not be defined when not compiling)  1 >r  E19 Bad address
-( ------------------------ TODO: also fix this! ^^^)  OK
+( error)  : e

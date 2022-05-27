@@ -135,194 +135,114 @@ dd mDotRet      ; 55
 
 
 ;-------------------------------------------------------------
-; Dictionary linked list (Dct0)
-
+; Core vocabulary linked lists
+;
+; Vocabulary linked list format:
+;  dw link to previous item (zero indexed, *not* section indexed)
+;  db length of name, <name-bytes>, token
+;
+; Voc0 is meant to be copied at runtime into the core dictionary
+; area of markabForth's 64KB virtual RAM memory map
+;
 align 16, db 0
 db "== Dictionary =="
 
 align 16, db 0
-Dct0Tail: dd 0
-          db 3, "nop"
-          db 0, tNop, tReturn
-          align 16, db 0
-Dct0_001: dd Dct0Tail
-          db 3, "bye"
-          db 0, tBye, tReturn
-          align 16, db 0
-Dct0_002: dd Dct0_001
-          db 3, "dup"
-          db 0, tDup, tReturn
-          align 16, db 0
-Dct0_003: dd Dct0_002
-          db 4, "drop"
-          db 0, tDrop, tReturn
-          align 16, db 0
-Dct0_004: dd Dct0_003
-          db 4, "swap"
-          db 0, tSwap, tReturn
-          align 16, db 0
-Dct0_005: dd Dct0_004
-          db 4, "over"
-          db 0, tOver, tReturn
-          align 16, db 0
-Dct0_006: dd Dct0_005
-          db 10, "clearstack"
-          db 0, tClearStack, tReturn
-          align 16, db 0
-Dct0_007: dd Dct0_006
-          db 2, ".s"
-          db 0, tDotS, tReturn
-          align 16, db 0
-Dct0_008: dd Dct0_007
-          db 2, '."'
-          db 0, tDotQuoteI, tReturn
-          align 16, db 0
-Dct0_009: dd Dct0_008
-          db 1, "("
-          db 0, tParen, tReturn
-          align 16, db 0
-Dct0_010: dd Dct0_009
-          db 1, ":"
-          db 0, tColon, tReturn
-          align 16, db 0
-Dct0_011: dd Dct0_010
-          db 4, "emit"
-          db 0, tEmit, tReturn
-          align 16, db 0
-Dct0_012: dd Dct0_011
-          db 2, "cr"
-          db 0, tCR, tReturn
-          align 16, db 0
-Dct0_013: dd Dct0_012
-          db 5, "space"
-          db 0, tSpace, tReturn
-          align 16, db 0
-Dct0_014: dd Dct0_013
-          db 1, "."
-          db 0, tDot, tReturn
-          align 16, db 0
-Dct0_015: dd Dct0_014
-          db 1, "+"
-          db 0, tPlus, tReturn
-          align 16, db 0
-Dct0_016: dd Dct0_015
-          db 1, "-"
-          db 0, tMinus, tReturn
-          align 16, db 0
-Dct0_017: dd Dct0_016
-          db 6, "negate"
-          db 0, tNegate, tReturn
-          align 16, db 0
-Dct0_018: dd Dct0_017
-          db 1, "*"
-          db 0, tMul, tReturn
-          align 16, db 0
-Dct0_019: dd Dct0_018
-          db 1, "/"
-          db 0, tDiv, tReturn
-          align 16, db 0
-Dct0_020: dd Dct0_019
-          db 3, "mod"
-          db 0, tMod, tReturn
-          align 16, db 0
-Dct0_021: dd Dct0_020
-          db 4, "/mod"
-          db 0, tDivMod, tReturn
-          align 16, db 0
-Dct0_022: dd Dct0_021
-          db 3, "max"
-          db 0, tMax, tReturn
-          align 16, db 0
-Dct0_023: dd Dct0_022
-          db 3, "min"
-          db 0, tMin, tReturn
-          align 16, db 0
-Dct0_024: dd Dct0_023
-          db 3, "abs"
-          db 0, tAbs, tReturn
-          align 16, db 0
-Dct0_025: dd Dct0_024
-          db 3, "and"
-          db 0, tAnd, tReturn
-          align 16, db 0
-Dct0_026: dd Dct0_025
-          db 2, "or"
-          db 0, tOr, tReturn
-          align 16, db 0
-Dct0_027: dd Dct0_026
-          db 3, "xor"
-          db 0, tXor, tReturn
-          align 16, db 0
-Dct0_028: dd Dct0_027
-          db 6, "invert"
-          db 0, tInvert, tReturn
-          align 16, db 0
-Dct0_029: dd Dct0_028
-          db 1, "<"
-          db 0, tLess, tReturn
-          align 16, db 0
-Dct0_030: dd Dct0_029
-          db 1, ">"
-          db 0, tGreater, tReturn
-          align 16, db 0
-Dct0_031: dd Dct0_030
-          db 1, "="
-          db 0, tEqual, tReturn
-          align 16, db 0
-Dct0_032: dd Dct0_031
-          db 2, "0<"
-          db 0, tZeroLess, tReturn
-          align 16, db 0
-Dct0_033: dd Dct0_032
-          db 2, "0="
-          db 0, tZeroEqual, tReturn
-          align 16, db 0
-Dct0_034: dd Dct0_033
-          db 3, "hex"
-          db 0, tHex, tReturn
-          align 16, db 0
-Dct0_035: dd Dct0_034
-          db 7, "decimal"
-          db 0, tDecimal, tReturn
-          align 16, db 0
-Dct0_036: dd Dct0_035
-          db 1, "@"
-          db 0, tFetch, tReturn
-          align 16, db 0
-Dct0_037: dd Dct0_036
-          db 1, "!"
-          db 0, tStore, tReturn
-          align 16, db 0
-Dct0_038: dd Dct0_037
-          db 2, "b@"
-          db 0, tByteFetch, tReturn
-          align 16, db 0
-Dct0_039: dd Dct0_038
-          db 2, "b!"
-          db 0, tByteStore, tReturn
-          align 16, db 0
-Dct0_040: dd Dct0_039
-          db 1, ";"
-          db 0, tSemiColon, tReturn
-          align 16, db 0
-Dct0_041: dd Dct0_040
-          db 4, "next"
-          db 0, tNext, tReturn
-          align 16, db 0
-Dct0_042: dd Dct0_041
-          db 2, ">r"
-          db 0, tToR, tReturn
-          align 16, db 0
-Dct0_043: dd Dct0_042
-          db 2, "r>"
-          db 0, tRFrom, tReturn
-          align 16, db 0
-Dct0_044: dd Dct0_043
-          db 1, "i"
-          db 0, tI, tReturn
-          align 16, db 0
-Dct0Head: dd Dct0_044
-          db 4, ".ret"
-          db 0, tDotRet, tReturn
-          align 16, db 0
-Dct0End: db 0
+Voc0: dd 0         ; This padding is so second item's link will be non-zero
+align 16, db 0
+dw 0
+db 3, "nop", 0, tNop, tReturn
+dw 16
+db 3, "bye", 0, tBye, tReturn
+dw 25
+db 3, "dup", 0, tDup, tReturn
+dw 34
+db 4, "drop", 0, tDrop, tReturn
+dw 43
+db 4, "swap", 0, tSwap, tReturn
+dw 53
+db 4, "over", 0, tOver, tReturn
+dw 63
+db 10, "clearstack", 0, tClearStack, tReturn
+dw 73
+db 2, ".s", 0, tDotS, tReturn
+dw 89
+db 2, '."', 0, tDotQuoteI, tReturn
+dw 97
+db 1, "(", 0, tParen, tReturn
+dw 105
+db 1, ":", 0, tColon, tReturn
+dw 112
+db 4, "emit", 0, tEmit, tReturn
+dw 119
+db 2, "cr", 0, tCR, tReturn
+dw 129
+db 5, "space", 0, tSpace, tReturn
+dw 137
+db 1, ".", 0, tDot, tReturn
+dw 148
+db 1, "+", 0, tPlus, tReturn
+dw 155
+db 1, "-", 0, tMinus, tReturn
+dw 162
+db 6, "negate", 0, tNegate, tReturn
+dw 169
+db 1, "*", 0, tMul, tReturn
+dw 181
+db 1, "/", 0, tDiv, tReturn
+dw 188
+db 3, "mod", 0, tMod, tReturn
+dw 195
+db 4, "/mod", 0, tDivMod, tReturn
+dw 204
+db 3, "max", 0, tMax, tReturn
+dw 214
+db 3, "min", 0, tMin, tReturn
+dw 223
+db 3, "abs", 0, tAbs, tReturn
+dw 232
+db 3, "and", 0, tAnd, tReturn
+dw 241
+db 2, "or", 0, tOr, tReturn
+dw 250
+db 3, "xor", 0, tXor, tReturn
+dw 258
+db 6, "invert", 0, tInvert, tReturn
+dw 267
+db 1, "<", 0, tLess, tReturn
+dw 279
+db 1, ">", 0, tGreater, tReturn
+dw 286
+db 1, "=", 0, tEqual, tReturn
+dw 293
+db 2, "0<", 0, tZeroLess, tReturn
+dw 300
+db 2, "0=", 0, tZeroEqual, tReturn
+dw 308
+db 3, "hex", 0, tHex, tReturn
+dw 316
+db 7, "decimal", 0, tDecimal, tReturn
+dw 325
+db 1, "@", 0, tFetch, tReturn
+dw 338
+db 1, "!", 0, tStore, tReturn
+dw 345
+db 2, "b@", 0, tByteFetch, tReturn
+dw 352
+db 2, "b!", 0, tByteStore, tReturn
+dw 360
+db 1, ";", 0, tSemiColon, tReturn
+dw 368
+db 4, "next", 0, tNext, tReturn
+dw 375
+db 2, ">r", 0, tToR, tReturn
+dw 385
+db 2, "r>", 0, tRFrom, tReturn
+dw 393
+db 1, "i", 0, tI, tReturn
+dw 401
+db 4, ".ret", 0, tDotRet, tReturn
+Voc0End: db 0
+align 16, db 0
+Voc0Len: dd Voc0End - Voc0  ; 418
+Voc0Head: dd 408
