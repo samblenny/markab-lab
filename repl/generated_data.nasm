@@ -66,6 +66,7 @@
 %define tDotRet      55
 %define tWordStore   56
 %define tWordFetch   57
+%define tDumpVars    58
 
 
 ;------------------------------------------------------------------------
@@ -134,8 +135,9 @@ dd mI           ; 54
 dd mDotRet      ; 55
 dd mWordStore   ; 56
 dd mWordFetch   ; 57
+dd mDumpVars    ; 58
 
-%define JumpTableLen 58
+%define JumpTableLen 59
 
 
 ;-------------------------------------------------------------
@@ -155,102 +157,104 @@ align 16, db 0
 Voc0: dd 0         ; This padding is so second item's link will be non-zero
 align 16, db 0
 dw 0
-db 3, "nop", 0, tNop, tReturn
+db 3, "nop", 0, tNop, 0
 dw 16
-db 3, "bye", 0, tBye, tReturn
+db 3, "bye", 0, tBye, 0
 dw 25
-db 3, "dup", 0, tDup, tReturn
+db 3, "dup", 0, tDup, 0
 dw 34
-db 4, "drop", 0, tDrop, tReturn
+db 4, "drop", 0, tDrop, 0
 dw 43
-db 4, "swap", 0, tSwap, tReturn
+db 4, "swap", 0, tSwap, 0
 dw 53
-db 4, "over", 0, tOver, tReturn
+db 4, "over", 0, tOver, 0
 dw 63
-db 10, "clearstack", 0, tClearStack, tReturn
+db 10, "clearstack", 0, tClearStack, 0
 dw 73
-db 2, ".s", 0, tDotS, tReturn
+db 2, ".s", 0, tDotS, 0
 dw 89
-db 2, '."', 0, tDotQuoteI, tReturn
+db 1, "(", 0, tParen, -1
 dw 97
-db 1, "(", 0, tParen, tReturn
-dw 105
-db 1, ":", 0, tColon, tReturn
+db 2, '."', 0, tDotQuoteI, -1
+dw 104
+db 1, ":", 0, tColon, -1
 dw 112
-db 4, "emit", 0, tEmit, tReturn
+db 1, ";", 0, tSemiColon, -1
 dw 119
-db 2, "cr", 0, tCR, tReturn
-dw 129
-db 5, "space", 0, tSpace, tReturn
-dw 137
-db 1, ".", 0, tDot, tReturn
-dw 148
-db 1, "+", 0, tPlus, tReturn
+db 4, "emit", 0, tEmit, 0
+dw 126
+db 2, "cr", 0, tCR, 0
+dw 136
+db 5, "space", 0, tSpace, 0
+dw 144
+db 1, ".", 0, tDot, 0
 dw 155
-db 1, "-", 0, tMinus, tReturn
+db 1, "+", 0, tPlus, 0
 dw 162
-db 6, "negate", 0, tNegate, tReturn
+db 1, "-", 0, tMinus, 0
 dw 169
-db 1, "*", 0, tMul, tReturn
-dw 181
-db 1, "/", 0, tDiv, tReturn
+db 6, "negate", 0, tNegate, 0
+dw 176
+db 1, "*", 0, tMul, 0
 dw 188
-db 3, "mod", 0, tMod, tReturn
+db 1, "/", 0, tDiv, 0
 dw 195
-db 4, "/mod", 0, tDivMod, tReturn
-dw 204
-db 3, "max", 0, tMax, tReturn
-dw 214
-db 3, "min", 0, tMin, tReturn
-dw 223
-db 3, "abs", 0, tAbs, tReturn
-dw 232
-db 3, "and", 0, tAnd, tReturn
-dw 241
-db 2, "or", 0, tOr, tReturn
-dw 250
-db 3, "xor", 0, tXor, tReturn
-dw 258
-db 6, "invert", 0, tInvert, tReturn
-dw 267
-db 1, "<", 0, tLess, tReturn
-dw 279
-db 1, ">", 0, tGreater, tReturn
+db 3, "mod", 0, tMod, 0
+dw 202
+db 4, "/mod", 0, tDivMod, 0
+dw 211
+db 3, "max", 0, tMax, 0
+dw 221
+db 3, "min", 0, tMin, 0
+dw 230
+db 3, "abs", 0, tAbs, 0
+dw 239
+db 3, "and", 0, tAnd, 0
+dw 248
+db 2, "or", 0, tOr, 0
+dw 257
+db 3, "xor", 0, tXor, 0
+dw 265
+db 6, "invert", 0, tInvert, 0
+dw 274
+db 1, "<", 0, tLess, 0
 dw 286
-db 1, "=", 0, tEqual, tReturn
+db 1, ">", 0, tGreater, 0
 dw 293
-db 2, "0<", 0, tZeroLess, tReturn
+db 1, "=", 0, tEqual, 0
 dw 300
-db 2, "0=", 0, tZeroEqual, tReturn
-dw 308
-db 3, "hex", 0, tHex, tReturn
-dw 316
-db 7, "decimal", 0, tDecimal, tReturn
-dw 325
-db 1, "@", 0, tFetch, tReturn
-dw 338
-db 1, "!", 0, tStore, tReturn
+db 2, "0<", 0, tZeroLess, 0
+dw 307
+db 2, "0=", 0, tZeroEqual, 0
+dw 315
+db 3, "hex", 0, tHex, 0
+dw 323
+db 7, "decimal", 0, tDecimal, 0
+dw 332
+db 1, "@", 0, tFetch, 0
 dw 345
-db 2, "b@", 0, tByteFetch, tReturn
+db 1, "!", 0, tStore, 0
 dw 352
-db 2, "b!", 0, tByteStore, tReturn
-dw 360
-db 2, "w@", 0, tWordFetch, tReturn
-dw 368
-db 2, "w!", 0, tWordStore, tReturn
-dw 376
-db 1, ";", 0, tSemiColon, tReturn
-dw 384
-db 4, "next", 0, tNext, tReturn
+db 2, "b@", 0, tByteFetch, 0
+dw 359
+db 2, "b!", 0, tByteStore, 0
+dw 367
+db 2, "w@", 0, tWordFetch, 0
+dw 375
+db 2, "w!", 0, tWordStore, 0
+dw 383
+db 4, "next", 0, tNext, 0
 dw 391
-db 2, ">r", 0, tToR, tReturn
+db 2, ">r", 0, tToR, 0
 dw 401
-db 2, "r>", 0, tRFrom, tReturn
+db 2, "r>", 0, tRFrom, 0
 dw 409
-db 1, "i", 0, tI, tReturn
+db 1, "i", 0, tI, 0
 dw 417
-db 4, ".ret", 0, tDotRet, tReturn
+db 4, ".ret", 0, tDotRet, 0
+dw 424
+db 5, ".vars", 0, tDumpVars, 0
 Voc0End: db 0
 align 16, db 0
-Voc0Len: dd Voc0End - Voc0  ; 434
-Voc0Head: dd 424
+Voc0Len: dd Voc0End - Voc0  ; 445
+Voc0Head: dd 434
