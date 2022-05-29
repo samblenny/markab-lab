@@ -12,14 +12,18 @@ clearstack
 ( error)     swap
 ( error)     over
 clearstack
-( OK)    1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17
-( 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17  OK) .s
-( error)          dup
-( error)         over
-( ... 17 16  OK) swap .s
-( ... 15 17  OK) drop .s
-clearstack
-( error) 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18
-( 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17  OK) .s
+( --- These demonstrate that, while there are 17 stack slots, ---)
+( --- processing input text needs 2 of those to be left free. ---)
+(  E2...)  1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17
+(  OK)        1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+(  E2...)                                         .s
+(  OK)           1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+(  1 2 ... 14 15 )                                .s
+(   This works -- 2 free slots for parsing and .s ^^)
+(  ... 13 15 14  OK)       swap .s
+(  ... 13 15 14  OK)       drop .s
+(  ... 13 15 13  OK)       over .s
+(  OK)                         dup
+(  E2...)                       .s
 clearstack
 ( Stack is empty) .s
