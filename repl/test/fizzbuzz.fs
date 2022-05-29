@@ -13,7 +13,7 @@
 : if-0-.  0 if-eq-push-1 >r  next .         r> drop ;
 : factors dup  3 mod 0= invert 1 and  swap 5 mod 0= invert 2 and  or ;
 : fbz-inner dup factors  dup if-1-f  dup if-2-b  dup if-3-fb  if-0-. ;
-: n! 0 ! ;
-: n@ 0 @ ;
+: n! 60000 ! ;
+: n@ 60000 @ ;
 : fbz dup n! >r space  : fbz_ next n@ i - fbz-inner fbz_ ;
 ( 1 2 Fz 4 Bz Fz 7 8 Fz Bz 11 Fz 13 14 FzBz 16  OK) 16 fbz

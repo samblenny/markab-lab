@@ -1930,8 +1930,8 @@ mStore:                     ; Store dword (second) at address [Mem+T]
 movq rsi, DSDeep            ; make sure stack depth >= 2 items (data, address)
 cmp sil, 2
 jb mErr1Underflow
-test T, Fence               ; check address satisfies: Fence < T < MemSize-3
-jl mErr13AddressOOR
+cmp T, Fence               ; check address satisfies: Fence < T < MemSize-3
+jle mErr13AddressOOR
 cmp T, MemSize-3
 jge mErr13AddressOOR
 mov edi, T                  ; save address
@@ -1960,8 +1960,8 @@ mByteStore:                 ; Store low byte of (second) at address [Mem+T]
 movq rdi, DSDeep            ; make sure stack depth >= 2 items (data, address)
 cmp dil, 2
 jb mErr1Underflow
-test T, Fence               ; check address satisfies: Fence < T < MemSize
-jl mErr13AddressOOR
+cmp T, Fence                ; check address satisfies: Fence < T < MemSize
+jle mErr13AddressOOR
 cmp T, MemSize
 jge mErr13AddressOOR
 mov esi, T                  ; save address
@@ -1990,8 +1990,8 @@ mWordStore:                 ; Store low word of (second) at address [Mem+T]
 movq rdi, DSDeep            ; make sure stack depth >= 2 items (data, address)
 cmp dil, 2
 jb mErr1Underflow
-test T, Fence               ; check address satisfies: Fence < T < MemSize-1
-jl mErr13AddressOOR
+cmp T, Fence               ; check address satisfies: Fence < T < MemSize-1
+jle mErr13AddressOOR
 cmp T, MemSize-1
 jge mErr13AddressOOR
 mov esi, T                  ; save address
