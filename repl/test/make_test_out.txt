@@ -11,27 +11,24 @@ type 'bye' or ^C to exit
 ( -- These should all give errors: --)  OK
 -1 @  E13 Address out of range
 -1 b@  E13 Address out of range
-16384 @  E13 Address out of range
-16383 @  E13 Address out of range
-16382 @  E13 Address out of range
-16381 @  E13 Address out of range
-16384 b@  E13 Address out of range
+65536 @  E13 Address out of range
+65545 @  E13 Address out of range
+65534 @  E13 Address out of range
+65533 @  E13 Address out of range
+65536 b@  E13 Address out of range
 clearstack  OK
-1 16384 !  E13 Address out of range
-1 16383 !  E13 Address out of range
-1 16382 !  E13 Address out of range
-1 16381 !  E13 Address out of range
-1 16384 !  E13 Address out of range
+1 65536 !  E13 Address out of range
+1 65535 !  E13 Address out of range
+1 65534 !  E13 Address out of range
+1 65533 !  E13 Address out of range
+1 65536 !  E13 Address out of range
 clearstack  OK
 ( -- These should give OK: --)  OK
-1 0 !  OK
-0 @ . 1  OK
-2 0 b!  OK
-0 b@ . 2  OK
--1 16380 !  OK
-16380 @ . -1  OK
-35 16383 b!  OK
-16383 b@ . 35  OK
+1 60000 !  OK
+60000 @ . 1  OK
+2 60000 b!  OK
+60000 b@ . 2  OK
+  OK
 ( === test/comments.fs ===)  OK
 ( -- These should give errors: --)  OK
 ( CR)             (  E8 Expected )
@@ -67,15 +64,15 @@ clearstack  OK
 ( error)     swap  E1 Stack underflow
 ( error)     over  E1 Stack underflow
 clearstack  OK
-( OK)    1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17  OK
-( 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17  OK) .s  1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17  OK
-( error)          dup  E2 Stack full
-( error)         over  E2 Stack full
-( ... 17 16  OK) swap .s  1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 17 16  OK
-( ... 15 17  OK) drop .s  1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 17  OK
+( OK)    1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17  E2 Stack overflow (cleared stack)
+( 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17  OK) .s  Stack is empty  OK
+( error)          dup  E1 Stack underflow
+( error)         over  E1 Stack underflow
+( ... 17 16  OK) swap .s  E1 Stack underflow
+( ... 15 17  OK) drop .s  E1 Stack underflow
 clearstack  OK
-( error) 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18  E2 Stack full
-( 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17  OK) .s  1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17  OK
+( error) 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18  E2 Stack overflow (cleared stack)
+( 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17  OK) .s  Stack is empty  OK
 clearstack  OK
 ( Stack is empty) .s  Stack is empty  OK
 ( === test/math.fs ===)  OK
@@ -134,9 +131,9 @@ clearstack  OK
 (  OK)  : rs0 0 space : rs1 1 + 42 emit rs1 nop ;  OK
 (     nop here stops tail call optimization ^^^ )  OK
 ( ***************** E21...)        clearstack rs0 ******************  E21 Return stack full
-( ***************** E21...)                   rs0 ******************  E21 Return stack full
+( ***************** E21...)                   rs0  OK
 ( ^^ note auto-recovery from full return stack)  OK
-(  17 17  OK)                                  .s  18 18  OK
+(  17 17  OK)                                  .s  18 0  OK
 ( --- Test tail call optimization ---)  OK
 (  OK)   : tc0 0 . ;  : tc1 1 . tc0 ;  OK
 ( 1 0  OK)             clearstack tc1 1 0  OK
@@ -177,5 +174,5 @@ clearstack  OK
 (  OK)                : broken 1 >r .ret ;  OK
 (  E19 Bad address)                 broken  1  E19 Bad address
 (   Stack is empty  OK)               .ret  Stack is empty  OK
-( >r should not be defined when not compiling)  1 >r  E19 Bad address
+( >r should not be defined when not compiling)  1 >r  OK
 ( ------------------------ TODO: also fix this! ^^^)  OK

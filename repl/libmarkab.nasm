@@ -1,20 +1,9 @@
 ; Copyright (c) 2022 Sam Blenny
 ; SPDX-License-Identifier: MIT
 ;
-; libmarkab implements inner and outer interpreters of the Markab Forth system.
+; MarkabForth is a Forth system for archival-grade multi-media computing.
+; [note: just getting started here, so this is still a bit aspirational]
 ;
-; Sample output:
-; ```
-; Markab v0.0.1
-; type 'bye' or ^C to exit
-;  __  __          _        _
-; |  \/  |__ _ _ _| |____ _| |__
-; | |\/| / _` | '_| / / _` | '_ \
-; |_|  |_\__,_|_| |_\_\__,_|_.__/
-;
-;   1 2 3
-;   7  OK
-; ```
 
 bits 64
 default rel
@@ -38,8 +27,8 @@ section .data
 ; 2. Jump table including:
 ;    - JumpTable: label for start of jump table
 ;    - JumpTableLen: define for length of jump table (to check valid tokens)
-; 3. Data structure for dictionary 0 (built-in words):
-;    - Dct0Head: head of dictionary linked list
+; 3. Data structure for vocabulary 0 (built-in words):
+;    - Voc0Head: head of vocabulary 0 linked list
 ;
 %include "generated_data.nasm"
 
@@ -72,10 +61,10 @@ db "== VM Strings =="
 
 datVersion:  mkStr `Markab v0.0.1\ntype 'bye' or ^C to exit\n`
 datErr1se:   mkStr "  E1 Stack underflow"
-datErr2sf:   mkStr "  E2 Stack full"
+datErr2sf:   mkStr "  E2 Stack overflow (cleared stack)"
 datErr3bt:   mkStr "  E3 Bad token: "
 datErr4nq:   mkStr `  E4 Expected \"`
-datErr5af:   mkStr "  E5 Assertion failed: "
+datErr5nf:   mkStr "  E5 Number format"
 datErr6of:   mkStr "  E6 Overflow: "
 datErr7nfd:  mkStr "  E7 ? "
 datErr7nfh:  mkStr "  E7 [hex] ? "
@@ -86,16 +75,35 @@ datErr11ntl: mkStr "  E11 Name too long"
 datErr12dbz: mkStr "  E12 Divide by 0"
 datErr13aor: mkStr "  E13 Address out of range"
 datErr14bwt: mkStr "  E14 Bad word type"
-datErr15cmf: mkStr "  E15 Code memory full"
-datErr16vmf: mkStr "  E16 Variable memory full"
+datErr15hf:  mkStr "  E15 Heap full"
+datErr16stl: mkStr "  E16 Screen too long"
 datErr17snc: mkStr "  E17 ; when not compiling"
 datErr18esc: mkStr "  E18 Expected ;"
 datErr19ba:  mkStr "  E19 Bad address"
 datErr20rsu: mkStr "  E20 Return stack underflow"
 datErr21rsf: mkStr "  E21 Return stack full"
 datErr22ltl: mkStr "  E22 Loop too long"
+datErr23bbp: mkStr "  E23 Bad buffer pointer"
+datErr24cvt: mkStr "  E24 Core vocab too long"
+datErr25bor: mkStr "  E25 Base out of range"
+datErr26fin: mkStr "  E26 Format insert"
+datErr27bfi: mkStr "  E27 Bad format index"
+datErr28dpo: mkStr "  E28 DP out of range"
+datErr29bvl: mkStr "  E29 Bad vocab link"
 datDotSNone: mkStr "  Stack is empty"
 datOK:       mkStr `  OK\n`
+datVoc0Head: mkStr "[Voc0Head]  "
+datForthP:   mkStr "ForthP     "
+datExtV:     mkStr "ExtV       "
+datContext:  mkStr "Context    "
+datDP:       mkStr "DP         "
+datLast:     mkStr "Last       "
+datCodeP:    mkStr "CodeP      "
+datCodeCallP mkStr "CodeCallP  "
+datHeap:     mkStr "Heap       "
+datHeapEnd:  mkStr "HeapEnd   "
+datDPStr:    mkStr "str([DP])  "
+datDotS:     mkStr ".s        "
 
 align 16, db 0
 db "=== End.data ==="
@@ -107,50 +115,111 @@ section .bss
 %macro byteBuf 2
   align 16, resb 0
   %1: resb %2
-  align 16, resb 0
 %endmacro
 %macro dwordBuf 2
   align 16, resb 0
   %1: resd %2
-  align 16, resb 0
 %endmacro
 %macro dwordVar 1
   align 4, resb 0
   %1: resd 1
 %endmacro
 
+;-----------------------------
+; Virtual CPU Stacks
+
 %define DSMax 17              ; total size of data stack (T + 16 dwords)
 %define RSMax 17              ; total size of return stack (R + 16 dwords)
-%define StrMax 1022           ; length of string data area
-%define DctMax 16384          ; dictionary length
-%define DctReserve 256        ; dictionary reserved bytes (space for mWord)
-%define VarMax 16384          ; bytes for user-defined variables
-%define CodeMax 16384         ; bytes for user-defined words (token code)
-
 dwordBuf DSBase, DSMax-1      ; Data stack (size excludes top item T)
 dwordBuf RSBase, RSMax-1      ; Return stack (size excludes top item R)
 
-byteBuf Pad, 2+StrMax         ; String scratch buffer; word 0 is length
-byteBuf PadRtl, StrMax+2      ; Right-to-left buffer for formatting numbers;
-                              ; word [PadRtl+StrMax] is index first used byte
 
-byteBuf VarMem, VarMax        ; Start of user-defined variables memory
-dwordVar VarP                 ; Index to next free byte of variables memory
+;-----------------------------
+; Virtual Machine RAM Layout
+;
+; Glossary
+; - Vocabulary: Set of words in the form of a linked list
+; - Dictionary: Set of all the vocabularies
+; - Virtual RAM: Zero-indexed address space available to ! and @
+;
+%define _1KB 1024
+%define _2KB 2048
+%define _4KB 4096
+%define _8KB 8192
+%define _16KB 16384
+%define _32KB 32768
+%define _64KB 65536
 
-byteBuf CodeMem, CodeMax      ; Start of user-defined compiled code memory
-dwordVar CodeP                ; Index to next free byte of compiled code memory
-dwordVar CodeCallP            ; CodeMem pointer to last compiled call
+%define MemSize _64KB            ; Size of virtual Memory area
+byteBuf Mem, MemSize             ; Buffer for virtual Memory area
 
-byteBuf Dct2, DctMax          ; Start of user dictionary (Dictionary 2)
-dwordVar DP                   ; Index to next free byte of dictionary
-dwordVar Last                 ; Pointer to head of dictionary
+;--- Built-in Vocabularies (write protected area in Mem for builtins) ---
+;
+%define CoreV 0                  ; Start index of Core Vocabularies area
+%define CoreVSize _1KB           ; Size of Core Vocabularies area
+%define CoreVEnd CoreVSize-1     ; End index of Core Vocabularies area
 
-dwordVar TIB                  ; Pointer to terminal input buffer (TIB)
-dwordVar TIB_LEN              ; Length of TIB (count of max available bytes)
+%define ForthP CoreVEnd+2        ; dw Pointer to head of Forth vocabulary
+%define CompileP ForthP+2        ; dw Pointer to head of Compile vocabulary
+%define Context CompileP+2       ; dw Pointer to current selected vocabulary
 
-dwordVar IN                   ; Index into TIB of next available input byte
-dwordVar Base                 ; Number base for numeric string conversions
-dwordVar EmitBuf              ; Buffer for emit to use
+%define BuiltinEnd Context+2-1   ; End of builtins area
+
+%define Fence BuiltinEnd         ; Index of write protect boundary
+
+;--- Extensible Vocabulary (read/write area in Mem for adding new words) ---
+;
+%define DP Fence+1               ; dw Pointer to next free byte of Ext. Vocab
+%define Last DP+2                ; dw Pointer to head of Ext. Vocab
+
+%define ExtV Last+2              ; Start index of extensible vocabulary area
+%define ExtVSize _4KB            ; Size of extensible vocabulary area
+%define ExtVEnd ExtV+ExtVSize-1  ; End index of extensible vocabulary area
+
+;--- Buffers (scratch pad, terminal input, formatting, ...) ---
+;
+%define BuffersStart ExtVEnd+1   ; Start of buffers
+
+%define Pad BuffersStart         ; Start of scratchPad string buffer
+%define PadSize _1KB             ; Size of scratchPad
+%define PadEnd Pad+PadSize-1     ; End of scratchPad
+
+%define Fmt PadEnd+1             ; Start of right-to-left Formatting buffer
+%define FmtSize _1KB             ; Size of Fmt
+%define FmtEnd Fmt+FmtSize-1     ; End offset of Fmt buffer within Mem
+%define FmtLI FmtEnd+1           ; dw Fmt buffer Left Index (leftmost byte)
+%define FmtSgn FmtLI+2           ; db Sign of number to be formatted
+%define FmtQuo FmtSgn+1          ; dd Quotient i32 (temp var for formatting)
+%define FmtRem FmtQuo+4          ; dd Remainder i32 (temp var for formatting)
+
+%define Blk FmtRem+4             ; Start of Block buffer
+%define BlkSize _1KB             ; Size of Block buffer
+%define BlkEnd Blk+BlkSize-1     ; End of Block buffer
+
+%define TIB BlkEnd+1             ; Start of Terminal Input Buffer (TIB)
+%define TIBSize _1KB             ; Size of TIB
+%define TIBEnd TIB+TIBSize-1     ; End of TIB
+
+%define IBPtr TIBEnd+1           ; dw Input Buffer Pointer (IBP)
+%define IBLen IBPtr+2            ; dw Length of data in IBP (bytes available)
+%define IN IBLen+2               ; dw Index into IBP for next unparsed byte
+
+%define Base IN+2                ; dw Number base for number/string conversions
+
+%define EmitBuf Base+2           ; Start of buffer for emit to use
+%define EmitBufEnd EmitBuf+8     ; End of buffer for emit
+
+%define BuffersEnd EmitBufEnd    ; End of string buffers area
+
+;--- Heap memory for variables and compiled code ---
+;
+%define CodeP BuffersEnd+1       ; dw Pointer to next free byte of heap memory
+%define CodeCallP CodeP+2        ; dw Pointer to last compiled call token
+
+%define Heap CodeCallP+2         ; Start of heap area
+%define HReserve 260             ; Heap reserved bytes (space for mWord, etc)
+%define HeapEnd MemSize-1        ; End of heap area
+
 
 
 ;=============================
@@ -197,6 +266,7 @@ section .text
 %define VMFlags r12b          ; Virtual machine status flags
 
 %define T r13d                ; Top item of data stack (32-bits)
+%define TW r13w               ; Top item of data stack (low word)
 %define TB r13b               ; Top item of data stack (low byte)
 %define R r15d                ; Return stack top item (32-bits)
 %define DSDeep xmm0           ; Depth of data stack (includes T, NOTE! XMM0)
@@ -204,43 +274,242 @@ section .text
 
 
 ;-----------------------------
+; Pseudo-Forth macros
+;
+; These are for writing assembly subroutines by chaining together calls to the
+; subroutines for VM instruction tokens. It's like unrolling the behavior of
+; the inner interpreter. The last argument to all of these macros is a label
+; to use as the jump target if there's a VM error in the token handler.
+;
+; This is an intermediate step towards writing features in Forth instead of
+; assembly. For now, as I'm debugging the plumbing around dictionary stuff, I
+; need a thing shaped like this so I can stop spending so much time and effort
+; on boilerplate for working with pointers to virtual memory addresses.
+;
+%macro fPush 2
+ mov W, %1
+ call mPush
+ test VMFlags, VMErr
+ jnz %2
+%endmacro
+%macro fDo 2
+ call m%[%1]
+ test VMFlags, VMErr
+ jnz %2
+%endmacro
+
+
+;-----------------------------
+; Error messages
+
+mErrPutW:                     ; Print error from W and set error flag
+call mStrPut.W
+or VMFlags, VMErr
+ret
+
+mErr:
+or VMFlags, VMErr             ; set error condition flag (hide OK prompt)
+ret
+
+mErr1Underflow:               ; Error 1: Stack underflow
+lea W, [datErr1se]
+jmp mErrPutW
+
+mErr2Overflow:                ; Error 2: Stack overflow
+call mClearStack              ; clear the stack
+lea W, [datErr2sf]            ; print error message
+jmp mErrPutW
+
+mErr3BadToken:                ; Error 3: Bad token (rbp: instruction pointer)
+lea W, [datErr3bt]            ; print error message
+call mStrPut.W
+movzx W, byte [rbp]           ; load token value
+call mDot.W                   ; print token value
+mov W, ebp                    ; print token's instruction pointer
+call mDot.W
+jmp mErr
+
+mErr4NoQuote:                 ; Error 4: unterminated quoted string
+lea W, [datErr4nq]            ; print error message
+jmp mErrPutW
+
+mErr5NumberFormat:            ; Error 5: Number format
+lea W, [datErr5nf]
+jmp mErrPutW
+
+mErr6Overflow:                ; Error 6: overflow, args{rdi: *buf, rsi: count}
+push rdi
+push rsi
+lea W, [datErr6of]            ; print error message
+call mStrPut.W
+pop rsi
+pop rdi
+call mStrPut.RdiRsi           ; print word that caused the problem
+or VMFlags, VMErr
+ret
+
+mErr8NoParen:                 ; Error 8: comment had '(' without matching ')'
+lea W, [datErr8np]
+jmp mErrPutW
+
+mErr9DictFull:                ; Error 9: Dictionary is full
+lea W, [datErr9df]
+jmp mErrPutW
+
+mErr10ExpectedName:           ; Error 10: Expected a name
+lea W, [datErr10en]
+jmp mErrPutW
+
+mErr11NameTooLong:            ; Error 11: Name too long
+lea W, [datErr11ntl]
+jmp mErrPutW
+
+mErr12DivideByZero:           ; Error 12: Divide by zero
+lea W, [datErr12dbz]
+jmp mErrPutW
+
+mErr13AddressOOR:             ; Error 13: Address out of range
+lea W, [datErr13aor]
+jmp mErrPutW
+
+mErr14BadWordType:            ; Error 14: Bad word type
+lea W, [datErr14bwt]
+jmp mErrPutW
+
+mErr15HeapFull:               ; Error 15: Heap full
+lea W, [datErr15hf]
+jmp mErrPutW
+
+mErr16ScreenTooLong:          ; Error 16: Screen too long
+lea W, [datErr16stl]
+jmp mErrPutW
+
+mErr17SemiColon:              ; Error 17: ; when not compiling
+lea W, [datErr17snc]
+jmp mErrPutW
+
+mErr18ExpectedSemiColon:      ; Error 18: Expected ;
+lea W, [datErr18esc]
+jmp mErrPutW
+
+mErr19BadAddress:             ; Error 19: Bad address
+lea W, [datErr19ba]
+jmp mErrPutW
+
+mErr20ReturnUnderflow:        ; Error 20: Return stack underflow
+lea W, [datErr20rsu]
+jmp mErrPutW
+
+mErr21ReturnFull:             ; Error 21: Return stack full
+or VMFlags, VMRetFull         ; set return full flag
+lea W, [datErr21rsf]
+jmp mErrPutW
+
+mErr22LoopTooLong:            ; Error 22: Loop too long
+lea W, [datErr22ltl]
+jmp mErrPutW
+
+mErr23BadBufferPointer:       ; Error 23: Bad buffer pointer
+lea W, [datErr23bbp]
+jmp mErrPutW
+
+mErr24CoreVocabTooLong:       ; Error 24: Bad buffer pointer
+lea W, [datErr24cvt]
+jmp mErrPutW
+
+mErr25BaseOutOfRange:         ; Error 25: Base out of range
+lea W, [datErr25bor]
+jmp mErrPutW
+
+mErr26FormatInsert:           ; Error 26: Format insert
+lea W, [datErr26fin]
+jmp mErrPutW
+
+mErr27BadFormatIndex:         ; Error 27: Bad format index
+lea W, [datErr27bfi]
+jmp mErrPutW
+
+mErr28DPOutOfRange:           ; Error 28: DP out of range
+lea W, [datErr28dpo]
+jmp mErrPutW
+
+mErr29BadVocabLink:           ; Error 29: Bad vocab link
+lea W, [datErr29bvl]
+jmp mErrPutW
+
+
+;-----------------------------
 ; Library init entry point
 
 markab_cold:
 enter 0, 0
-xor W, W                      ; init data stack registers
+xor W, W                        ; init virtual registers and stacks
 mov T, W
+mov R, W
 movq DSDeep, WQ
 movq RSDeep, WQ
-mov [Pad], W
-mov ecx, Dct0Head
-mov [Last], ecx               ; dictionary head starts at head of Dct0
-mov [DP], W                   ; dictionary pointer starts at 0
-mov [VarP], W                 ; variables memory pointer starts at 0
-mov [CodeP], W                ; code memory pointer starts at 0
-mov [CodeCallP], W            ; last compiled call pointer starts at 0
-call mDecimal                 ; default number base
-xor VMFlags, VMFlags          ; clear VM flags
-lea W, datVersion             ; print version string
+mov [Mem+Pad], WW               ; Zero string buffer length fields
+mov [Mem+Blk], WW
+mov [Mem+TIB], WW
+mov [Mem+CodeP], word Heap      ; code memory pointer starts at Heap[0]
+mov [Mem+CodeCallP], word Heap  ; last compiled call pointer starts at 0
+call mDecimal                   ; default number base
+xor VMFlags, VMFlags            ; clear VM flags
+lea W, datVersion               ; print version string
 call mStrPut.W
 ;-----------------------------
-movq r10, DSDeep              ; Save SSE registers
-push r10
-movq r11, RSDeep
-push r11
-push rbp                      ; align stack to 16 bytes
-mov rbp, rsp
-and rsp, -16
-mov edi, Screen0              ; Interpret loadscreen
-mov esi, [Screen0Len]
-call markab_outer             ; markab_outer(edi: *buf, esi: count)
-mov rsp, rbp                  ; restore stack to previous alignment
-pop rbp
-pop r11                       ; Restore SSE registers
-movq RSDeep, r11
-pop r10
-movq DSDeep, r10
+mov W, [Voc0Head]             ; Initialize core vocabulary head pointers
+mov word [Mem+ForthP], WW     ; point ForthP to core vocab
+mov word [Mem+CompileP], WW   ;  same for CompileP (TODO: split core vocab)
+mov WW, Last                  ; load address of pointer to head of ExtV
+mov word [Mem+Context], WW    ; Set [Context] to address of Last
 ;-----------------------------
+xor W, W
+mov dword [Mem+ExtV], W       ; Zero the first item of ExtV
+mov W, [Voc0Head]             ;  then set its link to Voc0Head
+mov word [Mem+ExtV], WW
+mov W, ExtV                   ; Set [Last] to address of head item in ExtV
+mov word [Mem+Last], WW
+add W, 3                      ; Allot 3 bytes for ExtV's head item
+mov word [Mem+DP], WW         ; Set [DP] to first available byte at end of ExtV
+;-----------------------------
+lea esi, [Voc0]               ; Copy core vocabulary to [Mem+CoreV]
+lea edi, [Mem+CoreV]
+mov ecx, [Voc0Len]
+cmp ecx, CoreVSize
+jnb mErr24CoreVocabTooLong
+xor edx, edx                  ; Zero buffer index
+.forCopyCoreV:                ; Copy the bytes
+mov WB, [esi+edx]
+mov [edi+edx], WB
+inc edx                       ; Advance buffer index
+dec ecx                       ; Decrement loop counter
+jnz .forCopyCoreV
+;-----------------------------
+mov esi, Screen0              ; Copy screen0 to Block buffer
+lea edi, [Mem+Blk]
+mov ecx, [Screen0Len]
+cmp ecx, BlkSize              ; stop if screen won't fit in Block
+jnb mErr16ScreenTooLong
+test ecx, ecx                 ; skip the copy if screen0 is empty
+jz .skipCopyScreen0
+mov [Mem+IBPtr], word Blk     ; Configure input buffer source as Block
+mov [Mem+IBLen], cx
+mov [Mem+IN], word 0
+xor edx, edx                  ; Zero buffer index
+.forCopyScreen0:              ; Copy the bytes from screen0 to Block
+mov WB, [esi+edx]
+mov [edi+edx], WB
+inc edx                       ; Advance buffer index
+dec ecx                       ; Decrement loop counter
+jnz .forCopyScreen0
+.skipCopyScreen0:
+;-----------------------------
+call markab_outer             ; Interpret loadscreen
+mov [Mem+IBPtr], word TIB     ; Configure input buffer source as Terminal
+mov [Mem+IBLen], word 0
+mov [Mem+IN], word 0
+;/////////////////////////////
 .OuterLoop:                   ; Begin outer loop
 test VMFlags, VMBye           ; Break loop if bye flag is set
 jnz .done
@@ -261,12 +530,33 @@ movq DSDeep, r10
 cmp al, 0                     ; check return value
 je .OuterLoop                 ; result = 0: keep looping
 jl .done                      ; result < 0: exit interpreter
-mov edi, mkb_host_TIB         ; result > 0: interpret a line of text from TIB
-mov esi, [mkb_host_TIB_LEN]
-call markab_outer             ;  call outer interpreter
-xor eax, eax                  ;  clear the input buffer
+;-----------------------------
+                              ; result > 0: interpret a line of text from TIB
+lea esi, [mkb_host_TIB]
+lea edi, [Mem+TIB]
+mov ecx, [mkb_host_TIB_LEN]
+mov W, TIBSize                  ; Clip input length at TIBSize
+cmp ecx, TIBSize
+cmova ecx, W
+test ecx, ecx                   ; check if buffer is empty (maybe CR)
+jz .skipCopyTIB
+mov word [Mem+IBPtr], word TIB  ; Configure input bufer as TIB
+mov word [Mem+IBLen], cx        ; Store input length to [IBLen]
+mov word [Mem+IN], word 0       ; Zero [IN]
+xor edx, edx                    ; Zero buffer index
+.forCopyHostToTIB:              ; Copy bytes from host-side to TIB
+mov WB, [esi+edx]
+mov [edi+edx], WB
+inc edx                       ; Advance buffer index
+dec ecx                       ; Decrement loop limit
+jnz .forCopyHostToTIB
+xor eax, eax                  ; clear the host-side input buffer
 mov [mkb_host_TIB_LEN], eax
-jmp .OuterLoop                ;  keep looping
+.skipCopyTIB:
+;-----------------------------
+call markab_outer             ; call outer interpreter
+jmp .OuterLoop                ; keep looping
+;/////////////////////////////
 .done:
 leave
 ret
@@ -274,32 +564,28 @@ ret
 ;-----------------------------
 ; Interpreters
 
-doInner:                      ; Inner interpreter (rdi: tokenLen, rsi: tokenPtr)
+doTokenW:                     ; Run handler for one token [W: token]
+cmp W, JumpTableLen           ; detect token beyond jump table range (CAUTION!)
+jae mErr3BadToken
+lea edi, [JumpTable]          ; fetch jump table address
+mov esi, dword [edi+4*W]
+jmp rsi                       ; jump
+
+
+doInner:                      ; Inner interpreter (edi: virtual code pointer)
 push rbp
 push rbx
-mov W, CodeMem                ; check if CodeMem <= esi < (CodeMem+CodeMax)
-cmp W, esi
-setbe r10b
-add W, CodeMax
-cmp esi, W
-setb r11b
-and r10b, r11b                ; r10b = (CodeMem <= esi < (CodeMem+CodeMax)
-cmp esi, Dct0Tail             ; check if Dct0Tail <= esi < Dct0End
-setae cl
-cmp esi, Dct0End
-setb r11b
-and cl, r11b                  ; cl = (Dct0Tail <= esi < Dct0End)
-or r10b, cl                   ; r10b = esi is in Dct0 or Dct2
-jz .doneBadAddress            ; stop if code pointer is out of range
-mov rbp, rsi                  ; ebp = instruction pointer (I)
-mov rbx, rdi                  ; ebx = max loop iterations
+cmp edi, MemSize              ; check address satisfies: 0 <= edi < MemSize
+jz .doneBadAddress            ; stop if address is out of range
+mov ebp, edi                  ; ebp: instruction pointer (I)
+mov ebx, 0x7ffff              ; ebx: max loop iterations (very arbitrary)
 ;/////////////////////////////
 .for:
-movzx W, byte [rbp]           ; load token at I
+movzx W, byte [Mem+ebp]       ; load token at I
 cmp WB, JumpTableLen          ; detect token beyond jump table range (CAUTION!)
 jae .doneBadToken
 lea edi, [JumpTable]          ; fetch jump table address
-mov esi, dword [rdi+4*WQ]
+mov esi, dword [edi+4*W]
 inc ebp                       ; advance I
 call rsi                      ; jump (callee may adjust I for LITx)
 test VMFlags, VMErr           ; stop if token had an error
@@ -348,344 +634,365 @@ pop rbx
 pop rbp
 ret
 
-; Interpret a line of text from the input stream
-;  markab_outer(edi: *buf, esi: count)
+; Interpret a line of text from the input source buffer (via IBPtr)
 markab_outer:
 push rbp
-test esi, esi            ; end now if input buffer is empty
-jz .done
-;------------------------
-mov [TIB], edi           ; save pointer to input stream byte buffer
-mov [TIB_LEN], esi       ; save count of available bytes in the input stream
-mov [IN], dword 0        ; reset index into TIB of next available input byte
-;////////////////////////
+;/////////////////////////////
 .forNextWord:
-mov W, [IN]              ; stop if there are no more bytes left in buffer
-cmp W, [TIB_LEN]
+movzx edi, word [Mem+IBPtr]   ; Fetch input buffer pointer (index to Mem)
+cmp edi, BuffersStart         ; Stop if buffer pointer is out of range
+jb .doneErr
+cmp edi, BuffersEnd
+jnb .doneErr
+lea edi, [Mem+edi]            ; Resolve buffer pointer to address
+movzx esi, word [Mem+IBLen]   ; Load and range check buffer's available bytes
+cmp esi, _1KB
+jnb .doneErr
+;-----------------------------
+movzx W, word [Mem+IN]        ; stop if there are no more bytes left in buffer
+cmp W, esi
 jnb .done
-mov ebp, [DP]            ; save old DP (where word will get copied to)
-call mWord               ; copy a word from [TIB+IN] to [Dct2+DP]
-mov [DP], ebp            ; put DP back where it was
-test VMFlags, VMErr      ; stop if error while copying word
+movzx ebp, word [Mem+DP]      ; save old DP (where word will get copied to)
+call mWord                    ; copy a word from [IBPtr]+[IN] to [DP]
+mov word [Mem+DP], bp         ; put DP back where it was
+test VMFlags, VMErr           ; stop if error while copying word
 jnz .doneErr
-;------------------------
-                         ; Prepare args for doWord(rdi: *buf, rsi: count)
-lea rdi, [rbp+Dct2]      ;  load pointer to length of word [Dct2+DP]
-movzx esi, byte [rdi]    ;  load length of copied word in bytes
-inc rdi                  ;  advance pointer to start of string (Dct2+DP+1)
-call doWord              ; doWord(rdi: *buf, rsi: count)
-test VMFlags, VMErr      ; stop if error while running word
+;-----------------------------
+call doWord                   ; doWord expects [DP]: {db length, <word>}
+test VMFlags, VMErr           ; stop if error while running word
 jnz .doneErr
-test VMFlags, VMBye      ; continue unless bye flag was set
+test VMFlags, VMBye           ; continue unless bye flag was set
 jz .forNextWord
-;////////////////////////
-.done:                   ; Print OK for success (unless compile still active)
-test VMFlags, VMCompile  ; make sure compile mode is not still active
+;/////////////////////////////
+.done:                        ; Print OK for success (unless still compiling)
+test VMFlags, VMCompile       ; make sure compile mode is not still active
 jnz .doneStillCompiling
 pop rbp
 lea W, [datOK]
 jmp mStrPut.W
-;------------------------
+;-----------------------------
 .doneStillCompiling:
+                              ; TODO: is this leaking heap for code???
 and VMFlags, (~VMCompile)     ; clear compiling flag
-                              ; roll back to before the unfinished define
-mov edi, [Last]               ; load unfinished dictionary entry
-mov esi, [rdi]                ; rsi = {dd .link} (link to last valid entry)
-mov [Last], esi               ; roll back the dictionary head
-                              ; TODO: decide if I care how this leaks memory
-                              ; (because it doesn't roll back VarP or CodeP)
-call mErr18ExpectedSemiColon
-                              ; fall through to .doneErr
-;------------------------
-.doneErr:                     ; Print CR (instead of OK) and clear the error bit
+;...                          ; roll back to before the unfinished define
+movzx edi, word [Mem+Last]    ;  load unfinished dictionary entry
+;...                          ; TODO: maybe validate this link address ???
+movzx esi, word [Mem+edi]     ;  rsi = {dd .link} (link to last valid entry)
+mov word [Mem+Last], si       ;  roll back the dictionary head
+call mErr18ExpectedSemiColon  ; fall through to .doneErr
+;-----------------------------
+.doneErr:                     ; Print CR (skip OK), clear error bit
 pop rbp
+test VMFlags, VMCompile       ; make sure we're not still compiling
+jz .doneErr_
+call .doneStillCompiling
+.doneErr_:
 and VMFlags, (~VMErr)
 jmp mCR
+
+
+mDumpVars:               ; Debug dump dictionary variables and stack
+call mCR
+fPush [Voc0Head], .end1  ; [Voc0Head]   <address> <contents>
+lea W, [datVoc0Head]
+call   .mDumpOneVar
+fPush ForthP,     .end1  ; ForthP       <address> <contents>
+lea W, [datForthP]
+call   .mDumpOneVar
+fPush Context,    .end1  ; Context      <address> <contents>
+lea W, [datContext]
+call   .mDumpOneVar
+fPush DP,         .end1  ; DP           <address> <contents>
+lea W, [datDP]
+call   .mDumpOneVar
+fPush Last,       .end1  ; Last         <address> <contents>
+lea W, [datLast]
+call   .mDumpOneVar
+fPush ExtV,       .end1  ; ExtV         <address> <contents>
+lea W, [datExtV]
+call   .mDumpOneVar
+fPush CodeP,      .end1  ; CodeP        <address> <contents>
+lea W, [datCodeP]
+call   .mDumpOneVar
+fPush CodeCallP,  .end1  ; CodeCallP    <address> <contents>
+lea W, [datCodeCallP]
+call   .mDumpOneVar
+fPush Heap,       .end1  ; Heap         <address> <contents>
+lea W, [datHeap]
+call   .mDumpLabelW
+fPush HeapEnd,    .end1  ; HeapEnd      <address> <contents>
+lea W, [datHeapEnd]
+call   .mDumpLabelW
+lea W, [datDPStr]        ; string([DP]) <string>
+call mStrPut.W
+call mPrintDPStr
+call mCR
+lea W, [datDotS]         ; .s           <stack-items>
+call mStrPut.W
+call mDotS
+call mCR
+.end1:
+ret
+.mDumpOneVar:            ; Print a line (caller prepares W and T)
+call mStrPut.W           ; Print name of string (W points to string)
+fDo   Dup,       .end2   ; copy {T: address} -> {S: addr, T: addr}
+fDo   Dot,       .end2   ; print -> {T: addr}
+fDo   WordFetch, .end2   ; fetch -> {T: contents of addr}
+fDo   Dot,       .end2   ; print -> {}
+.end2:
+call mCR
+ret
+.mDumpLabelW:            ; This is for values that aren't pointers
+call mStrPut.W
+call mDot
+call mCR
+ret
+
+mPrintDPStr:             ; Print string from [DP]
+push rbp
+fPush DP,        .end    ; fush  -> {T: DP (pointer to end of dictionary)}
+fDo   WordFetch, .end    ; fetch -> {T: address (end of dictionary)}
+fDo   Dup,       .end    ; copy  -> {S: addr, T: addr}
+fDo   ByteFetch, .end    ; fetch -> {S: addr, T: string length count}
+mov ebp, T               ; ebp: count
+fDo   Drop,      .end    ; drop  -> {T: addr}
+add T, 1
+lea edi, [Mem+T]         ; edi: *buf
+mov esi, ebp             ; esi: count
+call mStrPut.RdiRsi      ; print the string at [DP]
+fDo   Drop,      .end    ; drop  -> {}
+.end:
+pop rbp
+ret
+
+
+; Look up word at [DP] in vocabulary pointed to by [Context]
+;
+; Results
+; - match:    push {addr true} to stack (addr = byte after matching name)
+; - no match: push     {false} to stack
+; - error:    no stack changes, call error handler (which will set VMErr)
+;
+mFind:
+push rbp
+push rbx
+fPush DP,        .err         ; push  -> {T: DP (pointer dictionary end + 1)}
+fDo   WordFetch, .errDP       ; fetch -> {T: address of string length count}
+fDo   Dup,       .err         ; copy  -> {S: addr, T: addr}
+fDo   ByteFetch, .errDP       ; fetch -> {S: addr, T: string count}
+mov ebx, T                    ; ebx: count (save for later)
+fDo   Drop,      .err         ; drop  -> {T: address of count}
+add T, 1                      ; 1+    -> {T: address of string buffer}
+lea ebp, [Mem+T]              ; ebp: *buf (actual address, save for later)
+mov edi, ebp                  ; edi: *buf
+mov esi, ebx                  ; esi: count
+call mLowercase               ; Lowercase word: lowercase(edi:*buf, esi:count)
+fDo   Drop,      .err         ; drop  -> {}
+;-----------------------------
+fPush Context,   .err         ; push  -> {T: pointer to pointer to vocab head}
+fDo   WordFetch, .errVoc      ; fetch -> {T: pointer to vocab head}
+fDo   WordFetch, .errVoc      ; fetch -> {T: address of vocab item (head item)}
+mov esi, T                    ; esi: address of list item
+push rsi
+call mDrop                    ; drop  -> {}
+pop rsi
+;-----------------------------
+.compareLength:               ; Check if lengths match
+xor W, W
+mov WB, byte [Mem+esi+2]      ; WB: length of dictionary item name field
+cmp WB, bl                    ; compare it to search word's length (count)
+jnz .nextItem                 ;  if no match, follow link to next item
+;-----------------------------
+.compareSpelling:             ; Length matched, so now compare spelling
+movzx ecx, bl                 ; ecx: loop limit counter (length of word)
+lea edi, [Mem+esi+3]          ; edi: base address of list item name field
+xor W, W                      ; W: buffer index
+;-----------------------------
+.forSpelling:
+mov dl, [ebp+W]               ; load byte of search word
+cmp dl, [edi+W]               ; load byte of dictionary item name
+jnz .nextItem                 ; break if bytes don't match
+inc W                         ; keep looping if there are more bytes to check
+dec rcx
+jnz .forSpelling              ; no more bytes means search word matches name
+;-----------------------------
+.wordMatch:                   ; Mem+esi+3+W points to byte after name field
+add W, esi                    ; W = index into Mem for byte after name
+add W, 3
+call mPush                    ; Push {W: match index} to the data stack
+jmp .done
+;-----------------------------
+.nextItem:                    ; Follow link to next item (current is Mem+esi)
+movzx esi, word [Mem+esi]     ; load current list item's link field
+test esi, esi                 ; link address of zero marks end of list
+jnz .compareLength            ; if more items: follow link
+;------------------------
+.doneNoMatch:                 ; Normal exit path when word did not match
+fPush 0, .err                 ; push {W: false (0)} to the data stack
+pop rbx
+pop rbp
+ret
+;-----------------------------
+.done:                        ; Normal exit path for match
+fPush -1, .err                ; push {W: true (-1)} to the data stack
+pop rbx
+pop rbp
+ret
+;-----------------------------
+.err:                         ; Exit path for already-reported error
+pop rbx
+pop rbp
+ret
+;-----------------------------
+.errDP:                       ; Oops... virtual memory got corrupted
+pop rbx
+pop rbp
+jmp mErr28DPOutOfRange
+;-----------------------------
+.errVoc:                      ; Oops... virtual memory got corrupted
+pop rbx
+pop rbp
+jmp mErr29BadVocabLink
+
 
 ; Attempt to do the action for a word, potentially including:
 ;   1. Interpret it according to the dictionary
 ;   2. Push it to the stack as a number
 ;   3. Print an error message
-; doWord(rdi: u8 *buf, rsi: countWord, rdx: countMax)
-; rdi: pointer to input stream buffer
-; rsi: count of bytes in this word
-; rdx: count of maximum available bytes in input stream (for compiling words)
+; doWord expects [DP]: {db length, <word>}
 doWord:
-push rbp              ; save arguments
+push rbp
 push rbx
-mov rbp, rdi          ; rbp = *buf
-mov rbx, rsi          ; rbx = count
-mov edi, [Last]       ; Load head of dictionary list. Struct format is:
-                   ; {dd .link, db .nameLen, .name, db .wordType, db|dw .param}
-;/////////////////////
-.lengthCheck:
-xor W, W              ; Check: does .nameLen match the search word length?
-mov WB, byte [rdi+4]  ; WB = .nameLen (length of current dictionary item .name)
-cmp WB, bl            ; compare WB to search word length (count)
-jnz .nextItem         ; ...not a match, so follow link and check next entry
-.lengthMatch:
-movzx rcx, bl         ; rcx = length of dict word (same length as search word)
-xor W, W              ; for(i=0; search[i]==dictName[i] && i<count; i++)
-;/////////////////////
-.for:
-mov dl, [rbp+WQ]      ; load dl = search[i]
-cmp dl, 'A'           ; convert dl (search[i]) to lowercase without branching
-setae r10b
-cmp dl, 'Z'
-setbe r11b
-test r10b, r11b
-setnz r10b            ; ...at this point, r10 is set if dl is in 'A'..'Z'
-mov r11b, dl          ; ...speculatively prepare a lowercase (c+32) character
-add r11b, 32
-test r10b, r10b       ; ...swap in the lowercase char if dl was uppercase
-cmovnz dx, r11w
-lea rsi, [rdi+5]      ; check dl == dictName[i]
-cmp dl, [rsi+WQ]
-jnz .nextItem         ; break if bytes don't match
-inc W                 ; otherwise, continue
-dec rcx
-jnz .for              ; no more bytes to check means search word matches name
-;/////////////////////
-.wordMatch:           ; got a match, rsi+WQ now points to .wordType
-lea rcx, [rdi+5]      ; rcx = ptr to .wordType (skip .link, .nameLen, name)
-add rcx, WQ
-xor rdi, rdi          ; rdi = value of .wordType
-mov dil, byte [rcx]
-inc rcx               ; advance rcx to .param
-cmp dil, 2            ; check for .wordType==2 --> .param is dw code pointer
+fDo Find,      .err          ; Look for word in vocab pointed to by Context
+;...                         ; -> {S: address, T: -1 (true)} or {T: 0 (false)}
+fDo PopW,      .err          ; popw -> {T: address} or {}, [W: true or false]
+test W, W                    ; check for match
+jz .wordNotFound             ; at this point, stack is {}
+;---------------------------
+.wordMatch:                  ; Decide what to do with {T: address of .type}
+fDo Dup,       .err          ;  -> {S: .type, T: .type)}
+inc T                        ;  -> {S: .type, T: .param = (.type+1)}
+fDo Swap,      .err          ;  -> {S: .param, T: .type}
+fDo ByteFetch, .err          ;  -> {S: .param, T: [.type]}
+fDo PopW,      .err          ;  -> {T: .param}, {W: [.type]}
+cmp WB, 2                    ; if [.type]==2 -> dw [.param] is code pointer
 je .paramDwCodeP
-cmp dil, 1            ; check for .wordType==1 --> .param is dw var pointer
+cmp WB, 1                    ; if [.type]==1 -> dw [.param] is var pointer
 je .paramDwVarP
-test dil, dil         ; check for .wordType==0 --> .param is db token
-jnz .doneBadWordType
-;---------------------
-.paramDbToken:
-mov dil, 3               ; rdi = token limit; CAUTION! The 3 is magic. It makes
-                         ;   the loop limit counter work for builtin tokens.
-mov rsi, rcx             ; rsi = pointer to .param (holding db token)
-test VMFlags, VMCompile  ; if compiling and word is non-immediate, branch
-setnz r10b               ;  set means (compile mode active)
-mov WB, [rsi]            ; check for `;` (immediate word)
-cmp WB, tSemiColon
-setnz r11b               ; set means (token != `;`)
+test WB, TB                  ; if [.type]==0 -> dw [.param] is token:immediate
+jnz .errBadWordType
+;---------------------------
+.paramDbToken:               ; Handle token; stack is {T: .param}
+fDo WordFetch, .err          ; fetch -> {T: token:immediate}
+test VMFlags, VMCompile      ; if compiling and word is non-immediate, branch
+setnz r10b                   ;  set means compile mode active
+test TW, 0xff00              ;  if (second-byte==0) -> token is non-immediate
+setz r11b
+and TW, ~0xff00              ; clear immediate indicator byte, leaving token
 and r10b, r11b
-cmp WB, tColon           ; check for `:`
-setnz r11b
-and r10b, r11b
-cmp WB, tDotQuoteI       ; check for `."` (another immediate word)
-setnz r11b
-and r10b, r11b
-cmp WB, tParen           ; check for `(` (yet another immediate word)
-setnz r11b
-and r10b, r11b
-jnz .compileDbToken      ; if compiling non-immediate word: jump
-call doInner             ; else: doInner(rdi: tokenLen, rsi: tokenPtr)
+jnz .compileDbToken          ; if compiling non-immediate word: jump
+fDo PopW,      .err          ; -> {}, {W: token}
+call doTokenW                ; run handler for the token in W
 jmp .done
-;---------------------
-.compileDbToken:         ; Compile this token into token memory
-mov ecx, [CodeP]
-cmp ecx, CodeMax         ; make sure code memory has available space
-jnb .doneCodeMemFull
-mov esi, CodeMem         ; store the token
-mov [rsi+rcx], WB
-inc ecx                  ; advance the code pointer
-mov [CodeP], ecx
+;---------------------------
+.compileDbToken:             ; Compile token; stack is {T: token}
+movzx ecx, word [Mem+CodeP]
+cmp ecx, HeapEnd-HReserve    ; make sure heap has room
+jnb .errHeapFull
+mov [Mem+rcx], TB            ; store the token
+inc ecx                      ; advance the code pointer
+mov [Mem+CodeP], cx
+fDo Drop,      .err          ; drop -> {}
 jmp .done
-;---------------------
-.paramDwCodeP:            ; Handle compiled code-pointer word (rsi: CodeP)
-xor edi, edi              ; .tokenLen = lots (tReturn should happen first)
-mov edi, 0x7ffff
-xor r8d, r8d              ; r8d = code pointer from [rcx=.param]
-mov r8w, word [rcx]       ; CAUTION! code pointer parameter is _word_
-lea rsi, [CodeMem+r8d]    ; esi = CodeMem+[.param]
-test VMFlags, VMCompile   ; if compile mode: branch
+;---------------------------
+.paramDwCodeP:               ; Run compiled code-pointer {T: .param}
+fDo WordFetch, .err          ; -> {T: [.param] = *code (token code pointer)}
+test VMFlags, VMCompile      ; if compile mode: branch
 jnz .compileDwCodeP
-call doInner              ; else: doInner(rdi: tokenLen, rsi: tokenPtr)
+fDo PopW,      .err          ; -> {}, {W: *code}
+mov edi, W                   ; edi: *code  (virtual code pointer)
+call doInner                 ; else: doInner(edi: virtual code pointer)
 jmp .done
-;---------------------
-.compileDwCodeP:          ; Compile call to a code pointer (rsi: CodeP)
-mov ecx, [CodeP]          ; make sure code memory has available space
-add ecx, 3
-cmp ecx, CodeMax
-jnb .doneCodeMemFull
-sub ecx, 3
-mov edi, CodeMem          ; store the Call token
-mov WB, tCall
-mov [rdi+rcx], byte WB
-lea W, [rdi+rcx]          ; remember code pointer to token for this call to
-mov [CodeCallP], W        ;   help the tail-call optimizer (see mSemiColon)
-inc ecx                   ; advance code pointer (+1 for byte)
-cmp r8w, CodeMax          ; check if address is within the acceptable range
-jnb .doneBadAddress       ;   stop if out of range
-mov [rdi+rcx], word r8w   ; store the call address (_word_ index into CodeMem)
-add ecx, 2                ; advance code pointer (+2 for _word_)
-mov [CodeP], ecx          ; store code pointer
+;---------------------------
+.compileDwCodeP:             ; Compile call to code pointer {T: *code}
+;...                         ; Fetch the address of first free heap byte
+fPush CodeP,     .err        ;  -> {S: *code, T: address of CodeP}
+fDo   WordFetch, .err        ;  -> {S: *code, T: value of [CodeP]}
+cmp T, HeapEnd-HReserve      ; Check if heap has space for more code
+jnb .errHeapFull             ;  r10b set means heap is full
+;...                         ; Remember [CodeP] to help the tail call optimizer
+;...                         ;  (see mSemiColon for how that works)
+fDo   Dup,       .err        ;  -> {*code, S: [CodeP], T: [CodeP]}
+fPush CodeCallP, .err        ;  -> {*code, [CodeP], [CodeP], T: CodeCallP}
+fDo   WordStore, .err        ;  -> {S: *code, T: [CodeP]}
+;...                         ; Store the Call token at end of heap
+fPush tCall,     .err        ;  -> {*code, S: [CodeP], T: tCall}
+fDo   Over,      .err        ;  -> {*code, [CodeP], S: tCall, T: [CodeP]}
+fDo   ByteStore, .err        ;  -> {S: *code, T: [CodeP]}
+inc T                        ;  -> {S: *code, T: [CodeP]+1}
+;...                         ; Store the call address at [CodeP]+1
+fDo   Swap,      .err        ;  -> {S: [CodeP]+1, T: *code}
+fDo   Over,      .err        ;  -> {[CodeP]+1, S: *code, T: [CodeP+1]}
+fDo   WordStore, .err        ;  -> {T: [CodeP]+1}
+add T, 2                     ;  -> {T: [CodeP]+3}
+;...                         ; Update CodeP with new first free heap byte
+fPush CodeP,     .err        ;  -> {S: [CodeP]+3, T: address of CodeP}
+fDo   WordStore, .err        ;  -> {}
 jmp .done
-;---------------------
-.paramDwVarP:
+;---------------------------
+.paramDwVarP:                ; Handle a variable {T: *(.param)}
 ; TODO: push parameter (dw address)
+fDo Drop,      .err          ; drop -> {}
 jmp .done
-;/////////////////////
-.nextItem:            ; follow link;
-mov W, [rdi]          ; check for null pointer (tail of list)
-test W, W
-jz .wordNotFound
-mov edi, W            ; rdi = pointer to next item in dictionary list
-jmp .lengthCheck      ; continue with match-checking loop
-;/////////////////////
+;---------------------------
 .wordNotFound:
-mov rdi, rbp          ; prepare args for mNumber(edi: *buf, esi: count)
-mov rsi, rbx
-call mNumber          ; attempt to convert word as number (push or compile)
-test VMFlags, VMNaN   ; check if it worked
+movzx ecx, word [Mem+DP]
+lea edi, [Mem+ecx+1]        ; prepare args for mNumber(edi: *buf, esi: count)
+movzx esi, byte [Mem+ecx]
+mov rbp, rdi
+mov rbx, rsi
+call mNumber                ; attempt to convert word as number
+test VMFlags, VMNaN         ; check if it worked
 jz .done
-and VMFlags, (~VMNaN) ; ...if not, clear the NaN flag and show an error
-lea W, [datErr7nfd]   ; load err not found error message (decimal version)
-lea edx, [datErr7nfh] ; swap error message for hex version if base is 16
-mov ecx, [Base]
+and VMFlags, (~VMNaN)       ; ...if not, clear the NaN flag and show an error
+lea W, [datErr7nfd]         ; not found error message (decimal version)
+lea edx, [datErr7nfh]       ; swap error message for hex version if base 16
+movzx ecx, word [Mem+Base]
 cmp cl, 16
 cmove W, edx
-call mStrPut.W        ; print the not found error prefix
-mov rdi, rbp          ; print the word that wasn't found
+call mStrPut.W              ; print the not found error prefix
+mov rdi, rbp                ; print the word that wasn't found
 mov rsi, rbx
 call mStrPut.RdiRsi
-or VMFlags, VMErr     ; return with error condition
+or VMFlags, VMErr           ; return with error condition
 ;/////////////////////
 .done:
-pop rbx               ; restore registers
+pop rbx
 pop rbp
 ret
 ;---------------------
-.doneBadWordType:
+.err:
+pop rbx
+pop rbp
+ret
+;---------------------
+.errBadWordType:
 pop rbx
 pop rbp
 jmp mErr14BadWordType
 ;---------------------
-.doneCodeMemFull:
+.errHeapFull:         ; stack starts as {S: *code, T: value of [CodeP]}
+call mDrop            ; drop -> {T: *code}
+call mDrop            ; drop -> {}
 pop rbx
 pop rbp
-jmp mErr15CodeMemFull
+jmp mErr15HeapFull
 ;---------------------
-.doneBadAddress:
+.errBadAddress:
 pop rbx
 pop rbp
 jmp mErr19BadAddress
 ;/////////////////////
-
-
-;-----------------------------
-; Dictionary: Error handling
-
-mErrPutW:                     ; Print error from W and set error flag
-call mStrPut.W
-or VMFlags, VMErr
-ret
-
-mErr:
-or VMFlags, VMErr             ; set error condition flag (hide OK prompt)
-ret
-
-mErr1Underflow:               ; Error 1: Stack underflow
-lea W, [datErr1se]
-jmp mErrPutW
-
-mErr2Overflow:                ; Error 2: Stack overflow
-lea W, [datErr2sf]            ; print error message
-jmp mErrPutW
-
-mErr3BadToken:                ; Error 3: Bad token (rbp: instruction pointer)
-lea W, [datErr3bt]            ; print error message
-call mStrPut.W
-movzx W, byte [rbp]           ; load token value
-call mDot.W                   ; print token value
-mov W, ebp                    ; print token's instruction pointer
-call mDot.W
-jmp mErr
-
-mErr4NoQuote:                 ; Error 4: unterminated quoted string
-lea W, [datErr4nq]            ; print error message
-jmp mErrPutW
-
-mErr5Assert:                  ; Error 5: assertion failed (W: error code)
-push WQ
-lea W, [datErr5af]            ; print error message
-call mStrPut.W
-pop WQ
-call mDot.W                   ; print error code
-or VMFlags, VMErr             ; set error condition flag (hide OK prompt)
-ret                           ; return control to interpreter
-
-mErr6Overflow:                ; Error 6: overflow, args{rdi: *buf, rsi: count}
-push rdi
-push rsi
-lea W, [datErr6of]            ; print error message
-call mStrPut.W
-pop rsi
-pop rdi
-call mStrPut.RdiRsi           ; print word that caused the problem
-or VMFlags, VMErr
-ret
-
-mErr8NoParen:                 ; Error 8: comment had '(' without matching ')'
-lea W, [datErr8np]
-jmp mErrPutW
-
-mErr9DictFull:                ; Error 9: Dictionary is full
-lea W, [datErr9df]
-jmp mErrPutW
-
-mErr10ExpectedName:           ; Error 10: Expected a name
-lea W, [datErr10en]
-jmp mErrPutW
-
-mErr11NameTooLong:            ; Error 11: Name too long
-lea W, [datErr11ntl]
-jmp mErrPutW
-
-mErr12DivideByZero:           ; Error 12: Divide by zero
-lea W, [datErr12dbz]
-jmp mErrPutW
-
-mErr13AddressOOR:             ; Error 13: Address out of range
-lea W, [datErr13aor]
-jmp mErrPutW
-
-mErr14BadWordType:            ; Error 14: Bad word type
-lea W, [datErr14bwt]
-jmp mErrPutW
-
-mErr15CodeMemFull:            ; Error 15: Code memory full
-lea W, [datErr15cmf]
-jmp mErrPutW
-
-mErr16VarMemFull:             ; Error 16: Variable memory full
-lea W, [datErr16vmf]
-jmp mErrPutW
-
-mErr17SemiColon:              ; Error 17: ; when not compiling
-lea W, [datErr17snc]
-jmp mErrPutW
-
-mErr18ExpectedSemiColon:      ; Error 18: Expected ;
-lea W, [datErr18esc]
-jmp mErrPutW
-
-mErr19BadAddress:             ; Error 19: Bad address
-lea W, [datErr19ba]
-jmp mErrPutW
-
-mErr20ReturnUnderflow:        ; Error 20: Return stack underflow
-lea W, [datErr20rsu]
-jmp mErrPutW
-
-mErr21ReturnFull:             ; Error 21: Return stack full
-or VMFlags, VMRetFull         ; set return full flag
-lea W, [datErr21rsf]
-jmp mErrPutW
-
-mErr22LoopTooLong:            ; Error 22: Loop too long
-lea W, [datErr22ltl]
-jmp mErrPutW
 
 
 ;-----------------------------
@@ -696,44 +1003,51 @@ jmp mErrPutW
 ;
 
 mU8:                          ; Push zero-extended unsigned 8-bit literal
-movzx W, byte [rbp]           ; read literal from token stream
+movzx W, byte [Mem+ebp]       ; read literal from token stream
 inc ebp                       ; ajust I
 jmp mPush
 
 mI8:                          ; Push sign-extended signed 8-bit literal
-movsx W, byte [rbp]           ; read literal from token stream
+movsx W, byte [Mem+ebp]       ; read literal from token stream
 inc ebp                       ; ajust I
 jmp mPush
 
 mU16:                         ; Push zero-extended unsigned 16-bit literal
-movzx W, word [rbp]           ; read literal from token stream
+movzx W, word [Mem+ebp]       ; read literal from token stream
 add ebp, 2                    ; adjust I
 jmp mPush
 
 mI16:                         ; Push sign-extended signed 16-bit literal
-movsx W, word [rbp]           ; read literal from token stream
+movsx W, word [Mem+ebp]       ; read literal from token stream
 add ebp, 2                    ; adjust I
 jmp mPush
 
 mI32:                         ; Push signed 32-bit dword literal
-mov W, dword [rbp]            ; read literal from token stream
+mov W, dword [Mem+ebp]        ; read literal from token stream
 add ebp, 4                    ; adjust I
 jmp mPush
 
 mDotQuoteC:                   ; Print string literal to stdout (token compiled)
-movzx ecx, word [rbp]         ; get length of string in bytes (to adjust I)
+movzx ecx, word [Mem+ebp]     ; get length of string in bytes (to adjust I)
 add ecx, 2                    ;   add 2 for length word
-mov W, ebp                    ; I (ebp) should be pointing to {length, chars}
+lea W, [Mem+ebp]              ; I (ebp) should be pointing to {length, chars}
 add ebp, ecx                  ; adjust I past string
 jmp mStrPut.W
 
 ; Print a string literal from the input stream to stdout (interpret mode)
-; input bytes come from TIB using TibLen and IN
+; input bytes come from [IBPtr] using [IBLen] and [IN]
 mDotQuoteI:
-mov edi, [TIB]           ; edi = TIB base pointer
-mov esi, [TIB_LEN]       ; esi = TIB length
-mov ecx, [IN]            ; ecx = IN (index to next available byte of TIB)
-cmp esi, ecx             ; stop looking if TIB_LEN <= IN (ran out of bytes)
+movzx edi, word [Mem+IBPtr]  ; Fetch input buffer pointer (index to Mem)
+cmp edi, BuffersStart        ; Stop if buffer pointer is out of range
+jb .doneErr
+cmp edi, BuffersEnd
+jnb .doneErr
+lea edi, [Mem+edi]           ; Resolve buffer pointer to address
+movzx esi, word [Mem+IBLen]  ; Load and range check buffer's available bytes
+cmp esi, _1KB
+jnb .doneErr
+movzx ecx, word [Mem+IN]     ; ecx = IN (index to next available byte of TIB)
+cmp esi, ecx                 ; stop looking if TIB_LEN <= IN (ran out of bytes)
 jna mErr4NoQuote
 ;------------------------
 .forScanQuote:           ; Find a double quote (") character
@@ -746,12 +1060,12 @@ jnz .forScanQuote
 jmp mErr4NoQuote         ; reaching end of TIB without a quote is an error
 ;------------------------
 .finish:
-mov W, [IN]
+movzx W, word [Mem+IN]
 mov esi, ecx             ; ecx-[IN] is count of bytes copied to Pad
 sub esi, W
 add edi, W               ; edi = [TIB] + (ecx-[IN]) (old edi was [TIB])
 inc ecx                  ; store new IN (skip string and closing '"')
-mov [IN], ecx
+mov word [Mem+IN], cx
 ;------------------------
 test VMFlags, VMCompile  ; check if compiled version if compile mode active
 jz mStrPut.RdiRsi        ; nope: do mStrPut.RdiRsi(rdi: *buf, rsi: count)
@@ -759,19 +1073,15 @@ jz mStrPut.RdiRsi        ; nope: do mStrPut.RdiRsi(rdi: *buf, rsi: count)
 .compileMode:
 test esi, esi            ; stop now if string is empty (optimize it out)
 jz .done
-mov ecx, [CodeP]         ; check if code memory has space
-mov W, ecx
-add W, esi               ; number of characters in the string
-add W, 3                 ; 1 byte for token, 2 more bytes for length
-cmp W, CodeMax
-jnb mErr15CodeMemFull
+movzx ecx, word [Mem+CodeP]  ; check if code memory has space
+cmp ecx, HeapEnd-HReserve
+jnb mErr15HeapFull
 mov r10, rdi             ; r10 = save source string pointer
 mov r11, rsi             ; r11 = save source string byte count
-mov edi, CodeMem         ; edi = code memory base address
-mov WB, tDotQuoteC       ; [edi+CodeP] = token for compiled version of ."
-mov [edi+ecx], WB
+mov WB, tDotQuoteC       ; Store token for compiled version of ." at [CodeP]
+mov byte [Mem+ecx], WB
 inc ecx                  ; advance CodeP
-mov [edi+ecx], si        ; store string length (TODO: integer overflow?)
+mov word [Mem+ecx], si   ; store string length (TODO: integer overflow?)
 add ecx, 2               ; advance CodeP
 ;------------------------
 mov r9, r11              ; loop limit counter = saved source string length
@@ -779,28 +1089,38 @@ mov rsi, r10             ; rsi = saved source string pointer
 xor r8d, r8d             ; zero source index
 xor W, W
 .forCopy:
-mov WB, [esi+r8d]        ; load source byte from TIB
-mov [edi+ecx], WB        ; store dest byte in CodeMem
+mov WB, byte [esi+r8d]   ; load source byte from TIB
+mov byte [Mem+ecx], WB   ; store dest byte in CodeMem
 inc ecx                  ; advance source index (CodeP)
 inc r8d                  ; advance destination index (0..source_lenth-1)
 dec r9d                  ; check loop limit
 jnz .forCopy
-mov [CodeP], ecx         ; update [CodeP]
+mov word [Mem+CodeP], cx  ; update [CodeP]
 ;------------------------
 .done:
 ret
+;------------------------
+.doneErr:
+jmp mErr23BadBufferPointer
 
 ; Paren comment: skip input text until ")"
-;   input bytes come from TIB using TIB_LEN and IN
+;   input bytes come from [IBPtr] using [IBLen] and [IN]
 mParen:
-mov edi, [TIB]           ; edi = TIB base pointer
-mov esi, [TIB_LEN]       ; esi = TIB length
-mov ecx, [IN]            ; ecx = IN (index to next available byte of TIB
-cmp esi, ecx             ; stop looking if TIB_LEN <= IN (ran out of bytes)
+movzx edi, word [Mem+IBPtr]   ; Fetch input buffer pointer (index to Mem)
+cmp edi, BuffersStart         ; Stop if buffer pointer is out of range
+jb mErr23BadBufferPointer
+cmp edi, BuffersEnd
+jnb mErr23BadBufferPointer
+lea edi, [Mem+edi]            ; Resolve buffer pointer to address
+movzx esi, word [Mem+IBLen]   ; Load and range check buffer's available bytes
+cmp esi, _1KB
+jnb mErr23BadBufferPointer
+movzx ecx, word [Mem+IN]      ; ecx = IN (index to next available byte of TIB)
+cmp esi, ecx                  ; stop looking if TIB_LEN <= IN (ran out of bytes)
 jna mErr8NoParen
 ;------------------------
 .forScanParen:
-mov WB, [rdi+rcx]        ; check if current byte is ')'
+mov WB, [edi+ecx]        ; check if current byte is ')'
 cmp WB, ')'
 jz .done                 ; if so, stop looking
 inc ecx                  ; otherwise, continue with next byte
@@ -810,109 +1130,125 @@ jmp mErr8NoParen         ; oops, end of TIB reached without finding ")"
 ;------------------------
 .done:
 inc ecx
-mov [IN], ecx
+mov word [Mem+IN], cx
 ret
+
+mTick:                    ; TICK (') - Push address of word from input bufer
+push rbp
+movzx ebp, word [Mem+DP]  ; save DP since mWord will move it
+fDo Word, .err            ; copy next word of input buffer to [DP]
+mov word [Mem+DP], bp     ; restore DP so it points to start of string
+fDo Find, .err            ; find address of word named by string at [DP]
+;...                      ;  -> {S: address, T: -1 (true)} or {T: 0 (false)}
+test T, T                 ; check if it worked
+jnz .match
+;-------------------------
+.noMatch:                 ; Exit path for string not found -> {T: 0 (false)}
+pop rbp
+ret
+;-------------------------
+.match:                   ; Exit for match: return pointer to .param field
+call mDrop                ; -> {T: address of .param}
+pop rbp
+ret
+;-------------------------
+.err:                     ; Exit path for error; stack state is undefined!
+pop rbp
+ret
+
 
 ;-----------------------------
 ; Compiling words
 
 mColon:                       ; COLON - define a word
-mov edi, [DP]                 ; load dictionary pointer (index into Dct2)
-push rdi                      ; save [DP] in case we want to roll back changes
+movzx edi, word [Mem+DP]      ; load dictionary pointer [DP]
+push rdi                      ; save [DP] in case rollback needed
 call mCreate                  ; add name from input stream to dictionary
 test VMFlags, VMErr           ; stop and roll back dictionary if it failed
 jnz .doneErr
 ;-----------------------------
-mov esi, [DP]                 ; load dictionary pointer (updated by create)
-mov W, esi                    ; check if there is room to add a code pointer
-add W, 3
-add W, DctReserve
-cmp W, DctMax                 ; if not, stop with an error
+movzx esi, word [Mem+DP]      ; load dictionary pointer (updated by create)
+cmp esi, HeapEnd-HReserve     ; stop if there is not enough room to add a link
 jnb .doneErrFull
-mov [Dct2+esi], byte 2        ; append {.wordType: 2} (type is code pointer)
+mov [Mem+esi], byte 2         ; append {.wordType: 2} (type is code pointer)
 inc esi
-mov W, [CodeP]                ; CAUTION! code pointer in dictionary is _word_
-mov word [Dct2+esi], WW       ; append {.param: dw [CodeP]} (the code pointer)
+movzx W, word [Mem+CodeP]     ; CAUTION! code pointer in dictionary is _word_
+mov word [Mem+esi], WW        ; append {.param: dw [CodeP]} (the code pointer)
 add esi, 2
-mov [DP], esi
+mov word [Mem+DP], si
 ;-----------------------------
 .done:
 pop rdi                       ; commit dictionary changes
-lea W, [Dct2+edi]
-mov [Last], W
+mov word [Mem+Last], di
 or VMFlags, VMCompile         ; set compile mode
 ret
 ;-----------------------------
 .doneErrFull:
 pop rdi                       ; roll back dictionary changes
-mov [DP], edi
+mov word [Mem+DP], di
 jmp mErr9DictFull             ; show error message
 ;-----------------------------
 .doneErr:
 pop rdi                       ; roll back dictionary changes
-mov [DP], edi
+mov word [Mem+DP], di
 ret
 
 mSemiColon:                   ; SEMICOLON - end definition of a new word
 test VMFlags, VMCompile       ; if not in compile mode, invoking ; is an error
 jz mErr17SemiColon
-mov ecx, [CodeP]
-inc ecx                       ; temporarily advance code pointer
-cmp ecx, CodeMax              ; make sure code memory has available space
-jnb mErr15CodeMemFull
-dec ecx                       ; put code pointer back where it was
-mov edi, CodeMem              ; load code memory base address
+movzx ecx, word [Mem+CodeP]
+cmp ecx, Heap                 ; check that: Heap <= [CodeP] < HeapEnd-1
+jb mErr19BadAddress
+cmp ecx, HeapEnd-1
+jnb mErr15HeapFull
 ;-----------------------------
-.optimizerCheck:              ; Check if tail call optimization is possible
-mov r8d, [CodeCallP]          ; load address of last compiled call
-lea W, [rdi+rcx]              ; load address for current code pointer
-sub W, 3                      ; check if offset is (token + _word_ address)
-cmp r8d, W                    ;   zero means this `;` came right after a Call
-jz .rewriteTailCall
-;-----------------------------
-.normalNext:
-xor rsi, rsi                  ; store a Next token in code memory
+.optimizerCheck:                ; Check if tail call optimization is possible
+movzx r8, word [Mem+CodeCallP]  ; load address of last compiled call
+mov W, ecx                      ; load address for current code pointer
+sub W, 3                        ; check if offset is (token + _word_ address)
+cmp r8d, W                      ;  zero means this `;` came right after a Call
+je .rewriteTailCall
+;------------------------------
+.normalReturn:
+xor rsi, rsi                    ; store a Return token in code memory
 mov sil, tReturn
-mov [rdi+rcx], sil
-inc ecx                       ; advance the code pointer
-mov [CodeP], ecx
+mov byte [Mem+ecx], sil
+inc ecx                         ; advance the code pointer
+mov word [Mem+CodeP], cx
 xor W, W
-mov [CodeCallP], W            ; clear the last compiled call pointer
-and VMFlags, (~VMCompile)     ; clear the compile mode flag
+mov word [Mem+CodeCallP], WW    ; clear the last compiled call pointer
+and VMFlags, (~VMCompile)       ; clear the compile mode flag
 ret
 ;-----------------------------
 .rewriteTailCall:             ; Do a tail call optimization
-mov WB, [r8d]                 ; make sure last call is pointing to a tCall
+mov WB, byte [Mem+r8d]        ; make sure last call is pointing to a tCall
 cmp WB, tCall
-jnz .normalNext               ; if not: don't optimize
-mov [r8d], byte tJump         ; else: rewrite the tCall to a tJump
+jnz .normalReturn             ; if not: don't optimize
+mov [Mem+r8d], byte tJump     ; else: rewrite the tCall to a tJump
 and VMFlags, (~VMCompile)     ; clear the compile mode flag
 ret
 
 ; CREATE - Add a name to the dictionary
-; struct format: {dd .link, db .nameLen, <name>, db .wordType, (db|dw) .param}
+; struct format: {dd .link, db .nameLen, <name>, db .wordType, dw .param}
 mCreate:
-mov edi, Dct2            ; load dictionary base address
-mov esi, [DP]            ; load dictionary pointer (index relative to Dct2)
-mov W, esi               ; check if dictionary has room (link + reserve)
-add W, (4+DctReserve)
-cmp W, DctMax            ; stop if dictionary is full
+movzx esi, word [Mem+DP]     ; load dictionary pointer [DP]
+cmp esi, HeapEnd-HReserve    ; check if dictionary has room (link + reserve)
 jnb mErr9DictFull
-;------------------------
-push rsi                 ; save a copy of [DP] to use for rollback if needed
-mov W, [Last]            ; append {.link: [Last]} to dictionary
-mov [edi+esi], W
-add esi, 4               ; update [DP]
-mov [DP], esi
-push rsi                 ; store pointer to {.nameLen, <name>}
-call mWord               ; append word from [TIB+IN] as {.nameLen, <name>}
-pop rsi                  ; load pointer to {.nameLen, <name>}
-test VMFlags, VMErr      ; check for errors
+;---------------------------
+push rsi                     ; save a copy of [DP] in case rollback needed
+movzx edi, word [Mem+Last]   ; append {.link: [Last]} to dictionary
+mov word [Mem+esi], di
+add esi, 2                   ; update [DP]
+mov word [Mem+DP], si
+push rsi                     ; store pointer to {.nameLen, <name>}
+call mWord                   ; append word from [TIB+IN] as {.nameLen, <name>}
+pop rsi                      ; load pointer to {.nameLen, <name>}
+test VMFlags, VMErr          ; check for errors
 jnz .doneErr
-;------------------------
-                         ; Lowercase the name so case-insensitive lookups work
-lea rdi, [Dct2+rsi]      ; prepare {rdi, rsi} args for the name that was just
-movzx rsi, byte [rdi]    ;   stored at [Dct2+DP] (for DP from before mWord)
+;--------------------------
+                         ; Lowercase the name (for case-insensitive lookups)
+lea rdi, [Mem+rsi]       ; prepare {rdi, rsi} args for the name that was just
+movzx rsi, byte [rdi]    ;   stored at [DP] (its value before mWord)
 inc rdi                  ; skip the length byte of {db .nameLen, <name>}
 call mLowercase          ; mLowercase(rdi: *buf, rsi: count)
 ;------------------------
@@ -922,105 +1258,136 @@ ret
 ;------------------------
 .doneErr:
 pop rsi                  ; roll back dictionary changes
-mov [DP], esi
+mov word [Mem+DP], si    ; Restore DP to its old value
+xor edi, edi             ; Zero the first byte at [DP] so it will behave as a
+mov di, si               ;  length-prefixed string that is empty
+mov byte [Mem+rdi], 0
 ret
 
-; WORD - Copy a word from [TIB+IN] to [Dct2+DP]
+; WORD - Copy a word from [TIB+IN] to [DP] in format: {db length, <the-word>}
 mWord:
-mov edi, [TIB]           ; load input buffer base pointer
-mov esi, [IN]            ; load input buffer index
-mov ecx, [TIB_LEN]       ; load input buffer length
-cmp rsi, rcx             ; stop if no bytes are available in input buffer
-jnb .doneErr
+push rbp
+push rbx
+fPush IBPtr,     .err1   ; push  -> {T: address of pointer to input buffer}
+fDo   WordFetch, .err1   ; fetch -> {T: pointer to input buffer}
+mov ebp, T               ; ebp: *buf (virtual address)
+fDo   Drop,      .err1   ; drop  -> {}
+fPush IBLen,     .err1   ; push  -> {T: address of buffer size}
+fDo   WordFetch, .err1   ; fetch -> {T: buffer }
+mov ebx, T               ; ebx: count
+fDo   Drop,      .err1   ; drop  -> {}
+fPush IN,        .err1   ; push  -> {T: address of current input index}
+fDo   WordFetch, .err1   ; fetch -> {T: input index}
+call mPopW               ; pop   -> {}, [W: input index]
+cmp W, ebx               ; stop if there are no input bytes (index >= count)
+jge .err1
+mov edi, ebp             ; edi: *buf  (virtual address in Mem)
+mov esi, W               ; esi: [IN]  (index into *buf)
+mov ecx, ebx             ; ecx: count (maximum index of *buf)
+mov W, edi               ; stop if (*buf + count - 1) is out of range
+add W, ecx
+dec W
+cmp W, MemSize
+jge .err1
 ;////////////////////////
-.forScanStart:           ; Skip spaces to find next word-start boundary
-mov WB, byte [rdi+rsi]   ; check if current byte is non-space
-cmp WB, ' '              ; calculate r10b = ((WB==' ')||(WB==10)||(WB==13))
+jmp .forScanStart
+;------------------------
+.isWhitespace:              ; Check if W is whitespace (set r10b if so)
+cmp WB, ' '                 ; check for space
 sete r10b
-cmp WB, 10               ; check for LF
+cmp WB, 10                  ; check for LF
 sete r11b
 or r10b, r11b
-cmp WB, 13               ; check for CR
+cmp WB, 13                  ; check for CR
 sete r11b
-or r10b, r11b            ; r10b will be set if WB is in (' ', LF, CR)
-jz .forScanEnd           ; jump if word-start boundary was found
-inc rsi                  ; otherwise, advance past the ' '
-mov [IN], esi            ; update IN (save index to start of word)
-cmp rsi, rcx             ; loop if there are more bytes
+or r10b, r11b               ; Zero flag will be set for non-whitespace
+ret
+;------------------------
+.forScanStart:              ; Scan past whitespace to find word-start boundary
+mov WB, byte [Mem+edi+esi]  ; check if current byte is non-space
+call .isWhitespace
+jz .forScanEnd              ; jump if word-start boundary was found
+inc esi                     ; otherwise, advance past the ' '
+mov word [Mem+IN], si       ; update IN (save index to start of word)
+cmp esi, ecx                ; loop if there are more bytes
 jb .forScanStart
-jmp .doneErr             ; jump if reached end of TIB (it was all spaces)
+jmp .doneNone               ; stop if buffer was all whitespace
 ;------------------------
-.forScanEnd:             ; Scan for space or end of stream (word-end boundary)
-mov WB, byte [rdi+rsi]
-cmp WB, ' '              ; check for space
-sete r10b
-cmp WB, 10               ; check for LF
-sete r11b
-or r10b, r11b
-cmp WB, 13               ; check for CR
-sete r11b
-or r10b, r11b            ; r10b will be set if WB is in (' ', LF, CR)
+.forScanEnd:                ; Scan for word-end boundary (space or buffer end)
+mov WB, byte [Mem+edi+esi]
+call .isWhitespace
 jnz .wordSpace
-inc rsi
-cmp rsi, rcx
-jb .forScanEnd           ; loop if there are more bytes (detect end of stream)
+inc esi
+cmp esi, ecx
+jb .forScanEnd              ; loop if there are more input bytes
 ;////////////////////////
-                         ; Handle word terminated by end of stream
-.wordEndBuf:             ; currently: {[IN]: start index, rsi: end index}
-mov W, [IN]              ; prepare arguments for calling doWord:
-sub esi, W               ; convert esi from index_of_word_end to word_length
-add edi, W               ; convert edi from TIB to start_of_word_pointer
-mov W, [IN]              ; update [IN]
+                            ; Handle word terminated by end of stream
+.wordEndBuf:                ; now: {[IN]: start index, esi: end index}
+movzx W, word [Mem+IN]      ; prepare arguments for .copyWordRdiRsi
+sub esi, W                  ; convert: index_of_word_end -> word_length
+add edi, W                  ; convert: [IBPtr] -> start_of_word_pointer
+movzx W, word [Mem+IN]      ; update [IN]
 add W, esi
-mov [IN], W
-jmp .copyWordRdiRsi
+mov word [Mem+IN], WW
+jmp .copyWordRdiRsi         ; Copy word to end of dictionary
 ;------------------------
-                         ; Handle word terminated by space, LF, or CR
-.wordSpace:              ; currently: {[IN]: start index, rsi: end index + 1}
-mov W, [IN]              ; prepare word as {rdi: *buf, rsi: count}
-sub esi, W               ; convert rsi from index_of_word_end to word_length
-add edi, W               ; convert rdi from TIB to start_of_word_pointer
-add W, esi               ; update IN to point 1 past the space
+                            ; Handle word terminated by whitespace
+.wordSpace:                 ; now: {[IN]: start index, rsi: end index + 1}
+movzx W, word [Mem+IN]      ; prepare word as {rdi: *buf, rsi: count}
+sub esi, W                  ; convert: index_of_word_end -> word_length
+add edi, W                  ; convert: [IBPtr] -> start_of_word_pointer
+add W, esi                  ; update IN to point 1 past the space
 inc W
-mov [IN], W              ; (then fall through to copy word)
+mov word [Mem+IN], WW    ; (then fall through to copy word)
 ;////////////////////////
-.copyWordRdiRsi:         ; Copy word {rdi: *buf, rsi: count} to [Dct2+[DP]]
-mov r8d, Dct2            ; load dictionary base address
-mov r9d, [DP]            ; load dictionary pointer (index relative to Dct2)
-mov W, r9d               ; check if dictionary has room for the name
-inc W                    ;  add 1 for {.nameLen: <byte>}
-add W, esi               ;  add byte count for {.name: <name>}
-cmp W, DctMax            ; stop if dictionary is full
+.copyWordRdiRsi:           ; Copy word {rdi: *buf, rsi: count} to [Mem+DP]
+movzx rcx, word [Mem+DP]   ; load dictionary pointer (DP)
+cmp ecx, HeapEnd-255       ; stop if dictionary is full
 jnb mErr9DictFull
-mov W, esi               ; stop if word is too long (max 255 bytes)
-cmp W, 255
+cmp esi, 255               ; stop if word is too long (max 255 bytes)
 ja mErr11NameTooLong
 ;------------------------
-mov [r8d+r9d], sil       ; store {.nameLen: <byte count>}
-inc r9d
-xor rcx, rcx             ; zero source index
+mov byte [Mem+ecx], sil    ; store {.nameLen: <byte count>} in [Mem+[DP]]
+inc ecx
+xor edx, edx               ; zero source index
 .forCopy:
-mov WB, [rdi+rcx]        ; load [TIB+IN+rcx]
-mov [r8d+r9d], WB        ; store [Dct2+DP+rcx] (one byte of {.name: <name>})
-inc rcx                  ; keep looping while i<rsi
-inc r9d
-cmp rcx, rsi
+mov WB, [Mem+edi+edx]      ; load [Mem + [IBPtr] + [IN] + edx]
+mov byte [Mem+ecx], WB     ; store it to [Mem + [DP]]
+inc edx                    ; advance source index (edx)
+inc ecx                    ; advance [DP]
+cmp rdx, rsi               ; keep looping if source index < length of word
 jb .forCopy
 ;////////////////////////
 .done:
-mov [DP], r9d            ; store the new dictionary pointer
+pop rbx
+pop rbp
+mov word [Mem+DP], cx      ; store the new dictionary pointer
 ret
 ;------------------------
-.doneErr:
-and VMFlags, ~VMCompile  ; clear compile flag
+.doneNone:                 ; didn't get a word, so clear string count at [DP]
+fPush 0,         .err1     ; push  -> {T: 0}
+fPush DP,        .err1     ; push  -> {S: 0, T: DP}
+fDo   WordFetch, .err1     ; push  -> {S: 0, T: [DP]}
+fDo   ByteStore, .err1     ; store -> {}
+pop rbx
+pop rbp
+ret
+;------------------------
+.err1:
+pop rbx
+pop rbp
+and VMFlags, ~VMCompile    ; clear compile flag
 call mErr10ExpectedName
 ret
 
-; Convert string at {rdi: *buf, rsi: count} to lowercase (modify in place)
+
+; Convert string at {edi: *buf, esi: count} to lowercase (modify in place)
 mLowercase:
+test esi, esi         ; stop if string is empty
+jz .done
 xor ecx, ecx
 .for:
-mov WB, [rdi+rcx]     ; load [rdi+i] for i in 0..(rsi-1)
+mov WB, [edi+ecx]     ; load [rdi+i] for i in 0..(rsi-1)
 cmp WB, 'A'           ; convert WB to lowercase without branching
 setae r10b
 cmp WB, 'Z'
@@ -1031,10 +1398,11 @@ mov r11b, WB          ; ...speculatively prepare a lowercase (c+32) character
 add r11b, 32
 test r10b, r10b       ; ...swap in the lowercase char if needed
 cmovnz W, r11d
-mov [rdi+rcx], WB     ; store the lowercased byte
+mov [edi+ecx], WB     ; store the lowercased byte
 inc ecx
 dec esi               ; loop until all bytes have been checked
 jnz .for
+.done:
 ret
 
 
@@ -1083,6 +1451,7 @@ add edi, 2                    ; CAUTION! `add di, 2` or `dil, 2` _not_ okay!
 movq DSDeep, rdi              ; this depth includes T + (DSMax-1) memory items
 ret
 
+mPopW:                        ; POP  - alias for mDrop (which copies T to W)
 mDrop:                        ; DROP - pop T, saving a copy in W
 movq rdi, DSDeep              ; check if stack depth >= 1
 cmp dil, 1
@@ -1146,23 +1515,18 @@ and VMFlags, (~VMRetFull)     ; clear the return full flag
 ret
 
 mJump:                        ; Jump -- set the VM token instruction pointer
-movzx edi, word [rbp]         ; read pointer literal address from token stream
-add ebp, 2                    ; advance I (ebp) past the address literal
-cmp di, CodeMax               ; check if pointer is in range for CodeMem
-jnb mErr19BadAddress          ; if not: stop
-lea ebp, [edi+CodeMem]        ; set I (ebp) to the jump address
+movzx edi, word [Mem+ebp]     ; read pointer literal address from token stream
+mov ebp, edi                  ; set I (ebp) to the jump address
 ret
 
 mCall:                        ; Call -- make a VM token call
-movzx edi, word [rbp]         ; read pointer literal address from token stream
+movzx edi, word [Mem+ebp]     ; read pointer literal address from token stream
 add ebp, 2                    ; advance I (ebp) past the address literal
-cmp di, CodeMax               ; check if pointer is in range for CodeMem
-jnb mErr19BadAddress          ; if not: stop
-push rdi                      ; save the call address (dereferenced pointer)
+push rdi                      ; save the call address
 mov W, ebp                    ; push I (ebp) to return stack
 call mRPushW
 pop rdi                       ; retrieve the call address
-lea ebp, [edi+CodeMem]        ; set I (ebp) to the call address
+mov ebp, edi                  ; set I (ebp) to the call address
 ret
 
 mNext:                ; If R is zero, drop R and return, otherwise decrement R
@@ -1186,14 +1550,10 @@ jz .doneFinal
 call mRPopW                   ; pop the return address (should be in CodeMem)
 test VMFlags, VMErr
 jnz .doneErr
-mov edi, CodeMem              ; check if 0<=pointer<CodeMem
-cmp W, edi
-setae r10b                    ; r10b = (W >= CodeMem)
-add edi, CodeMax
-cmp W, edi
-setb r11b                     ; r11b = (W < CodeMem+CodeMax)
-test r10b, r11b
-jz mErr19BadAddress           ; if target address is not valid: stop
+cmp W, Heap                   ; check that: Heap <= W < HeapEnd
+jna mErr19BadAddress
+cmp W, HeapEnd
+jnb mErr19BadAddress          ; if target address is not valid: stop
 .done:
 mov ebp, W                    ; else: set token pointer to return address
 ret
@@ -1294,7 +1654,7 @@ cmp T, W                      ; check 2nd-T (W is old T, T is old 2nd)
 cmovg T, W                    ; if old 2nd was more, then use old T for new T
 ret
 
-mAbs:                         ; ABS   ( T -- abs_of_T )
+mAbs:                         ; ABS -- Replace T with absolute value of T
 movq rdi, DSDeep              ; need at least 1 item on stack
 cmp dil, 1
 jb mErr1Underflow
@@ -1396,29 +1756,28 @@ ret
 ; Dictionary: Numbers
 
 mHex:                         ; Set number base to 16
-mov [Base], dword 16
+mov word [Mem+Base], word 16
 ret
 
 mDecimal:                     ; Set number base to 10
-mov [Base], dword 10
+mov word [Mem+Base], word 10
 ret
 
 mNumber:              ; Parse & push i32 from word (rdi: *buf, rsi: count)
-mov WB, 3             ; assert count > 0
-test rsi, rsi
-jz mErr5Assert
-;---------------------
-xor r8, r8            ; zero index
-xor r9, r9            ; zero ASCII digit
-mov ecx, esi          ; rcx = count of bytes in word buffer
-;---------------------
-mov W, [Base]         ; assert that base is 10 or 16 and jump accordingly
+test rsi, rsi              ; check that count > 0
+cmp rsi, 0
+jle .doneErr1
+;------------------------
+xor r8, r8                 ; zero index
+xor r9, r9                 ; zero ASCII digit
+mov ecx, esi               ; rcx = count of bytes in word buffer
+;------------------------
+movzx W, word [Mem+Base]   ; check that base is 10 or 16
 cmp WB, 10
-jz .decimal           ; use decimal conversion
+jz .decimal                ; use decimal conversion
 cmp WB, 16
-jz .hex               ; use hex conversion
-mov WB, 4
-jmp mErr5Assert       ; oops... Base is not valid
+jz .hex                    ; use hex conversion
+jmp .doneErr2              ; oops... Base is not valid
 ;/////////////////////
 .decimal:             ; Attempt to convert word as signed decimal number
 xor WQ, WQ            ; zero accumulator
@@ -1499,12 +1858,12 @@ test VMFlags, VMCompile  ; check if compile mode is active
 jz mPush                 ; if not compiling: push the number
 ;---------------------
 .compileLiteral:         ; else: compile number into code memory
-mov ecx, [CodeP]         ; make sure code memory has available space
-mov ecx, 5
-cmp ecx, CodeMax
-jnb mErr15CodeMemFull    ; stop if code memory is full
-mov ecx, [CodeP]         ; else: prepare destination pointer
-mov edi, CodeMem
+movzx ecx, word [Mem+CodeP]  ; check that: Heap < [CodeP] < HeapEnd-5
+cmp ecx, Heap
+jb mErr13AddressOOR
+cmp ecx, HeapEnd-5
+jnb mErr15HeapFull       ; stop if code memory is full
+lea edi, [Mem]           ; else: prepare destination pointer
 cmp W, 0                 ; find most compact literal to accurately store W
 jl .compileNegative
 cmp W, 255
@@ -1522,102 +1881,134 @@ mov [edi+ecx], byte tI32
 inc ecx
 mov [edi+ecx], W
 add ecx, 4
-mov [CodeP], ecx
+mov word [Mem+CodeP], cx
 ret
 .compileU16:             ; compile as 2-byte unsigned literal
 mov [edi+ecx], byte tU16
 inc ecx
 mov [edi+ecx], WW
 add ecx, 2
-mov [CodeP], ecx
+mov word [Mem+CodeP], cx
 ret
 .compileU8:              ; compile as 1-byte unsigned literal
 mov [edi+ecx], byte tU8
 inc ecx
 mov [edi+ecx], WB
 add ecx, 1
-mov [CodeP], ecx
+mov word [Mem+CodeP], cx
 ret
 .compileI16:             ; compile as 2-byte signed literal
 mov [edi+ecx], byte tI16
 inc ecx
 mov [edi+ecx], WW
 add ecx, 2
-mov [CodeP], ecx
+mov word [Mem+CodeP], cx
 ret
 .compileI8:              ; compile as 1-byte signed literal
 mov [edi+ecx], byte tI8
 inc ecx
 mov [edi+ecx], WB
 add ecx, 1
-mov [CodeP], ecx
+mov word [Mem+CodeP], cx
 ret
-;---------------------
+;------------------------
 .doneNaN:                ; failed conversion, signal NaN
 or VMFlags, VMNaN
 ret
+;------------------------
+.doneErr1:
+jmp mErr5NumberFormat
+;------------------------
+.doneErr2:
+jmp mErr5NumberFormat
 
 
 ;-----------------------------
 ; Dictionary: Fetch and Store
 
-mFetch:                     ; Fetch: pop addr, load & push dword [VarMem+addr]
+mFetch:                     ; Fetch: pop addr, load & push dword [Mem+T]
 movq rdi, DSDeep            ; need at least 1 item on stack
 cmp dil, 1
 jb mErr1Underflow
-test T, T                   ; make sure address is in range (0<=addr<VarMax-3)
+test T, T                   ; check address satisfies: 0 <= T < MemSize-3
 jl mErr13AddressOOR
-mov W, T
-add W, 3
-cmp W, VarMax
-jnb mErr13AddressOOR
-mov T, [VarMem+T]           ; pop addr, load dword, push dword
+cmp T, MemSize-3
+jge mErr13AddressOOR
+mov T, [Mem+T]              ; pop addr, load dword, push dword
 ret
 
-mStore:                     ; Store dword (second) at address (T)
+mStore:                     ; Store dword (second) at address [Mem+T]
 movq rsi, DSDeep            ; make sure stack depth >= 2 items (data, address)
 cmp sil, 2
 jb mErr1Underflow
-test T, T                   ; make sure address is in range (0<=addr<VarMax-3)
+test T, Fence               ; check address satisfies: Fence < T < MemSize-3
 jl mErr13AddressOOR
-mov W, T
-add W, 3
-cmp W, VarMax
-jnb mErr13AddressOOR
+cmp T, MemSize-3
+jge mErr13AddressOOR
 mov edi, T                  ; save address
 dec rsi                     ; drop address
 mov T, [DSBase+4*esi-4]     ; T now contains the data dword from former second
-mov [VarMem+edi], T         ; store data at [VarMem+addr]
+mov [Mem+edi], T            ; store data at [Mem+T]
 dec rsi                     ; drop data dword
 movq DSDeep, rsi
 mov T, [DSBase+4*esi-4]
 ret
 
-mByteFetch:                 ; Fetch: pop addr, load & push byte [VarMem+addr]
+mByteFetch:                 ; Fetch: pop addr, load & push byte [Mem+T]
 movq rdi, DSDeep            ; make sure stack has at least 1 item (address)
 cmp dil, 1
 jb mErr1Underflow
-test T, T                   ; make sure address is in range (0<=addr<VarMax)
+test T, T                   ; check address satisfies: 0 <= T < MemSize
 jl mErr13AddressOOR
-cmp T, VarMax
-jnb mErr13AddressOOR
+cmp T, MemSize
+jge mErr13AddressOOR
 xor W, W                    ; pop addr, load dword
-mov WB, byte [VarMem+T]
+mov WB, byte [Mem+T]
 mov T, W                    ; push dword
 ret
 
-mByteStore:                 ; Store low byte of (second) at address (T)
+mByteStore:                 ; Store low byte of (second) at address [Mem+T]
 movq rdi, DSDeep            ; make sure stack depth >= 2 items (data, address)
 cmp dil, 2
 jb mErr1Underflow
-test T, T                   ; make sure address is in range (0<=addr<VarMax)
+test T, Fence               ; check address satisfies: Fence < T < MemSize
 jl mErr13AddressOOR
-cmp T, VarMax
-jnb mErr13AddressOOR
+cmp T, MemSize
+jge mErr13AddressOOR
 mov esi, T                  ; save address
 dec edi                     ; drop address
-mov T, [DSBase+4*edi-4]     ; T now contains the data dword from former second
-mov byte [VarMem+esi], TB   ; store data at [VarMem+addr]
+mov T, [DSBase+4*edi-4]     ; T now contains the data from former second
+mov byte [Mem+esi], TB      ; store data at [Mem+T]
+dec edi                     ; drop data dword
+movq DSDeep, rdi
+mov T, [DSBase+4*edi-4]
+ret
+
+mWordFetch:                 ; Fetch: pop addr, load & push word [Mem+T]
+movq rdi, DSDeep            ; make sure stack has at least 1 item (address)
+cmp dil, 1
+jb mErr1Underflow
+test T, T                   ; check address satisfies: 0 <= T < MemSize-1
+jl mErr13AddressOOR
+cmp T, MemSize-1
+jge mErr13AddressOOR
+xor W, W                    ; pop addr, load dword
+mov WW, word [Mem+T]
+mov T, W                    ; push dword
+ret
+
+mWordStore:                 ; Store low word of (second) at address [Mem+T]
+movq rdi, DSDeep            ; make sure stack depth >= 2 items (data, address)
+cmp dil, 2
+jb mErr1Underflow
+test T, Fence               ; check address satisfies: Fence < T < MemSize-1
+jl mErr13AddressOOR
+cmp T, MemSize-1
+jge mErr13AddressOOR
+mov esi, T                  ; save address
+dec edi                     ; drop address
+mov T, [DSBase+4*edi-4]     ; T now contains the data from former second
+mov word [Mem+esi], TW      ; store data at [Mem+T]
 dec edi                     ; drop data dword
 movq DSDeep, rdi
 mov T, [DSBase+4*edi-4]
@@ -1627,24 +2018,24 @@ ret
 ;-----------------------------
 ; Dictionary: Strings
 
-mSpace:                ; Print a space to stdout
+mSpace:                       ; Print a space to stdout
 mov W, ' '
 jmp mEmit.W
 
-mCR:                   ; Print a CR (newline) to stdout
+mCR:                          ; Print a CR (newline) to stdout
 mov W, 10
 jmp mEmit.W
 
-mEmit:                 ; Print low byte of T as ascii char to stdout
+mEmit:                        ; Print low byte of T as ascii char to stdout
 mov W, T
 push WQ
 call mDrop
 pop WQ
-.W:                    ; Print low byte of W as ascii char to stdout
-movzx esi, WB          ; store WB in [edi: EmitBuf]
-mov edi, EmitBuf
+.W:                           ; Print low byte of W as ascii char to stdout
+movzx esi, WB                 ; store WB in [edi: EmitBuf]
+lea edi, [Mem+EmitBuf]
 mov [edi], esi
-xor esi, esi           ; esi = 1 (count of bytes in *edi)
+xor esi, esi                  ; esi = 1 (count of bytes in *edi)
 inc esi
 jmp mStrPut.RdiRsi
 
@@ -1652,133 +2043,161 @@ jmp mStrPut.RdiRsi
 ;-----------------------------
 ; Dictionary: Formatting
 
-mDot:                 ; Print T using number base
-movq rdi, DSDeep      ; need at least 1 item on stack
+mDot:                         ; Print T using number base
+movq rdi, DSDeep              ; need at least 1 item on stack
 cmp dil, 1
 jb mErr1Underflow
 mov W, T
 push WQ
 call mDrop
 pop WQ
-.W:                   ; Print W using number base
-push WQ
-call mFmtRtlClear     ; clear number formatting buffer
-pop WQ
+.W:                           ; Print W using number base
+call mFmtRtlClear             ; Clear the buffer
 mov rdi, WQ
-call mFmtRtlInt32     ; format W
-call mFmtRtlSpace     ; add a space
-call mFmtRtlPut       ; print number formatting buffer
+call mFmtRtlInt32             ; format W
+call mFmtRtlSpace             ; add a space
+jmp mFmtRtlPut                ; print number formatting buffer
 
-mFmtRtlClear:            ; Clear PadRtl with 'x' and reset index to leftmost
-mov ecx, StrMax
-mov WB, 'x'
-.for:
-mov [PadRtl+rcx], WB
-dec rcx
-jnz .for
-lea rdi, [PadRtl+StrMax]
-mov [rdi], word StrMax
+mFmtRtlClear:                 ; Clear number formatting buffer
+mov word [Mem+FmtLI], FmtEnd  ; leftmost available byte = rightmost byte
 ret
 
-mFmtRtlSpace:            ; Insert (rtl) a space into the PadRtl buffer
+mFmtRtlSpace:                 ; Insert (rtl) a space into the Fmt buffer
 xor rdi, rdi
 mov dil, ' '
 jmp mFmtRtlInsert
 
-mFmtRtlMinus:            ; Insert (rtl) a '-' into the PadRtl buffer
+mFmtRtlMinus:                 ; Insert (rtl) a '-' into the Fmt buffer
 xor rdi, rdi
 mov dil, '-'
 jmp mFmtRtlInsert
 
-mFmtRtlInsert:           ; Insert (rtl) byte from rdi into the PadRtl buffer
-xor rsi, rsi             ; load index of leftmost byte
-mov si, [PadRtl+StrMax]
-mov WB, 5                ; assert(index <= max valid index value, 5)
-cmp si, StrMax
-ja mErr5Assert
-mov WB, 6                ; assert(index >= min valid index value, 6)
-cmp si, 1
-jb mErr5Assert
-dec rsi                  ; dec rsi to get next available byte
-mov [PadRtl+rsi], dil    ; store whatever was in low byte of rdi
-mov [PadRtl+StrMax], si  ; store the new leftmost byte index
+mFmtRtlInsert:                ; Insert (rtl) byte from rdi into Fmt buffer
+movzx esi, word [Mem+FmtLI]   ; load index of leftmost available byte
+cmp esi, Fmt                  ; stop if buffer is full
+jb mErr26FormatInsert
+mov byte [Mem+rsi], dil       ; store whatever was in low byte of rdi
+dec esi                       ; dec esi to get next available byte
+mov word [Mem+FmtLI], si      ; store the new leftmost byte index
 ret
 
-mFmtRtlPut:              ; Print the contents of PadRtl
-xor rcx, rcx             ; rcx = index to leftmost used byte of PadRtl
-mov cx, [PadRtl+StrMax]
-push rcx
-xor rsi, rsi             ; rsi = size of PadRtl (index to rightmost byte + 1)
-mov si, StrMax
-sub si, cx               ; rsi = count of string bytes in PadRtl
-mov WB, 7                ; assert(((rsi >= 0) && (rsi < StrMax)), 7)
-cmp si, StrMax
-jnb mErr5Assert
-pop rcx
-lea rdi, [PadRtl+rcx]    ; prepare for mStrPut.RdiRsi(rdi: *buf, rsi: count)
-call mStrPut.RdiRsi      ; print format string
-jmp mFmtRtlClear         ; clear format string
+mFmtRtlPut:                   ; Print the contents of Fmt
+movzx ecx, word [Mem+FmtLI]   ; index to leftmost available byte of Fmt
+inc ecx                       ; convert from available byte to filled byte
+cmp ecx, Fmt                  ; check that index is within Fmt buffer bounds
+jb mErr27BadFormatIndex
+cmp ecx, FmtEnd
+ja mErr27BadFormatIndex
+lea rdi, [Mem+ecx]            ; edi: pointer to left end of format string
+mov esi, FmtEnd+1             ; esi: count of bytes in format string
+sub esi, ecx
+jmp mStrPut.RdiRsi            ; mStrPut.RdiRsi(rdi: *buf, rsi: count)
 
-; Format an int32, right aligned in PadRtl, according to current number base.
+; Format edi (int32), right aligned in Fmt, according to current number base.
 ;
-; This formats a number from rdi into PadRtl, using an algorithm that puts
+; This formats a number from edi into Fmt, using an algorithm that puts
 ; digits into the buffer moving from right to left. The idea is to match the
 ; order of divisions, which necessarily produces digits in least-significant to
 ; most-significant order. This is intended for building a string from several
 ; numbers in a row (like with .S).
 ;
-; Arguments: {rdi: number_to_format}
-mFmtRtlInt32:
-xor rsi, rsi          ; rsi = index to leftmost used byte of PadRtl
-mov si, [PadRtl+StrMax]
-mov WB, 8             ; assert(index to PadRtl leftmost byte is in range, 8)
-cmp rsi, StrMax
-ja mErr5Assert
-mov WB, 9             ; assert(PadRtl has room for another number, 9)
-cmp si, 22
-jna mErr5Assert
-test edi, 0x80000000  ; check dividend's sign bit (32-bit)
-setnz r10b            ; save sign bit in r10b
-mov eax, edi          ; rax (WQ) = dividend
-neg edi               ; prepare negated value of dividend
-mov ecx, [Base]       ; rcx = current number base
-cmp cl, 10            ; if ((rdi<0) && ([Base] == 10)) { rax = abs(rdi) }
-setz r11b             ; (this does i32 for decimal or u32 for hex)
-and r10b, r11b
-cmovnz rax, rdi       ; rax = dividend (for base 10, abs(dividend))
-;/////////////////////
-.forDigit:
-                      ; Calculate value of least-significant digit (use Base)
-dec rsi               ; decrement index into PadRtl
-xor rdx, rdx          ; zero high register of dividend (may contain remainder)
-idiv rcx              ; idiv args {[rdx:rax]: dividend, operand: divisor}
-                      ; idiv result {rax: quotient, rdx: remainder}
-;---------------------
-                      ; Convert from number in 0..15 to {'0'..'9', 'A'..'F'}
-mov r11b, dl          ; prepare ASCII digit as n-10+'A' (in case n in 10..15)
-add r11b, ('A'-10)
-add dl, '0'           ; prepare ASCII digit as n+'0' (in case n in 0..9)
-cmp dl, '9'           ; rdx = pick the appropriate ASCII digit
-cmova rdx, r11
-mov [PadRtl+rsi], dl  ; store digit in rightmost unused byte
-test rax, rax         ; stop if quotient was zero
-jz .done
-test rsi, rsi         ; stop if buffer is full
-jz .doneError
-jmp .forDigit         ; loop if buffer still has room for another digit
-;/////////////////////
-.done:
-mov [PadRtl+StrMax], si  ; store updated index to PadRtl's leftmost used byte
-test r10b, r10b       ; check if a '-' is needed
-jnz .doneNegative
+; My intent with keeping this mechanism entirely separate from the stack was to
+; have a debugging capability that still works if the stack is full. Probably
+; there is a better way to handle this. The current approach feels too complex
+; and is a big hassle to maintain.
+;
+; TODO: maybe port this from assembly to Forth code that loads at runtime?
+;
+mFmtRtlInt32:                 ; Format edi (int32) using current number Base
+push rbp
+mov dword [Mem+FmtQuo], edi   ; Save edi as initial Quotient because the digit
+;...                          ;  divider takes its dividend from the previous
+;...                          ;  digit's quotient (stored in [FmtQuo])
+call mFmtFixupQuoSign         ; Prepare for decimal i32 (signed) or hex u32
+;...                          ;  (unsigned) depending on current [Base]
+mov ebp, 11                   ; ebp: loop limit (11 digits is enough for i32)
+;-----------------------------
+.forDigits:
+call mFmtDivideDigit          ; Divide out the least significant digit
+test VMFlags, VMErr           ;  stop if there was an error
+jnz .doneErr
+call mFmtRemToASCII           ; Format devision remainder (digit) into Fmt buf
+test VMFlags, VMErr           ;  stop if there was an error
+jnz .doneErr
+dec ebp                       ; stop if loop has been running too long
+jz .doneErrOverflow
+mov W, dword [Mem+FmtQuo]
+test W, W                     ; loop unil quotient is zero (normal exit path)
+jnz .forDigits
+;-----------------------------
+.done:                        ; Normal exit
+pop rbp
+mov al, byte [Mem+FmtSgn]     ; load sign flag for the number being formatted
+test al, al                   ; check if sign is negative
+setnz cl
+movzx eax, word [Mem+Base]    ; check if base is decimal
+cmp ax, 10
+sete dl
+test cl, dl
+jnz mFmtRtlMinus              ; negative and base 10 means add a '-'
 ret
-;---------------------
-.doneNegative:        ; add a '-' if base is decimal and sign is negative
-jmp mFmtRtlMinus
-;---------------------
-.doneError:
-mov W, 10             ; show error, assert(true, 10), if buffer got full. This
-jmp mErr5Assert       ;   should not happen unless there is a logic error
+;-----------------------------
+.doneErr:                     ; This exit path is unlikely unles there's a bug
+pop rbp
+ret
+;-----------------------------
+.doneErrOverflow:             ; This exit path is also unlikely, unless a bug
+pop rbp
+jmp mErr5NumberFormat
+
+
+mFmtFixupQuoSign:             ; Fixup state vars for decimal i32 or hex u32
+mov edi, dword [Mem+FmtQuo]   ; load initial quotent (number to be formatted)
+test edi, edi                 ; check if sign is negative
+sets cl
+movzx eax, word [Mem+Base]    ; check if base is decimal
+cmp ax, 10
+sete dl
+test cl, dl                   ; if negative and decimal, prepare for i32
+jnz .prepForNegativeI32
+;-------------------
+.prepForU32:                  ; Do this for positive decimal or any hex
+mov byte [Mem+FmtSgn], 0      ;  sign is positive, do not take absolute value
+ret
+;-------------------
+.prepForNegativeI32:          ; Do this for negative decimal
+mov byte [Mem+FmtSgn], -1     ;  save negative sign in [FmtSign]
+neg edi                       ;  take absolute value of the initial quotient
+mov dword [Mem+FmtQuo], edi
+ret
+
+
+mFmtDivideDigit:              ; Do the division to format one digit of an i32
+mov eax, dword [Mem+FmtQuo]   ; idiv dividend (old quotient) goes in [rdx:rax]
+xor edx, edx                  ;  (we're using i32, not i64, so zero rdx)
+movzx ecx, word [Mem+Base]    ; idiv divisor (number base) goes in rcx
+xor edi, edi
+mov dil, 2                    ; limit Base to range 2..16 to avoid idiv trouble
+cmp ecx, edi
+jl mErr25BaseOutOfRange
+mov dil, 16
+cmp ecx, edi
+jg mErr25BaseOutOfRange
+;-------
+idiv rcx                      ; idiv: {[rdx:rax]: dividend, operand: divisor}
+;-------                              result {rax: quotient, rdx: remainder}
+mov dword [Mem+FmtQuo], eax   ; idiv puts quotient in rax
+mov dword [Mem+FmtRem], edx   ; idiv puts remainder in rdx
+ret
+
+mFmtRemToASCII:               ; Format division remainder as ASCII digit
+mov edi, dword [Mem+FmtRem]   ; remainder should be in range 0..([Base]-1)
+movzx rcx, dil                ; prepare digit as n-10+'A' (in case n in 10..15)
+add cl, ('A'-10)
+add dil, '0'                  ; prepare digit as n+'0' (in case n in 0..9)
+cmp dil, '9'                  ; rdx = pick the right digit (hex or decimal)
+cmova rdi, rcx
+jmp mFmtRtlInsert             ; insert low byte of rdi into Fmt buffer
 
 
 ; Nondestructively print stack in current number base.
@@ -1807,6 +2226,8 @@ mov edi, T            ; prepare for mFmtRtlInt32(edi: T)
 ;---------------------
 .for:                 ; Format stack cells
 call mFmtRtlInt32     ; format(edi: current stack cell) into PadRtl
+test VMFlags, VMErr
+jnz .doneFmtErr
 call mFmtRtlSpace     ; add a space (rtl, so space goes to left of number)
 inc ebp               ; inc index
 movq WQ, DSDeep       ; stop if all stack cells have been formatted
@@ -1826,6 +2247,10 @@ ret
 pop rbp
 lea W, [datDotSNone]  ; print empty stack message
 jmp mStrPut.W
+;---------------------
+.doneFmtErr:
+pop rbp
+ret
 
 
 mDotRet:              ; Nondestructively print return stack in current base
@@ -1873,7 +2298,7 @@ ret
 ; Dictionary: Host API for IO
 
 mStrPut:               ; Write string [Pad] to stdout, clear [Pad]
-lea WQ, [Pad]
+lea WQ, [Mem+Pad]
 .W:                    ; Write string [W] to stdout, clear [W]
 mov rdi, WQ            ; *buf (note: W is eax, so save it first)
 movzx esi, word [rdi]  ; count (string length is first word of string record)

@@ -21,7 +21,7 @@ size_t mkb_host_write(const void *buf, size_t count);
 //   1 --> line of input is ready (got a CR)
 int mkb_host_step_stdin();
 
-#define BUF_SIZE 1023
+#define BUF_SIZE 1024
 
 // Text Input Buffer holding the line of text currently being edited
 unsigned char mkb_host_TIB[BUF_SIZE];

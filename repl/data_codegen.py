@@ -9,10 +9,10 @@ This is how I bootstrap the VM token instruction set and dictionaries for
 built-in words.
 
 Dct0 struct format is:
-label: dd .link             ; link to previous list entry
+label: dw .link             ; link to previous list entry
        db .nameLen, <name>  ; name of word
        db .wordType         ; type of word: 0:token, 1:var, 2:code
-       (db|dw) .param       ; parameter: (db token|dw varPtr|dw codePtr)
+       dw .param            ; parameter: {token,immediate} | varPtr | codePtr
 """
 
 # These are VM instruction token names for generating source code of token
@@ -27,65 +27,68 @@ Return Nop Bye Dup Drop Swap Over ClearStack DotS DotQuoteI Paren Colon Emit
 CR Space Dot Plus Minus Mul Div Mod DivMod Max Min Abs And Or Xor Invert Less
 Greater Equal ZeroLess ZeroEqual Hex Decimal Fetch Store ByteFetch ByteStore
 SemiColon DotQuoteC U8 U16 I8 I16 I32 Jump Call ClearReturn Next Negate
-ToR RFrom I DotRet
+ToR RFrom I DotRet WordStore WordFetch DumpVars Tick
 """
 
-# These are names and tokens for words in Markab Forth's core dictionary
-# (Dct0). Names are spelled as Forth source code. Tokens are spelled out
-# similar to traditional Forth pronunciations, using characters that are
-# allowable for assembly language labels.
+# These are names and tokens for words in markabForth's core dictionary. Names
+# are spelled as Forth source code. Tokens are spelled similar to traditional
+# Forth pronunciations, but using characters that are allowable for assembly
+# language labels.
 #
-# The main difference between DCT0_LIST and TOKENS is that DCT0_LIST does not
-# include Next, SemiColon, and some other tokens that are only used as part of
-# compiled words.
+# The main difference between VOC0_LIST and TOKENS is that VOC0_LIST does not
+# include some tokens that are only used as part of compiled words.
 #
-DCT0_LIST = """
-nop Nop
-bye Bye
-dup Dup
-drop Drop
-swap Swap
-over Over
-clearstack ClearStack
-.s DotS
-." DotQuoteI
-( Paren
-: Colon
-emit Emit
-cr CR
-space Space
-. Dot
-+ Plus
-- Minus
-negate Negate
-* Mul
-/ Div
-mod Mod
-/mod DivMod
-max Max
-min Min
-abs Abs
-and And
-or Or
-xor Xor
-invert Invert
-< Less
-> Greater
-= Equal
-0< ZeroLess
-0= ZeroEqual
-hex Hex
-decimal Decimal
-@ Fetch
-! Store
-b@ ByteFetch
-b! ByteStore
-; SemiColon
-next Next
->r ToR
-r> RFrom
-i I
-.ret DotRet
+VOC0_LIST = """
+nop Nop 0
+bye Bye 0
+dup Dup 0
+drop Drop 0
+swap Swap 0
+over Over 0
+clearstack ClearStack 0
+.s DotS 0
+( Paren -1
+." DotQuoteI -1
+: Colon -1
+; SemiColon -1
+' Tick -1
+emit Emit 0
+cr CR 0
+space Space 0
+. Dot 0
++ Plus 0
+- Minus 0
+negate Negate 0
+* Mul 0
+/ Div 0
+mod Mod 0
+/mod DivMod 0
+max Max 0
+min Min 0
+abs Abs 0
+and And 0
+or Or 0
+xor Xor 0
+invert Invert 0
+< Less 0
+> Greater 0
+= Equal 0
+0< ZeroLess 0
+0= ZeroEqual 0
+hex Hex 0
+decimal Decimal 0
+@ Fetch 0
+! Store 0
+b@ ByteFetch 0
+b! ByteStore 0
+w@ WordFetch 0
+w! WordStore 0
+next Next 0
+>r ToR 0
+r> RFrom 0
+i I 0
+.ret DotRet 0
+.vars DumpVars 0
 """
 
 def list_of_words(text):
@@ -109,36 +112,37 @@ def jump_table_length():
   return len(list_of_words(TOKENS))
 
 def make_dictionary0():
+  global VOC0_HEAD
   items = []
-  serial = 0
-  label = "Dct0Tail"  # first item gets a special label
-  link = "0"
-  lines = DCT0_LIST.strip().split("\n")
+  address = 16
+  link = 0
+  lines = VOC0_LIST.strip().split("\n")
   for (i,line) in enumerate(lines):
-    (name, long_name) = line.strip().split(" ")
+    (name, long_name, immediate) = line.strip().split(" ")
     # Add this item to the Dct0 dictionary
     quote = "'" if ('"' in name) else '"'  # handle ." specially
-    if i == len(lines) - 1:                # last item gets special label
-      label = "Dct0Head"
-    indent = " " * (len(label)+2)
+    if i == len(lines) - 1:                # last item gets a link
+      VOC0_HEAD = address
     token = "t" + long_name                # change long name into token macro
-    fmtLink = f"{label}: dd {link}"        # link to previous item in list
-    fmtName = f"{indent}db {len(name)}, {quote}{name}{quote}"
-    # There is a tReturn after each token so that it's possible to invoke the
-    #  inner interpreter with an instruction cycle limit > 1 without it
-    #  running through the dictionary attempting to execute links and whatnot
-    #  as if they were tokens
-    fmtToks = f"{indent}db 0, {token}, tReturn"
-    items += [f"{fmtLink}\n{fmtName}\n{fmtToks}\n{indent}align 16, db 0"]
-    serial += 1
-    link = label
-    label = f"Dct0_{serial:03}"
+    fmtLink = f"dw {link}"                 # link to previous item in list
+    fmtName = f"db {len(name)}, {quote}{name}{quote}"
+    fmtTok = f", 0, {token}, {immediate}"
+    link = address
+    address += 2 + 1 + len(name) + 1 + 2  # link, nameLen, <name>, type, tokens
+    pad_size = 0 # 16 - (address % 16)  # <- uncomment to get aligned hexdumps
+    address += pad_size
+    pad = ", 0" * pad_size
+    items += [f"{fmtLink}\n{fmtName}{fmtTok}{pad}"]
+  items += [f"Voc0End: db 0"]
+  items += [f"align 16, db 0"]
+  items += [f"Voc0Len: dd Voc0End - Voc0  ; {address}"]
   return "\n".join(items)
 
 TOKEN_DEFS = make_token_defs()
 JUMP_TABLE = make_jump_table()
 JT_LEN = jump_table_length()
-DCT0 = make_dictionary0()
+VOC0_HEAD = 0                  # this gets redefined by make_dictionary0()
+VOC0 = make_dictionary0()
 
 TEMPLATE = f"""
 ; Copyright (c) 2022 Sam Blenny
@@ -168,14 +172,23 @@ JumpTable:
 
 
 ;-------------------------------------------------------------
-; Dictionary linked list (Dct0)
-
+; Core vocabulary linked lists
+;
+; Vocabulary linked list format:
+;  dw link to previous item (zero indexed, *not* section indexed)
+;  db length of name, <name-bytes>, token
+;
+; Voc0 is meant to be copied at runtime into the core dictionary
+; area of markabForth's 64KB virtual RAM memory map
+;
 align 16, db 0
 db "== Dictionary =="
 
 align 16, db 0
-{DCT0}
-Dct0End: db 0
+Voc0: dd 0         ; This padding is so second item's link will be non-zero
+align 16, db 0
+{VOC0}
+Voc0Head: dd {VOC0_HEAD}
 """.strip()
 
 print(TEMPLATE)
