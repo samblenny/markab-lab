@@ -32,7 +32,7 @@ clearstack
 ( ***************** E21...)        clearstack rs0
 ( ***************** E21...)                   rs0
 ( ^^ note auto-recovery from full return stack)
-(  17 17  OK)                                  .s
+(  18 18  OK)                                  .s
 ( --- Test tail call optimization ---)
 (  OK)   : tc0 0 . ;  : tc1 1 . tc0 ;
 ( 1 0  OK)             clearstack tc1

@@ -262,7 +262,6 @@ section .text
 %define VMNaN 4               ; NaN bit: set means number conversion failed
 %define VMCompile 8           ; Compile bit: set means compile mode is active
 %define VMReturn 16           ; Return bit: set means end of outermost word
-%define VMRetFull 32          ; Return stack full bit: what it sounds like
 %define VMFlags r12b          ; Virtual machine status flags
 
 %define T r13d                ; Top item of data stack (32-bits)
@@ -401,7 +400,7 @@ lea W, [datErr20rsu]
 jmp mErrPutW
 
 mErr21ReturnFull:             ; Error 21: Return stack full
-or VMFlags, VMRetFull         ; set return full flag
+call mClearReturn             ; clear return stack
 lea W, [datErr21rsf]
 jmp mErrPutW
 
@@ -590,8 +589,6 @@ inc ebp                       ; advance I
 call rsi                      ; jump (callee may adjust I for LITx)
 test VMFlags, VMErr           ; stop if token had an error
 jnz .doneErr
-test VMFlags, VMRetFull       ; stop if return stack is full
-jnz .doneRetFull
 test VMFlags, VMReturn        ; stop if token was an ending return
 jnz .done
 dec ebx                       ; stop if loop limit has been reached
@@ -623,13 +620,6 @@ ret
 ;-----------------------------
 .doneLoopLimit:               ; exit when loop iterations passed limit
 call mErr22LoopTooLong
-pop rbx
-pop rbp
-ret
-;-----------------------------
-.doneRetFull:                 ; clean up and exit when return stack is full
-; TODO: maybe print backtrace?
-call mClearReturn             ; not clearing this would cause cascading errors
 pop rbx
 pop rbp
 ret
@@ -1511,7 +1501,6 @@ ret
 mClearReturn:                 ; Clear the return stack
 xor rdi, rdi
 movq RSDeep, rdi
-and VMFlags, (~VMRetFull)     ; clear the return full flag
 ret
 
 mJump:                        ; Jump -- set the VM token instruction pointer
