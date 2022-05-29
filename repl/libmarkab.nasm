@@ -99,6 +99,7 @@ datContext:  mkStr "Context    "
 datDP:       mkStr "DP         "
 datLast:     mkStr "Last       "
 datCodeP:    mkStr "CodeP      "
+datCodeCallP mkStr "CodeCallP  "
 datHeap:     mkStr "Heap       "
 datHeapEnd:  mkStr "HeapEnd   "
 datDPStr:    mkStr "str([DP])  "
@@ -571,13 +572,13 @@ mov esi, dword [edi+4*W]
 jmp rsi                       ; jump
 
 
-doInner:                      ; Inner interpreter (rdi: tokenLen, rsi: address)
+doInner:                      ; Inner interpreter (edi: virtual code pointer)
 push rbp
 push rbx
-cmp esi, MemSize              ; check address satisfies: 0 <= esi < MemSize
+cmp edi, MemSize              ; check address satisfies: 0 <= edi < MemSize
 jz .doneBadAddress            ; stop if address is out of range
-mov ebp, esi                  ; ebp: instruction pointer (I)
-mov ebx, edi                  ; ebx: max loop iterations
+mov ebp, edi                  ; ebp: instruction pointer (I)
+mov ebx, 0x7ffff              ; ebx: max loop iterations (very arbitrary)
 ;/////////////////////////////
 .for:
 movzx W, byte [Mem+ebp]       ; load token at I
@@ -712,6 +713,9 @@ lea W, [datExtV]
 call   .mDumpOneVar
 fPush CodeP,      .end1  ; CodeP        <address> <contents>
 lea W, [datCodeP]
+call   .mDumpOneVar
+fPush CodeCallP,  .end1  ; CodeCallP    <address> <contents>
+lea W, [datCodeCallP]
 call   .mDumpOneVar
 fPush Heap,       .end1  ; Heap         <address> <contents>
 lea W, [datHeap]
@@ -865,29 +869,29 @@ fDo PopW,      .err          ; popw -> {T: address} or {}, [W: true or false]
 test W, W                    ; check for match
 jz .wordNotFound             ; at this point, stack is {}
 ;---------------------------
-.wordMatch:                  ; got a match, T now points to .type
-fDo Dup,       .err          ; copy  -> {S: *(.type), T: *(.type)}
-inc T                        ; 1+    -> {S: *(.type), T: *(.param)}
-fDo Swap,      .err          ; swap  -> {S: *(.param), T: *(.type)}
-fDo ByteFetch, .err          ; fetch -> {S: *(.param), T: .type}
-fDo PopW,      .err          ; popw  -> {T: *(.param)}, [W: .type]
-cmp WB, 2                    ; if .type is 2 -> .param is dw code pointer
+.wordMatch:                  ; Decide what to do with {T: address of .type}
+fDo Dup,       .err          ;  -> {S: .type, T: .type)}
+inc T                        ;  -> {S: .type, T: .param = (.type+1)}
+fDo Swap,      .err          ;  -> {S: .param, T: .type}
+fDo ByteFetch, .err          ;  -> {S: .param, T: [.type]}
+fDo PopW,      .err          ;  -> {T: .param}, {W: [.type]}
+cmp WB, 2                    ; if [.type]==2 -> dw [.param] is code pointer
 je .paramDwCodeP
-cmp WB, 1                    ; if .type is 1 -> .param is dw var pointer
+cmp WB, 1                    ; if [.type]==1 -> dw [.param] is var pointer
 je .paramDwVarP
-test WB, TB                  ; if .type is 0 -> .param is db token
+test WB, TB                  ; if [.type]==0 -> dw [.param] is token:immediate
 jnz .errBadWordType
 ;---------------------------
-.paramDbToken:               ; Handle token; stack is {T: *(.param)}
-fDo WordFetch, .err          ; fetch -> {T: [db token:db immediate]}
+.paramDbToken:               ; Handle token; stack is {T: .param}
+fDo WordFetch, .err          ; fetch -> {T: token:immediate}
 test VMFlags, VMCompile      ; if compiling and word is non-immediate, branch
 setnz r10b                   ;  set means compile mode active
-test TW, 0xff00              ;  zero means token is non-immediate
+test TW, 0xff00              ;  if (second-byte==0) -> token is non-immediate
 setz r11b
 and TW, ~0xff00              ; clear immediate indicator byte, leaving token
 and r10b, r11b
 jnz .compileDbToken          ; if compiling non-immediate word: jump
-fDo PopW,      .err          ; popw  -> {}, [W: token]
+fDo PopW,      .err          ; -> {}, {W: token}
 call doTokenW                ; run handler for the token in W
 jmp .done
 ;---------------------------
@@ -901,20 +905,17 @@ mov [Mem+CodeP], cx
 fDo Drop,      .err          ; drop -> {}
 jmp .done
 ;---------------------------
-.paramDwCodeP:               ; Run compiled code-pointer {T: *(.param)}
-fDo WordFetch, .err          ; fetch -> {T: .param = *code}
-xor edi, edi                 ; .tokenLen = lots (tReturn should end it early)
-mov edi, 0x7ffff
-mov esi, T                   ; esi: *code              (virtual address)
+.paramDwCodeP:               ; Run compiled code-pointer {T: .param}
+fDo WordFetch, .err          ; -> {T: [.param] = *code (token code pointer)}
 test VMFlags, VMCompile      ; if compile mode: branch
 jnz .compileDwCodeP
-fDo Drop,      .err          ; drop  -> {}
-call doInner                 ; else: doInner(edi: tokenLen, esi: tokenPtr)
+fDo PopW,      .err          ; -> {}, {W: *code}
+mov edi, W                   ; edi: *code  (virtual code pointer)
+call doInner                 ; else: doInner(edi: virtual code pointer)
 jmp .done
 ;---------------------------
-.compileDwCodeP:             ; Compile call to code pointer {T: *(.param)}
+.compileDwCodeP:             ; Compile call to code pointer {T: *code}
 ;...                         ; Fetch the address of first free heap byte
-fDo   WordFetch, .err        ;  -> {T: .param = *code}
 fPush CodeP,     .err        ;  -> {S: *code, T: address of CodeP}
 fDo   WordFetch, .err        ;  -> {S: *code, T: value of [CodeP]}
 cmp T, HeapEnd-HReserve      ; Check if heap has space for more code
@@ -1077,11 +1078,10 @@ cmp ecx, HeapEnd-HReserve
 jnb mErr15HeapFull
 mov r10, rdi             ; r10 = save source string pointer
 mov r11, rsi             ; r11 = save source string byte count
-mov edi, Mem             ; edi = base address
-mov WB, tDotQuoteC       ; [edi+CodeP] = token for compiled version of ."
-mov byte [edi+ecx], WB
+mov WB, tDotQuoteC       ; Store token for compiled version of ." at [CodeP]
+mov byte [Mem+ecx], WB
 inc ecx                  ; advance CodeP
-mov word [edi+ecx], si   ; store string length (TODO: integer overflow?)
+mov word [Mem+ecx], si   ; store string length (TODO: integer overflow?)
 add ecx, 2               ; advance CodeP
 ;------------------------
 mov r9, r11              ; loop limit counter = saved source string length
@@ -1089,8 +1089,8 @@ mov rsi, r10             ; rsi = saved source string pointer
 xor r8d, r8d             ; zero source index
 xor W, W
 .forCopy:
-mov WB, [esi+r8d]        ; load source byte from TIB
-mov [edi+ecx], WB        ; store dest byte in CodeMem
+mov WB, byte [esi+r8d]   ; load source byte from TIB
+mov byte [Mem+ecx], WB   ; store dest byte in CodeMem
 inc ecx                  ; advance source index (CodeP)
 inc r8d                  ; advance destination index (0..source_lenth-1)
 dec r9d                  ; check loop limit
@@ -1120,7 +1120,7 @@ cmp esi, ecx                  ; stop looking if TIB_LEN <= IN (ran out of bytes)
 jna mErr8NoParen
 ;------------------------
 .forScanParen:
-mov WB, [rdi+rcx]        ; check if current byte is ')'
+mov WB, [edi+ecx]        ; check if current byte is ')'
 cmp WB, ')'
 jz .done                 ; if so, stop looking
 inc ecx                  ; otherwise, continue with next byte
@@ -1131,6 +1131,29 @@ jmp mErr8NoParen         ; oops, end of TIB reached without finding ")"
 .done:
 inc ecx
 mov word [Mem+IN], cx
+ret
+
+mTick:                    ; TICK (') - Push address of word from input bufer
+push rbp
+movzx ebp, word [Mem+DP]  ; save DP since mWord will move it
+fDo Word, .err            ; copy next word of input buffer to [DP]
+mov word [Mem+DP], bp     ; restore DP so it points to start of string
+fDo Find, .err            ; find address of word named by string at [DP]
+;...                      ;  -> {S: address, T: -1 (true)} or {T: 0 (false)}
+test T, T                 ; check if it worked
+jnz .match
+;-------------------------
+.noMatch:                 ; Exit path for string not found -> {T: 0 (false)}
+pop rbp
+ret
+;-------------------------
+.match:                   ; Exit for match: return pointer to .param field
+call mDrop                ; -> {T: address of .param}
+pop rbp
+ret
+;-------------------------
+.err:                     ; Exit path for error; stack state is undefined!
+pop rbp
 ret
 
 
@@ -1178,19 +1201,18 @@ cmp ecx, Heap                 ; check that: Heap <= [CodeP] < HeapEnd-1
 jb mErr19BadAddress
 cmp ecx, HeapEnd-1
 jnb mErr15HeapFull
-lea edi, [Mem]                ; load code memory base address
 ;-----------------------------
 .optimizerCheck:                ; Check if tail call optimization is possible
 movzx r8, word [Mem+CodeCallP]  ; load address of last compiled call
-lea W, [edi+ecx]                ; load address for current code pointer
+mov W, ecx                      ; load address for current code pointer
 sub W, 3                        ; check if offset is (token + _word_ address)
 cmp r8d, W                      ;  zero means this `;` came right after a Call
-jz .rewriteTailCall
+je .rewriteTailCall
 ;------------------------------
-.normalNext:
-xor rsi, rsi                    ; store a Next token in code memory
+.normalReturn:
+xor rsi, rsi                    ; store a Return token in code memory
 mov sil, tReturn
-mov byte [rdi+rcx], sil
+mov byte [Mem+ecx], sil
 inc ecx                         ; advance the code pointer
 mov word [Mem+CodeP], cx
 xor W, W
@@ -1199,10 +1221,10 @@ and VMFlags, (~VMCompile)       ; clear the compile mode flag
 ret
 ;-----------------------------
 .rewriteTailCall:             ; Do a tail call optimization
-mov WB, [r8d]                 ; make sure last call is pointing to a tCall
+mov WB, byte [Mem+r8d]        ; make sure last call is pointing to a tCall
 cmp WB, tCall
-jnz .normalNext               ; if not: don't optimize
-mov [r8d], byte tJump         ; else: rewrite the tCall to a tJump
+jnz .normalReturn             ; if not: don't optimize
+mov [Mem+r8d], byte tJump     ; else: rewrite the tCall to a tJump
 and VMFlags, (~VMCompile)     ; clear the compile mode flag
 ret
 
@@ -1330,7 +1352,7 @@ inc ecx
 xor edx, edx               ; zero source index
 .forCopy:
 mov WB, [Mem+edi+edx]      ; load [Mem + [IBPtr] + [IN] + edx]
-mov byte [Mem+rcx], WB     ; store it to [Mem + [DP]]
+mov byte [Mem+ecx], WB     ; store it to [Mem + [DP]]
 inc edx                    ; advance source index (edx)
 inc ecx                    ; advance [DP]
 cmp rdx, rsi               ; keep looping if source index < length of word
@@ -1365,7 +1387,7 @@ test esi, esi         ; stop if string is empty
 jz .done
 xor ecx, ecx
 .for:
-mov WB, [rdi+rcx]     ; load [rdi+i] for i in 0..(rsi-1)
+mov WB, [edi+ecx]     ; load [rdi+i] for i in 0..(rsi-1)
 cmp WB, 'A'           ; convert WB to lowercase without branching
 setae r10b
 cmp WB, 'Z'
@@ -1376,7 +1398,7 @@ mov r11b, WB          ; ...speculatively prepare a lowercase (c+32) character
 add r11b, 32
 test r10b, r10b       ; ...swap in the lowercase char if needed
 cmovnz W, r11d
-mov [rdi+rcx], WB     ; store the lowercased byte
+mov [edi+ecx], WB     ; store the lowercased byte
 inc ecx
 dec esi               ; loop until all bytes have been checked
 jnz .for
@@ -1493,15 +1515,14 @@ and VMFlags, (~VMRetFull)     ; clear the return full flag
 ret
 
 mJump:                        ; Jump -- set the VM token instruction pointer
-movzx edi, word [rbp]         ; read pointer literal address from token stream
-add ebp, 2                    ; advance I (ebp) past the address literal
-lea ebp, [edi]                ; set I (ebp) to the jump address
+movzx edi, word [Mem+ebp]     ; read pointer literal address from token stream
+mov ebp, edi                  ; set I (ebp) to the jump address
 ret
 
 mCall:                        ; Call -- make a VM token call
 movzx edi, word [Mem+ebp]     ; read pointer literal address from token stream
 add ebp, 2                    ; advance I (ebp) past the address literal
-push rdi                      ; save the call address (dereferenced pointer)
+push rdi                      ; save the call address
 mov W, ebp                    ; push I (ebp) to return stack
 call mRPushW
 pop rdi                       ; retrieve the call address

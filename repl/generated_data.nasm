@@ -67,6 +67,7 @@
 %define tWordStore   56
 %define tWordFetch   57
 %define tDumpVars    58
+%define tTick        59
 
 
 ;------------------------------------------------------------------------
@@ -136,8 +137,9 @@ dd mDotRet      ; 55
 dd mWordStore   ; 56
 dd mWordFetch   ; 57
 dd mDumpVars    ; 58
+dd mTick        ; 59
 
-%define JumpTableLen 59
+%define JumpTableLen 60
 
 
 ;-------------------------------------------------------------
@@ -181,80 +183,82 @@ db 1, ":", 0, tColon, -1
 dw 112
 db 1, ";", 0, tSemiColon, -1
 dw 119
-db 4, "emit", 0, tEmit, 0
+db 1, "'", 0, tTick, -1
 dw 126
+db 4, "emit", 0, tEmit, 0
+dw 133
 db 2, "cr", 0, tCR, 0
-dw 136
+dw 143
 db 5, "space", 0, tSpace, 0
-dw 144
+dw 151
 db 1, ".", 0, tDot, 0
-dw 155
-db 1, "+", 0, tPlus, 0
 dw 162
-db 1, "-", 0, tMinus, 0
+db 1, "+", 0, tPlus, 0
 dw 169
-db 6, "negate", 0, tNegate, 0
+db 1, "-", 0, tMinus, 0
 dw 176
+db 6, "negate", 0, tNegate, 0
+dw 183
 db 1, "*", 0, tMul, 0
-dw 188
-db 1, "/", 0, tDiv, 0
 dw 195
-db 3, "mod", 0, tMod, 0
+db 1, "/", 0, tDiv, 0
 dw 202
+db 3, "mod", 0, tMod, 0
+dw 209
 db 4, "/mod", 0, tDivMod, 0
-dw 211
+dw 218
 db 3, "max", 0, tMax, 0
-dw 221
+dw 228
 db 3, "min", 0, tMin, 0
-dw 230
+dw 237
 db 3, "abs", 0, tAbs, 0
-dw 239
+dw 246
 db 3, "and", 0, tAnd, 0
-dw 248
+dw 255
 db 2, "or", 0, tOr, 0
-dw 257
+dw 264
 db 3, "xor", 0, tXor, 0
-dw 265
+dw 272
 db 6, "invert", 0, tInvert, 0
-dw 274
+dw 281
 db 1, "<", 0, tLess, 0
-dw 286
-db 1, ">", 0, tGreater, 0
 dw 293
-db 1, "=", 0, tEqual, 0
+db 1, ">", 0, tGreater, 0
 dw 300
-db 2, "0<", 0, tZeroLess, 0
+db 1, "=", 0, tEqual, 0
 dw 307
+db 2, "0<", 0, tZeroLess, 0
+dw 314
 db 2, "0=", 0, tZeroEqual, 0
-dw 315
+dw 322
 db 3, "hex", 0, tHex, 0
-dw 323
+dw 330
 db 7, "decimal", 0, tDecimal, 0
-dw 332
+dw 339
 db 1, "@", 0, tFetch, 0
-dw 345
-db 1, "!", 0, tStore, 0
 dw 352
-db 2, "b@", 0, tByteFetch, 0
+db 1, "!", 0, tStore, 0
 dw 359
+db 2, "b@", 0, tByteFetch, 0
+dw 366
 db 2, "b!", 0, tByteStore, 0
-dw 367
+dw 374
 db 2, "w@", 0, tWordFetch, 0
-dw 375
+dw 382
 db 2, "w!", 0, tWordStore, 0
-dw 383
+dw 390
 db 4, "next", 0, tNext, 0
-dw 391
+dw 398
 db 2, ">r", 0, tToR, 0
-dw 401
+dw 408
 db 2, "r>", 0, tRFrom, 0
-dw 409
+dw 416
 db 1, "i", 0, tI, 0
-dw 417
-db 4, ".ret", 0, tDotRet, 0
 dw 424
+db 4, ".ret", 0, tDotRet, 0
+dw 431
 db 5, ".vars", 0, tDumpVars, 0
 Voc0End: db 0
 align 16, db 0
-Voc0Len: dd Voc0End - Voc0  ; 445
-Voc0Head: dd 434
+Voc0Len: dd Voc0End - Voc0  ; 452
+Voc0Head: dd 441

@@ -101,9 +101,9 @@ clearstack  OK
 ( FFFFFFFE  OK)               1 invert . FFFFFFFE  OK
 ( === test/colon_defs.fs ===)  OK
 (  OK)    : a ;               a  OK
-( B  OK)  : b ."  B" ;        b B  E22 Loop too long
+( B  OK)  : b ."  B" ;        b B  OK
 (  OK)    : c ( comment) ;    c  OK
-( 3  OK)  : d 1 2 * 1 +  . ;  d  E22 Loop too long
+( 3  OK)  : d 1 2 * 1 +  . ;  d 3  OK
 ( error)  :  E10 Expected name
 ( error)  : e  E18 Expected ;
 ( error)  : ;  E18 Expected ;
@@ -120,7 +120,7 @@ clearstack  OK
 (  OK)       : f0 swap dup . over + ;  OK
 (  OK)                : f1 f0 f0 f0 ;  OK
 (  OK)       : fib 1 dup f1 f1 f1 . ;  OK
-( 1 1 2 3 5 8 13 21 34 55 89  OK) fib  E22 Loop too long
+( 1 1 2 3 5 8 13 21 34 55 89  OK) fib 1 1 2 3 5 8 13 21 34 89  OK
 clearstack  OK
 ( --- Test implicit tail call ---)  OK
 (  OK) : start 1 .  : continue 2 . 3 . ;  OK
@@ -130,25 +130,25 @@ clearstack  OK
 ( --- Test maxing out return stack ---)  OK
 (  OK)  : rs0 0 space : rs1 1 + 42 emit rs1 nop ;  OK
 (     nop here stops tail call optimization ^^^ )  OK
-( ***************** E21...)        clearstack rs0 *  E1 Stack underflow
-( ***************** E21...)                   rs0 *  OK
+( ***************** E21...)        clearstack rs0 ******************  E21 Return stack full
+( ***************** E21...)                   rs0  OK
 ( ^^ note auto-recovery from full return stack)  OK
-(  17 17  OK)                                  .s  -1  OK
+(  17 17  OK)                                  .s  18 0  OK
 ( --- Test tail call optimization ---)  OK
 (  OK)   : tc0 0 . ;  : tc1 1 . tc0 ;  OK
-( 1 0  OK)             clearstack tc1 1  OK
+( 1 0  OK)             clearstack tc1 1 0  OK
 (  OK)       : tc2 0  : tc3 1 + tc3 ;  OK
 (       infinite tail recursion ^^^ )  OK
-(  E22...)             clearstack tc2  E1 Stack underflow
-(  174762  OK)                     .s  -1  OK
+(  E22...)             clearstack tc2  E22 Loop too long
+(  174762  OK)                     .s  174762  OK
 ( === test/loops.fs ===)  OK
 clearstack  OK
 (  OK)           : 9down 9 >r   : L1 next i .     L1 ;  OK
-( 8 7 6 5 4 3 2 1 0  OK)                         9down 8  E19 Bad address
+( 8 7 6 5 4 3 2 1 0  OK)                         9down 8 7 6 5 4 3 2 1 0  OK
 (  OK)           : 9up 9 >r     : L2 next 8 i - . L2 ;  OK
-( 0 1 2 3 4 5 6 7 8  OK)                           9up 0  E19 Bad address
+( 0 1 2 3 4 5 6 7 8  OK)                           9up 0 1 2 3 4 5 6 7 8  OK
 (  OK)           : 9under 9 >r  : L3 next 0 i - . L3 ;  OK
-( -8 -7 -6 -5 -4 -3 -2 -1 0  OK)                9under -8  E19 Bad address
+( -8 -7 -6 -5 -4 -3 -2 -1 0  OK)                9under -8 -7 -6 -5 -4 -3 -2 -1 0  OK
 ( === tests/fizzbuzz.fs ===)  OK
 ( for integers 1..n, print:            )  OK
 (  n divisible by 3       -> "Fizz"    )  OK
@@ -167,12 +167,12 @@ clearstack  OK
 : n! 0 ! ;  OK
 : n@ 0 @ ;  OK
 : fbz dup n! >r space  : fbz_ next n@ i - fbz-inner fbz_ ;  OK
-( 1 2 Fz 4 Bz Fz 7 8 Fz Bz 11 Fz 13 14 FzBz 16  OK) 16 fbz   E19 Bad address
+( 1 2 Fz 4 Bz Fz 7 8 Fz Bz 11 Fz 13 14 FzBz 16  OK) 16 fbz  1 2 Fz 4 Bz Fz 7 8 Fz Bz 11 Fz 13 14 FzBz 16  OK
 ( === tests/return_stack.fs ===)  OK
 (  OK)  : a 1 >r 2 >r 3 >r .ret r> r> r> ;  OK
-(  1 2 3  OK)                            a  9428 1 2 3  OK
+(  1 2 3  OK)                            a  1 2 3  OK
 (  OK)                : broken 1 >r .ret ;  OK
-(  E19 Bad address)                 broken  1  E22 Loop too long
-(   Stack is empty  OK)               .ret  1  OK
+(  E19 Bad address)                 broken  1  E19 Bad address
+(   Stack is empty  OK)               .ret  Stack is empty  OK
 ( >r should not be defined when not compiling)  1 >r  OK
 ( ------------------------ TODO: also fix this! ^^^)  OK
