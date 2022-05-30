@@ -28,6 +28,7 @@ CR Space Dot Plus Minus Mul Div Mod DivMod Max Min Abs And Or Xor Invert Less
 Greater Equal ZeroLess ZeroEqual Hex Decimal Fetch Store ByteFetch ByteStore
 SemiColon DotQuoteC U8 U16 I8 I16 I32 Jump Call ClearReturn Next Negate
 ToR RFrom I DotRet WordStore WordFetch DumpVars Tick
+Variable Constant Allot Comma Here Question
 """
 
 # These are names and tokens for words in markabForth's core dictionary. Names
@@ -89,6 +90,12 @@ r> RFrom 0
 i I 0
 .ret DotRet 0
 .vars DumpVars 0
+variable Variable 0
+constant Constant 0
+allot Allot 0
+, Comma 0
+here Here 0
+? Question 0
 """
 
 def list_of_words(text):
@@ -126,7 +133,7 @@ def make_dictionary0():
     token = "t" + long_name                # change long name into token macro
     fmtLink = f"dw {link}"                 # link to previous item in list
     fmtName = f"db {len(name)}, {quote}{name}{quote}"
-    fmtTok = f", 0, {token}, {immediate}"
+    fmtTok = f", ParamToken, {token}, {immediate}"
     link = address
     address += 2 + 1 + len(name) + 1 + 2  # link, nameLen, <name>, type, tokens
     pad_size = 0 # 16 - (address % 16)  # <- uncomment to get aligned hexdumps
@@ -181,6 +188,12 @@ JumpTable:
 ; Voc0 is meant to be copied at runtime into the core dictionary
 ; area of markabForth's 64KB virtual RAM memory map
 ;
+
+%define ParamToken 0
+%define ParamCode  1
+%define ParamConst 2
+%define ParamVar   3
+
 align 16, db 0
 db "== Dictionary =="
 

@@ -865,14 +865,16 @@ inc T                        ;  -> {S: .type, T: .param = (.type+1)}
 fDo Swap,      .err          ;  -> {S: .param, T: .type}
 fDo ByteFetch, .err          ;  -> {S: .param, T: [.type]}
 fDo PopW,      .err          ;  -> {T: .param}, {W: [.type]}
-cmp WB, 2                    ; if [.type]==2 -> dw [.param] is code pointer
-je .paramDwCodeP
-cmp WB, 1                    ; if [.type]==1 -> dw [.param] is var pointer
-je .paramDwVarP
-test WB, TB                  ; if [.type]==0 -> dw [.param] is token:immediate
-jnz .errBadWordType
+cmp WB, ParamConst           ; if type const -> 32-bit param is constant
+je .paramConst
+cmp WB, ParamVar             ; if type var   -> 32-bit param is variable
+je .paramVar
+cmp WB, ParamCode            ; if type code  -> 16-bit param is code pointer
+je .paramCode
+cmp WB, ParamToken           ; if type token -> 16-bit param is token:immediate
+jne .errBadWordType
 ;---------------------------
-.paramDbToken:               ; Handle token; stack is {T: .param}
+.paramToken:                 ; Handle token; stack is {T: .param}
 fDo WordFetch, .err          ; fetch -> {T: token:immediate}
 test VMFlags, VMCompile      ; if compiling and word is non-immediate, branch
 setnz r10b                   ;  set means compile mode active
@@ -880,12 +882,12 @@ test TW, 0xff00              ;  if (second-byte==0) -> token is non-immediate
 setz r11b
 and TW, ~0xff00              ; clear immediate indicator byte, leaving token
 and r10b, r11b
-jnz .compileDbToken          ; if compiling non-immediate word: jump
+jnz .compileToken            ; if compiling non-immediate word: jump
 fDo PopW,      .err          ; -> {}, {W: token}
 call doTokenW                ; run handler for the token in W
 jmp .done
 ;---------------------------
-.compileDbToken:             ; Compile token; stack is {T: token}
+.compileToken:               ; Compile token; stack is {T: token}
 movzx ecx, word [Mem+CodeP]
 cmp ecx, HeapEnd-HReserve    ; make sure heap has room
 jnb .errHeapFull
@@ -895,16 +897,16 @@ mov [Mem+CodeP], cx
 fDo Drop,      .err          ; drop -> {}
 jmp .done
 ;---------------------------
-.paramDwCodeP:               ; Run compiled code-pointer {T: .param}
+.paramCode:                  ; Run compiled code-pointer {T: .param}
 fDo WordFetch, .err          ; -> {T: [.param] = *code (token code pointer)}
 test VMFlags, VMCompile      ; if compile mode: branch
-jnz .compileDwCodeP
+jnz .compileCode
 fDo PopW,      .err          ; -> {}, {W: *code}
 mov edi, W                   ; edi: *code  (virtual code pointer)
 call doInner                 ; else: doInner(edi: virtual code pointer)
 jmp .done
 ;---------------------------
-.compileDwCodeP:             ; Compile call to code pointer {T: *code}
+.compileCode:                ; Compile call to code pointer {T: *code}
 ;...                         ; Fetch the address of first free heap byte
 fPush CodeP,     .err        ;  -> {S: *code, T: address of CodeP}
 fDo   WordFetch, .err        ;  -> {S: *code, T: value of [CodeP]}
@@ -930,8 +932,23 @@ fPush CodeP,     .err        ;  -> {S: [CodeP]+3, T: address of CodeP}
 fDo   WordStore, .err        ;  -> {}
 jmp .done
 ;---------------------------
-.paramDwVarP:                ; Handle a variable {T: *(.param)}
-; TODO: push parameter (dw address)
+.paramVar:                   ; Handle a variable {T: .param}
+test VMFlags, VMCompile
+jz .done                     ; if interpreting, {T: .param} is what we need
+;-------------
+.compileVar:
+; TODO: Decide, what does VARIABLE mean when compiling? Is this an error?
+fDo Drop,      .err          ; drop -> {}
+jmp .done
+;---------------------------
+.paramConst:                 ; Handle a constant {T: .param}
+test VMFlags, VMCompile
+jnz .compileConst
+fDo   Fetch,     .err        ; -> {T: [.param] (32-bit value of the const)}
+jmp .done
+;-------------
+.compileConst:
+; TODO: Decide, what does CONSTANT mean when compiling? Is this an error?
 fDo Drop,      .err          ; drop -> {}
 jmp .done
 ;---------------------------
@@ -1160,7 +1177,7 @@ jnz .doneErr
 movzx esi, word [Mem+DP]      ; load dictionary pointer (updated by create)
 cmp esi, HeapEnd-HReserve     ; stop if there is not enough room to add a link
 jnb .doneErrFull
-mov [Mem+esi], byte 2         ; append {.wordType: 2} (type is code pointer)
+mov [Mem+esi], byte ParamCode ; append {.wordType: code} (type is code pointer)
 inc esi
 movzx W, word [Mem+CodeP]     ; CAUTION! code pointer in dictionary is _word_
 mov word [Mem+esi], WW        ; append {.param: dw [CodeP]} (the code pointer)
@@ -1393,6 +1410,72 @@ inc ecx
 dec esi               ; loop until all bytes have been checked
 jnz .for
 .done:
+ret
+
+mVariable:             ; VARIABLE -- create name, allot 4, update [Last]
+fDo   Here,      .end  ; -> {T: [DP] (pointer to new dictionary entry)}
+fDo   Create,    .end  ; Read name from input stream and add it to dictionary
+fPush ParamVar,  .end  ; -> {S: [DP] (before create), T: ParamVar (param type)}
+fDo   Here,      .end  ; -> {[DP] (old), S: ParamVar, T: [DP] (now)}
+fDo   ByteStore, .end  ; -> {T: [DP] (old value from before create)}
+fPush 1,         .end  ; -> {S: [DP] (old), T: 1}        (allot for param type)
+fDo   Allot,     .end  ; -> {T: [DP] (old)}
+fPush 0,         .end  ; -> {S: [DP] (old), T: 0}
+fDo   Here,      .end  ; -> {[DP] (old), S: 0, T: [DP] (now)}
+fDo   Store,     .end  ; -> {T: [DP] (old)}               (initialize var to 0)
+fPush 4,         .end  ; -> {S: [DP] (old), T: 4}        (allot for 32-bit var)
+fDo   Allot,     .end  ; -> {T: [DP] (old)}
+fPush Last,      .end  ; -> {S: [DP] (old), T: Last}
+fDo   WordStore, .end  ; -> {}                      (update head of dictionary)
+.end:
+ret
+
+mConstant:             ; CREATE -- create name, store T in dictionary, allot 4
+fDo   Here,      .end  ; -> {S: number, T: [DP] (ptr to new dictionary entry)}
+fDo   Swap,      .end  ; -> {S: [DP] (ptr to new dictionary entry), T: number}
+fDo   Create,    .end  ; Read name from input stream and add it to dictionary
+fPush ParamConst, .end ; -> {[DP] (old), S: number, T: ParamConst (type)}
+fDo   Here,      .end  ; -> {[DP] (old), number, S: ParamConst, T: [DP] (now)}
+fDo   ByteStore, .end  ; -> {S: [DP] (old), T: number}
+fPush 1,         .end  ; -> {[DP] (old), S: number, T: 1}      (allot for type)
+fDo   Allot,     .end  ; -> {S: [DP] (old), T: number}
+fDo   Here,      .end  ; -> {[DP] (old), S: number, T: [DP] (now)}
+fDo   Store,     .end  ; -> {T: [DP] (old)}                 (store const value)
+fPush 4,         .end  ; -> {S: [DP] (old), T: 4}
+fDo   Allot,     .end  ; -> {T: [DP] (old)}            (allot for 32-bit const)
+fPush Last,      .end  ; -> {S: [DP] (old), T: Last}
+fDo   WordStore, .end  ; -> {}                      (update head of dictionary)
+.end:
+ret
+
+mAllot:                ; ALLOT -- Increase Dictionary Pointer (DP) by T
+fDo   Here,      .end  ; -> {S: number, T: [DP] (address of first free byte)}
+fDo   Plus,      .end  ; -> {T: [DP]+number}
+cmp T, HeapEnd-HReserve
+jge mErr15HeapFull     ; stop if requested allocation is too large
+fPush DP,        .end  ; -> {S: [DP]+number, T: DP}
+fDo   WordStore, .end  ; -> {}
+.end:
+ret
+
+mComma:                ; COMMA -- Store T at end of dictionary and allot 4
+fDo   Here,      .end  ; -> {S: number, T: [DP] (address of first free byte)}
+fDo   Store,     .end  ; -> {}
+fPush 4,         .end  ; -> {T: 4}
+fDo   Allot,     .end  ; -> {}
+.end:
+ret
+
+mHere:                 ; HERE -- Push address of first free dictionary byte
+fPush DP,        .end  ; -> {T: DP (address of DP)}
+fDo   WordFetch, .end  ; -> {T: [DP] (address of first free dictionary byte)}
+.end:
+ret
+
+mQuestion:             ; QUESTION -- fetch and pint (shorthand for `@ .`)
+fDo   Fetch,     .end  ; {T: address} -> {T: [address]}
+fDo   Dot,       .end  ; -> {}
+.end:
 ret
 
 

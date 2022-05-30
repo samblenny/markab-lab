@@ -68,6 +68,12 @@
 %define tWordFetch   57
 %define tDumpVars    58
 %define tTick        59
+%define tVariable    60
+%define tConstant    61
+%define tAllot       62
+%define tComma       63
+%define tHere        64
+%define tQuestion    65
 
 
 ;------------------------------------------------------------------------
@@ -138,8 +144,14 @@ dd mWordStore   ; 56
 dd mWordFetch   ; 57
 dd mDumpVars    ; 58
 dd mTick        ; 59
+dd mVariable    ; 60
+dd mConstant    ; 61
+dd mAllot       ; 62
+dd mComma       ; 63
+dd mHere        ; 64
+dd mQuestion    ; 65
 
-%define JumpTableLen 60
+%define JumpTableLen 66
 
 
 ;-------------------------------------------------------------
@@ -152,6 +164,12 @@ dd mTick        ; 59
 ; Voc0 is meant to be copied at runtime into the core dictionary
 ; area of markabForth's 64KB virtual RAM memory map
 ;
+
+%define ParamToken 0
+%define ParamCode  1
+%define ParamConst 2
+%define ParamVar   3
+
 align 16, db 0
 db "== Dictionary =="
 
@@ -159,106 +177,118 @@ align 16, db 0
 Voc0: dd 0         ; This padding is so second item's link will be non-zero
 align 16, db 0
 dw 0
-db 3, "nop", 0, tNop, 0
+db 3, "nop", ParamToken, tNop, 0
 dw 16
-db 3, "bye", 0, tBye, 0
+db 3, "bye", ParamToken, tBye, 0
 dw 25
-db 3, "dup", 0, tDup, 0
+db 3, "dup", ParamToken, tDup, 0
 dw 34
-db 4, "drop", 0, tDrop, 0
+db 4, "drop", ParamToken, tDrop, 0
 dw 43
-db 4, "swap", 0, tSwap, 0
+db 4, "swap", ParamToken, tSwap, 0
 dw 53
-db 4, "over", 0, tOver, 0
+db 4, "over", ParamToken, tOver, 0
 dw 63
-db 10, "clearstack", 0, tClearStack, 0
+db 10, "clearstack", ParamToken, tClearStack, 0
 dw 73
-db 2, ".s", 0, tDotS, 0
+db 2, ".s", ParamToken, tDotS, 0
 dw 89
-db 1, "(", 0, tParen, -1
+db 1, "(", ParamToken, tParen, -1
 dw 97
-db 2, '."', 0, tDotQuoteI, -1
+db 2, '."', ParamToken, tDotQuoteI, -1
 dw 104
-db 1, ":", 0, tColon, -1
+db 1, ":", ParamToken, tColon, -1
 dw 112
-db 1, ";", 0, tSemiColon, -1
+db 1, ";", ParamToken, tSemiColon, -1
 dw 119
-db 1, "'", 0, tTick, -1
+db 1, "'", ParamToken, tTick, -1
 dw 126
-db 4, "emit", 0, tEmit, 0
+db 4, "emit", ParamToken, tEmit, 0
 dw 133
-db 2, "cr", 0, tCR, 0
+db 2, "cr", ParamToken, tCR, 0
 dw 143
-db 5, "space", 0, tSpace, 0
+db 5, "space", ParamToken, tSpace, 0
 dw 151
-db 1, ".", 0, tDot, 0
+db 1, ".", ParamToken, tDot, 0
 dw 162
-db 1, "+", 0, tPlus, 0
+db 1, "+", ParamToken, tPlus, 0
 dw 169
-db 1, "-", 0, tMinus, 0
+db 1, "-", ParamToken, tMinus, 0
 dw 176
-db 6, "negate", 0, tNegate, 0
+db 6, "negate", ParamToken, tNegate, 0
 dw 183
-db 1, "*", 0, tMul, 0
+db 1, "*", ParamToken, tMul, 0
 dw 195
-db 1, "/", 0, tDiv, 0
+db 1, "/", ParamToken, tDiv, 0
 dw 202
-db 3, "mod", 0, tMod, 0
+db 3, "mod", ParamToken, tMod, 0
 dw 209
-db 4, "/mod", 0, tDivMod, 0
+db 4, "/mod", ParamToken, tDivMod, 0
 dw 218
-db 3, "max", 0, tMax, 0
+db 3, "max", ParamToken, tMax, 0
 dw 228
-db 3, "min", 0, tMin, 0
+db 3, "min", ParamToken, tMin, 0
 dw 237
-db 3, "abs", 0, tAbs, 0
+db 3, "abs", ParamToken, tAbs, 0
 dw 246
-db 3, "and", 0, tAnd, 0
+db 3, "and", ParamToken, tAnd, 0
 dw 255
-db 2, "or", 0, tOr, 0
+db 2, "or", ParamToken, tOr, 0
 dw 264
-db 3, "xor", 0, tXor, 0
+db 3, "xor", ParamToken, tXor, 0
 dw 272
-db 6, "invert", 0, tInvert, 0
+db 6, "invert", ParamToken, tInvert, 0
 dw 281
-db 1, "<", 0, tLess, 0
+db 1, "<", ParamToken, tLess, 0
 dw 293
-db 1, ">", 0, tGreater, 0
+db 1, ">", ParamToken, tGreater, 0
 dw 300
-db 1, "=", 0, tEqual, 0
+db 1, "=", ParamToken, tEqual, 0
 dw 307
-db 2, "0<", 0, tZeroLess, 0
+db 2, "0<", ParamToken, tZeroLess, 0
 dw 314
-db 2, "0=", 0, tZeroEqual, 0
+db 2, "0=", ParamToken, tZeroEqual, 0
 dw 322
-db 3, "hex", 0, tHex, 0
+db 3, "hex", ParamToken, tHex, 0
 dw 330
-db 7, "decimal", 0, tDecimal, 0
+db 7, "decimal", ParamToken, tDecimal, 0
 dw 339
-db 1, "@", 0, tFetch, 0
+db 1, "@", ParamToken, tFetch, 0
 dw 352
-db 1, "!", 0, tStore, 0
+db 1, "!", ParamToken, tStore, 0
 dw 359
-db 2, "b@", 0, tByteFetch, 0
+db 2, "b@", ParamToken, tByteFetch, 0
 dw 366
-db 2, "b!", 0, tByteStore, 0
+db 2, "b!", ParamToken, tByteStore, 0
 dw 374
-db 2, "w@", 0, tWordFetch, 0
+db 2, "w@", ParamToken, tWordFetch, 0
 dw 382
-db 2, "w!", 0, tWordStore, 0
+db 2, "w!", ParamToken, tWordStore, 0
 dw 390
-db 4, "next", 0, tNext, 0
+db 4, "next", ParamToken, tNext, 0
 dw 398
-db 2, ">r", 0, tToR, 0
+db 2, ">r", ParamToken, tToR, 0
 dw 408
-db 2, "r>", 0, tRFrom, 0
+db 2, "r>", ParamToken, tRFrom, 0
 dw 416
-db 1, "i", 0, tI, 0
+db 1, "i", ParamToken, tI, 0
 dw 424
-db 4, ".ret", 0, tDotRet, 0
+db 4, ".ret", ParamToken, tDotRet, 0
 dw 431
-db 5, ".vars", 0, tDumpVars, 0
+db 5, ".vars", ParamToken, tDumpVars, 0
+dw 441
+db 8, "variable", ParamToken, tVariable, 0
+dw 452
+db 8, "constant", ParamToken, tConstant, 0
+dw 466
+db 5, "allot", ParamToken, tAllot, 0
+dw 480
+db 1, ",", ParamToken, tComma, 0
+dw 491
+db 4, "here", ParamToken, tHere, 0
+dw 498
+db 1, "?", ParamToken, tQuestion, 0
 Voc0End: db 0
 align 16, db 0
-Voc0Len: dd Voc0End - Voc0  ; 452
-Voc0Head: dd 441
+Voc0Len: dd Voc0End - Voc0  ; 515
+Voc0Head: dd 508

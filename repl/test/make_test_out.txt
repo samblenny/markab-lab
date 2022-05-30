@@ -196,3 +196,14 @@ clearstack  OK
 (   Stack is empty  OK)               .ret  Stack is empty  OK
 ( >r should not be defined when not compiling)  1 >r  OK
 ( ------------------------ TODO: also fix this! ^^^)  OK
+( === test/var_const.fs ===)  OK
+clearstack  OK
+( <number>  OK)               here . 1427  OK
+(  OK)                  variable foo  OK
+( <bigger-number>  OK)        here . 1438  OK
+(  OK)                      99 foo !  OK
+( 99  OK)                    foo @ . 99  OK
+( 99  OK)                      foo ? 99  OK
+(  OK)               20 constant bar  OK
+( 20  OK)                      bar . 20  OK
+( E13...)                   30 bar !  E13 Address out of range
