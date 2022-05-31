@@ -13,6 +13,7 @@ TESTS_OUT=test/make_test_out.txt
 TESTS=test/fetch_store.fs test/comments.fs test/dotquote.fs test/stack.fs \
   test/math.fs test/colon_defs.fs test/loops.fs test/fizzbuzz.fs \
   test/return_stack.fs test/var_const.fs
+ASM_MISC=generated_data.nasm libmarkab/*.nasm
 
 all: main
 clean:
@@ -32,7 +33,7 @@ test: main $(TESTS)
 main: main.c obj/libmarkab.o
 	$(CC) -O2 -Wl,-export-dynamic -std=c99 -Wall -o $@ main.c obj/libmarkab.o
 
-obj/libmarkab.o: libmarkab.nasm screen00.fs generated_data.nasm
+obj/libmarkab.o: libmarkab.nasm screen00.fs $(ASM_MISC)
 	@mkdir -p obj
 	nasm -f elf64 -w+all --reproducible -o $@ $<
 

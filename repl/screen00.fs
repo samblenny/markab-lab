@@ -5,7 +5,8 @@
 ." |_|  |_\__,_|_| |_\_\__,_|_.__/" cr
 : , here ! 4 allot ; ( store T at end of dictionary)
 : ? @ . ;         ( fetch address T and print value)
-: set-type here b! 1 allot ;  ( set .type field of dictionary item, 8-bit)
-: set-head 4 allot last w! ;  ( update pointer to head of dictionary)
-: variable here create tpvar set-type 0 here ! ( init to 0) set-head ;
-: constant here swap create tpconst set-type here ! ( store n) set-head ;
+: setType here b! 1 allot ;  ( set 8-bit .type field of dictionary item)
+: setParam here ! 4 allot ;  ( set 32-bit const|var .param field value)
+: setHead last w! ;          ( set new head of dictionary)
+: variable here create TpVar setType 0 ( init to 0) setParam setHead ;
+: constant here swap create TpConst setType ( T: n) setParam setHead ;

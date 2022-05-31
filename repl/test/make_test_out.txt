@@ -198,12 +198,12 @@ clearreturn  OK
 ( ^^^^^^^^^ compensate for the 1 >r above)  OK
 ( === test/var_const.fs ===)  OK
 clearstack  OK
-( <number>  OK)               here . 1497  OK
+( <number>  OK)               here . 1509  OK
 (  E15...)               10000 allot  E15 Heap full
 (        This is too big ^^^^^     )  OK
-( <same-number>  OK)          here . 1497  OK
+( <same-number>  OK)          here . 1509  OK
 (  OK)                  variable foo  OK
-( <bigger-number>  OK)        here . 1508  OK
+( <bigger-number>  OK)        here . 1520  OK
 (  OK)                      99 foo !  OK
 ( 99  OK)                    foo @ . 99  OK
 ( 99  OK)                      foo ? 99  OK
