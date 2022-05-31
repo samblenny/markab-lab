@@ -896,48 +896,30 @@ call doTokenW                ; run handler for the token in W
 jmp .done
 ;---------------------------
 .compileToken:               ; Compile token; stack is {T: token}
-movzx ecx, word [Mem+CodeP]
-cmp ecx, HeapEnd-HReserve    ; make sure heap has room
-jnb .errHeapFull
-mov [Mem+rcx], TB            ; store the token
-inc ecx                      ; advance the code pointer
-mov [Mem+CodeP], cx
-fDo Drop,      .err          ; drop -> {}
+fDo  CompileU8,  .err
 jmp .done
 ;---------------------------
 .paramCode:                  ; Run compiled code-pointer {T: .param}
-fDo WordFetch, .err          ; -> {T: [.param] = *code (token code pointer)}
+fDo WordFetch,   .err        ; -> {T: [.param] = *code (token code pointer)}
 test VMFlags, VMCompile      ; if compile mode: branch
 jnz .compileCode
-fDo PopW,      .err          ; -> {}, {W: *code}
+fDo PopW,        .err        ; -> {}, {W: *code}
 mov edi, W                   ; edi: *code  (virtual code pointer)
 call doInner                 ; else: doInner(edi: virtual code pointer)
 jmp .done
 ;---------------------------
 .compileCode:                ; Compile call to code pointer {T: *code}
-;...                         ; Fetch the address of first free heap byte
-fPush CodeP,     .err        ;  -> {S: *code, T: address of CodeP}
-fDo   WordFetch, .err        ;  -> {S: *code, T: value of [CodeP]}
-cmp T, HeapEnd-HReserve      ; Check if heap has space for more code
-jnb .errHeapFull             ;  r10b set means heap is full
 ;...                         ; Remember [CodeP] to help the tail call optimizer
 ;...                         ;  (see mSemiColon for how that works)
-fDo   Dup,       .err        ;  -> {*code, S: [CodeP], T: [CodeP]}
-fPush CodeCallP, .err        ;  -> {*code, [CodeP], [CodeP], T: CodeCallP}
-fDo   WordStore, .err        ;  -> {S: *code, T: [CodeP]}
+fPush CodeP,     .err        ;  -> {S: *code, T: CodeP}
+fDo   WordFetch, .err        ;  -> {S: *code, T: [CodeP]}
+fPush CodeCallP, .err        ;  -> {*code, S: [CodeP], T: CodeCallP}
+fDo   WordStore, .err        ;  -> {T: *code}
 ;...                         ; Store the Call token at end of heap
-fPush tCall,     .err        ;  -> {*code, S: [CodeP], T: tCall}
-fDo   Over,      .err        ;  -> {*code, [CodeP], S: tCall, T: [CodeP]}
-fDo   ByteStore, .err        ;  -> {S: *code, T: [CodeP]}
-inc T                        ;  -> {S: *code, T: [CodeP]+1}
+fPush tCall,     .err        ;  -> {S: *code, T: tCall}
+fDo   CompileU8, .err        ;  -> {*code}
 ;...                         ; Store the call address at [CodeP]+1
-fDo   Swap,      .err        ;  -> {S: [CodeP]+1, T: *code}
-fDo   Over,      .err        ;  -> {[CodeP]+1, S: *code, T: [CodeP+1]}
-fDo   WordStore, .err        ;  -> {T: [CodeP]+1}
-add T, 2                     ;  -> {T: [CodeP]+3}
-;...                         ; Update CodeP with new first free heap byte
-fPush CodeP,     .err        ;  -> {S: [CodeP]+3, T: address of CodeP}
-fDo   WordStore, .err        ;  -> {}
+fDo   CompileU16, .err       ; -> {}
 jmp .done
 ;---------------------------
 .paramVar:                   ; Handle a variable {T: .param}
@@ -945,19 +927,16 @@ test VMFlags, VMCompile
 jz .done                     ; if interpreting, {T: .param} is what we need
 ;-------------
 .compileVar:
-; TODO: Decide, what does VARIABLE mean when compiling? Is this an error?
-fDo Drop,      .err          ; drop -> {}
+fDo CompileLiteral, .err     ; -> {}   (compile T as number literal to heap)
 jmp .done
 ;---------------------------
 .paramConst:                 ; Handle a constant {T: .param}
-test VMFlags, VMCompile
-jnz .compileConst
 fDo   Fetch,     .err        ; -> {T: [.param] (32-bit value of the const)}
-jmp .done
+test VMFlags, VMCompile
+jz .done
 ;-------------
 .compileConst:
-; TODO: Decide, what does CONSTANT mean when compiling? Is this an error?
-fDo Drop,      .err          ; drop -> {}
+fDo CompileLiteral, .err     ; -> {}   (compile T as number literal to heap)
 jmp .done
 ;---------------------------
 .wordNotFound:
@@ -967,8 +946,25 @@ movzx esi, byte [Mem+ecx]
 mov rbp, rdi
 mov rbx, rsi
 call mNumber                ; attempt to convert word as number
-test VMFlags, VMNaN         ; check if it worked
+test VMFlags, VMNaN
+jnz .errNaN                 ; stop if word was not a number
+test VMFlags, VMCompile
 jz .done
+;---------------------------
+.compileNumber:
+fDo CompileLiteral, .err    ; compile the number with an integer literal token
+;---------------------------
+.done:
+pop rbx
+pop rbp
+ret
+;---------------------
+.err:
+pop rbx
+pop rbp
+ret
+;---------------------
+.errNaN:
 and VMFlags, (~VMNaN)       ; ...if not, clear the NaN flag and show an error
 lea W, [datErr7nfd]         ; not found error message (decimal version)
 lea edx, [datErr7nfh]       ; swap error message for hex version if base 16
@@ -980,13 +976,6 @@ mov rdi, rbp                ; print the word that wasn't found
 mov rsi, rbx
 call mStrPut.RdiRsi
 or VMFlags, VMErr           ; return with error condition
-;/////////////////////
-.done:
-pop rbx
-pop rbp
-ret
-;---------------------
-.err:
 pop rbx
 pop rbp
 ret
@@ -995,19 +984,8 @@ ret
 pop rbx
 pop rbp
 jmp mErr14BadWordType
-;---------------------
-.errHeapFull:         ; stack starts as {S: *code, T: value of [CodeP]}
-call mDrop            ; drop -> {T: *code}
-call mDrop            ; drop -> {}
-pop rbx
-pop rbp
-jmp mErr15HeapFull
-;---------------------
-.errBadAddress:
-pop rbx
-pop rbp
-jmp mErr19BadAddress
-;/////////////////////
+
+
 
 
 ;-----------------------------
@@ -1934,63 +1912,7 @@ mov r11, WQ              ; prepare twos-complement negation of accumulator
 neg r11
 test r10b, r10b          ; check if the negative flag was set for a '-'
 cmovnz WQ, r11           ; ...if so, swap accumulator value for its negative
-test VMFlags, VMCompile  ; check if compile mode is active
-jz mPush                 ; if not compiling: push the number
-;---------------------
-.compileLiteral:         ; else: compile number into code memory
-movzx ecx, word [Mem+CodeP]  ; check that: Heap < [CodeP] < HeapEnd-5
-cmp ecx, Heap
-jb mErr13AddressOOR
-cmp ecx, HeapEnd-5
-jnb mErr15HeapFull       ; stop if code memory is full
-lea edi, [Mem]           ; else: prepare destination pointer
-cmp W, 0                 ; find most compact literal to accurately store W
-jl .compileNegative
-cmp W, 255
-jbe .compileU8           ; number fits in 0..255     --> use U8
-cmp W, 65535
-jbe .compileU16          ; fits in 256..65535        --> use U16
-jmp .compileI32          ; fits in 65535..2147483647 --> use I32
-.compileNegative:
-cmp W, -127
-jge .compileI8           ; fits in -127..-1     --> use I8
-cmp W, -32768
-jge .compileI16          ; fits in -32768..-128 --> use I16 (otherwise, I32)
-.compileI32:             ; compile as 4-byte signed literal
-mov [edi+ecx], byte tI32
-inc ecx
-mov [edi+ecx], W
-add ecx, 4
-mov word [Mem+CodeP], cx
-ret
-.compileU16:             ; compile as 2-byte unsigned literal
-mov [edi+ecx], byte tU16
-inc ecx
-mov [edi+ecx], WW
-add ecx, 2
-mov word [Mem+CodeP], cx
-ret
-.compileU8:              ; compile as 1-byte unsigned literal
-mov [edi+ecx], byte tU8
-inc ecx
-mov [edi+ecx], WB
-add ecx, 1
-mov word [Mem+CodeP], cx
-ret
-.compileI16:             ; compile as 2-byte signed literal
-mov [edi+ecx], byte tI16
-inc ecx
-mov [edi+ecx], WW
-add ecx, 2
-mov word [Mem+CodeP], cx
-ret
-.compileI8:              ; compile as 1-byte signed literal
-mov [edi+ecx], byte tI8
-inc ecx
-mov [edi+ecx], WB
-add ecx, 1
-mov word [Mem+CodeP], cx
-ret
+jmp mPush                ; push the number
 ;------------------------
 .doneNaN:                ; failed conversion, signal NaN
 or VMFlags, VMNaN
@@ -2001,6 +1923,95 @@ jmp mErr5NumberFormat
 ;------------------------
 .doneErr2:
 jmp mErr5NumberFormat
+
+
+mCompileLiteral:         ; Compile T to heap with integer literal token prefix
+cmp T, 0                 ; dispatch to most appropriate size of literal
+jl .negative
+cmp T, 255
+jbe .u8                  ; number fits in 0..255     --> use U8
+cmp T, 65536
+jbe .u16                 ; fits in 256..65535        --> use U16
+jmp .i32                 ; fits in 65535..2147483647 --> use I32
+.negative:
+cmp T, -127
+jge .i8                  ; fits in -127..-1     --> use I8
+cmp T, -32768
+jge .i16                 ; fits in -32768..-128 --> use I16 (otherwise, I32)
+;...                     ; fall through to .i32
+;-----------------------
+.i32:                    ; Compile T as 32-bit signed literal with i32 token
+fPush tI32,       .end   ; -> {S: number, T: tI32 (token)}
+fDo   CompileU8,  .end   ; -> {T: number}
+fDo   CompileU32, .end   ; -> {}
+ret
+;-----------------------
+.u8:                     ; Compile T as 8-bit unsigned literal with u8 token
+fPush tU8,        .end   ; -> {S: number, T: tU8 (token)}
+fDo   CompileU8,  .end   ; -> {T: number}
+fDo   CompileU8,  .end   ; -> {}
+ret
+;-----------------------
+.u16:                    ; Compile T as 16-bit unsigned literal with u16 token
+fPush tU16,       .end   ; -> {S: number, T: tU16 (token)}
+fDo   CompileU8,  .end   ; -> {T: number}
+fDo   CompileU16, .end   ; -> {}
+ret
+;-----------------------
+.i8:                     ; Compile T as 8-bit signed literal with i8 token
+fPush tI8,        .end   ; -> {S: number, T: tI8 (token)}
+fDo   CompileU8,  .end   ; -> {T: number}
+fDo   CompileU8,  .end   ; -> {}
+ret
+;-----------------------
+.i16:                    ; Compile T as 16-bit signed literal with i16 token
+fPush tI16,       .end   ; -> {S: number, T: tI16 (token)}
+fDo   CompileU8,  .end   ; -> {T: number}
+fDo   CompileU16, .end   ; -> {}
+ret
+;-----------------------
+.end:
+ret
+
+
+mCompileU8:              ; Compile U8 (1 byte) from T to end of heap
+fPush CodeP,     .end    ; -> {S: byte, T: CodeP (address of pointer)}
+fDo   WordFetch, .end    ; -> {S: byte; T: [CodeP] (address of free byte)}
+fDo   ByteStore, .end    ; -> {}                          (<-- 8-bit byte)
+fPush CodeP,     .end    ; -> {T: CodeP}
+fDo   Dup,       .end    ; -> {S: CodeP, T: CodeP}
+fDo   WordFetch, .end    ; -> {S: CodeP, T: [CodeP]}
+inc T                    ; -> {S: CodeP, T: [CodeP]+1}
+fDo   Swap,      .end    ; -> {S: [CodeP]+1, T: CodeP}
+fDo   WordStore, .end    ; -> {}
+.end:
+ret
+
+mCompileU16:             ; Compile U16 (2 bytes) from T to end of heap
+fPush CodeP,     .end    ; -> {S: byte, T: CodeP (address of pointer)}
+fDo   WordFetch, .end    ; -> {S: byte; T: [CodeP] (address of free byte)}
+fDo   WordStore, .end    ; -> {}                          (<-- 16-bit word)
+fPush CodeP,     .end    ; -> {T: CodeP}
+fDo   Dup,       .end    ; -> {S: CodeP, T: CodeP}
+fDo   WordFetch, .end    ; -> {S: CodeP, T: [CodeP]}
+add T, 2                 ; -> {S: CodeP, T: [CodeP]+2}
+fDo   Swap,      .end    ; -> {S: [CodeP]+2, T: CodeP}
+fDo   WordStore, .end    ; -> {}
+.end:
+ret
+
+mCompileU32:             ; Compile U32 (4 bytes) from T to end of heap
+fPush CodeP,     .end    ; -> {S: byte, T: CodeP (address of pointer)}
+fDo   WordFetch, .end    ; -> {S: byte; T: [CodeP] (address of free byte)}
+fDo   Store,     .end    ; -> {}                          (<-- 32-bit dword)
+fPush CodeP,     .end    ; -> {T: CodeP}
+fDo   Dup,       .end    ; -> {S: CodeP, T: CodeP}
+fDo   WordFetch, .end    ; -> {S: CodeP, T: [CodeP]}
+add T, 4                 ; -> {S: CodeP, T: [CodeP]+4}
+fDo   Swap,      .end    ; -> {S: [CodeP]+4, T: CodeP}
+fDo   WordStore, .end    ; -> {}
+.end:
+ret
 
 
 ;-----------------------------

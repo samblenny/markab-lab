@@ -27,7 +27,7 @@ Return Nop Bye Dup Drop Swap Over ClearStack DotS DotQuoteI Paren Colon Emit
 CR Space Dot Plus Minus Mul Div Mod DivMod Max Min Abs And Or Xor Invert Less
 Greater Equal ZeroLess ZeroEqual Hex Decimal Fetch Store ByteFetch ByteStore
 SemiColon DotQuoteC U8 U16 I8 I16 I32 Jump Call ClearReturn Next Negate
-ToR RFrom I DotRet WordStore WordFetch DumpVars Tick
+ToR RFrom I DotRet ClearReturn WordStore WordFetch DumpVars Tick
 Variable Constant Allot Comma Here Question
 """
 
@@ -89,6 +89,7 @@ next Next 0
 r> RFrom 0
 i I 0
 .ret DotRet 0
+clearreturn ClearReturn 0
 .vars DumpVars 0
 variable Variable 0
 constant Constant 0

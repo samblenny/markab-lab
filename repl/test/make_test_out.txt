@@ -196,6 +196,8 @@ clearstack  OK
 (   Stack is empty  OK)               .ret  Stack is empty  OK
 ( >r should not be defined when not compiling)  1 >r  OK
 ( ------------------------ TODO: also fix this! ^^^)  OK
+clearreturn  OK
+( ^^^^^^^^^ compensate for the 1 >r above)  OK
 ( === test/var_const.fs ===)  OK
 clearstack  OK
 ( <number>  OK)               here . 1427  OK
@@ -207,12 +209,10 @@ clearstack  OK
 (  OK)                      99 foo !  OK
 ( 99  OK)                    foo @ . 99  OK
 ( 99  OK)                      foo ? 99  OK
-( 99  OK)      : .foo foo @ . ; .foo 0  E19 Bad address
-(                TODO: FIX THIS ^^^^)  OK
+( 99  OK)      : .foo foo @ . ; .foo 99  OK
 (  OK)               20 constant bar  OK
 ( 20  OK)                      bar . 20  OK
-( 20  OK)      : .bar bar @ . ; .bar  E1 Stack underflow
-(                TODO: FIX THIS ^^^^)  OK
+( 20  OK)        : .bar bar . ; .bar 20  OK
 ( E13...)                   30 bar !  E13 Address out of range
 (  OK)      variable array 1 array !  OK
 (  OK)                   2 , 3 , 4 ,  OK

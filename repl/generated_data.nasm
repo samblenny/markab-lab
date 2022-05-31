@@ -64,16 +64,17 @@
 %define tRFrom       53
 %define tI           54
 %define tDotRet      55
-%define tWordStore   56
-%define tWordFetch   57
-%define tDumpVars    58
-%define tTick        59
-%define tVariable    60
-%define tConstant    61
-%define tAllot       62
-%define tComma       63
-%define tHere        64
-%define tQuestion    65
+%define tClearReturn  56
+%define tWordStore   57
+%define tWordFetch   58
+%define tDumpVars    59
+%define tTick        60
+%define tVariable    61
+%define tConstant    62
+%define tAllot       63
+%define tComma       64
+%define tHere        65
+%define tQuestion    66
 
 
 ;------------------------------------------------------------------------
@@ -140,18 +141,19 @@ dd mToR         ; 52
 dd mRFrom       ; 53
 dd mI           ; 54
 dd mDotRet      ; 55
-dd mWordStore   ; 56
-dd mWordFetch   ; 57
-dd mDumpVars    ; 58
-dd mTick        ; 59
-dd mVariable    ; 60
-dd mConstant    ; 61
-dd mAllot       ; 62
-dd mComma       ; 63
-dd mHere        ; 64
-dd mQuestion    ; 65
+dd mClearReturn  ; 56
+dd mWordStore   ; 57
+dd mWordFetch   ; 58
+dd mDumpVars    ; 59
+dd mTick        ; 60
+dd mVariable    ; 61
+dd mConstant    ; 62
+dd mAllot       ; 63
+dd mComma       ; 64
+dd mHere        ; 65
+dd mQuestion    ; 66
 
-%define JumpTableLen 66
+%define JumpTableLen 67
 
 
 ;-------------------------------------------------------------
@@ -275,20 +277,22 @@ db 1, "i", ParamToken, tI, 0
 dw 424
 db 4, ".ret", ParamToken, tDotRet, 0
 dw 431
-db 5, ".vars", ParamToken, tDumpVars, 0
+db 11, "clearreturn", ParamToken, tClearReturn, 0
 dw 441
+db 5, ".vars", ParamToken, tDumpVars, 0
+dw 458
 db 8, "variable", ParamToken, tVariable, 0
-dw 452
+dw 469
 db 8, "constant", ParamToken, tConstant, 0
-dw 466
+dw 483
 db 5, "allot", ParamToken, tAllot, 0
-dw 480
+dw 497
 db 1, ",", ParamToken, tComma, 0
-dw 491
+dw 508
 db 4, "here", ParamToken, tHere, 0
-dw 498
+dw 515
 db 1, "?", ParamToken, tQuestion, 0
 Voc0End: db 0
 align 16, db 0
-Voc0Len: dd Voc0End - Voc0  ; 515
-Voc0Head: dd 508
+Voc0Len: dd Voc0End - Voc0  ; 532
+Voc0Head: dd 525
