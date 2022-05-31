@@ -29,6 +29,7 @@ Greater Equal ZeroLess ZeroEqual Hex Decimal Fetch Store ByteFetch ByteStore
 SemiColon DotQuoteC U8 U16 I8 I16 I32 Jump Call ClearReturn Next Negate
 ToR RFrom I DotRet ClearReturn WordStore WordFetch DumpVars Tick
 Variable Constant Allot Comma Here Question
+OnePlus TwoPlus FourPlus
 """
 
 # These are names and tokens for words in markabForth's core dictionary. Names
@@ -67,6 +68,9 @@ mod Mod 0
 max Max 0
 min Min 0
 abs Abs 0
+1+ OnePlus 0
+2+ TwoPlus 0
+4+ FourPlus 0
 and And 0
 or Or 0
 xor Xor 0

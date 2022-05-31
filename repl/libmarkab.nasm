@@ -748,13 +748,13 @@ ret
 
 mPrintDPStr:             ; Print string from [DP]
 push rbp
-fPush DP,        .end    ; fush  -> {T: DP (pointer to end of dictionary)}
-fDo   WordFetch, .end    ; fetch -> {T: address (end of dictionary)}
-fDo   Dup,       .end    ; copy  -> {S: addr, T: addr}
-fDo   ByteFetch, .end    ; fetch -> {S: addr, T: string length count}
+fPush DP,        .end    ; -> {T: DP (pointer to end of dictionary)}
+fDo   WordFetch, .end    ; -> {T: address (end of dictionary)}
+fDo   Dup,       .end    ; -> {S: addr, T: addr}
+fDo   ByteFetch, .end    ; -> {S: addr, T: string length count}
 mov ebp, T               ; ebp: count
-fDo   Drop,      .end    ; drop  -> {T: addr}
-add T, 1
+fDo   Drop,      .end    ; -> {T: addr}
+fDo   OnePlus,   .end    ; -> {T: addr+1}
 lea edi, [Mem+T]         ; edi: *buf
 mov esi, ebp             ; esi: count
 call mStrPut.RdiRsi      ; print the string at [DP]
@@ -774,25 +774,25 @@ ret
 mFind:
 push rbp
 push rbx
-fPush DP,        .err         ; push  -> {T: DP (pointer dictionary end + 1)}
-fDo   WordFetch, .errDP       ; fetch -> {T: address of string length count}
-fDo   Dup,       .err         ; copy  -> {S: addr, T: addr}
-fDo   ByteFetch, .errDP       ; fetch -> {S: addr, T: string count}
+fPush DP,        .err         ; -> {T: DP (pointer dictionary end + 1)}
+fDo   WordFetch, .errDP       ; -> {T: address of string length count}
+fDo   Dup,       .err         ; -> {S: addr, T: addr}
+fDo   ByteFetch, .errDP       ; -> {S: addr, T: string count}
 mov ebx, T                    ; ebx: count (save for later)
-fDo   Drop,      .err         ; drop  -> {T: address of count}
-add T, 1                      ; 1+    -> {T: address of string buffer}
+fDo   Drop,      .err         ; -> {T: address of count}
+fDo   OnePlus,   .err         ; -> {T: address of string buffer}
 lea ebp, [Mem+T]              ; ebp: *buf (actual address, save for later)
 mov edi, ebp                  ; edi: *buf
 mov esi, ebx                  ; esi: count
 call mLowercase               ; Lowercase word: lowercase(edi:*buf, esi:count)
-fDo   Drop,      .err         ; drop  -> {}
+fDo   Drop,      .err         ; -> {}
 ;-----------------------------
-fPush Context,   .err         ; push  -> {T: pointer to pointer to vocab head}
-fDo   WordFetch, .errVoc      ; fetch -> {T: pointer to vocab head}
-fDo   WordFetch, .errVoc      ; fetch -> {T: address of vocab item (head item)}
+fPush Context,   .err         ; -> {T: pointer to pointer to vocab head}
+fDo   WordFetch, .errVoc      ; -> {T: pointer to vocab head}
+fDo   WordFetch, .errVoc      ; -> {T: address of vocab item (head item)}
 mov esi, T                    ; esi: address of list item
 push rsi
-call mDrop                    ; drop  -> {}
+call mDrop                    ; -> {}
 pop rsi
 ;-----------------------------
 .compareLength:               ; Check if lengths match
@@ -869,7 +869,7 @@ jz .wordNotFound             ; at this point, stack is {}
 ;---------------------------
 .wordMatch:                  ; Decide what to do with {T: address of .type}
 fDo Dup,       .err          ;  -> {S: .type, T: .type)}
-inc T                        ;  -> {S: .type, T: .param = (.type+1)}
+fDo OnePlus,   .err          ;  -> {S: .type, T: .param = (.type+1)}
 fDo Swap,      .err          ;  -> {S: .param, T: .type}
 fDo ByteFetch, .err          ;  -> {S: .param, T: [.type]}
 fDo PopW,      .err          ;  -> {T: .param}, {W: [.type]}
@@ -1654,7 +1654,6 @@ jb mErr1Underflow
 neg T
 ret
 
-
 mMul:                         ; *   ( 2nd T -- 2nd*T )
 call mMathDrop
 imul T, W                     ; imul is signed multiply (mul is unsigned)
@@ -1721,6 +1720,28 @@ neg W                         ; check if negated value of old T is positive
 test W, W
 cmovns T, W                   ; if so, set new T to negated old T
 ret
+
+mOnePlus:                     ; 1+ -- Add 1 to T
+movq rdi, DSDeep              ; need at least 1 item on stack
+cmp dil, 1
+jb mErr1Underflow
+inc T
+ret
+
+mTwoPlus:                     ; 2+ -- Add 2 to T
+movq rdi, DSDeep              ; need at least 1 item on stack
+cmp dil, 1
+jb mErr1Underflow
+add T, 2
+ret
+
+mFourPlus:                    ; 4+ -- Add 2 to T
+movq rdi, DSDeep              ; need at least 1 item on stack
+cmp dil, 1
+jb mErr1Underflow
+add T, 4
+ret
+
 
 ;-----------------------------
 ; Dictionary: Boolean ops
@@ -1981,7 +2002,7 @@ fDo   ByteStore, .end    ; -> {}                          (<-- 8-bit byte)
 fPush CodeP,     .end    ; -> {T: CodeP}
 fDo   Dup,       .end    ; -> {S: CodeP, T: CodeP}
 fDo   WordFetch, .end    ; -> {S: CodeP, T: [CodeP]}
-inc T                    ; -> {S: CodeP, T: [CodeP]+1}
+fDo   OnePlus,   .end    ; -> {S: CodeP, T: [CodeP]+1}
 fDo   Swap,      .end    ; -> {S: [CodeP]+1, T: CodeP}
 fDo   WordStore, .end    ; -> {}
 .end:
@@ -1994,7 +2015,7 @@ fDo   WordStore, .end    ; -> {}                          (<-- 16-bit word)
 fPush CodeP,     .end    ; -> {T: CodeP}
 fDo   Dup,       .end    ; -> {S: CodeP, T: CodeP}
 fDo   WordFetch, .end    ; -> {S: CodeP, T: [CodeP]}
-add T, 2                 ; -> {S: CodeP, T: [CodeP]+2}
+fDo   TwoPlus,   .end    ; -> {S: CodeP, T: [CodeP]+2}
 fDo   Swap,      .end    ; -> {S: [CodeP]+2, T: CodeP}
 fDo   WordStore, .end    ; -> {}
 .end:
@@ -2007,7 +2028,7 @@ fDo   Store,     .end    ; -> {}                          (<-- 32-bit dword)
 fPush CodeP,     .end    ; -> {T: CodeP}
 fDo   Dup,       .end    ; -> {S: CodeP, T: CodeP}
 fDo   WordFetch, .end    ; -> {S: CodeP, T: [CodeP]}
-add T, 4                 ; -> {S: CodeP, T: [CodeP]+4}
+fDo   FourPlus,  .end    ; -> {S: CodeP, T: [CodeP]+4}
 fDo   Swap,      .end    ; -> {S: [CodeP]+4, T: CodeP}
 fDo   WordStore, .end    ; -> {}
 .end:

@@ -75,6 +75,9 @@
 %define tComma       64
 %define tHere        65
 %define tQuestion    66
+%define tOnePlus     67
+%define tTwoPlus     68
+%define tFourPlus    69
 
 
 ;------------------------------------------------------------------------
@@ -152,8 +155,11 @@ dd mAllot       ; 63
 dd mComma       ; 64
 dd mHere        ; 65
 dd mQuestion    ; 66
+dd mOnePlus     ; 67
+dd mTwoPlus     ; 68
+dd mFourPlus    ; 69
 
-%define JumpTableLen 67
+%define JumpTableLen 70
 
 
 ;-------------------------------------------------------------
@@ -233,66 +239,72 @@ db 3, "min", ParamToken, tMin, 0
 dw 237
 db 3, "abs", ParamToken, tAbs, 0
 dw 246
-db 3, "and", ParamToken, tAnd, 0
+db 2, "1+", ParamToken, tOnePlus, 0
 dw 255
+db 2, "2+", ParamToken, tTwoPlus, 0
+dw 263
+db 2, "4+", ParamToken, tFourPlus, 0
+dw 271
+db 3, "and", ParamToken, tAnd, 0
+dw 279
 db 2, "or", ParamToken, tOr, 0
-dw 264
+dw 288
 db 3, "xor", ParamToken, tXor, 0
-dw 272
+dw 296
 db 6, "invert", ParamToken, tInvert, 0
-dw 281
+dw 305
 db 1, "<", ParamToken, tLess, 0
-dw 293
+dw 317
 db 1, ">", ParamToken, tGreater, 0
-dw 300
+dw 324
 db 1, "=", ParamToken, tEqual, 0
-dw 307
+dw 331
 db 2, "0<", ParamToken, tZeroLess, 0
-dw 314
+dw 338
 db 2, "0=", ParamToken, tZeroEqual, 0
-dw 322
+dw 346
 db 3, "hex", ParamToken, tHex, 0
-dw 330
+dw 354
 db 7, "decimal", ParamToken, tDecimal, 0
-dw 339
+dw 363
 db 1, "@", ParamToken, tFetch, 0
-dw 352
+dw 376
 db 1, "!", ParamToken, tStore, 0
-dw 359
+dw 383
 db 2, "b@", ParamToken, tByteFetch, 0
-dw 366
-db 2, "b!", ParamToken, tByteStore, 0
-dw 374
-db 2, "w@", ParamToken, tWordFetch, 0
-dw 382
-db 2, "w!", ParamToken, tWordStore, 0
 dw 390
-db 4, "next", ParamToken, tNext, 0
+db 2, "b!", ParamToken, tByteStore, 0
 dw 398
+db 2, "w@", ParamToken, tWordFetch, 0
+dw 406
+db 2, "w!", ParamToken, tWordStore, 0
+dw 414
+db 4, "next", ParamToken, tNext, 0
+dw 422
 db 2, ">r", ParamToken, tToR, 0
-dw 408
+dw 432
 db 2, "r>", ParamToken, tRFrom, 0
-dw 416
+dw 440
 db 1, "i", ParamToken, tI, 0
-dw 424
+dw 448
 db 4, ".ret", ParamToken, tDotRet, 0
-dw 431
+dw 455
 db 11, "clearreturn", ParamToken, tClearReturn, 0
-dw 441
+dw 465
 db 5, ".vars", ParamToken, tDumpVars, 0
-dw 458
+dw 482
 db 8, "variable", ParamToken, tVariable, 0
-dw 469
+dw 493
 db 8, "constant", ParamToken, tConstant, 0
-dw 483
+dw 507
 db 5, "allot", ParamToken, tAllot, 0
-dw 497
+dw 521
 db 1, ",", ParamToken, tComma, 0
-dw 508
+dw 532
 db 4, "here", ParamToken, tHere, 0
-dw 515
+dw 539
 db 1, "?", ParamToken, tQuestion, 0
 Voc0End: db 0
 align 16, db 0
-Voc0Len: dd Voc0End - Voc0  ; 532
-Voc0Head: dd 525
+Voc0Len: dd Voc0End - Voc0  ; 556
+Voc0Head: dd 549
