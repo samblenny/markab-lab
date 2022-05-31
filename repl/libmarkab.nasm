@@ -657,8 +657,8 @@ jz .forNextWord
 .done:                        ; Print OK for success (unless still compiling)
 test VMFlags, VMCompile       ; make sure compile mode is not still active
 jnz .doneStillCompiling
-pop rbp
 lea W, [datOK]
+pop rbp
 jmp mStrPut.W
 ;-----------------------------
 .doneStillCompiling:
@@ -669,16 +669,24 @@ movzx edi, word [Mem+Last]    ;  load unfinished dictionary entry
 ;...                          ; TODO: maybe validate this link address ???
 movzx esi, word [Mem+edi]     ;  rsi = {dd .link} (link to last valid entry)
 mov word [Mem+Last], si       ;  roll back the dictionary head
-call mErr18ExpectedSemiColon  ; fall through to .doneErr
+call mErr18ExpectedSemiColon  ; print errror
+and VMFlags, (~VMErr)         ; clear error bit
+pop rbp
+jmp mCR                       ; print CR without OK
 ;-----------------------------
 .doneErr:                     ; Print CR (skip OK), clear error bit
+test VMFlags, VMCompile
+jz .doneErrSkip
+and VMFlags, (~VMCompile)     ; clear compiling flag
+;...                          ; roll back to before the unfinished define
+movzx edi, word [Mem+Last]    ;  load unfinished dictionary entry
+;...                          ; TODO: maybe validate this link address ???
+movzx esi, word [Mem+edi]     ;  rsi = {dd .link} (link to last valid entry)
+mov word [Mem+Last], si       ;  roll back the dictionary head
+.doneErrSkip:
+and VMFlags, (~VMErr)         ; clear error bit
 pop rbp
-test VMFlags, VMCompile       ; make sure we're not still compiling
-jz .doneErr_
-call .doneStillCompiling
-.doneErr_:
-and VMFlags, (~VMErr)
-jmp mCR
+jmp mCR                       ; print CR without the OK
 
 
 mDumpVars:               ; Debug dump dictionary variables and stack
