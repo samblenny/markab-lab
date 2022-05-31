@@ -9,8 +9,12 @@ clearstack
 (  OK)                      99 foo !
 ( 99  OK)                    foo @ .
 ( 99  OK)                      foo ?
+( 99  OK)      : .foo foo @ . ; .foo
+(                TODO: FIX THIS ^^^^)
 (  OK)               20 constant bar
 ( 20  OK)                      bar .
+( 20  OK)      : .bar bar @ . ; .bar
+(                TODO: FIX THIS ^^^^)
 ( E13...)                   30 bar !
 (  OK)      variable array 1 array !
 (  OK)                   2 , 3 , 4 ,

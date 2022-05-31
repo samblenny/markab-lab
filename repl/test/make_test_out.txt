@@ -207,8 +207,12 @@ clearstack  OK
 (  OK)                      99 foo !  OK
 ( 99  OK)                    foo @ . 99  OK
 ( 99  OK)                      foo ? 99  OK
+( 99  OK)      : .foo foo @ . ; .foo 0  E19 Bad address
+(                TODO: FIX THIS ^^^^)  OK
 (  OK)               20 constant bar  OK
 ( 20  OK)                      bar . 20  OK
+( 20  OK)      : .bar bar @ . ; .bar  E1 Stack underflow
+(                TODO: FIX THIS ^^^^)  OK
 ( E13...)                   30 bar !  E13 Address out of range
 (  OK)      variable array 1 array !  OK
 (  OK)                   2 , 3 , 4 ,  OK
