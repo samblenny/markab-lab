@@ -4,9 +4,7 @@ type 'bye' or ^C to exit
 |  \/  |__ _ _ _| |____ _| |__
 | |\/| / _` | '_| / / _` | '_ \
 |_|  |_\__,_|_| |_\_\__,_|_.__/
-
-  1 2 3
-  7  OK
+  OK
 ( === test/fetch_store.fs ===)  OK
 ( -- These should all give errors: --)  OK
 -1 @  E13 Address out of range
@@ -200,12 +198,12 @@ clearreturn  OK
 ( ^^^^^^^^^ compensate for the 1 >r above)  OK
 ( === test/var_const.fs ===)  OK
 clearstack  OK
-( <number>  OK)               here . 1427  OK
+( <number>  OK)               here . 1497  OK
 (  E15...)               10000 allot  E15 Heap full
 (        This is too big ^^^^^     )  OK
-( <same-number>  OK)          here . 1427  OK
+( <same-number>  OK)          here . 1497  OK
 (  OK)                  variable foo  OK
-( <bigger-number>  OK)        here . 1438  OK
+( <bigger-number>  OK)        here . 1508  OK
 (  OK)                      99 foo !  OK
 ( 99  OK)                    foo @ . 99  OK
 ( 99  OK)                      foo ? 99  OK

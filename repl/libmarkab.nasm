@@ -861,6 +861,13 @@ jmp mErr29BadVocabLink
 doWord:
 push rbp
 push rbx
+fPush DP,        .err        ; -> {T: DP (address of dictionary pointer)}
+fDo   WordFetch, .err        ; -> {T: [DP] (address of string for word's name)}
+fDo   ByteFetch, .err        ; -> {T: [[DP]] (length field of string)}
+fDo   PopW,      .err        ; -> {}, {W: [[DP]]}
+test W, W                    ; stop if length of word is 0
+jz .done
+;---------------------------
 fDo Find,      .err          ; Look for word in vocab pointed to by Context
 ;...                         ; -> {S: address, T: -1 (true)} or {T: 0 (false)}
 fDo PopW,      .err          ; popw -> {T: address} or {}, [W: true or false]
@@ -873,13 +880,13 @@ fDo OnePlus,   .err          ;  -> {S: .type, T: .param = (.type+1)}
 fDo Swap,      .err          ;  -> {S: .param, T: .type}
 fDo ByteFetch, .err          ;  -> {S: .param, T: [.type]}
 fDo PopW,      .err          ;  -> {T: .param}, {W: [.type]}
-cmp WB, ParamConst           ; if type const -> 32-bit param is constant
+cmp WB, TpConst              ; if type const -> 32-bit param is constant
 je .paramConst
-cmp WB, ParamVar             ; if type var   -> 32-bit param is variable
-je .paramVar
-cmp WB, ParamCode            ; if type code  -> 16-bit param is code pointer
+cmp WB, TpVar                ; if type var   -> 32-bit param is variable
+je .TpVar
+cmp WB, TpCode               ; if type code  -> 16-bit param is code pointer
 je .paramCode
-cmp WB, ParamToken           ; if type token -> 16-bit param is token:immediate
+cmp WB, TpToken              ; if type token -> 16-bit param is token:immediate
 jne .errBadWordType
 ;---------------------------
 .paramToken:                 ; Handle token; stack is {T: .param}
@@ -922,7 +929,7 @@ fDo   CompileU8, .err        ;  -> {*code}
 fDo   CompileU16, .err       ; -> {}
 jmp .done
 ;---------------------------
-.paramVar:                   ; Handle a variable {T: .param}
+.TpVar:                      ; Handle a variable {T: .param}
 test VMFlags, VMCompile
 jz .done                     ; if interpreting, {T: .param} is what we need
 ;-------------
@@ -1163,7 +1170,7 @@ jnz .doneErr
 movzx esi, word [Mem+DP]      ; load dictionary pointer (updated by create)
 cmp esi, HeapEnd-HReserve     ; stop if there is not enough room to add a link
 jnb .doneErrFull
-mov [Mem+esi], byte ParamCode ; append {.wordType: code} (type is code pointer)
+mov [Mem+esi], byte TpCode    ; append {.wordType: code} (type is code pointer)
 inc esi
 movzx W, word [Mem+CodeP]     ; CAUTION! code pointer in dictionary is _word_
 mov word [Mem+esi], WW        ; append {.param: dw [CodeP]} (the code pointer)
@@ -1398,42 +1405,6 @@ jnz .for
 .done:
 ret
 
-mVariable:             ; VARIABLE -- create name, allot 4, update [Last]
-fDo   Here,      .end  ; -> {T: [DP] (pointer to new dictionary entry)}
-fDo   Create,    .end  ; Read name from input stream and add it to dictionary
-fPush ParamVar,  .end  ; -> {S: [DP] (before create), T: ParamVar (param type)}
-fDo   Here,      .end  ; -> {[DP] (old), S: ParamVar, T: [DP] (now)}
-fDo   ByteStore, .end  ; -> {T: [DP] (old value from before create)}
-fPush 1,         .end  ; -> {S: [DP] (old), T: 1}        (allot for param type)
-fDo   Allot,     .end  ; -> {T: [DP] (old)}
-fPush 0,         .end  ; -> {S: [DP] (old), T: 0}
-fDo   Here,      .end  ; -> {[DP] (old), S: 0, T: [DP] (now)}
-fDo   Store,     .end  ; -> {T: [DP] (old)}               (initialize var to 0)
-fPush 4,         .end  ; -> {S: [DP] (old), T: 4}        (allot for 32-bit var)
-fDo   Allot,     .end  ; -> {T: [DP] (old)}
-fPush Last,      .end  ; -> {S: [DP] (old), T: Last}
-fDo   WordStore, .end  ; -> {}                      (update head of dictionary)
-.end:
-ret
-
-mConstant:             ; CREATE -- create name, store T in dictionary, allot 4
-fDo   Here,      .end  ; -> {S: number, T: [DP] (ptr to new dictionary entry)}
-fDo   Swap,      .end  ; -> {S: [DP] (ptr to new dictionary entry), T: number}
-fDo   Create,    .end  ; Read name from input stream and add it to dictionary
-fPush ParamConst, .end ; -> {[DP] (old), S: number, T: ParamConst (type)}
-fDo   Here,      .end  ; -> {[DP] (old), number, S: ParamConst, T: [DP] (now)}
-fDo   ByteStore, .end  ; -> {S: [DP] (old), T: number}
-fPush 1,         .end  ; -> {[DP] (old), S: number, T: 1}      (allot for type)
-fDo   Allot,     .end  ; -> {S: [DP] (old), T: number}
-fDo   Here,      .end  ; -> {[DP] (old), S: number, T: [DP] (now)}
-fDo   Store,     .end  ; -> {T: [DP] (old)}                 (store const value)
-fPush 4,         .end  ; -> {S: [DP] (old), T: 4}
-fDo   Allot,     .end  ; -> {T: [DP] (old)}            (allot for 32-bit const)
-fPush Last,      .end  ; -> {S: [DP] (old), T: Last}
-fDo   WordStore, .end  ; -> {}                      (update head of dictionary)
-.end:
-ret
-
 mAllot:                ; ALLOT -- Increase Dictionary Pointer (DP) by T
 fDo   Here,      .end  ; -> {S: number, T: [DP] (address of first free byte)}
 fDo   Plus,      .end  ; -> {T: [DP]+number}
@@ -1444,23 +1415,14 @@ fDo   WordStore, .end  ; -> {}
 .end:
 ret
 
-mComma:                ; COMMA -- Store T at end of dictionary and allot 4
-fDo   Here,      .end  ; -> {S: number, T: [DP] (address of first free byte)}
-fDo   Store,     .end  ; -> {}
-fPush 4,         .end  ; -> {T: 4}
-fDo   Allot,     .end  ; -> {}
-.end:
-ret
-
 mHere:                 ; HERE -- Push address of first free dictionary byte
 fPush DP,        .end  ; -> {T: DP (address of DP)}
 fDo   WordFetch, .end  ; -> {T: [DP] (address of first free dictionary byte)}
 .end:
 ret
 
-mQuestion:             ; QUESTION -- fetch and pint (shorthand for `@ .`)
-fDo   Fetch,     .end  ; {T: address} -> {T: [address]}
-fDo   Dot,       .end  ; -> {}
+mLast:                 ; LAST -- Push address of last dictionary item pointer
+fPush Last,      .end  ; -> {T: Last (address of pointer to last item)}
 .end:
 ret
 
@@ -1940,6 +1902,7 @@ or VMFlags, VMNaN
 ret
 ;------------------------
 .doneErr1:
+  DEBUG 'A'
 jmp mErr5NumberFormat
 ;------------------------
 .doneErr2:

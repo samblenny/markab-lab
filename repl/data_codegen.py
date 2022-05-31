@@ -11,9 +11,15 @@ built-in words.
 Dct0 struct format is:
 label: dw .link             ; link to previous list entry
        db .nameLen, <name>  ; name of word
-       db .wordType         ; type of word: 0:token, 1:var, 2:code
+       db .type             ; type of word: TpTok TpVar TpConst TpCode
        dw .param            ; parameter: {token,immediate} | varPtr | codePtr
 """
+
+# These are the type codes for the dictionary item .type field
+TP_TOKEN = 0
+TP_CODE = 1
+TP_CONST = 2
+TP_VAR = 3
 
 # These are VM instruction token names for generating source code of token
 # definitions like `%define tNext 0` and jump table links like `dd mNext`. The
@@ -28,7 +34,7 @@ CR Space Dot Plus Minus Mul Div Mod DivMod Max Min Abs And Or Xor Invert Less
 Greater Equal ZeroLess ZeroEqual Hex Decimal Fetch Store ByteFetch ByteStore
 SemiColon DotQuoteC U8 U16 I8 I16 I32 Jump Call ClearReturn Next Negate
 ToR RFrom I DotRet ClearReturn WordStore WordFetch DumpVars Tick
-Variable Constant Allot Comma Here Question
+Create Allot Here Last
 OnePlus TwoPlus FourPlus
 """
 
@@ -40,7 +46,7 @@ OnePlus TwoPlus FourPlus
 # The main difference between VOC0_LIST and TOKENS is that VOC0_LIST does not
 # include some tokens that are only used as part of compiled words.
 #
-VOC0_LIST = """
+VOC0_TOKS = """
 nop Nop 0
 bye Bye 0
 dup Dup 0
@@ -95,12 +101,18 @@ i I 0
 .ret DotRet 0
 clearreturn ClearReturn 0
 .vars DumpVars 0
-variable Variable 0
-constant Constant 0
+create Create 0
 allot Allot 0
-, Comma 0
 here Here 0
-? Question 0
+last Last 0
+"""
+
+# Constants to be included in core vocabulary
+VOC0_CONST = f"""
+tpvar {TP_VAR}
+tpconst {TP_CONST}
+tpcode {TP_CODE}
+tptoken {TP_TOKEN}
 """
 
 def list_of_words(text):
@@ -128,7 +140,22 @@ def make_dictionary0():
   items = []
   address = 16
   link = 0
-  lines = VOC0_LIST.strip().split("\n")
+  # Add constant entries
+  lines = VOC0_CONST.strip().split("\n")
+  for (i, line) in enumerate(lines):
+    (name, value) = line.strip().split(" ")
+    fmtLink = f"dw {link}"                 # link to previous item in list
+    quote = '"'
+    fmtName = f"db {len(name)}, {quote}{name}{quote}"
+    fmtParam = f", TpConst\ndd {value}"
+    link = address
+    address += 2 + 1 + len(name) + 1 + 4  # link, nameLen, <name>, type, dword
+    pad_size = 0 # 16 - (address % 16)  # <- uncomment to get aligned hexdumps
+    address += pad_size
+    pad = ", 0" * pad_size
+    items += [f"{fmtLink}\n{fmtName}{fmtParam}{pad}"]
+  # Add token entries
+  lines = VOC0_TOKS.strip().split("\n")
   for (i,line) in enumerate(lines):
     (name, long_name, immediate) = line.strip().split(" ")
     # Add this item to the Dct0 dictionary
@@ -138,7 +165,7 @@ def make_dictionary0():
     token = "t" + long_name                # change long name into token macro
     fmtLink = f"dw {link}"                 # link to previous item in list
     fmtName = f"db {len(name)}, {quote}{name}{quote}"
-    fmtTok = f", ParamToken, {token}, {immediate}"
+    fmtTok = f", TpToken, {token}, {immediate}"
     link = address
     address += 2 + 1 + len(name) + 1 + 2  # link, nameLen, <name>, type, tokens
     pad_size = 0 # 16 - (address % 16)  # <- uncomment to get aligned hexdumps
@@ -194,10 +221,10 @@ JumpTable:
 ; area of markabForth's 64KB virtual RAM memory map
 ;
 
-%define ParamToken 0
-%define ParamCode  1
-%define ParamConst 2
-%define ParamVar   3
+%define TpToken {TP_TOKEN}
+%define TpCode  {TP_CODE}
+%define TpConst {TP_CONST}
+%define TpVar   {TP_VAR}
 
 align 16, db 0
 db "== Dictionary =="
