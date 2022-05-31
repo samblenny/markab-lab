@@ -199,6 +199,9 @@ clearstack  OK
 ( === test/var_const.fs ===)  OK
 clearstack  OK
 ( <number>  OK)               here . 1427  OK
+(  E15...)               10000 allot  E15 Heap full
+(        This is too big ^^^^^     )  OK
+( <same-number>  OK)          here . 1427  OK
 (  OK)                  variable foo  OK
 ( <bigger-number>  OK)        here . 1438  OK
 (  OK)                      99 foo !  OK
@@ -207,3 +210,11 @@ clearstack  OK
 (  OK)               20 constant bar  OK
 ( 20  OK)                      bar . 20  OK
 ( E13...)                   30 bar !  E13 Address out of range
+(  OK)      variable array 1 array !  OK
+(  OK)                   2 , 3 , 4 ,  OK
+( 1 OK)                      array ? 1  OK
+( 2 OK)                  array 4 + ? 2  OK
+( 3 OK)                  array 8 + ? 3  OK
+( 4 OK)                 array 12 + ? 4  OK
+(  OK)  here array - constant arrlen  OK
+( 16 OK)                    arrlen . 16  OK

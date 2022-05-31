@@ -1451,7 +1451,7 @@ ret
 mAllot:                ; ALLOT -- Increase Dictionary Pointer (DP) by T
 fDo   Here,      .end  ; -> {S: number, T: [DP] (address of first free byte)}
 fDo   Plus,      .end  ; -> {T: [DP]+number}
-cmp T, HeapEnd-HReserve
+cmp T, ExtVEnd
 jge mErr15HeapFull     ; stop if requested allocation is too large
 fPush DP,        .end  ; -> {S: [DP]+number, T: DP}
 fDo   WordStore, .end  ; -> {}
