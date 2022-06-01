@@ -356,7 +356,6 @@ or VMFlags, VMNaN
 ret
 ;------------------------
 .doneErr1:
-  DEBUG 'A'
 jmp mErr5NumberFormat
 ;------------------------
 .doneErr2:
@@ -451,13 +450,111 @@ fDo   WordStore, .end    ; -> {}
 .end:
 ret
 
-mHere:                 ; HERE -- Push address of first free dictionary byte
-fPush DP,        .end  ; -> {T: DP (address of DP)}
-fDo   WordFetch, .end  ; -> {T: [DP] (address of first free dictionary byte)}
+mHere:                   ; HERE -- Push address of first free dictionary byte
+fPush DP,        .end    ; -> {T: DP (address of DP)}
+fDo   WordFetch, .end    ; -> {T: [DP] (address of first free dictionary byte)}
 .end:
 ret
 
-mLast:                 ; LAST -- Push address of last dictionary item pointer
-fPush Last,      .end  ; -> {T: Last (address of pointer to last item)}
+mLast:                   ; LAST -- Push address of last dictionary item pointer
+fPush Last,      .end    ; -> {T: Last (address of pointer to last item)}
+.end:
+ret
+
+
+mIf:                     ; IF -- Jump forward to THEN if T is non-zero
+test VMFlags, VMCompile  ; in compile mode, jump to the compiler
+jnz mCompileIf
+; ----------
+; TODO: figure out how to distinguish between this being invoked by the
+;       outer interpreter with compile mode on, the outer interpreter with
+;       compile mode off, or by the inner interpreter when running a compiled
+;       word. This shouldn't be available from the outer interpreter when not
+;       compiling, but I don't have a good mechanism to prevent that yet.
+; -----------
+fDo  PopW,        .end   ; -> {}, {W: n (the value to be tested)}
+test W, W                ; if value is 0, do not jump to ELSE/THEN
+jz .doTrue               ; CAUTION! this jz is inverted from the VM instruction
+.doElse:
+movzx edi, word [Mem+ebp] ; load jump target virtual address
+mov ebp, edi             ; jump to ELSE/THEN
+ret
+.doTrue:
+add ebp, 2               ; advance instruction pointer past jump address
+.end:
+ret
+
+
+mElse:                   ; ELSE -- doesn't do anything except when compiling
+test VMFlags, VMCompile  ; in compile mode, jump to the compiler
+jnz mCompileElse
+jmp mErr30CompileOnlyWord
+
+
+mThen:                   ; THEN -- doesn't do anything except when compiling
+test VMFlags, VMCompile  ; in compile mode, jump to the compiler
+jnz mCompileThen
+jmp mErr30CompileOnlyWord
+
+;
+; The compilation for IF ... ELSE ... THEN works by compiling temporary jump
+; target addresses, then pushing a pointer to the jump target address onto the
+; data stack so it can be patched later when the actual jump target is known.
+; IF pushes a pointer to its temporary jump target so the address can be
+; patched by ELSE or THEN. ELSE patches IF's jump address, compiles a jump to
+; THEN (temporary address), then pushes a pointer for THEN to patch the
+; address. THEN just patches the address for IF or ELSE. THEN doesn't care
+; which one it was because the exact same action works for both options.
+;
+; IF compile:
+;  - compile if token
+;  - push [CodeP] (2 bytes) for conditional jump target address to be patched
+;    by ELSE or THEN
+;  - allot 2 for the jump target address
+;
+; ELSE compile:
+;  - compile regular jump token (for THEN)
+;  - push [CodeP] for THEN to patch
+;  - allot 2 for address to be patched by THEN
+;  - patch address for IF to be ELSE's current [CodeP]
+;
+; THEN compile:
+;  - patch address for ELSE to be current [CodeP]
+;
+
+mCompileIf:              ; Compile if token+addr, push pointer for ELSE/THEN
+fPush  tIf,       .end   ; -> {T: tIf}
+fDo    CompileU8, .end   ; -> {}
+fPush  CodeP,     .end   ; -> {T: CodeP (jump addr gets patched by else/then)}
+fDo    WordFetch, .end   ; -> {T: [CodeP] (current code address)}
+fPush  0,         .end   ; -> {S: [CodeP], 0 (temp jump addr)}
+fDo    CompileU16, .end  ; -> {S: [CodeP]}       (compile temporary jump addr)
+.end:
+ret
+
+
+mCompileElse:            ; ELSE -- patch IF's addr, push addr for THEN, ...
+fPush  tJump,     .end   ; -> {S: [CodeP] (if), T: tJump}  (compile jump tok)
+fDo    CompileU8, .end   ; -> {T: [CodeP] (if)}
+fPush  CodeP,     .end   ; -> {S: [CodeP] (if), T: CodeP}
+fDo    WordFetch, .end   ; -> {S: [CodeP] (if), T: [CodeP] (else addr ptr)}
+;...                     ; Compile a temporary jump address for THEN to patch
+fPush  0,         .end   ;  -> {[CodeP](if), S: [CodeP](else), T: 0}
+fDo    CompileU16, .end  ;  -> {S: [CodeP] (if), T: [CodeP] (else)}
+;...                     ; Patch IF's jump target to current code pointer
+fDo    Swap,      .end   ;  -> {S: [CodeP] (else), T: [CodeP] (if)}
+fPush  CodeP,     .end   ;  -> {[CodeP](else), S: [CodeP](if), T: CodeP}
+fDo    WordFetch, .end   ;  -> {[CodeP](else), S: [CodeP](if), T: [CodeP](now)}
+fDo    Swap,      .end   ;  -> {[CodeP](else), S: [CodeP](now), T: [CodeP](if)}
+fDo    WordStore, .end   ;  -> {T: [CodeP] (ELSE's jmp addr for THEN to patch)}
+.end:
+ret
+
+
+mCompileThen:            ; THEN -- patch IF or ELSE's jump address
+fPush  CodeP,     .end   ; -> {S: [CodeP] (old, to be patched) T: CodeP}
+fDo    WordFetch, .end   ; -> {S: [CodeP] (old) T: [CodeP] (now)}
+fDo    Swap,      .end   ; -> {S: [CodeP] (now), T: [CodeP] (old)}
+fDo    WordStore, .end   ; -> {}
 .end:
 ret

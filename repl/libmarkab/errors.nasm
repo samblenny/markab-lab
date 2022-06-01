@@ -137,3 +137,7 @@ jmp mErrPutW
 mErr29BadVocabLink:           ; Error 29: Bad vocab link
 lea W, [datErr29bvl]
 jmp mErrPutW
+
+mErr30CompileOnlyWord:        ; Error 30: Compile-only word
+lea W, [datErr30cow]
+jmp mErrPutW

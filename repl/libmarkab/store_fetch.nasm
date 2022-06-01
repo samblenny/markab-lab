@@ -16,14 +16,14 @@ ret
 
 mStore:                     ; Store dword (second) at address [Mem+T]
 movq rsi, DSDeep            ; make sure stack depth >= 2 items (data, address)
-cmp sil, 2
+cmp esi, 2
 jb mErr1Underflow
 cmp T, Fence               ; check address satisfies: Fence < T < MemSize-3
 jle mErr13AddressOOR
 cmp T, MemSize-3
 jge mErr13AddressOOR
 mov edi, T                  ; save address
-dec rsi                     ; drop address
+dec esi                     ; drop address
 mov T, [DSBase+4*esi-4]     ; T now contains the data dword from former second
 mov [Mem+edi], T            ; store data at [Mem+T]
 dec rsi                     ; drop data dword

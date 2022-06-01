@@ -220,3 +220,14 @@ clearstack  OK
 ( 4 OK)                 array 12 + ? 4  OK
 (  OK)  here array - constant arrlen  OK
 ( 16 OK)                    arrlen . 16  OK
+( === test/control_flow.fs ===)  OK
+clearstack  OK
+(  OK) : zero? if ."   Y" else ."   N" then ." ." ;  OK
+(  E1...)                                     zero?  E1 Stack underflow
+(  Y.  OK)                                  0 zero?  Y.  OK
+(  N.  OK)                                  1 zero?  N.  OK
+(  N.  OK)                                 -1 zero?  N.  OK
+(  N.  OK)                                 99 zero?  N.  OK
+(  OK)       : red space if ."  Blue" then ."  x" ;  OK
+(  Blue  x  OK)                               0 red  Blue x  OK
+(  x  OK)                                     1 red  x  OK

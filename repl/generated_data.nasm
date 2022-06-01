@@ -76,6 +76,9 @@
 %define tOnePlus     65
 %define tTwoPlus     66
 %define tFourPlus    67
+%define tIf          68
+%define tElse        69
+%define tThen        70
 
 
 ;------------------------------------------------------------------------
@@ -154,8 +157,11 @@ dd mLast        ; 64
 dd mOnePlus     ; 65
 dd mTwoPlus     ; 66
 dd mFourPlus    ; 67
+dd mIf          ; 68
+dd mElse        ; 69
+dd mThen        ; 70
 
-%define JumpTableLen 68
+%define JumpTableLen 71
 
 
 ;-------------------------------------------------------------
@@ -308,7 +314,13 @@ dw 562
 db 4, "here", TpToken, tHere, 0
 dw 573
 db 4, "last", TpToken, tLast, 0
+dw 583
+db 2, "if", TpToken, tIf, 1
+dw 593
+db 4, "else", TpToken, tElse, 1
+dw 601
+db 4, "then", TpToken, tThen, 1
 Voc0End: db 0
 align 16, db 0
-Voc0Len: dd Voc0End - Voc0  ; 593
-Voc0Head: dd 583
+Voc0Len: dd Voc0End - Voc0  ; 621
+Voc0Head: dd 611

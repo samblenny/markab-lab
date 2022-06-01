@@ -90,6 +90,7 @@ datErr26fin: mkStr "  E26 Format insert"
 datErr27bfi: mkStr "  E27 Bad format index"
 datErr28dpo: mkStr "  E28 DP out of range"
 datErr29bvl: mkStr "  E29 Bad vocab link"
+datErr30cow: mkStr "  E30 Compile-only word"
 datDotSNone: mkStr "  Stack is empty"
 datOK:       mkStr `  OK\n`
 datVoc0Head: mkStr "[Voc0Head]  "
@@ -231,20 +232,20 @@ section .text
 
 %macro DEBUG 1
   push rax
-  push rbx
   push rcx
-  push rbp
   push rdx
   push rsi
   push rdi
+  push r8
+  push r9
   mov WB, %1
   call mEmit.W
+  pop r9
+  pop r8
   pop rdi
   pop rsi
   pop rdx
-  pop rbp
   pop rcx
-  pop rbx
   pop rax
 %endmacro
 

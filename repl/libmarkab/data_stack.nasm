@@ -15,7 +15,7 @@ jmp mPush
 
 mSwap:                        ; SWAP - Swap T and second item on stack
 movq rdi, DSDeep              ; check if stack depth is >= 2
-cmp dil, 2
+cmp edi, 2
 jb mErr1Underflow
 sub edi, 2
 xchg T, [DSBase+4*edi]
@@ -23,7 +23,7 @@ ret
 
 mOver:                        ; OVER - Push second item on stack
 movq rdi, DSDeep              ; check if stack depth is >= 2
-cmp dil, 2
+cmp edi, 2
 jb mErr1Underflow
 sub edi, 2
 mov W, [DSBase+4*edi]
@@ -36,7 +36,7 @@ ret
 
 mPush:                        ; PUSH - Push W to data stack
 movq rdi, DSDeep
-cmp dil, DSMax
+cmp edi, DSMax
 jnb mErr2Overflow
 dec edi                       ; calculate store index of old_depth-2+1
 mov [DSBase+4*edi], T         ; store old value of T
@@ -48,12 +48,12 @@ ret
 mPopW:                        ; POP  - alias for mDrop (which copies T to W)
 mDrop:                        ; DROP - pop T, saving a copy in W
 movq rdi, DSDeep              ; check if stack depth >= 1
-cmp dil, 1
+cmp edi, 1
 jb mErr1Underflow
-dec rdi                       ; new_depth = old_depth-1
+dec edi                       ; new_depth = old_depth-1
 movq DSDeep, rdi
 mov W, T
-dec rdi                       ; convert depth to second item index (old_depth-2)
+dec edi                       ; convert depth to second item index (old_depth-2)
 mov T, [DSBase+4*edi]
 ret
 
