@@ -15,6 +15,8 @@ extern mkb_host_step_stdin
 extern mkb_host_TIB
 extern mkb_host_TIB_LEN
 
+extern mErr7NotANumber
+
 global Mem
 global DSBase
 global RSBase
@@ -32,38 +34,6 @@ global datCodeCallP
 global datHeap
 global datHeapEnd
 global datDPStr
-
-global datErr1se
-global datErr2sf
-global datErr3bt
-global datErr4nq
-global datErr5nf
-global datErr6of
-global datErr7nfd
-global datErr7nfh
-global datErr8np
-global datErr9df
-global datErr10en
-global datErr11ntl
-global datErr12dbz
-global datErr13aor
-global datErr14bwt
-global datErr15hf
-global datErr16stl
-global datErr17snc
-global datErr18esc
-global datErr19ba
-global datErr20rsu
-global datErr21rsf
-global datErr22ltl
-global datErr23bbp
-global datErr24cvt
-global datErr25bor
-global datErr26fin
-global datErr27bfi
-global datErr28dpo
-global datErr29bvl
-global datErr30cow
 
 global mStrPut.W
 global mStrPut.RdiRsi
@@ -111,37 +81,6 @@ align 16, db 0
 db "== VM Strings =="
 
 datVersion:  mkStr `Markab v0.0.1\ntype 'bye' or ^C to exit\n`
-datErr1se:   mkStr "  E1 Stack underflow"
-datErr2sf:   mkStr "  E2 Stack overflow (cleared stack)"
-datErr3bt:   mkStr "  E3 Bad token: "
-datErr4nq:   mkStr `  E4 Expected \"`
-datErr5nf:   mkStr "  E5 Number format"
-datErr6of:   mkStr "  E6 Overflow: "
-datErr7nfd:  mkStr "  E7 ? "
-datErr7nfh:  mkStr "  E7 [hex] ? "
-datErr8np:   mkStr "  E8 Expected )"
-datErr9df:   mkStr "  E9 Dictionary full"
-datErr10en:  mkStr "  E10 Expected name"
-datErr11ntl: mkStr "  E11 Name too long"
-datErr12dbz: mkStr "  E12 Divide by 0"
-datErr13aor: mkStr "  E13 Address out of range"
-datErr14bwt: mkStr "  E14 Bad word type"
-datErr15hf:  mkStr "  E15 Heap full"
-datErr16stl: mkStr "  E16 Screen too long"
-datErr17snc: mkStr "  E17 ; when not compiling"
-datErr18esc: mkStr "  E18 Expected ;"
-datErr19ba:  mkStr "  E19 Bad address"
-datErr20rsu: mkStr "  E20 Return stack underflow"
-datErr21rsf: mkStr "  E21 Return stack full"
-datErr22ltl: mkStr "  E22 Loop too long"
-datErr23bbp: mkStr "  E23 Bad buffer pointer"
-datErr24cvt: mkStr "  E24 Core vocab too long"
-datErr25bor: mkStr "  E25 Base out of range"
-datErr26fin: mkStr "  E26 Format insert"
-datErr27bfi: mkStr "  E27 Bad format index"
-datErr28dpo: mkStr "  E28 DP out of range"
-datErr29bvl: mkStr "  E29 Bad vocab link"
-datErr30cow: mkStr "  E30 Compile-only word"
 datDotSNone: mkStr "  Stack is empty"
 datOK:       mkStr `  OK\n`
 datVoc0Head: mkStr "[Voc0Head]  "
@@ -157,8 +96,6 @@ datHeapEnd:  mkStr "HeapEnd   "
 datDPStr:    mkStr "str([DP])  "
 datDotS:     mkStr ".s        "
 
-align 16, db 0
-db "=== End.data ==="
 
 ;=============================
 section .bss
@@ -673,15 +610,12 @@ pop rbx
 pop rbp
 ret
 ;---------------------
-.errNaN:
-and VMFlags, (~VMNaN)       ; ...if not, clear the NaN flag and show an error
-lea W, [datErr7nfd]         ; not found error message (decimal version)
-lea edx, [datErr7nfh]       ; swap error message for hex version if base 16
+.errNaN:                    ; Handle a word that didn't match anything
+and VMFlags, (~VMNaN)       ; clear the NaN flag and show an error
 movzx ecx, word [Mem+Base]
 cmp cl, 16
-cmove W, edx
-call mStrPut.W              ; print the not found error prefix
-mov rdi, rbp                ; print the word that wasn't found
+call mErr7NotANumber        ; print NaN error message prefix,
+mov rdi, rbp                ;  then print the word that wasn't found
 mov rsi, rbx
 call mStrPut.RdiRsi
 or VMFlags, VMErr           ; return with error condition
