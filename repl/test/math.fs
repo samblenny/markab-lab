@@ -22,3 +22,6 @@ clearstack
 ( 0  OK)         decimal -1 hex invert .
 ( FFFFFFFF  OK)               1 negate .
 ( FFFFFFFE  OK)               1 invert .
+( FF  OK)           hex ff 0 + . decimal
+(  E7...)           hex -1 0 + decimal .
+( -1  OK)               decimal -1 0 + .

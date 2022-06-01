@@ -21,7 +21,7 @@ global mErr3BadToken
 global mErr4NoQuote
 global mErr5NumberFormat
 global mErr6Overflow
-global mErr7NotANumber
+global mErr7UnknownWord
 global mErr8NoParen
 global mErr9DictFull
 global mErr10ExpectedName
@@ -59,8 +59,8 @@ datErr3bt:   mkStr "  E3 Bad token: "
 datErr4nq:   mkStr `  E4 Expected \"`
 datErr5nf:   mkStr "  E5 Number format"
 datErr6of:   mkStr "  E6 Overflow: "
-datErr7nfd:  mkStr "  E7 ? "
-datErr7nfh:  mkStr "  E7 [hex] ? "
+datErr7uwd:  mkStr "  E7 Unknown word: "
+datErr7uwh:  mkStr "  E7 [Base=Hex] Unknown word: "
 datErr8np:   mkStr "  E8 Expected )"
 datErr9df:   mkStr "  E9 Dictionary full"
 datErr10en:  mkStr "  E10 Expected name"
@@ -136,24 +136,20 @@ call mStrPut.RdiRsi           ; print word that caused the problem
 or VMFlags, VMErr
 ret
 
-; Error 7: Not a number
+; Error 7: Unknown word (not a word, not a number)
 ;
 ; This comes with two message variants. The hex version includes a reminder
 ; that the current base is hex, which can be helpful if you forgot the base and
 ; are getting errors as you attempt to input negative numbers (`-` is not valid
 ; when base is hex).
 ;
-mErr7NotANumber:
-lea W, [datErr7nfd]           ; start with guess that base is decimal
-lea edi, [datErr7nfh]         ; prepare alternate message in case base is hex
+mErr7UnknownWord:
+lea W, [datErr7uwd]           ; start with guess that base is decimal
+lea edi, [datErr7uwh]         ; prepare alternate message in case base is hex
 mov ecx, [Mem+Base]           ; check base
 cmp cl, 16
 cmove W, edi                  ; pick the correct error message
 jmp mErrPutW                  ; print the message
-
-mErr7NanHex:
-lea W, [datErr7nfh]
-jmp mErrPutW
 
 mErr8NoParen:                 ; Error 8: comment had '(' without matching ')'
 lea W, [datErr8np]

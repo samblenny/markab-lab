@@ -15,7 +15,7 @@ extern mkb_host_step_stdin
 extern mkb_host_TIB
 extern mkb_host_TIB_LEN
 
-extern mErr7NotANumber
+extern mErr7UnknownWord
 
 global Mem
 global DSBase
@@ -614,7 +614,7 @@ ret
 and VMFlags, (~VMNaN)       ; clear the NaN flag and show an error
 movzx ecx, word [Mem+Base]
 cmp cl, 16
-call mErr7NotANumber        ; print NaN error message prefix,
+call mErr7UnknownWord       ; print NaN error message prefix,
 mov rdi, rbp                ;  then print the word that wasn't found
 mov rsi, rbx
 call mStrPut.RdiRsi

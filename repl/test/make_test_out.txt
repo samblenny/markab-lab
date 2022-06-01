@@ -55,7 +55,7 @@ clearstack  OK
 ( word)  OK
 ( === test/dotquote.fs ===)  OK
 ( -- These should give errors: --)  OK
-( no space)      .""  E7 ? .""
+( no space)      .""  E7 Unknown word: .""
 ( CR)            ."  E4 Expected "
 ( space CR)      ."   E4 Expected "
 ( space word CR) ." word  E4 Expected "
@@ -117,6 +117,9 @@ clearstack  OK
 ( 0  OK)         decimal -1 hex invert . 0  OK
 ( FFFFFFFF  OK)               1 negate . FFFFFFFF  OK
 ( FFFFFFFE  OK)               1 invert . FFFFFFFE  OK
+( FF  OK)           hex ff 0 + . decimal FF  OK
+(  E7...)           hex -1 0 + decimal .  E7 [Base=Hex] Unknown word: -1
+( -1  OK)               decimal -1 0 + . -1  OK
 ( === test/colon_defs.fs ===)  OK
 (  OK)    : a ;               a  OK
 ( B  OK)  : b ."  B" ;        b B  OK
