@@ -3,6 +3,77 @@
 ;
 ; MarkabForth error words (meant to be included in ../libmarkab.nasm)
 
+; This include path is relative to the working directory that will be in effect
+; when running the Makefile in the parent directory of this file. So the
+; include path is relative to ../Makefile, which is confusing.
+%include "libmarkab/common_macros.nasm"
+
+extern datErr10en
+extern datErr11ntl
+extern datErr12dbz
+extern datErr13aor
+extern datErr14bwt
+extern datErr15hf
+extern datErr16stl
+extern datErr17snc
+extern datErr18esc
+extern datErr19ba
+extern datErr1se
+extern datErr20rsu
+extern datErr21rsf
+extern datErr22ltl
+extern datErr23bbp
+extern datErr24cvt
+extern datErr25bor
+extern datErr26fin
+extern datErr27bfi
+extern datErr28dpo
+extern datErr29bvl
+extern datErr2sf
+extern datErr30cow
+extern datErr3bt
+extern datErr4nq
+extern datErr5nf
+extern datErr6of
+extern datErr8np
+extern datErr9df
+extern mClearReturn
+extern mClearStack
+extern mDot.W
+extern mStrPut.RdiRsi
+extern mStrPut.W
+
+global mErr1Underflow
+global mErr2Overflow
+global mErr3BadToken
+global mErr4NoQuote
+global mErr5NumberFormat
+global mErr6Overflow
+global mErr8NoParen
+global mErr9DictFull
+global mErr10ExpectedName
+global mErr11NameTooLong
+global mErr12DivideByZero
+global mErr13AddressOOR
+global mErr14BadWordType
+global mErr15HeapFull
+global mErr16ScreenTooLong
+global mErr17SemiColon
+global mErr18ExpectedSemiColon
+global mErr19BadAddress
+global mErr20ReturnUnderflow
+global mErr21ReturnFull
+global mErr22LoopTooLong
+global mErr23BadBufferPointer
+global mErr24CoreVocabTooLong
+global mErr25BaseOutOfRange
+global mErr26FormatInsert
+global mErr27BadFormatIndex
+global mErr28DPOutOfRange
+global mErr29BadVocabLink
+global mErr30CompileOnlyWord
+
+
 mErrPutW:                     ; Print error from W and set error flag
 call mStrPut.W
 or VMFlags, VMErr

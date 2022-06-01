@@ -3,6 +3,30 @@
 ;
 ; MarkabForth number words (meant to be included in ../libmarkab.nasm)
 
+; This include path is relative to the working directory that will be in effect
+; when running the Makefile in the parent directory of this file. So the
+; include path is relative to ../Makefile, which is confusing.
+%include "libmarkab/common_macros.nasm"
+
+extern mDrop
+extern Mem
+extern mErr1Underflow
+extern mErr25BaseOutOfRange
+extern mErr26FormatInsert
+extern mErr27BadFormatIndex
+extern mErr5NumberFormat
+extern mStrPut.RdiRsi
+
+global mHex
+global mDecimal
+global mDot
+global mDot.W
+global mFmtRtlClear
+global mFmtRtlInt32
+global mFmtRtlSpace
+global mFmtRtlPut
+
+
 mHex:                         ; Set number base to 16
 mov word [Mem+Base], word 16
 ret

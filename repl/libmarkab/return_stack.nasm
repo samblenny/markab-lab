@@ -3,6 +3,30 @@
 ;
 ; MarkabForth return stack words (meant to be included in ../libmarkab.nasm)
 
+; This include path is relative to the working directory that will be in effect
+; when running the Makefile in the parent directory of this file. So the
+; include path is relative to ../Makefile, which is confusing.
+%include "libmarkab/common_macros.nasm"
+
+extern mDrop
+extern Mem
+extern mErr19BadAddress
+extern mErr20ReturnUnderflow
+extern mErr21ReturnFull
+extern mPush
+extern RSBase
+
+global mClearReturn
+global mI
+global mToR
+global mRFrom
+global mClearReturn
+global mJump
+global mCall
+global mNext
+global mReturn
+
+
 mRPushW:                      ; Push W to return stack
 movq rdi, RSDeep
 cmp dil, RSMax

@@ -9,11 +9,17 @@
 .SUFFIXES:
 .PHONY: help all clean run dump test
 CC=clang
+CFLAGS=-std=c99 -Wall
+LDFLAGS=-O2 -Wl,-export-dynamic
 TESTS_OUT=test/make_test_out.txt
 TESTS=test/fetch_store.fs test/comments.fs test/dotquote.fs test/stack.fs \
   test/math.fs test/colon_defs.fs test/loops.fs test/fizzbuzz.fs \
   test/return_stack.fs test/var_const.fs test/control_flow.fs
-ASM_MISC=generated_data.nasm libmarkab/*.nasm
+ASM_OBJS=obj/boolean.o obj/compiler.o obj/data_stack.o obj/debugging.o \
+  obj/errors.o obj/math.o obj/numbers.o obj/return_stack.o \
+  obj/store_fetch.o obj/strings.o
+AUTOGEN_SRC=libmarkab/generated_data.nasm libmarkab/generated_macros.nasm
+COMMON_SRC=libmarkab/common_macros.nasm
 
 all: main
 clean:
@@ -30,12 +36,19 @@ dump: main
 test: main $(TESTS)
 	cat $(TESTS) | ./main | tee $(TESTS_OUT)
 
-main: main.c obj/libmarkab.o
-	$(CC) -O2 -Wl,-export-dynamic -std=c99 -Wall -o $@ main.c obj/libmarkab.o
+main: main.c obj/libmarkab.o $(ASM_OBJS)
+	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ main.c obj/libmarkab.o $(ASM_OBJS)
 
-obj/libmarkab.o: libmarkab.nasm screen00.fs $(ASM_MISC)
+obj/libmarkab.o: libmarkab.nasm $(AUTOGEN_SRC) $(COMMON_SRC) screen00.fs
 	@mkdir -p obj
 	nasm -f elf64 -w+all --reproducible -o $@ $<
 
-generated_data.nasm: data_codegen.py
-	python3 data_codegen.py > generated_data.nasm
+obj/%.o: libmarkab/%.nasm $(AUTOGEN_SRC) $(COMMON_SRC)
+	@mkdir -p obj
+	@nasm -f elf64 -w+all --reproducible -o $@ $<
+
+libmarkab/generated_data.nasm: data_codegen.py
+	python3 data_codegen.py
+
+libmarkab/generated_macros.nasm: data_codegen.py
+	python3 data_codegen.py

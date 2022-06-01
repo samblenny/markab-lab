@@ -3,6 +3,54 @@
 ;
 ; MarkabForth compiler words (meant to be included in ../libmarkab.nasm)
 
+; This include path is relative to the working directory that will be in effect
+; when running the Makefile in the parent directory of this file. So the
+; include path is relative to ../Makefile, which is confusing.
+%include "libmarkab/common_macros.nasm"
+%include "libmarkab/generated_macros.nasm"
+
+extern mByteStore
+extern mDrop
+extern mDup
+extern Mem
+extern mErr5NumberFormat
+extern mErr6Overflow
+extern mErr9DictFull
+extern mErr10ExpectedName
+extern mErr11NameTooLong
+extern mErr15HeapFull
+extern mErr17SemiColon
+extern mErr19BadAddress
+extern mErr30CompileOnlyWord
+extern mFourPlus
+extern mOnePlus
+extern mPopW
+extern mPlus
+extern mPush
+extern mStore
+extern mSwap
+extern mTwoPlus
+extern mWordFetch
+extern mWordStore
+
+global mColon
+global mSemiColon
+global mCreate
+global mWord
+global mAllot
+global mLowercase
+global mNumber
+global mCompileLiteral
+global mCompileU8
+global mCompileU16
+global mCompileU32
+global mHere
+global mLast
+global mIf
+global mElse
+global mThen
+
+
 mColon:                       ; COLON - define a word
 movzx edi, word [Mem+DP]      ; load dictionary pointer [DP]
 push rdi                      ; save [DP] in case rollback needed
@@ -496,31 +544,15 @@ test VMFlags, VMCompile  ; in compile mode, jump to the compiler
 jnz mCompileThen
 jmp mErr30CompileOnlyWord
 
-;
-; The compilation for IF ... ELSE ... THEN works by compiling temporary jump
-; target addresses, then pushing a pointer to the jump target address onto the
-; data stack so it can be patched later when the actual jump target is known.
-; IF pushes a pointer to its temporary jump target so the address can be
-; patched by ELSE or THEN. ELSE patches IF's jump address, compiles a jump to
-; THEN (temporary address), then pushes a pointer for THEN to patch the
-; address. THEN just patches the address for IF or ELSE. THEN doesn't care
-; which one it was because the exact same action works for both options.
-;
-; IF compile:
-;  - compile if token
-;  - push [CodeP] (2 bytes) for conditional jump target address to be patched
-;    by ELSE or THEN
-;  - allot 2 for the jump target address
-;
-; ELSE compile:
-;  - compile regular jump token (for THEN)
-;  - push [CodeP] for THEN to patch
-;  - allot 2 for address to be patched by THEN
-;  - patch address for IF to be ELSE's current [CodeP]
-;
-; THEN compile:
-;  - patch address for ELSE to be current [CodeP]
-;
+
+; The IF ... ELSE ... THEN works by compiling temporary jump target addresses,
+; then pushing a pointer to the jump target address onto the data stack so it
+; can be patched later when the actual jump target is known. IF pushes a
+; pointer to its temporary jump target so the address can be patched by ELSE or
+; THEN. ELSE patches IF's jump address, compiles a jump to THEN (temporary
+; address), then pushes a pointer for THEN to patch the address. THEN just
+; patches the address for IF or ELSE. THEN doesn't care which one it was
+; because the exact same action works for both options.
 
 mCompileIf:              ; Compile if token+addr, push pointer for ELSE/THEN
 fPush  tIf,       .end   ; -> {T: tIf}
@@ -546,7 +578,7 @@ fDo    Swap,      .end   ;  -> {S: [CodeP] (else), T: [CodeP] (if)}
 fPush  CodeP,     .end   ;  -> {[CodeP](else), S: [CodeP](if), T: CodeP}
 fDo    WordFetch, .end   ;  -> {[CodeP](else), S: [CodeP](if), T: [CodeP](now)}
 fDo    Swap,      .end   ;  -> {[CodeP](else), S: [CodeP](now), T: [CodeP](if)}
-fDo    WordStore, .end   ;  -> {T: [CodeP] (ELSE's jmp addr for THEN to patch)}
+fDo    WordStore, .end   ;  -> {T: [CodeP] (jump address for THEN to patch)}
 .end:
 ret
 

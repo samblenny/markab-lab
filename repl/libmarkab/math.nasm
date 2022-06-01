@@ -3,6 +3,31 @@
 ;
 ; MarkabForth math words (meant to be included in ../libmarkab.nasm)
 
+; This include path is relative to the working directory that will be in effect
+; when running the Makefile in the parent directory of this file. So the
+; include path is relative to ../Makefile, which is confusing.
+%include "libmarkab/common_macros.nasm"
+
+extern DSBase
+extern mErr12DivideByZero
+extern mErr1Underflow
+
+global mMathDrop
+global mPlus
+global mMinus
+global mNegate
+global mMul
+global mDiv
+global mMod
+global mDivMod
+global mMax
+global mMin
+global mAbs
+global mOnePlus
+global mTwoPlus
+global mFourPlus
+
+
 mMathDrop:                    ; Shared drop preamble for 2-operand math ops
 movq rdi, DSDeep              ; make sure there are 2 items on the stack
 cmp dil, 2

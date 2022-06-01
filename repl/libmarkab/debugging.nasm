@@ -3,6 +3,44 @@
 ;
 ; MarkabForth debugging words (meant to be included in ../libmarkab.nasm)
 
+; This include path is relative to the working directory that will be in effect
+; when running the Makefile in the parent directory of this file. So the
+; include path is relative to ../Makefile, which is confusing.
+%include "libmarkab/common_macros.nasm"
+
+extern datCodeCallP
+extern datCodeP
+extern datContext
+extern datDotS
+extern datDotSNone
+extern datDP
+extern datDPStr
+extern datExtV
+extern datForthP
+extern datHeap
+extern datHeapEnd
+extern datLast
+extern datVoc0Head
+extern DSBase
+extern mCR
+extern mDot
+extern mDup
+extern mFmtRtlClear
+extern mFmtRtlInt32
+extern mFmtRtlPut
+extern mFmtRtlSpace
+extern mPrintDPStr
+extern mPush
+extern mStrPut.W
+extern mWordFetch
+extern RSBase
+extern Voc0Head
+
+global mDotS
+global mDotRet
+global mDumpVars
+
+
 ; Nondestructively print stack in current number base.
 ;
 ; The indexing math is tricky. The stack depth (DSDeep) tracks total cells on

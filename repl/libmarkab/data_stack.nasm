@@ -3,6 +3,30 @@
 ;
 ; MarkabForth data stack words (meant to be included in ../libmarkab.nasm)
 
+; This include path is relative to the working directory that will be in effect
+; when running the Makefile in the parent directory of this file. So the
+; include path is relative to ../Makefile, which is confusing.
+%include "libmarkab/common_macros.nasm"
+
+extern DSBase
+extern Mem
+extern mErr1Underflow
+extern mErr2Overflow
+
+global mNop
+global mDup
+global mSwap
+global mOver
+global mClearStack
+global mPush
+global mPopW
+global mDrop
+global mU8
+global mI8
+global mU16
+global mI16
+global mI32
+
 mNop:                         ; NOP - do nothing
 ret
 

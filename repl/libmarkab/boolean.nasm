@@ -11,6 +11,25 @@
 ; `INVERT` to act as both bitwise and boolean operators.
 ; =====================
 
+; This include path is relative to the working directory that will be in effect
+; when running the Makefile in the parent directory of this file. So the
+; include path is relative to ../Makefile, which is confusing.
+%include "libmarkab/common_macros.nasm"
+
+extern mMathDrop
+extern mErr1Underflow
+
+global mAnd
+global mOr
+global mXor
+global mInvert
+global mLess
+global mGreater
+global mEqual
+global mZeroLess
+global mZeroEqual
+
+
 mAnd:                         ; AND   ( 2nd T -- bitwise_and_2nd_T )
 call mMathDrop
 and T, W

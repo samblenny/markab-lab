@@ -3,6 +3,24 @@
 ;
 ; MarkabForth store and fetch words (meant to be included in ../libmarkab.nasm)
 
+; This include path is relative to the working directory that will be in effect
+; when running the Makefile in the parent directory of this file. So the
+; include path is relative to ../Makefile, which is confusing.
+%include "libmarkab/common_macros.nasm"
+
+extern DSBase
+extern Mem
+extern mErr13AddressOOR
+extern mErr1Underflow
+
+global mFetch
+global mStore
+global mByteFetch
+global mByteStore
+global mWordFetch
+global mWordStore
+
+
 mFetch:                     ; Fetch: pop addr, load & push dword [Mem+T]
 movq rdi, DSDeep            ; need at least 1 item on stack
 cmp dil, 1

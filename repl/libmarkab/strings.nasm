@@ -3,6 +3,33 @@
 ;
 ; MarkabForth string words (meant to be included in ../libmarkab.nasm)
 
+; This include path is relative to the working directory that will be in effect
+; when running the Makefile in the parent directory of this file. So the
+; include path is relative to ../Makefile, which is confusing.
+%include "libmarkab/common_macros.nasm"
+%include "libmarkab/generated_macros.nasm"
+
+extern mByteFetch
+extern mDrop
+extern mDup
+extern Mem
+extern mErr15HeapFull
+extern mErr23BadBufferPointer
+extern mErr4NoQuote
+extern mOnePlus
+extern mPush
+extern mStrPut.RdiRsi
+extern mStrPut.W
+extern mWordFetch
+
+global mDotQuoteC
+global mDotQuoteI
+global mSpace
+global mCR
+global mEmit
+global mPrintDPStr
+
+
 mDotQuoteC:                   ; Print string literal to stdout (token compiled)
 movzx ecx, word [Mem+ebp]     ; get length of string in bytes (to adjust I)
 add ecx, 2                    ;   add 2 for length word
