@@ -89,6 +89,7 @@ extern mLast
 extern mOnePlus
 extern mTwoPlus
 extern mFourPlus
+extern mOneMinus
 extern mIf
 extern mElse
 extern mEndIf
@@ -168,13 +169,14 @@ dd mLast        ; 64
 dd mOnePlus     ; 65
 dd mTwoPlus     ; 66
 dd mFourPlus    ; 67
-dd mIf          ; 68
-dd mElse        ; 69
-dd mEndIf       ; 70
-dd mFor         ; 71
-dd mNext        ; 72
+dd mOneMinus    ; 68
+dd mIf          ; 69
+dd mElse        ; 70
+dd mEndIf       ; 71
+dd mFor         ; 72
+dd mNext        ; 73
 
-%define JumpTableLen 73
+%define JumpTableLen 74
 
 
 ;-------------------------------------------------------------
@@ -267,72 +269,74 @@ db 2, "2+", TpToken, tTwoPlus, 0
 dw 320
 db 2, "4+", TpToken, tFourPlus, 0
 dw 328
-db 3, "and", TpToken, tAnd, 0
+db 2, "1-", TpToken, tOneMinus, 0
 dw 336
+db 3, "and", TpToken, tAnd, 0
+dw 344
 db 2, "or", TpToken, tOr, 0
-dw 345
-db 3, "xor", TpToken, tXor, 0
 dw 353
+db 3, "xor", TpToken, tXor, 0
+dw 361
 db 6, "invert", TpToken, tInvert, 0
-dw 362
+dw 370
 db 1, "<", TpToken, tLess, 0
-dw 374
+dw 382
 db 1, ">", TpToken, tGreater, 0
-dw 381
+dw 389
 db 1, "=", TpToken, tEqual, 0
-dw 388
+dw 396
 db 2, "0<", TpToken, tZeroLess, 0
-dw 395
-db 2, "0=", TpToken, tZeroEqual, 0
 dw 403
-db 3, "hex", TpToken, tHex, 0
+db 2, "0=", TpToken, tZeroEqual, 0
 dw 411
+db 3, "hex", TpToken, tHex, 0
+dw 419
 db 7, "decimal", TpToken, tDecimal, 0
-dw 420
+dw 428
 db 1, "@", TpToken, tFetch, 0
-dw 433
+dw 441
 db 1, "!", TpToken, tStore, 0
-dw 440
+dw 448
 db 2, "b@", TpToken, tByteFetch, 0
-dw 447
-db 2, "b!", TpToken, tByteStore, 0
 dw 455
-db 2, "w@", TpToken, tWordFetch, 0
+db 2, "b!", TpToken, tByteStore, 0
 dw 463
-db 2, "w!", TpToken, tWordStore, 0
+db 2, "w@", TpToken, tWordFetch, 0
 dw 471
-db 4, "next", TpToken, tNext, 0
+db 2, "w!", TpToken, tWordStore, 0
 dw 479
+db 4, "next", TpToken, tNext, 0
+dw 487
 db 2, ">r", TpToken, tToR, 0
-dw 489
-db 2, "r>", TpToken, tRFrom, 0
 dw 497
-db 1, "i", TpToken, tI, 0
+db 2, "r>", TpToken, tRFrom, 0
 dw 505
+db 1, "i", TpToken, tI, 0
+dw 513
 db 4, ".ret", TpToken, tDotRet, 0
-dw 512
+dw 520
 db 11, "clearreturn", TpToken, tClearReturn, 0
-dw 522
+dw 530
 db 5, ".vars", TpToken, tDumpVars, 0
-dw 539
+dw 547
 db 6, "create", TpToken, tCreate, 0
-dw 550
+dw 558
 db 5, "allot", TpToken, tAllot, 0
-dw 562
+dw 570
 db 4, "here", TpToken, tHere, 0
-dw 573
+dw 581
 db 4, "last", TpToken, tLast, 0
-dw 583
+dw 591
 db 2, "if", TpToken, tIf, 1
-dw 593
-db 4, "else", TpToken, tElse, 1
 dw 601
+db 4, "else", TpToken, tElse, 1
+dw 609
 db 5, "endif", TpToken, tEndIf, 1
-dw 611
+dw 619
 db 3, "for", TpToken, tFor, 1
-dw 622
+dw 630
 db 4, "next", TpToken, tNext, 1
 Voc0End: db 0
 align 16, db 0
-Voc0Len: dd Voc0End - Voc0  ; 641
-Voc0Head: dd 631
+Voc0Len: dd Voc0End - Voc0  ; 649
+Voc0Head: dd 639

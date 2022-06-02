@@ -3,7 +3,7 @@
 ." |  \/  |__ _ _ _| |____ _| |__" cr
 ." | |\/| / _` | '_| / / _` | '_ \" cr
 ." |_|  |_\__,_|_| |_\_\__,_|_.__/" cr
-: , here ! 4 allot ; ( store T at end of dictionary)
+: , here 4 allot ! ; ( store T at end of dictionary)
 : ? @ . ;         ( fetch address T and print value)
 : setType here b! 1 allot ;  ( set 8-bit .type field of dictionary item)
 : setParam here ! 4 allot ;  ( set 32-bit const|var .param field value)

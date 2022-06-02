@@ -33,3 +33,8 @@ clearstack
 ( -1  OK)                       -9 7 / .
 ( -2  OK)                     -9 7 mod .
 ( -1 -2  OK)               -9 7 /mod . .
+clearstack
+( 6  OK)  5 1+ .
+( 7  OK)  5 2+ .
+( 9  OK)  5 4+ .
+( 4  OK)  5 1- .

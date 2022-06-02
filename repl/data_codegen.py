@@ -38,7 +38,7 @@ Greater Equal ZeroLess ZeroEqual Hex Decimal Fetch Store ByteFetch ByteStore
 SemiColon DotQuoteC U8 U16 I8 I16 I32 Jump Call ClearReturn Next Negate
 ToR RFrom I DotRet ClearReturn WordStore WordFetch DumpVars Tick
 Create Allot Here Last
-OnePlus TwoPlus FourPlus
+OnePlus TwoPlus FourPlus OneMinus
 If Else EndIf For Next
 """
 
@@ -81,6 +81,7 @@ abs Abs 0
 1+ OnePlus 0
 2+ TwoPlus 0
 4+ FourPlus 0
+1- OneMinus 0
 and And 0
 or Or 0
 xor Xor 0

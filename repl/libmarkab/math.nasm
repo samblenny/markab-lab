@@ -26,6 +26,7 @@ global mAbs
 global mOnePlus
 global mTwoPlus
 global mFourPlus
+global mOneMinus
 
 
 mPlus:                        ; +   ( 2nd T -- 2nd+T )
@@ -136,4 +137,11 @@ movq rdi, DSDeep              ; need at least 1 item on stack
 cmp dil, 1
 jb mErr1Underflow
 add T, 4
+ret
+
+mOneMinus:                    ; 1- -- Subtract 1 from T
+movq rdi, DSDeep              ; need at least 1 item on stack
+cmp dil, 1
+jb mErr1Underflow
+dec T
 ret

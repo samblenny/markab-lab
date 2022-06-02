@@ -79,11 +79,12 @@
 %define tOnePlus     65
 %define tTwoPlus     66
 %define tFourPlus    67
-%define tIf          68
-%define tElse        69
-%define tEndIf       70
-%define tFor         71
-%define tNext        72
+%define tOneMinus    68
+%define tIf          69
+%define tElse        70
+%define tEndIf       71
+%define tFor         72
+%define tNext        73
 
 
 ;----------------------------

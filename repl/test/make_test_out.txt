@@ -128,6 +128,11 @@ clearstack  OK
 ( -1  OK)                       -9 7 / . -1  OK
 ( -2  OK)                     -9 7 mod . -2  OK
 ( -1 -2  OK)               -9 7 /mod . . -1 -2  OK
+clearstack  OK
+( 6  OK)  5 1+ . 6  OK
+( 7  OK)  5 2+ . 7  OK
+( 9  OK)  5 4+ . 9  OK
+( 4  OK)  5 1- . 4  OK
 ( === test/colon_defs.fs ===)  OK
 (  OK)    : a ;               a  OK
 ( B  OK)  : b ."  B" ;        b B  OK
@@ -174,9 +179,9 @@ clearstack  OK
 clearstack  OK
 (  OK)                    : 9down 9 1 - for i . next ;  OK
 ( 8 7 6 5 4 3 2 1 0  OK)                         9down 8 7 6 5 4 3 2 1 0  OK
-(  OK)                  : 9up 9 1 - for 8 i - . next ;  OK
+(  OK)                   : 9up 9 1- for 8 i - . next ;  OK
 ( 0 1 2 3 4 5 6 7 8  OK)                           9up 0 1 2 3 4 5 6 7 8  OK
-(  OK)              : 9under 9 1 -  for 0 i - . next ;  OK
+(  OK)               : 9under 9 1-  for 0 i - . next ;  OK
 ( -8 -7 -6 -5 -4 -3 -2 -1 0  OK)                9under -8 -7 -6 -5 -4 -3 -2 -1 0  OK
 ( === tests/fizzbuzz.fs ===)  OK
 ( for integers 1..n, print:            )  OK
