@@ -81,7 +81,7 @@
 %define tFourPlus    67
 %define tIf          68
 %define tElse        69
-%define tThen        70
+%define tEndIf       70
 
 
 ;----------------------------

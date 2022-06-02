@@ -91,7 +91,7 @@ extern mTwoPlus
 extern mFourPlus
 extern mIf
 extern mElse
-extern mThen
+extern mEndIf
 
 align 16, db 0
 db "== Jump Table =="
@@ -168,7 +168,7 @@ dd mTwoPlus     ; 66
 dd mFourPlus    ; 67
 dd mIf          ; 68
 dd mElse        ; 69
-dd mThen        ; 70
+dd mEndIf       ; 70
 
 %define JumpTableLen 71
 
@@ -323,8 +323,8 @@ db 2, "if", TpToken, tIf, 1
 dw 593
 db 4, "else", TpToken, tElse, 1
 dw 601
-db 4, "then", TpToken, tThen, 1
+db 5, "endif", TpToken, tEndIf, 1
 Voc0End: db 0
 align 16, db 0
-Voc0Len: dd Voc0End - Voc0  ; 621
+Voc0Len: dd Voc0End - Voc0  ; 622
 Voc0Head: dd 611
