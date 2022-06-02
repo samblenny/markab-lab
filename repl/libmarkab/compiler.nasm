@@ -21,12 +21,14 @@ extern mErr11NameTooLong
 extern mErr15HeapFull
 extern mErr17SemiColon
 extern mErr19BadAddress
+extern mErr20ReturnUnderflow
 extern mErr30CompileOnlyWord
 extern mFourPlus
 extern mOnePlus
 extern mPopW
 extern mPlus
 extern mPush
+extern mRPopW
 extern mStore
 extern mSwap
 extern mTwoPlus
@@ -49,6 +51,8 @@ global mLast
 global mIf
 global mElse
 global mEndIf
+global mFor
+global mNext
 
 
 mColon:                       ; COLON - define a word
@@ -588,5 +592,44 @@ fPush  CodeP,     .end   ; -> {S: [CodeP] (old, to be patched) T: CodeP}
 fDo    WordFetch, .end   ; -> {S: [CodeP] (old) T: [CodeP] (now)}
 fDo    Swap,      .end   ; -> {S: [CodeP] (now), T: [CodeP] (old)}
 fDo    WordStore, .end   ; -> {}
+.end:
+ret
+
+
+mFor:                    ; FOR -- Start a FOR..NEXT loop
+test VMFlags, VMCompile  ; stop if not in compile mode
+jz mErr30CompileOnlyWord
+;-----------------------
+fPush tToR,       .end   ; -> {T: tToR}   (>R token to use T as loop counter)
+fDo   CompileU8,  .end   ; -> {}
+fPush CodeP,      .end   ; -> {T: CodeP}  (push jump target address for NEXT)
+fDo   WordFetch,  .end   ; -> {T: [CodeP]}
+.end:
+ret
+
+mNext:                   ; NEXT -- If R is 0, drop R; else decrement R and jump
+test VMFlags, VMCompile  ; if in compile mode, jump to the compiler
+jnz .compileNext
+;-----------------------
+movq rdi, RSDeep         ; make sure return stack is not empty
+cmp dil, 1
+jb mErr20ReturnUnderflow
+test R, R                ; check if R is 0
+jz .endOfLoop
+;-----------------------
+.decAndJump:             ; else: decrement R and jump
+dec R
+movzx edi, word [Mem+ebp]  ; get the jump address (follows tNext token)
+mov ebp, edi             ; set I (ebp) to jump address
+ret
+;-----------------------
+.endOfLoop:
+add ebp, 2               ; advance I (ebp) past the jump address
+jmp mRPopW               ; drop R
+;-----------------------
+.compileNext:            ; Compile a tNext token with address of FOR
+fPush tNext,      .end   ; {S: [CodeP] (from FOR), T: tNext}
+fDo   CompileU8,  .end   ; {T: [CodeP] (from FOR)}
+fDo   CompileU16, .end   ; {}   (compile the address for backwards jump to FOR)
 .end:
 ret

@@ -39,7 +39,7 @@ SemiColon DotQuoteC U8 U16 I8 I16 I32 Jump Call ClearReturn Next Negate
 ToR RFrom I DotRet ClearReturn WordStore WordFetch DumpVars Tick
 Create Allot Here Last
 OnePlus TwoPlus FourPlus
-If Else EndIf
+If Else EndIf For Next
 """
 
 # These are names and tokens for words in markabForth's core dictionary. Names
@@ -112,6 +112,8 @@ last Last 0
 if If 1
 else Else 1
 endif EndIf 1
+for For 1
+next Next 1
 """
 
 # Constants to be included in core vocabulary

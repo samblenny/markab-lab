@@ -27,6 +27,7 @@ global mDotQuoteI
 global mSpace
 global mCR
 global mEmit
+global mEmit.W
 global mPrintDPStr
 
 

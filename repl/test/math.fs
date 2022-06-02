@@ -25,3 +25,11 @@ clearstack
 ( FF  OK)           hex ff 0 + . decimal
 (  E7...)           hex -1 0 + decimal .
 ( -1  OK)               decimal -1 0 + .
+( * Negative dividends are here to check that division operations have  *)
+( * been implemented correctly with the right cdq and idiv instructions *)
+( * for the proper width of sign extension. Messing up sign extension   *)
+( * during division can raise a floating-point exception, so I want to  *)
+( * make very sure that won't happen.                                   *)
+( -1  OK)                       -9 7 / .
+( -2  OK)                     -9 7 mod .
+( -1 -2  OK)               -9 7 /mod . .

@@ -23,8 +23,8 @@ global mRFrom
 global mClearReturn
 global mJump
 global mCall
-global mNext
 global mReturn
+global mRPopW
 
 
 mRPushW:                      ; Push W to return stack
@@ -86,20 +86,6 @@ mov W, ebp                    ; push I (ebp) to return stack
 call mRPushW
 pop rdi                       ; retrieve the call address
 mov ebp, edi                  ; set I (ebp) to the call address
-ret
-
-mNext:                ; If R is zero, drop R and return, otherwise decrement R
-movq rdi, RSDeep              ; make sure return stack is not empty
-cmp dil, 1
-jb mErr20ReturnUnderflow
-test R, R                     ; check if R is 0
-jz .doneRet                   ; if so: finish up
-dec R                         ; else: decrement R
-ret
-.doneRet:                     ; end of loop: drop R and return
-call mRPopW
-test VMFlags, VMErr
-jz mReturn
 ret
 
 mReturn:                      ; Return from end of word

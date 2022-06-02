@@ -82,6 +82,8 @@
 %define tIf          68
 %define tElse        69
 %define tEndIf       70
+%define tFor         71
+%define tNext        72
 
 
 ;----------------------------

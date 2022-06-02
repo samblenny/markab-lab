@@ -57,11 +57,10 @@ mDiv:                         ; /   ( 2nd T -- <quotient 2nd/T> )
 fDo PopW, .end
 test W, W                     ; make sure divisor is not 0
 jz mErr12DivideByZero
-cdq                           ; sign extend eax (W, old T) into rax
-mov rdi, WQ                   ; save old T in rdi (use qword to prep for idiv)
+mov edi, W                    ; save old T in edi
 mov W, T                      ; prepare dividend (old 2nd) in rax
 cdq                           ; sign extend old 2nd into rax
-idiv rdi                      ; signed divide 2nd/T (rax:quot, rdx:rem)
+idiv edi                      ; signed divide 2nd/T (rax:quot, rdx:remainder)
 mov T, W                      ; new T is quotient from eax
 .end:
 ret
@@ -70,11 +69,10 @@ mMod:                         ; MOD   ( 2nd T -- <remainder 2nd/T> )
 fDo PopW, .end
 test W, W                     ; make sure divisor is not 0
 jz mErr12DivideByZero
-cdq                           ; sign extend eax (W, old T) into rax
-mov rdi, WQ                   ; save old T in rdi (use qword to prep for idiv)
+mov edi, W                    ; save old T in rdi
 mov W, T                      ; prepare dividend (old 2nd) in rax
 cdq                           ; sign extend old 2nd into rax
-idiv rdi                      ; signed divide 2nd/T (rax:quot, rdx:rem)
+idiv edi                      ; signed divide 2nd/T (rax:quot, rdx:rem)
 mov T, edx                    ; new T is remainder from edx
 .end:
 ret
@@ -88,7 +86,7 @@ jz mErr12DivideByZero
 sub ecx, 2                    ; fetch old 2nd as dividend to eax (W)
 mov W, [DSBase+4*ecx]
 cdq                           ; sign extend old 2nd in eax to rax
-idiv T                        ; signed divide 2nd/T (rax:quot, rdx:rem)
+idiv T                        ; signed divide 2nd/T (rax:quot, rdx:remainder)
 mov edi, eax                  ; save quotient before address calculation
 mov esi, edx                  ; save remainder before address calculation
 mov [DSBase+4*ecx], esi       ; remainder goes in second item
