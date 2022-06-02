@@ -8,5 +8,5 @@
 : setType here b! 1 allot ;  ( set 8-bit .type field of dictionary item)
 : setParam here ! 4 allot ;  ( set 32-bit const|var .param field value)
 : setHead last w! ;          ( set new head of dictionary)
-: variable here create TpVar setType 0 ( init to 0) setParam setHead ;
-: constant here swap create TpConst setType ( T: n) setParam setHead ;
+: var here create TpVar setType 0 ( init to 0) setParam setHead ;
+: const here swap create TpConst setType ( T: n) setParam setHead ;

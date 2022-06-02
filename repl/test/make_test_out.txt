@@ -209,27 +209,27 @@ clearreturn  OK
 ( ^^^^^^^^^ compensate for the 1 >r above)  OK
 ( === test/var_const.fs ===)  OK
 clearstack  OK
-( <number>  OK)               here . 1475  OK
+( <number>  OK)               here . 1467  OK
 (  E15...)               10000 allot  E15 Heap full
 (        This is too big ^^^^^     )  OK
-( <same-number>  OK)          here . 1475  OK
-(  OK)                  variable foo  OK
-( <bigger-number>  OK)        here . 1486  OK
+( <same-number>  OK)          here . 1467  OK
+(  OK)                       var foo  OK
+( <bigger-number>  OK)        here . 1478  OK
 (  OK)                      99 foo !  OK
 ( 99  OK)                    foo @ . 99  OK
 ( 99  OK)                      foo ? 99  OK
 ( 99  OK)      : .foo foo @ . ; .foo 99  OK
-(  OK)               20 constant bar  OK
+(  OK)                  20 const bar  OK
 ( 20  OK)                      bar . 20  OK
 ( 20  OK)        : .bar bar . ; .bar 20  OK
 ( E13...)                   30 bar !  E13 Address out of range
-(  OK)      variable array 1 array !  OK
+(  OK)           var array 1 array !  OK
 (  OK)                   2 , 3 , 4 ,  OK
 ( 1 OK)                      array ? 1  OK
 ( 2 OK)                  array 4 + ? 2  OK
 ( 3 OK)                  array 8 + ? 3  OK
 ( 4 OK)                 array 12 + ? 4  OK
-(  OK)  here array - constant arrlen  OK
+(  OK)     here array - const arrlen  OK
 ( 16 OK)                    arrlen . 16  OK
 ( === test/control_flow.fs ===)  OK
 clearstack  OK
