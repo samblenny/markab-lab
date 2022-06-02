@@ -16,8 +16,8 @@
 ; include path is relative to ../Makefile, which is confusing.
 %include "libmarkab/common_macros.nasm"
 
-extern mMathDrop
 extern mErr1Underflow
+extern mPopW
 
 global mAnd
 global mOr
@@ -31,18 +31,21 @@ global mZeroEqual
 
 
 mAnd:                         ; AND   ( 2nd T -- bitwise_and_2nd_T )
-call mMathDrop
+fDo PopW, .end
 and T, W
+.end:
 ret
 
 mOr:                          ; OR   ( 2nd T -- bitwise_or_2nd_T )
-call mMathDrop
+fDo PopW, .end
 or T, W
+.end:
 ret
 
 mXor:                         ; XOR   ( 2nd T -- bitwise_xor_2nd_T )
-call mMathDrop
+fDo PopW, .end
 xor T, W
+.end:
 ret
 
 mInvert:                      ; Invert all bits of T (one's complement)
@@ -53,33 +56,36 @@ not T                         ; note amd64 not opcode is one's complement
 ret
 
 mLess:                        ; <   ( 2nd T -- bool_is_2nd_less_than_T )
-call mMathDrop                ; drop leaves old T in W
+fDo PopW, .end
 mov edi, T                    ; save value of old 2nd in edi
 xor T, T                      ; set new T to false (-1), assuming 2nd >= T
 dec T
 xor esi, esi                  ; prepare true (0) in esi
 cmp edi, W                    ; test for 2nd < T
 cmovl T, esi                  ; if so, change new T to true
+.end:
 ret
 
 mGreater:                     ; >   ( 2nd T -- bool_is_2nd_greater_than_T )
-call mMathDrop                ; drop leaves old T in W
+fDo PopW, .end
 mov edi, T                    ; save value of old 2nd in edi
 xor T, T                      ; set new T to true (0), assuming 2nd > T
 xor esi, esi                  ; prepare false (-1) in esi
 dec esi
 cmp edi, W                    ; test for 2nd <= T
 cmovle T, esi                 ; if so, change new T to false
+.end:
 ret
 
 mEqual:                       ; =   ( 2nd T -- bool_is_2nd_equal_to_T )
-call mMathDrop                ; drop leaves old T in W
+fDo PopW, .end
 mov edi, T                    ; save value of old 2nd in edi
 xor T, T                      ; set new T to true (0), assuming 2nd = T
 xor esi, esi                  ; prepare false (-1) in esi
 dec esi
 cmp edi, W                    ; test for 2nd <> T   (`<>` means not-equal)
 cmovnz T, esi                 ; if so, change new T to false
+.end:
 ret
 
 mZeroLess:                    ; 0<   ( T -- bool_is_T_less_than_0 )

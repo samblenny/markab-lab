@@ -11,8 +11,8 @@
 extern DSBase
 extern mErr12DivideByZero
 extern mErr1Underflow
+extern mPopW
 
-global mMathDrop
 global mPlus
 global mMinus
 global mNegate
@@ -28,26 +28,16 @@ global mTwoPlus
 global mFourPlus
 
 
-mMathDrop:                    ; Shared drop preamble for 2-operand math ops
-movq rdi, DSDeep              ; make sure there are 2 items on the stack
-cmp dil, 2
-jb mErr1Underflow
-mov esi, T                    ; save value of old top item
-dec edi                       ; do a drop
-movq DSDeep, rdi
-dec edi
-mov T, [DSBase+4*edi]
-mov W, esi                    ; leave old T in eax (W) for use with math ops
-ret
-
 mPlus:                        ; +   ( 2nd T -- 2nd+T )
-call mMathDrop
+fDo PopW, .end
 add T, W
+.end:
 ret
 
 mMinus:                       ; -   ( 2nd T -- 2nd-T )
-call mMathDrop
+fDo PopW, .end
 sub T, W
+.end:
 ret
 
 mNegate:                      ; Negate T (two's complement)
@@ -58,12 +48,13 @@ neg T
 ret
 
 mMul:                         ; *   ( 2nd T -- 2nd*T )
-call mMathDrop
+fDo PopW, .end
 imul T, W                     ; imul is signed multiply (mul is unsigned)
+.end:
 ret
 
 mDiv:                         ; /   ( 2nd T -- <quotient 2nd/T> )
-call mMathDrop                ; after drop, old value of T is in W
+fDo PopW, .end
 test W, W                     ; make sure divisor is not 0
 jz mErr12DivideByZero
 cdq                           ; sign extend eax (W, old T) into rax
@@ -72,10 +63,11 @@ mov W, T                      ; prepare dividend (old 2nd) in rax
 cdq                           ; sign extend old 2nd into rax
 idiv rdi                      ; signed divide 2nd/T (rax:quot, rdx:rem)
 mov T, W                      ; new T is quotient from eax
+.end:
 ret
 
 mMod:                         ; MOD   ( 2nd T -- <remainder 2nd/T> )
-call mMathDrop                ; after drop, old value of T is in W
+fDo PopW, .end
 test W, W                     ; make sure divisor is not 0
 jz mErr12DivideByZero
 cdq                           ; sign extend eax (W, old T) into rax
@@ -84,6 +76,7 @@ mov W, T                      ; prepare dividend (old 2nd) in rax
 cdq                           ; sign extend old 2nd into rax
 idiv rdi                      ; signed divide 2nd/T (rax:quot, rdx:rem)
 mov T, edx                    ; new T is remainder from edx
+.end:
 ret
 
 mDivMod:                      ; /MOD   for 2nd/T: ( 2nd T -- rem quot )
@@ -103,15 +96,17 @@ mov T, edi                    ; quotient goes in top
 ret
 
 mMax:                         ; MAX   ( 2nd T -- the_bigger_one )
-call mMathDrop
+fDo PopW, .end
 cmp T, W                      ; check 2nd-T (W is old T, T is old 2nd)
 cmovl T, W                    ; if old 2nd was less, then use old T for new T
+.end:
 ret
 
 mMin:                         ; MIN   ( 2nd T -- the_smaller_one )
-call mMathDrop
+fDo PopW, .end
 cmp T, W                      ; check 2nd-T (W is old T, T is old 2nd)
 cmovg T, W                    ; if old 2nd was more, then use old T for new T
+.end:
 ret
 
 mAbs:                         ; ABS -- Replace T with absolute value of T
