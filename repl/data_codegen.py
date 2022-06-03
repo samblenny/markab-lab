@@ -12,7 +12,7 @@ Dct0 struct format is:
 label: dw .link             ; link to previous list entry
        db .nameLen, <name>  ; name of word
        db .type             ; type of word: TpTok TpVar TpConst TpCode
-       dw .param            ; parameter: {token,immediate} | varPtr | codePtr
+       dw .param            ; parameter: {token,immediate} | var | code
 """
 
 OUTFILE_MACROS="libmarkab/generated_macros.nasm"
@@ -33,9 +33,10 @@ TP_VAR = 3
 #
 TOKENS = """
 Abs And ByteFetch ByteStore Call ClearReturn ClearStack Div DivMod Drop Dup
-Equal Fetch FourPlus Greater I I16 I32 I8 Invert Jump Less Max Min Minus Mod
-Mul Negate Nop OneMinus OnePlus Or Over Plus PopW Return RFrom RPopW Store
-Swap ToR TwoPlus U16 U8 WordFetch WordStore Xor ZeroEqual ZeroLess
+Equal Fetch FourPlus Greater GreaterEq I I16 I32 I8 Invert Jump Less LessEq Max
+Min Minus Mod Mul Negate Nop NotEq OneMinus OnePlus Or Over Plus PopW Return
+RFrom RPopW Store Swap ToR TwoPlus U16 U8 WordFetch WordStore Xor ZeroEqual
+ZeroLess
 If Else EndIf
 For Next
 Paren
@@ -68,9 +69,11 @@ dup Dup 0
 @ Fetch 0
 4+ FourPlus 0
 > Greater 0
+>= GreaterEq 0
 i I 0
 invert Invert 0
 < Less 0
+<= LessEq 0
 max Max 0
 min Min 0
 - Minus 0
@@ -78,6 +81,7 @@ mod Mod 0
 * Mul 0
 negate Negate 0
 nop Nop 0
+<> NotEq 0
 1- OneMinus 0
 1+ OnePlus 0
 or Or 0
@@ -93,11 +97,11 @@ w! WordStore 0
 xor Xor 0
 0< ZeroLess 0
 0= ZeroEqual 0
-if If 1
-else Else 1
-endif EndIf 1
-for For 1
-next Next 1
+if If -1
+else Else -1
+endif EndIf -1
+for For -1
+next Next -1
 ( Paren -1
 : Colon -1
 ; SemiColon -1

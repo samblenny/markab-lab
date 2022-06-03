@@ -141,6 +141,7 @@ clearstack  OK
 ( error)  :  E10 Expected name
 ( error)  : e  E18 Expected ;
 ( error)  : ;  E18 Expected ;
+( error)  : a  : b ;  E18 Expected ;
 (  OK)       decimal : f -2147483647 -32768 -128 -1 .s ;  OK
 (  OK)  hex : g 80000001 ffff8000 ffffff80 ffffffff .s ;  OK
 ( -2147483647 -32768 -128 -1  OK)   decimal clearstack f  -2147483647 -32768 -128 -1  OK
@@ -156,14 +157,9 @@ clearstack  OK
 (  OK)       : fib 1 dup f1 f1 f1 . ;  OK
 ( 1 1 2 3 5 8 13 21 34 55 89  OK) fib 1 1 2 3 5 8 13 21 34 89  OK
 clearstack  OK
-( --- Test implicit tail call ---)  OK
-(  OK) : start 1 .  : continue 2 . 3 . ;  OK
-( 1 2 3  OK)                       start 1 2 3  OK
-( 2 3  OK)                      continue 2 3  OK
-clearstack  OK
 ( --- Test maxing out return stack ---)  OK
-(  OK)  : rs0 0 space : rs1 1 + 42 emit rs1 nop ;  OK
-(     nop here stops tail call optimization ^^^ )  OK
+(  OK)  : rs1 1 + 42 emit rs1 nop ; : rs0 0 space rs1 ;  OK
+(                    nop here ^^^ stops tail call optimization)  OK
 ( ***************** E21...)        clearstack rs0 ******************  E21 Return stack full
 ( ***************** E21...)                   rs0 ******************  E21 Return stack full
 ( ^^ note auto-recovery from full return stack)  OK
@@ -171,8 +167,8 @@ clearstack  OK
 ( --- Test tail call optimization ---)  OK
 (  OK)   : tc0 0 . ;  : tc1 1 . tc0 ;  OK
 ( 1 0  OK)             clearstack tc1 1 0  OK
-(  OK)       : tc2 0  : tc3 1 + tc3 ;  OK
-(       infinite tail recursion ^^^ )  OK
+(  OK)  : tc3 1 + tc3 ; : tc2 0 tc3 ;  OK
+(                 ^^^ infinite tail recursion)  OK
 (  E22...)             clearstack tc2  E22 Loop too long
 (  174762  OK)                     .s  174762  OK
 ( === test/loops.fs ===)  OK
@@ -184,6 +180,7 @@ clearstack  OK
 (  OK)               : 9under 9 1-  for 0 i - . next ;  OK
 ( -8 -7 -6 -5 -4 -3 -2 -1 0  OK)                9under -8 -7 -6 -5 -4 -3 -2 -1 0  OK
 ( === tests/fizzbuzz.fs ===)  OK
+clearstack  OK
 ( for integers 1..n, print:            )  OK
 (  n divisible by 3       -> "Fizz"    )  OK
 (  n divisible by 5       -> "Buzz"    )  OK
@@ -192,11 +189,11 @@ clearstack  OK
 ( for `0=`, `=`, etc, true is 0, false is 0xffffffff)  OK
 ( `factors` pushes 1 for divisible by 3, 2 for 5, and 3 for 15)  OK
 : if-eq-push-1 = invert 1 and ;  OK
-: if-1-f  1 = if ."  Fz" endif ;  OK
-: if-2-b  2 = if ."  Bz" endif ;  OK
-: if-3-fb 3 = if ."  FzBz" endif ;  OK
-: if-0-.  0= if . endif ;  OK
-: factors dup  3 mod 0= invert 1 and  swap 5 mod 0= invert 2 and  or ;  OK
+: if-1-f  1 = invert if ."  Fz" endif ;  OK
+: if-2-b  2 = invert if ."  Bz" endif ;  OK
+: if-3-fb 3 = invert if ."  FzBz" endif ;  OK
+: if-0-.  0= invert if . endif ;  OK
+: factors dup  3 mod 0= 1 and  swap 5 mod 0= 2 and  or ;  OK
 : fbz-inner dup factors  dup if-1-f  dup if-2-b  dup if-3-fb  if-0-. ;  OK
 : n! 60000 ! ;  OK
 : n@ 60000 @ ;  OK
@@ -214,12 +211,12 @@ clearreturn  OK
 ( ^^^^^^^^^ compensate for the 1 >r above)  OK
 ( === test/var_const.fs ===)  OK
 clearstack  OK
-( <number>  OK)               here . 1467  OK
-(  E15...)               10000 allot  E15 Heap full
+( <number>  OK)               here . 5899  OK
+(  E15...)               70000 allot  E15 Heap full
 (        This is too big ^^^^^     )  OK
-( <same-number>  OK)          here . 1467  OK
+( <same-number>  OK)          here . 5899  OK
 (  OK)                       var foo  OK
-( <bigger-number>  OK)        here . 1478  OK
+( <bigger-number>  OK)        here . 5910  OK
 (  OK)                      99 foo !  OK
 ( 99  OK)                    foo @ . 99  OK
 ( 99  OK)                      foo ? 99  OK

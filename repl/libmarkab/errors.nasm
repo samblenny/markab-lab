@@ -111,10 +111,15 @@ jmp mErrPutW
 mErr3BadToken:                ; Error 3: Bad token (rbp: instruction pointer)
 lea W, [datErr3bt]            ; print error message
 call mStrPut.W
-movzx W, byte [rbp]           ; load token value
-call mDot.W                   ; print token value
 mov W, ebp                    ; print token's instruction pointer
 call mDot.W
+test ebp, ebp                 ; be sure that 0 <= ebp <= MemSize-1
+jl .skipDereference
+cmp ebp, MemSize-1
+jg .skipDereference
+movzx W, byte [Mem+rbp]       ; load token value
+call mDot.W                   ; print token value
+.skipDereference:
 jmp mErr
 
 mErr4NoQuote:                 ; Error 4: unterminated quoted string

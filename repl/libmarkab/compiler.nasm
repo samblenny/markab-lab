@@ -12,6 +12,7 @@
 extern mByteStore
 extern mDrop
 extern mDup
+extern mEmit.W
 extern Mem
 extern mErr5NumberFormat
 extern mErr6Overflow
@@ -20,10 +21,14 @@ extern mErr10ExpectedName
 extern mErr11NameTooLong
 extern mErr15HeapFull
 extern mErr17SemiColon
+extern mErr18ExpectedSemiColon
 extern mErr19BadAddress
 extern mErr20ReturnUnderflow
 extern mErr30CompileOnlyWord
+extern mEqual
 extern mFourPlus
+extern mLess
+extern mLessEq
 extern mOnePlus
 extern mPopW
 extern mPlus
@@ -55,72 +60,82 @@ global mFor
 global mNext
 
 
-mColon:                       ; COLON - define a word
-movzx edi, word [Mem+DP]      ; load dictionary pointer [DP]
-push rdi                      ; save [DP] in case rollback needed
-call mCreate                  ; add name from input stream to dictionary
-test VMFlags, VMErr           ; stop and roll back dictionary if it failed
-jnz .doneErr
-;-----------------------------
-movzx esi, word [Mem+DP]      ; load dictionary pointer (updated by create)
-cmp esi, HeapEnd-HReserve     ; stop if there is not enough room to add a link
-jnb .doneErrFull
-mov [Mem+esi], byte TpCode    ; append {.wordType: code} (type is code pointer)
-inc esi
-movzx W, word [Mem+CodeP]     ; CAUTION! code pointer in dictionary is _word_
-mov word [Mem+esi], WW        ; append {.param: dw [CodeP]} (the code pointer)
-add esi, 2
-mov word [Mem+DP], si
-;-----------------------------
-.done:
-pop rdi                       ; commit dictionary changes
-mov word [Mem+Last], di
-or VMFlags, VMCompile         ; set compile mode
+mColon:                    ; COLON - define a word
+test VMFlags, VMCompile    ; if already in compile mode, invoking : is an error
+jnz mErr18ExpectedSemiColon
+fDo   Here,       .end     ; -> {T: [DP]}     (save [DP] for possible rollback)
+fPush ColonDP,    .end     ; -> {S: [DP], ColonDP}
+fDo   WordStore,  .end     ; -> {}
+fPush Last,       .end     ; -> {T: Last}   (save [Last] for possible rollback)
+fDo   WordFetch,  .end     ; -> {T: [Last]}
+fPush ColonLast,  .end     ; -> {S: [Last], T: ColonLast}
+fDo   WordStore,  .end     ; -> {}
+;-------------------------
+fDo  Create,      .rollbk  ; add name from input stream to dictionary
+;-------------------------
+fPush TpCode,     .rollbk  ; -> {T: TpCode}
+fDo   CompileU8,  .rollbk  ; -> {}                     (compile .type = TpCode)
+fPush ColonDP,    .rollbk  ; -> {T: ColonDP}
+fDo   WordFetch,  .rollbk  ; -> {T: [DP] (start of def, before create)}
+fPush Last,       .rollbk  ; -> {S: [DP] (start of def) T: Last}
+fDo   WordStore,  .rollbk  ; -> {}              (commit new word to dictionary)
+fDo   Here,       .rollbk  ; -> {T: [DP] (after name, for use by `;`)
+or VMFlags, VMCompile      ; set compile mode
 ret
-;-----------------------------
-.doneErrFull:
-pop rdi                       ; roll back dictionary changes
-mov word [Mem+DP], di
-jmp mErr9DictFull             ; show error message
-;-----------------------------
-.doneErr:
-pop rdi                       ; roll back dictionary changes
-mov word [Mem+DP], di
+;-------------------------
+.rollbk:                   ; revert changes to [DP] and [Last]
+fPush ColonLast,   .end    ; get old value of [Last]
+fDo   WordFetch,   .end
+fPush Last,        .end
+fDo   WordStore,   .end    ; set [Last] to the old [Last]
+fPush ColonDP,     .end    ; get old value of [DP]
+fDo   WordFetch,   .end
+fPush DP,          .end
+fDo   WordStore,   .end    ; set [DP] to the old [DP]
+ret
+;-------------------------
+.end:                      ; Last resort exit path (DP or Last may be broken)
 ret
 
-mSemiColon:                   ; SEMICOLON - end definition of a new word
-test VMFlags, VMCompile       ; if not in compile mode, invoking ; is an error
+
+mSemiColon:                ; SEMICOLON - end definition of a new word
+test VMFlags, VMCompile    ; if not in compile mode, invoking ; is an error
 jz mErr17SemiColon
-movzx ecx, word [Mem+CodeP]
-cmp ecx, Heap                 ; check that: Heap <= [CodeP] < HeapEnd-1
-jb mErr19BadAddress
-cmp ecx, HeapEnd-1
-jnb mErr15HeapFull
-;-----------------------------
-.optimizerCheck:                ; Check if tail call optimization is possible
-movzx r8, word [Mem+CodeCallP]  ; load address of last compiled call
-mov W, ecx                      ; load address for current code pointer
-sub W, 3                        ; check if offset is (token + _word_ address)
-cmp r8d, W                      ;  zero means this `;` came right after a Call
-je .rewriteTailCall
-;------------------------------
-.normalReturn:
-xor rsi, rsi                    ; store a Return token in code memory
-mov sil, tReturn
-mov byte [Mem+ecx], sil
-inc ecx                         ; advance the code pointer
-mov word [Mem+CodeP], cx
-xor W, W
-mov word [Mem+CodeCallP], WW    ; clear the last compiled call pointer
-and VMFlags, (~VMCompile)       ; clear the compile mode flag
+;-------------------------
+.optimizerCheck:           ; Check if tail call optimization is possible
+;...                       ;  (requires that the last call token occurred
+;...                       ;  within the current definition, not before)
+fPush CallDP,     .end     ; -> {S: [DP] (old, from `:`), T: CallDP}
+fDo   WordFetch,  .end     ; -> {S: [DP] (:), T: [CallDP]}
+fDo   LessEq,     .end     ; -> {T: ((S<=T): -1 or (S>T): 0)}
+fDo   PopW,       .end     ; -> {}, {W: true(-1) or false(0)} 
+test W, W
+jz .normalReturn           ; skip optimization if last call not in this def
+fDo   Here,       .end     ; Calculate where tCall would be if there was a call
+sub T, 3                   ;  right before this semicolon
+fPush CallDP,     .end     ; Compare that calculation to the last call address
+fDo   WordFetch,  .end
+fDo   Equal,      .end     ; -> {T: (equal: -1 or not-equal: 0)}
+fDo   PopW,       .end     ; -> {}, {W: true(-1) or false(0)}
+test W, W
+jz .normalReturn           ; skip optimization if last word of def was not call
+;-------------------------
+.rewriteTailCall:          ; Do a tail call optimization
+fPush CallDP,     .end     ; -> {T: CallDP}
+fDo   WordFetch,  .end     ; -> {T: [CallDP]}
+fPush tJump,      .end     ; -> {S: [CallDP], T: tJump}
+fDo   Swap,       .end     ; -> {S: tJump, T: [CallDP]}
+fDo   ByteStore,  .end     ; -> {}                (change tCall token to tJump)
+;...                       ; continue to .normalReturn
+;-------------------------
+.normalReturn:             ; Compile a Return token
+fPush tReturn,    .end     ; -> {T: tReturn}
+fDo   CompileU8,  .end     ; -> {}
+and VMFlags, (~VMCompile)  ; clear compile mode flag
 ret
-;-----------------------------
-.rewriteTailCall:             ; Do a tail call optimization
-mov WB, byte [Mem+r8d]        ; make sure last call is pointing to a tCall
-cmp WB, tCall
-jnz .normalReturn             ; if not: don't optimize
-mov [Mem+r8d], byte tJump     ; else: rewrite the tCall to a tJump
-and VMFlags, (~VMCompile)     ; clear the compile mode flag
+;-------------------------
+.end:                      ; Something went wrong, so clear compile flag
+and VMFlags, (~VMCompile)
 ret
 
 
@@ -279,7 +294,7 @@ ret
 mAllot:                ; ALLOT -- Increase Dictionary Pointer (DP) by T
 fDo   Here,      .end  ; -> {S: number, T: [DP] (address of first free byte)}
 fDo   Plus,      .end  ; -> {T: [DP]+number}
-cmp T, ExtVEnd
+cmp T, HeapEnd-HReserve
 jge mErr15HeapFull     ; stop if requested allocation is too large
 fPush DP,        .end  ; -> {S: [DP]+number, T: DP}
 fDo   WordStore, .end  ; -> {}
@@ -464,41 +479,32 @@ ret
 
 
 mCompileU8:              ; Compile U8 (1 byte) from T to end of heap
-fPush CodeP,     .end    ; -> {S: byte, T: CodeP (address of pointer)}
-fDo   WordFetch, .end    ; -> {S: byte; T: [CodeP] (address of free byte)}
-fDo   ByteStore, .end    ; -> {}                          (<-- 8-bit byte)
-fPush CodeP,     .end    ; -> {T: CodeP}
-fDo   Dup,       .end    ; -> {S: CodeP, T: CodeP}
-fDo   WordFetch, .end    ; -> {S: CodeP, T: [CodeP]}
-fDo   OnePlus,   .end    ; -> {S: CodeP, T: [CodeP]+1}
-fDo   Swap,      .end    ; -> {S: [CodeP]+1, T: CodeP}
-fDo   WordStore, .end    ; -> {}
+fDo   Here,       .end   ; -> {S: u8 value, T: [DP]}
+fDo   ByteStore,  .end   ; -> {}                             (store 8-bit byte)
+fDo   Here,       .end   ; -> {T: [DP] (before ByteStore)}
+fDo   OnePlus,    .end   ; -> {T: [DP]+1}
+fPush DP,         .end   ; -> {T: DP}
+fDo   WordStore,  .end   ; -> {}                                (add 1 to [DP])
 .end:
 ret
 
 mCompileU16:             ; Compile U16 (2 bytes) from T to end of heap
-fPush CodeP,     .end    ; -> {S: byte, T: CodeP (address of pointer)}
-fDo   WordFetch, .end    ; -> {S: byte; T: [CodeP] (address of free byte)}
-fDo   WordStore, .end    ; -> {}                          (<-- 16-bit word)
-fPush CodeP,     .end    ; -> {T: CodeP}
-fDo   Dup,       .end    ; -> {S: CodeP, T: CodeP}
-fDo   WordFetch, .end    ; -> {S: CodeP, T: [CodeP]}
-fDo   TwoPlus,   .end    ; -> {S: CodeP, T: [CodeP]+2}
-fDo   Swap,      .end    ; -> {S: [CodeP]+2, T: CodeP}
-fDo   WordStore, .end    ; -> {}
+fDo   Here,       .end   ; -> {S: u16 value, T: [DP]}
+fDo   WordStore,  .end   ; -> {}                            (store 16-bit word)
+fDo   Here,       .end   ; -> {T: [DP] (before WordStore)}
+fDo   TwoPlus,    .end   ; -> {T: [DP]+2}
+fPush DP,         .end   ; -> {T: DP}
+fDo   WordStore,  .end   ; -> {}                                (add 2 to [DP])
 .end:
 ret
 
 mCompileU32:             ; Compile U32 (4 bytes) from T to end of heap
-fPush CodeP,     .end    ; -> {S: byte, T: CodeP (address of pointer)}
-fDo   WordFetch, .end    ; -> {S: byte; T: [CodeP] (address of free byte)}
-fDo   Store,     .end    ; -> {}                          (<-- 32-bit dword)
-fPush CodeP,     .end    ; -> {T: CodeP}
-fDo   Dup,       .end    ; -> {S: CodeP, T: CodeP}
-fDo   WordFetch, .end    ; -> {S: CodeP, T: [CodeP]}
-fDo   FourPlus,  .end    ; -> {S: CodeP, T: [CodeP]+4}
-fDo   Swap,      .end    ; -> {S: [CodeP]+4, T: CodeP}
-fDo   WordStore, .end    ; -> {}
+fDo   Here,       .end   ; -> {S: u32 value, T: [DP]}
+fDo   Store,      .end   ; -> {}                           (store 32-bit dword)
+fDo   Here,       .end   ; -> {T: [DP] (before WordStore)}
+fDo   FourPlus,   .end   ; -> {T: [DP]+4}
+fPush DP,         .end   ; -> {T: DP}
+fDo   WordStore,  .end   ; -> {}                                (add 4 to [DP])
 .end:
 ret
 
@@ -561,8 +567,7 @@ jmp mErr30CompileOnlyWord
 mCompileIf:              ; Compile if token+addr, push pointer for ELSE/EndIf
 fPush  tIf,       .end   ; -> {T: tIf}
 fDo    CompileU8, .end   ; -> {}
-fPush  CodeP,     .end   ; -> {T: CodeP (jump addr gets patched by else/endif)}
-fDo    WordFetch, .end   ; -> {T: [CodeP] (current code address)}
+fDo    Here,      .end   ; -> {T: [DP] (jump addr gets patched by else/endif)}
 fPush  0,         .end   ; -> {S: [CodeP], 0 (temp jump addr)}
 fDo    CompileU16, .end  ; -> {S: [CodeP]}       (compile temporary jump addr)
 .end:
@@ -570,27 +575,25 @@ ret
 
 
 mCompileElse:            ; ELSE -- patch IF's addr, push addr for EndIf, ...
-fPush  tJump,     .end   ; -> {S: [CodeP] (if), T: tJump}  (compile jump tok)
-fDo    CompileU8, .end   ; -> {T: [CodeP] (if)}
-fPush  CodeP,     .end   ; -> {S: [CodeP] (if), T: CodeP}
-fDo    WordFetch, .end   ; -> {S: [CodeP] (if), T: [CodeP] (else addr ptr)}
+fPush  tJump,     .end   ; -> {S: [DP] (if), T: tJump}  (compile jump tok)
+fDo    CompileU8, .end   ; -> {T: [DP] (if)}
+fDo    Here,      .end   ; -> {S: [DP] (else jump address pointer)}
 ;...                     ; Compile a temporary jump address for EndIf to patch
-fPush  0,         .end   ;  -> {[CodeP](if), S: [CodeP](else), T: 0}
-fDo    CompileU16, .end  ;  -> {S: [CodeP] (if), T: [CodeP] (else)}
+fPush  0,         .end   ;  -> {[DP] (if), S: [CDP] (else), T: 0}
+fDo    CompileU16, .end  ;  -> {S: [DP] (if), T: [DP] (else)}
 ;...                     ; Patch IF's jump target to current code pointer
-fDo    Swap,      .end   ;  -> {S: [CodeP] (else), T: [CodeP] (if)}
-fPush  CodeP,     .end   ;  -> {[CodeP](else), S: [CodeP](if), T: CodeP}
-fDo    WordFetch, .end   ;  -> {[CodeP](else), S: [CodeP](if), T: [CodeP](now)}
-fDo    Swap,      .end   ;  -> {[CodeP](else), S: [CodeP](now), T: [CodeP](if)}
-fDo    WordStore, .end   ;  -> {T: [CodeP] (jump address for EndIf to patch)}
+fDo    Swap,      .end   ;  -> {S: [DP] (else), T: [DP] (if)}
+
+fDo    Here,      .end   ;  -> {[DP] (else), S: [DP] (if), T: [DP] (now)}
+fDo    Swap,      .end   ;  -> {[DP] (else), S: [DP] (now), T: [DP] (if)}
+fDo    WordStore, .end   ;  -> {T: [DP] (else, jump addr for EndIf to patch)}
 .end:
 ret
 
 
 mCompileEndIf:           ; EndIf -- patch IF or ELSE's jump address
-fPush  CodeP,     .end   ; -> {S: [CodeP] (old, to be patched) T: CodeP}
-fDo    WordFetch, .end   ; -> {S: [CodeP] (old) T: [CodeP] (now)}
-fDo    Swap,      .end   ; -> {S: [CodeP] (now), T: [CodeP] (old)}
+fDo    Here,      .end   ; -> {S: [DP] (old, to be patched), T: [DP] (now)}
+fDo    Swap,      .end   ; -> {S: [DP] (now), T: [DP] (old)}
 fDo    WordStore, .end   ; -> {}
 .end:
 ret
@@ -602,8 +605,7 @@ jz mErr30CompileOnlyWord
 ;-----------------------
 fPush tToR,       .end   ; -> {T: tToR}   (>R token to use T as loop counter)
 fDo   CompileU8,  .end   ; -> {}
-fPush CodeP,      .end   ; -> {T: CodeP}  (push jump target address for NEXT)
-fDo   WordFetch,  .end   ; -> {T: [CodeP]}
+fDo   Here,       .end   ; -> {T: [DP]}   (push jump target address for NEXT)
 .end:
 ret
 

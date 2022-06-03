@@ -10,6 +10,8 @@
 %include "libmarkab/generated_macros.nasm"
 
 extern mByteFetch
+extern mCompileU16
+extern mCompileU8
 extern mDrop
 extern mDup
 extern Mem
@@ -18,8 +20,10 @@ extern mErr23BadBufferPointer
 extern mErr4NoQuote
 extern mOnePlus
 extern mPush
+extern mRPopW
 extern mStrPut.RdiRsi
 extern mStrPut.W
+extern mToR
 extern mWordFetch
 
 global mDotQuoteC
@@ -75,33 +79,28 @@ test VMFlags, VMCompile  ; check if compiled version if compile mode active
 jz mStrPut.RdiRsi        ; nope: do mStrPut.RdiRsi(rdi: *buf, rsi: count)
 ;------------------------
 .compileMode:
-test esi, esi            ; stop now if string is empty (optimize it out)
-jz .done
-movzx ecx, word [Mem+CodeP]  ; check if code memory has space
-cmp ecx, HeapEnd-HReserve
-jnb mErr15HeapFull
-mov r10, rdi             ; r10 = save source string pointer
-mov r11, rsi             ; r11 = save source string byte count
-mov WB, tDotQuoteC       ; Store token for compiled version of ." at [CodeP]
-mov byte [Mem+ecx], WB
-inc ecx                  ; advance CodeP
-mov word [Mem+ecx], si   ; store string length (TODO: integer overflow?)
-add ecx, 2               ; advance CodeP
+cmp esi, 0               ; stop now if string is empty (optimize it out)
+jle .end
+sub edi, Mem             ; convert edi back to virtual address space
+fPush edi,        .end   ; -> {T: *src}                 (string source pointer)
+fPush esi,        .end   ; -> {S: *src, T: count}   (loop count: string length)
+fPush tDotQuoteC, .end   ; -> {*src, S: count, T: tDotQuoteC}
+fDo   CompileU8,  .end   ; -> {S: *src, T: count}      (compile DotQuote token)
+fDo   Dup,        .end   ; -> {*src, S: count, T: count}
+fDo   CompileU16, .end   ; -> {S: *src, T: count}       (compile string length)
 ;------------------------
-mov r9, r11              ; loop limit counter = saved source string length
-mov rsi, r10             ; rsi = saved source string pointer
-xor r8d, r8d             ; zero source index
-xor W, W
+fDo   ToR,        .end   ; -> {T: *src}, {R: count}      (move loop count to R)
 .forCopy:
-mov WB, byte [esi+r8d]   ; load source byte from TIB
-mov byte [Mem+ecx], WB   ; store dest byte in CodeMem
-inc ecx                  ; advance source index (CodeP)
-inc r8d                  ; advance destination index (0..source_lenth-1)
-dec r9d                  ; check loop limit
-jnz .forCopy
-mov word [Mem+CodeP], cx  ; update [CodeP]
+fDo   Dup,        .end   ; -> {S: *src, T: *src}, {R: count}
+fDo   ByteFetch,  .end   ; -> {S: *src, T: [*src]}, {R: count}   (get src byte)
+fDo   CompileU8,  .end   ; -> {T: *src}, {R: count}          (compile src byte)
+fDo   OnePlus,    .end   ; -> {T: *src++}, {R: count}    (increment source ptr)
+dec R                    ; -> {T: *src}, {R: count--}    (decrement loop count)
+jnz .forCopy             ; keep looping if R is non-zero
+fDo   Drop,       .end   ; -> {}, {R: count)        (discard source ptr from T)
+fDo   RPopW,      .end   ; -> {}, {}                (discard loop count from R)
 ;------------------------
-.done:
+.end:
 ret
 ;------------------------
 .doneErr:

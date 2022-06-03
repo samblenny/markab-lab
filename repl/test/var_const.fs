@@ -1,7 +1,7 @@
 ( === test/var_const.fs ===)
 clearstack
 ( <number>  OK)               here .
-(  E15...)               10000 allot
+(  E15...)               70000 allot
 (        This is too big ^^^^^     )
 ( <same-number>  OK)          here .
 (  OK)                       var foo

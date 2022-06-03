@@ -8,14 +8,12 @@
 ; include path is relative to ../Makefile, which is confusing.
 %include "libmarkab/common_macros.nasm"
 
-extern datCodeCallP
-extern datCodeP
+extern datCallDP
 extern datContext
 extern datDotS
 extern datDotSNone
 extern datDP
 extern datDPStr
-extern datExtV
 extern datForthP
 extern datHeap
 extern datHeapEnd
@@ -144,14 +142,8 @@ call   .mDumpOneVar
 fPush Last,       .end1  ; Last         <address> <contents>
 lea W, [datLast]
 call   .mDumpOneVar
-fPush ExtV,       .end1  ; ExtV         <address> <contents>
-lea W, [datExtV]
-call   .mDumpOneVar
-fPush CodeP,      .end1  ; CodeP        <address> <contents>
-lea W, [datCodeP]
-call   .mDumpOneVar
-fPush CodeCallP,  .end1  ; CodeCallP    <address> <contents>
-lea W, [datCodeCallP]
+fPush CallDP,  .end1     ; CallDP       <address> <contents>
+lea W, [datCallDP]
 call   .mDumpOneVar
 fPush Heap,       .end1  ; Heap         <address> <contents>
 lea W, [datHeap]

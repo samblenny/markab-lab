@@ -4,11 +4,9 @@
 ; MarkabForth boolean words (meant to be included in ../libmarkab.nasm)
 ;
 ; == Important Note! ==
-; Forth's boolean constants are not like C booleans. In Forth,
-;   True value:   0 (all bits clear)
-;   False value: -1 (all bits set)
-; This allows for sneaky tricks such as using the `AND`, `OR`, `XOR`, and
-; `INVERT` to act as both bitwise and boolean operators.
+; MarkabForth's boolean truth values (same as standard Forths):
+;   True:  -1 (all bits set)
+;   False: 0 (all bits clear)
 ; =====================
 
 ; This include path is relative to the working directory that will be in effect
@@ -24,8 +22,11 @@ global mOr
 global mXor
 global mInvert
 global mLess
+global mLessEq
 global mGreater
+global mGreaterEq
 global mEqual
+global mNotEq
 global mZeroLess
 global mZeroEqual
 
@@ -55,36 +56,69 @@ jb mErr1Underflow
 not T                         ; note amd64 not opcode is one's complement
 ret
 
-mLess:                        ; <   ( 2nd T -- bool_is_2nd_less_than_T )
+mLess:                        ; <   ( 2nd T -- boolean: 2nd < T )
 fDo PopW, .end
 mov edi, T                    ; save value of old 2nd in edi
-xor T, T                      ; set new T to false (-1), assuming 2nd >= T
-dec T
-xor esi, esi                  ; prepare true (0) in esi
+xor esi, esi                  ; prepare true (-1) in esi
+dec esi
+xor T, T                      ; new T = false (0), assuming 2nd >= T
 cmp edi, W                    ; test for 2nd < T
 cmovl T, esi                  ; if so, change new T to true
 .end:
 ret
 
-mGreater:                     ; >   ( 2nd T -- bool_is_2nd_greater_than_T )
+mLessEq:                      ; <=   ( 2nd T -- boolean: 2nd <= T )
 fDo PopW, .end
 mov edi, T                    ; save value of old 2nd in edi
-xor T, T                      ; set new T to true (0), assuming 2nd > T
-xor esi, esi                  ; prepare false (-1) in esi
+xor esi, esi                  ; prepare true (-1) in esi
 dec esi
+xor T, T                      ; new T = false (0), assuming 2nd >= T
 cmp edi, W                    ; test for 2nd <= T
-cmovle T, esi                 ; if so, change new T to false
+cmovle T, esi                 ; if so, change new T to true
 .end:
 ret
 
-mEqual:                       ; =   ( 2nd T -- bool_is_2nd_equal_to_T )
+mGreater:                     ; >   ( 2nd T -- boolean: 2nd > T )
 fDo PopW, .end
 mov edi, T                    ; save value of old 2nd in edi
-xor T, T                      ; set new T to true (0), assuming 2nd = T
-xor esi, esi                  ; prepare false (-1) in esi
+xor esi, esi                  ; prepare true (-1) in esi
 dec esi
-cmp edi, W                    ; test for 2nd <> T   (`<>` means not-equal)
-cmovnz T, esi                 ; if so, change new T to false
+xor T, T                      ; new T = false (0), assuming 2nd <= T
+cmp edi, W                    ; test for 2nd > T
+cmovg T, esi                  ; if so, change new T to true
+.end:
+ret
+
+mGreaterEq:                   ; >   ( 2nd T -- boolean: 2nd >= T )
+fDo PopW, .end
+mov edi, T                    ; save value of old 2nd in edi
+xor esi, esi                  ; prepare true (-1) in esi
+dec esi
+xor T, T                      ; new T = false (0), assuming 2nd <= T
+cmp edi, W                    ; test for 2nd >= T
+cmovge T, esi                 ; if so, change new T to true
+.end:
+ret
+
+mEqual:                       ; =   ( 2nd T -- boolean: 2nd == T )
+fDo PopW, .end
+mov edi, T                    ; save value of old 2nd in edi
+xor esi, esi                  ; prepare true (-1) in esi
+dec esi
+xor T, T                      ; new T = false (0), assuming 2nd <> T
+cmp edi, W                    ; test for 2nd == T
+cmove T, esi                  ; if so, change new T to true
+.end:
+ret
+
+mNotEq:                       ; =   ( 2nd T -- boolean: 2nd <> T )
+fDo PopW, .end
+mov edi, T                    ; save value of old 2nd in edi
+xor esi, esi                  ; prepare true (-1) in esi
+dec esi
+xor T, T                      ; new T = false (0), assuming 2nd <> T
+cmp edi, W                    ; test for 2nd <> T
+cmovne T, esi                 ; if so, change new T to true
 .end:
 ret
 
@@ -93,9 +127,9 @@ movq rdi, DSDeep              ; need at least 1 item on stack
 cmp dil, 1
 jb mErr1Underflow
 mov W, T
-xor T, T                      ; set T to false (-1)
-dec T
-xor edi, edi                  ; prepare value of true (0) in edi
+xor T, T                      ; set T to false (0)
+xor edi, edi                  ; prepare value of true (-1) in edi
+dec edi
 test W, W                     ; check of old T<0 by setting sign flag (SF)
 cmovs T, edi                  ; if so, change new T to true
 ret
@@ -105,10 +139,9 @@ movq rdi, DSDeep              ; need at least 1 item on stack
 cmp dil, 1
 jb mErr1Underflow
 mov W, T                      ; save value of T
-xor T, T                      ; set T to false (-1)
-dec T
-xor edi, edi                  ; prepare value of true (0) in edi
+xor T, T                      ; set T to false (0)
+xor edi, edi                  ; prepare value of true (-1) in edi
+dec edi
 test W, W                     ; check if old T was zero (set ZF for W and W)
 cmove T, edi                  ; if so, change new T to true
 ret
-

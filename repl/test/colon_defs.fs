@@ -6,6 +6,7 @@
 ( error)  :
 ( error)  : e
 ( error)  : ;
+( error)  : a  : b ;
 (  OK)       decimal : f -2147483647 -32768 -128 -1 .s ;
 (  OK)  hex : g 80000001 ffff8000 ffffff80 ffffffff .s ;
 ( -2147483647 -32768 -128 -1  OK)   decimal clearstack f
@@ -21,14 +22,9 @@
 (  OK)       : fib 1 dup f1 f1 f1 . ;
 ( 1 1 2 3 5 8 13 21 34 55 89  OK) fib
 clearstack
-( --- Test implicit tail call ---)
-(  OK) : start 1 .  : continue 2 . 3 . ;
-( 1 2 3  OK)                       start
-( 2 3  OK)                      continue
-clearstack
 ( --- Test maxing out return stack ---)
-(  OK)  : rs0 0 space : rs1 1 + 42 emit rs1 nop ;
-(     nop here stops tail call optimization ^^^ )
+(  OK)  : rs1 1 + 42 emit rs1 nop ; : rs0 0 space rs1 ;
+(                    nop here ^^^ stops tail call optimization)
 ( ***************** E21...)        clearstack rs0
 ( ***************** E21...)                   rs0
 ( ^^ note auto-recovery from full return stack)
@@ -36,7 +32,7 @@ clearstack
 ( --- Test tail call optimization ---)
 (  OK)   : tc0 0 . ;  : tc1 1 . tc0 ;
 ( 1 0  OK)             clearstack tc1
-(  OK)       : tc2 0  : tc3 1 + tc3 ;
-(       infinite tail recursion ^^^ )
+(  OK)  : tc3 1 + tc3 ; : tc2 0 tc3 ;
+(                 ^^^ infinite tail recursion)
 (  E22...)             clearstack tc2
 (  174762  OK)                     .s

@@ -24,13 +24,11 @@ global RSBase
 global datVoc0Head
 global datForthP
 global datContext
-global datDP
 global datDotS
 global datDotSNone
+global datCallDP
+global datDP
 global datLast
-global datExtV
-global datCodeP
-global datCodeCallP
 global datHeap
 global datHeapEnd
 global datDPStr
@@ -85,12 +83,10 @@ datDotSNone: mkStr "  Stack is empty"
 datOK:       mkStr `  OK\n`
 datVoc0Head: mkStr "[Voc0Head]  "
 datForthP:   mkStr "ForthP     "
-datExtV:     mkStr "ExtV       "
 datContext:  mkStr "Context    "
 datDP:       mkStr "DP         "
 datLast:     mkStr "Last       "
-datCodeP:    mkStr "CodeP      "
-datCodeCallP mkStr "CodeCallP  "
+datCallDP    mkStr "CallDP     "
 datHeap:     mkStr "Heap       "
 datHeapEnd:  mkStr "HeapEnd   "
 datDPStr:    mkStr "str([DP])  "
@@ -164,8 +160,7 @@ movq RSDeep, WQ
 mov [Mem+Pad], WW               ; Zero string buffer length fields
 mov [Mem+Blk], WW
 mov [Mem+TIB], WW
-mov [Mem+CodeP], word Heap      ; code memory pointer starts at Heap[0]
-mov [Mem+CodeCallP], word Heap  ; last compiled call pointer starts at 0
+mov [Mem+CallDP], word Heap     ; last compiled call pointer starts at 0
 call mDecimal                   ; default number base
 xor VMFlags, VMFlags            ; clear VM flags
 lea W, datVersion               ; print version string
@@ -174,14 +169,14 @@ call mStrPut.W
 mov W, [Voc0Head]             ; Initialize core vocabulary head pointers
 mov word [Mem+ForthP], WW     ; point ForthP to core vocab
 mov word [Mem+CompileP], WW   ;  same for CompileP (TODO: split core vocab)
-mov WW, Last                  ; load address of pointer to head of ExtV
+mov WW, Last                  ; load address of pointer to head of dictionary
 mov word [Mem+Context], WW    ; Set [Context] to address of Last
 ;-----------------------------
 xor W, W
-mov dword [Mem+ExtV], W       ; Zero the first item of ExtV
+mov dword [Mem+Heap], W       ; Zero the first item of ExtV (TODO:rename ExtV?)
 mov W, [Voc0Head]             ;  then set its link to Voc0Head
-mov word [Mem+ExtV], WW
-mov W, ExtV                   ; Set [Last] to address of head item in ExtV
+mov word [Mem+Heap], WW
+mov WW, Heap                  ; Set [Last] to address of head item in ExtV
 mov word [Mem+Last], WW
 add W, 3                      ; Allot 3 bytes for ExtV's head item
 mov word [Mem+DP], WW         ; Set [DP] to first available byte at end of ExtV
@@ -294,6 +289,10 @@ mov ebp, edi                  ; ebp: instruction pointer (I)
 mov ebx, 0x7ffff              ; ebx: max loop iterations (very arbitrary)
 ;/////////////////////////////
 .for:
+test ebp, ebp                 ; be sure that 0 <= ebp <= MemSize-1
+jl .doneBadAddress
+cmp ebp, MemSize-1
+jg .doneBadAddress
 movzx W, byte [Mem+ebp]       ; load token at I
 cmp WB, JumpTableLen          ; detect token beyond jump table range (CAUTION!)
 jae .doneBadToken
@@ -546,26 +545,22 @@ fDo  CompileU8,  .err
 jmp .done
 ;---------------------------
 .paramCode:                  ; Run compiled code-pointer {T: .param}
-fDo WordFetch,   .err        ; -> {T: [.param] = *code (token code pointer)}
 test VMFlags, VMCompile      ; if compile mode: branch
 jnz .compileCode
-fDo PopW,        .err        ; -> {}, {W: *code}
-mov edi, W                   ; edi: *code  (virtual code pointer)
-call doInner                 ; else: doInner(edi: virtual code pointer)
+fDo PopW,        .err        ; -> {}, {W: .param (address of compiled code)}
+mov edi, W                   ; edi: .param  (address of code)
+call doInner                 ; else: doInner(edi: .param)
 jmp .done
 ;---------------------------
-.compileCode:                ; Compile call to code pointer {T: *code}
-;...                         ; Remember [CodeP] to help the tail call optimizer
+.compileCode:                ; Compile call to code pointer {T: .param}
+;...                         ; Remember [DP] to help the tail call optimizer
 ;...                         ;  (see mSemiColon for how that works)
-fPush CodeP,     .err        ;  -> {S: *code, T: CodeP}
-fDo   WordFetch, .err        ;  -> {S: *code, T: [CodeP]}
-fPush CodeCallP, .err        ;  -> {*code, S: [CodeP], T: CodeCallP}
-fDo   WordStore, .err        ;  -> {T: *code}
-;...                         ; Store the Call token at end of heap
-fPush tCall,     .err        ;  -> {S: *code, T: tCall}
-fDo   CompileU8, .err        ;  -> {*code}
-;...                         ; Store the call address at [CodeP]+1
-fDo   CompileU16, .err       ; -> {}
+fDo   Here,       .err       ; -> {S: .param, T: [DP]}
+fPush CallDP,     .err       ; -> {.param, S: [DP], T: CallDP}
+fDo   WordStore,  .err       ; -> {T: .param}
+fPush tCall,      .err       ; -> {S: .param, T: tCall}
+fDo   CompileU8,  .err       ; -> {.param}   (compile tCall token)
+fDo   CompileU16, .err       ; -> {}         (compile call address)
 jmp .done
 ;---------------------------
 .TpVar:                      ; Handle a variable {T: .param}

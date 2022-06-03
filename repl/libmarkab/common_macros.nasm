@@ -64,18 +64,9 @@ default rel
 
 %define Fence BuiltinEnd         ; Index of write protect boundary
 
-;--- Extensible Vocabulary (read/write area in Mem for adding new words) ---
-;
-%define DP Fence+1               ; dw Pointer to next free byte of Ext. Vocab
-%define Last DP+2                ; dw Pointer to head of Ext. Vocab
-
-%define ExtV Last+2              ; Start index of extensible vocabulary area
-%define ExtVSize _4KB            ; Size of extensible vocabulary area
-%define ExtVEnd ExtV+ExtVSize-1  ; End index of extensible vocabulary area
-
 ;--- Buffers (scratch pad, terminal input, formatting, ...) ---
 ;
-%define BuffersStart ExtVEnd+1   ; Start of buffers
+%define BuffersStart Fence+1     ; Start of buffers
 
 %define Pad BuffersStart         ; Start of scratchPad string buffer
 %define PadSize _1KB             ; Size of scratchPad
@@ -110,10 +101,13 @@ default rel
 
 ;--- Heap memory for variables and compiled code ---
 ;
-%define CodeP BuffersEnd+1       ; dw Pointer to next free byte of heap memory
-%define CodeCallP CodeP+2        ; dw Pointer to last compiled call token
+%define CallDP BuffersEnd+1      ; dw Pointer to last compiled call token
+%define ColonDP CallDP+2         ; dw Pointer for temp DP saving by mColon
+%define ColonLast ColonDP+2      ; dw Pointer for temp Last saving by mColon
+%define DP ColonLast+2           ; dw Pointer to next free byte of Ext. Vocab
+%define Last DP+2                ; dw Pointer to head of Ext. Vocab
 
-%define Heap CodeCallP+2         ; Start of heap area
+%define Heap Last+2              ; Start of heap area
 %define HReserve 260             ; Heap reserved bytes (space for mWord, etc)
 %define HeapEnd MemSize-1        ; End of heap area
 
