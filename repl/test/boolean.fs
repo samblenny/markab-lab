@@ -32,6 +32,3 @@ decimal clearstack
 ( T F T  OK)  1 2 if<>  2 2 if<>  2 1 if<>
 ( F T F  OK)   -1 if0=    0 if0=    1 if0=
 ( T F F  OK)   -1 if0<    0 if0<    1 if0<
-( ^^^^^               BROKEN: DO NOT MATCH ^^^^^)
-( These are broken because IF's conditional test is inverted)
-( TODO: fix IF's conditional test)
