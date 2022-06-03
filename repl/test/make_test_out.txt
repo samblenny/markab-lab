@@ -244,3 +244,40 @@ clearstack  OK
 (  OK)       : red space if ."  Blue" endif ."  x" ;  OK
 (  Blue  x  OK)                                0 red  Blue x  OK
 (  x  OK)                                      1 red  x  OK
+( === test/boolean.fs ===)  OK
+( ** Forth boolean values, at least in modern standard Forths,  **)  OK
+( ** are non-zero for True [typically -1], or zero for False.   **)  OK
+( ** This is fairly similar to C. But, I think there have also  **)  OK
+( ** been other Forths that flip it around backwards. I started **)  OK
+( ** off doing it that way for some reason -- maybe I read some **)  OK
+( ** old thing of Chuck's? But, this way is better.             **)  OK
+decimal clearstack  OK
+( -1 0 0  OK)    1 2 <  .  2 2 <  .  2 1 <  . -1 0 0  OK
+( 0 0 -1  OK)    1 2 >  .  2 2 >  .  2 1 >  . 0 0 -1  OK
+( -1 -1 0  OK)   1 2 <= .  2 2 <= .  2 1 <= . -1 -1 0  OK
+( 0 -1 -1  OK)   1 2 >= .  2 2 >= .  2 1 >= . 0 -1 -1  OK
+( 0 -1 0  OK)    1 2 =  .  2 2 =  .  2 1 =  . 0 -1 0  OK
+( -1 0 -1  OK)   1 2 <> .  2 2 <> .  2 1 <> . -1 0 -1  OK
+( 0 -1 0  OK)     -1 0= .    0 0= .    1 0= . 0 -1 0  OK
+( -1 0 0  OK)     -1 0< .    0 0< .    1 0< . -1 0 0  OK
+: true ."  T" ;  OK
+: false ."  F" ;  OK
+: if<  <  if true else false endif ;  OK
+: if>  >  if true else false endif ;  OK
+: if<= <= if true else false endif ;  OK
+: if>= >= if true else false endif ;  OK
+: if=  =  if true else false endif ;  OK
+: if<> <> if true else false endif ;  OK
+: if0= 0= if true else false endif ;  OK
+: if0< 0< if true else false endif ;  OK
+( T F F  OK)  1 2 if<   2 2 if<   2 1  if< F T T  OK
+( F F T  OK)  1 2 if>   2 2 if>   2 1  if> T T F  OK
+( T T F  OK)  1 2 if<=  2 2 if<=  2 1 if<= F F T  OK
+( F T T  OK)  1 2 if>=  2 2 if>=  2 1 if>= T F F  OK
+( F T F  OK)  1 2 if=   2 2 if=   2 1  if= T F T  OK
+( T F T  OK)  1 2 if<>  2 2 if<>  2 1 if<> F T F  OK
+( F T F  OK)   -1 if0=    0 if0=    1 if0= T F T  OK
+( T F F  OK)   -1 if0<    0 if0<    1 if0< F T T  OK
+( ^^^^^               BROKEN: DO NOT MATCH ^^^^^)  OK
+( These are broken because IF's conditional test is inverted)  OK
+( TODO: fix IF's conditional test)  OK
