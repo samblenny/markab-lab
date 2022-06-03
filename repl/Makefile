@@ -15,9 +15,9 @@ TESTS_OUT=test/make_test_out.txt
 TESTS=test/fetch_store.fs test/comments.fs test/dotquote.fs test/stack.fs \
   test/math.fs test/colon_defs.fs test/loops.fs test/fizzbuzz.fs \
   test/return_stack.fs test/var_const.fs test/control_flow.fs
-ASM_OBJS=obj/boolean.o obj/compiler.o obj/data_stack.o obj/debugging.o \
-  obj/errors.o obj/math.o obj/numbers.o obj/return_stack.o \
-  obj/store_fetch.o obj/strings.o
+ASM_OBJS=obj/vm/boolean.o obj/vm/data_stack.o obj/vm/math.o \
+  obj/vm/return_stack.o obj/vm/store_fetch.o \
+  obj/compiler.o obj/debugging.o obj/errors.o obj/numbers.o obj/strings.o
 AUTOGEN_SRC=libmarkab/generated_data.nasm libmarkab/generated_macros.nasm
 COMMON_SRC=libmarkab/common_macros.nasm
 
@@ -40,11 +40,11 @@ main: main.c obj/libmarkab.o $(ASM_OBJS)
 	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ main.c obj/libmarkab.o $(ASM_OBJS)
 
 obj/libmarkab.o: libmarkab.nasm $(AUTOGEN_SRC) $(COMMON_SRC) screen00.fs
-	@mkdir -p obj
+	@mkdir -p obj/vm
 	nasm -f elf64 -w+all --reproducible -o $@ $<
 
 obj/%.o: libmarkab/%.nasm $(AUTOGEN_SRC) $(COMMON_SRC)
-	@mkdir -p obj
+	@mkdir -p obj/vm
 	@nasm -f elf64 -w+all --reproducible -o $@ $<
 
 libmarkab/generated_data.nasm: data_codegen.py

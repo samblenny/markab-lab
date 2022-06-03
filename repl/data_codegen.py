@@ -32,14 +32,17 @@ TP_VAR = 3
 # Markab's source code.
 #
 TOKENS = """
-Return Nop Bye Dup Drop Swap Over ClearStack DotS DotQuoteI Paren Colon Emit
-CR Space Dot Plus Minus Mul Div Mod DivMod Max Min Abs And Or Xor Invert Less
-Greater Equal ZeroLess ZeroEqual Hex Decimal Fetch Store ByteFetch ByteStore
-SemiColon DotQuoteC U8 U16 I8 I16 I32 Jump Call ClearReturn Next Negate
-ToR RFrom I DotRet ClearReturn WordStore WordFetch DumpVars Tick
-Create Allot Here Last
-OnePlus TwoPlus FourPlus OneMinus
-If Else EndIf For Next
+Abs And ByteFetch ByteStore Call ClearReturn ClearStack Div DivMod Drop Dup
+Equal Fetch FourPlus Greater I I16 I32 I8 Invert Jump Less Max Min Minus Mod
+Mul Negate Nop OneMinus OnePlus Or Over Plus PopW Return RFrom RPopW Store
+Swap ToR TwoPlus U16 U8 WordFetch WordStore Xor ZeroEqual ZeroLess
+If Else EndIf
+For Next
+Paren
+Colon SemiColon Create Allot Here Last Tick
+Emit CR Space DotQuoteI DotQuoteC Dot Hex Decimal
+DotS DotRet DumpVars
+Bye
 """
 
 # These are names and tokens for words in markabForth's core dictionary. Names
@@ -51,70 +54,69 @@ If Else EndIf For Next
 # include some tokens that are only used as part of compiled words.
 #
 VOC0_TOKS = """
-nop Nop 0
-bye Bye 0
-dup Dup 0
-drop Drop 0
-swap Swap 0
-over Over 0
-clearstack ClearStack 0
-.s DotS 0
-( Paren -1
-." DotQuoteI -1
-: Colon -1
-; SemiColon -1
-' Tick -1
-emit Emit 0
-cr CR 0
-space Space 0
-. Dot 0
-+ Plus 0
-- Minus 0
-negate Negate 0
-* Mul 0
-/ Div 0
-mod Mod 0
-/mod DivMod 0
-max Max 0
-min Min 0
 abs Abs 0
-1+ OnePlus 0
-2+ TwoPlus 0
-4+ FourPlus 0
-1- OneMinus 0
 and And 0
-or Or 0
-xor Xor 0
-invert Invert 0
-< Less 0
-> Greater 0
-= Equal 0
-0< ZeroLess 0
-0= ZeroEqual 0
-hex Hex 0
-decimal Decimal 0
-@ Fetch 0
-! Store 0
 b@ ByteFetch 0
 b! ByteStore 0
+clearreturn ClearReturn 0
+clearstack ClearStack 0
+/ Div 0
+/mod DivMod 0
+drop Drop 0
+dup Dup 0
+= Equal 0
+@ Fetch 0
+4+ FourPlus 0
+> Greater 0
+i I 0
+invert Invert 0
+< Less 0
+max Max 0
+min Min 0
+- Minus 0
+mod Mod 0
+* Mul 0
+negate Negate 0
+nop Nop 0
+1- OneMinus 0
+1+ OnePlus 0
+or Or 0
+over Over 0
++ Plus 0
+r> RFrom 0
+! Store 0
+swap Swap 0
+>r ToR 0
+2+ TwoPlus 0
 w@ WordFetch 0
 w! WordStore 0
-next Next 0
->r ToR 0
-r> RFrom 0
-i I 0
-.ret DotRet 0
-clearreturn ClearReturn 0
-.vars DumpVars 0
-create Create 0
-allot Allot 0
-here Here 0
-last Last 0
+xor Xor 0
+0< ZeroLess 0
+0= ZeroEqual 0
 if If 1
 else Else 1
 endif EndIf 1
 for For 1
 next Next 1
+( Paren -1
+: Colon -1
+; SemiColon -1
+create Create 0
+allot Allot 0
+here Here 0
+last Last 0
+' Tick -1
+emit Emit 0
+cr CR 0
+space Space 0
+." DotQuoteI -1
+. Dot 0
+hex Hex 0
+decimal Decimal 0
+.s DotS 0
+.ret DotRet 0
+.vars DumpVars 0
+bye Bye 0
 """
 
 # Constants to be included in core vocabulary
