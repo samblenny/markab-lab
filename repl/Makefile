@@ -12,9 +12,9 @@ CC=clang
 CFLAGS=-std=c99 -Wall
 LDFLAGS=-O2 -Wl,-export-dynamic
 TESTS_OUT=test/make_test_out.txt
-TESTS=test/fetch_store.fs test/comments.fs test/dotquote.fs test/stack.fs \
-  test/math.fs test/colon_defs.fs test/loops.fs test/fizzbuzz.fs \
-  test/return_stack.fs test/var_const.fs test/control_flow.fs test/boolean.fs
+TESTS=test/var_const.fs test/fetch_store.fs test/comments.fs test/dotquote.fs \
+  test/stack.fs test/math.fs test/colon_defs.fs test/loops.fs \
+  test/fizzbuzz.fs test/return_stack.fs test/control_flow.fs test/boolean.fs
 ASM_OBJS=obj/vm/boolean.o obj/vm/data_stack.o obj/vm/math.o \
   obj/vm/return_stack.o obj/vm/store_fetch.o \
   obj/compiler.o obj/debugging.o obj/errors.o obj/numbers.o obj/strings.o

@@ -5,6 +5,30 @@ type 'bye' or ^C to exit
 | |\/| / _` | '_| / / _` | '_ \
 |_|  |_\__,_|_| |_\_\__,_|_.__/
   OK
+( === test/var_const.fs ===)  OK
+clearstack  OK
+( <number>  OK)               here . 5283  OK
+(  E15...)               70000 allot  E15 Heap full
+(        This is too big ^^^^^     )  OK
+( <same-number>  OK)          here . 5283  OK
+(  OK)                       var foo  OK
+( <bigger-number>  OK)        here . 5294  OK
+(  OK)                      99 foo !  OK
+( 99  OK)                    foo @ . 99  OK
+( 99  OK)                      foo ? 99  OK
+( 99  OK)      : .foo foo @ . ; .foo 99  OK
+(  OK)                  20 const bar  OK
+( 20  OK)                      bar . 20  OK
+( 20  OK)        : .bar bar . ; .bar 20  OK
+( E13...)                   30 bar !  E13 Address out of range
+(  OK)           var array 1 array !  OK
+(  OK)                   2 , 3 , 4 ,  OK
+( 1 OK)                      array ? 1  OK
+( 2 OK)                  array 4 + ? 2  OK
+( 3 OK)                  array 8 + ? 3  OK
+( 4 OK)                 array 12 + ? 4  OK
+(  OK)     here array - const arrlen  OK
+( 16 OK)                    arrlen . 16  OK
 ( === test/fetch_store.fs ===)  OK
 ( -- These should all give errors: --)  OK
 -1 @  E13 Address out of range
@@ -209,30 +233,6 @@ clearstack  OK
 ( ------------------------ TODO: also fix this! ^^^)  OK
 clearreturn  OK
 ( ^^^^^^^^^ compensate for the 1 >r above)  OK
-( === test/var_const.fs ===)  OK
-clearstack  OK
-( <number>  OK)               here . 5894  OK
-(  E15...)               70000 allot  E15 Heap full
-(        This is too big ^^^^^     )  OK
-( <same-number>  OK)          here . 5894  OK
-(  OK)                       var foo  OK
-( <bigger-number>  OK)        here . 5905  OK
-(  OK)                      99 foo !  OK
-( 99  OK)                    foo @ . 99  OK
-( 99  OK)                      foo ? 99  OK
-( 99  OK)      : .foo foo @ . ; .foo 99  OK
-(  OK)                  20 const bar  OK
-( 20  OK)                      bar . 20  OK
-( 20  OK)        : .bar bar . ; .bar 20  OK
-( E13...)                   30 bar !  E13 Address out of range
-(  OK)           var array 1 array !  OK
-(  OK)                   2 , 3 , 4 ,  OK
-( 1 OK)                      array ? 1  OK
-( 2 OK)                  array 4 + ? 2  OK
-( 3 OK)                  array 8 + ? 3  OK
-( 4 OK)                 array 12 + ? 4  OK
-(  OK)     here array - const arrlen  OK
-( 16 OK)                    arrlen . 16  OK
 ( === test/control_flow.fs ===)  OK
 clearstack  OK
 (  OK) : zero? 0= if ."   Y" else ."   N" endif ." ." ;  OK
