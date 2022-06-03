@@ -188,11 +188,11 @@ clearstack  OK
 (  n divisible by neither -> n         )  OK
 ( for `0=`, `=`, etc, true is 0, false is 0xffffffff)  OK
 ( `factors` pushes 1 for divisible by 3, 2 for 5, and 3 for 15)  OK
-: if-eq-push-1 = invert 1 and ;  OK
-: if-1-f  1 = invert if ."  Fz" endif ;  OK
-: if-2-b  2 = invert if ."  Bz" endif ;  OK
-: if-3-fb 3 = invert if ."  FzBz" endif ;  OK
-: if-0-.  0= invert if . endif ;  OK
+: if-eq-push-1 = 1 and ;  OK
+: if-1-f  1 = if ."  Fz" endif ;  OK
+: if-2-b  2 = if ."  Bz" endif ;  OK
+: if-3-fb 3 = if ."  FzBz" endif ;  OK
+: if-0-.  0= if . endif ;  OK
 : factors dup  3 mod 0= 1 and  swap 5 mod 0= 2 and  or ;  OK
 : fbz-inner dup factors  dup if-1-f  dup if-2-b  dup if-3-fb  if-0-. ;  OK
 : n! 60000 ! ;  OK
@@ -211,12 +211,12 @@ clearreturn  OK
 ( ^^^^^^^^^ compensate for the 1 >r above)  OK
 ( === test/var_const.fs ===)  OK
 clearstack  OK
-( <number>  OK)               here . 5899  OK
+( <number>  OK)               here . 5894  OK
 (  E15...)               70000 allot  E15 Heap full
 (        This is too big ^^^^^     )  OK
-( <same-number>  OK)          here . 5899  OK
+( <same-number>  OK)          here . 5894  OK
 (  OK)                       var foo  OK
-( <bigger-number>  OK)        here . 5910  OK
+( <bigger-number>  OK)        here . 5905  OK
 (  OK)                      99 foo !  OK
 ( 99  OK)                    foo @ . 99  OK
 ( 99  OK)                      foo ? 99  OK
@@ -235,13 +235,13 @@ clearstack  OK
 ( 16 OK)                    arrlen . 16  OK
 ( === test/control_flow.fs ===)  OK
 clearstack  OK
-(  OK) : zero? if ."   Y" else ."   N" endif ." ." ;  OK
+(  OK) : zero? 0= if ."   Y" else ."   N" endif ." ." ;  OK
 (  E1...)                                      zero?  E1 Stack underflow
 (  Y.  OK)                                   0 zero?  Y.  OK
 (  N.  OK)                                   1 zero?  N.  OK
 (  N.  OK)                                  -1 zero?  N.  OK
 (  N.  OK)                                  99 zero?  N.  OK
-(  OK)       : red space if ."  Blue" endif ."  x" ;  OK
+(  OK)    : red space 0= if ."  Blue" endif ."  x" ;  OK
 (  Blue  x  OK)                                0 red  Blue x  OK
 (  x  OK)                                      1 red  x  OK
 ( === test/boolean.fs ===)  OK
@@ -270,14 +270,14 @@ decimal clearstack  OK
 : if<> <> if true else false endif ;  OK
 : if0= 0= if true else false endif ;  OK
 : if0< 0< if true else false endif ;  OK
-( T F F  OK)  1 2 if<   2 2 if<   2 1  if< F T T  OK
-( F F T  OK)  1 2 if>   2 2 if>   2 1  if> T T F  OK
-( T T F  OK)  1 2 if<=  2 2 if<=  2 1 if<= F F T  OK
-( F T T  OK)  1 2 if>=  2 2 if>=  2 1 if>= T F F  OK
-( F T F  OK)  1 2 if=   2 2 if=   2 1  if= T F T  OK
-( T F T  OK)  1 2 if<>  2 2 if<>  2 1 if<> F T F  OK
-( F T F  OK)   -1 if0=    0 if0=    1 if0= T F T  OK
-( T F F  OK)   -1 if0<    0 if0<    1 if0< F T T  OK
+( T F F  OK)  1 2 if<   2 2 if<   2 1  if< T F F  OK
+( F F T  OK)  1 2 if>   2 2 if>   2 1  if> F F T  OK
+( T T F  OK)  1 2 if<=  2 2 if<=  2 1 if<= T T F  OK
+( F T T  OK)  1 2 if>=  2 2 if>=  2 1 if>= F T T  OK
+( F T F  OK)  1 2 if=   2 2 if=   2 1  if= F T F  OK
+( T F T  OK)  1 2 if<>  2 2 if<>  2 1 if<> T F T  OK
+( F T F  OK)   -1 if0=    0 if0=    1 if0= F T F  OK
+( T F F  OK)   -1 if0<    0 if0<    1 if0< T F F  OK
 ( ^^^^^               BROKEN: DO NOT MATCH ^^^^^)  OK
 ( These are broken because IF's conditional test is inverted)  OK
 ( TODO: fix IF's conditional test)  OK

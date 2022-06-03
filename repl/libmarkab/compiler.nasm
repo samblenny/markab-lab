@@ -532,7 +532,7 @@ jnz mCompileIf
 ; -----------
 fDo  PopW,        .end   ; -> {}, {W: n (the value to be tested)}
 test W, W                ; if value is 0, do not jump to ELSE/EndIf
-jz .doTrue               ; CAUTION! this jz is inverted from the VM instruction
+jnz .doTrue
 .doElse:
 movzx edi, word [Mem+ebp] ; load jump target virtual address
 mov ebp, edi             ; jump to ELSE/EndIf
