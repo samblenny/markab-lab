@@ -105,33 +105,43 @@ jz mErr17SemiColon
 .optimizerCheck:           ; Check if tail call optimization is possible
 ;...                       ;  (requires that the last call token occurred
 ;...                       ;  within the current definition, not before)
-fPush CallDP,     .end     ; -> {S: [DP] (old, from `:`), T: CallDP}
-fDo   WordFetch,  .end     ; -> {S: [DP] (:), T: [CallDP]}
-fDo   LessEq,     .end     ; -> {T: ((S<=T): -1 or (S>T): 0)}
-fDo   PopW,       .end     ; -> {}, {W: true(-1) or false(0)} 
+fDo   Dup,        .end     ; -> {S: [DP] (old, from `:`), [DP] (:)}
+fPush CallDP,     .end     ; -> {[DP] (:), S: [DP] (:), T: CallDP}
+fDo   WordFetch,  .end     ; -> {[DP] (:), S: [DP] (:), T: [CallDP]}
+fDo   LessEq,     .end     ; -> {S: [DP] (:), T: ((S<=T): -1 or (S>T): 0)}
+fDo   PopW,       .end     ; -> {T: [DP] (:)}, {W: true(-1) or false(0)}
 test W, W
-jz .normalReturn           ; skip optimization if last call not in this def
+jz .compileToken           ; skip optimization if last call not in this def
 fDo   Here,       .end     ; Calculate where tCall would be if there was a call
 sub T, 3                   ;  right before this semicolon
 fPush CallDP,     .end     ; Compare that calculation to the last call address
 fDo   WordFetch,  .end
-fDo   Equal,      .end     ; -> {T: (equal: -1 or not-equal: 0)}
-fDo   PopW,       .end     ; -> {}, {W: true(-1) or false(0)}
+fDo   Equal,      .end     ; -> {S: [DP] (:), T: (equal: -1 or not-equal: 0)}
+fDo   PopW,       .end     ; -> {T: [DP] (:)}, {W: true(-1) or false(0)}
 test W, W
-jz .normalReturn           ; skip optimization if last word of def was not call
+jz .compileToken           ; skip optimization if last word of def was not call
 ;-------------------------
 .rewriteTailCall:          ; Do a tail call optimization
-fPush CallDP,     .end     ; -> {T: CallDP}
-fDo   WordFetch,  .end     ; -> {T: [CallDP]}
-fPush tJump,      .end     ; -> {S: [CallDP], T: tJump}
-fDo   Swap,       .end     ; -> {S: tJump, T: [CallDP]}
-fDo   ByteStore,  .end     ; -> {}                (change tCall token to tJump)
+fPush CallDP,     .end     ; -> {S: [DP] (:), T: CallDP}
+fDo   WordFetch,  .end     ; -> {S: [DP] (:), T: [CallDP]}
+fPush tJump,      .end     ; -> {S: [DP] (:), S: [CallDP], T: tJump}
+fDo   Swap,       .end     ; -> {[DP] (:), S: tJump, T: [CallDP]}
+fDo   ByteStore,  .end     ; -> {T: [DP] (:)}     (change tCall token to tJump)
 ;...                       ; continue to .normalReturn
 ;-------------------------
-.normalReturn:             ; Compile a Return token
-fPush tReturn,    .end     ; -> {T: tReturn}
-fDo   CompileU8,  .end     ; -> {}
-and VMFlags, (~VMCompile)  ; clear compile mode flag
+.compileToken:             ; Compile a Return token
+fPush tReturn,    .end     ; -> {S: [DP] (:), T: tReturn}
+fDo   CompileU8,  .end     ; -> {T: [DP] (:)}
+test VMFlags, VMIf         ; check what kind of block encloses this `;`
+jnz .returnFromIfBranch
+;-------------------------
+.returnFromWord:           ; Return from end of word, so clear compile flag
+fDo   Drop,       .end     ; {T: [DP] (:)} -> {}
+and VMFlags, (~VMCompile)
+ret
+;-------------------------
+.returnFromIfBranch:       ; Return from inside `IF`, so leave compile flag set
+;...                       ; {T: [DP] (:)}    (keep [DP] from start of `:`-def)
 ret
 ;-------------------------
 .end:                      ; Something went wrong, so clear compile flag
@@ -565,6 +575,7 @@ jmp mErr30CompileOnlyWord
 ; because the exact same action works for both options.
 
 mCompileIf:              ; Compile if token+addr, push pointer for ELSE/EndIf
+or VMFlags, VMIf         ; set VM bit for compiling-IF-block-in-progress
 fPush  tIf,       .end   ; -> {T: tIf}
 fDo    CompileU8, .end   ; -> {}
 fDo    Here,      .end   ; -> {T: [DP] (jump addr gets patched by else/endif)}
@@ -595,6 +606,7 @@ mCompileEndIf:           ; EndIf -- patch IF or ELSE's jump address
 fDo    Here,      .end   ; -> {S: [DP] (old, to be patched), T: [DP] (now)}
 fDo    Swap,      .end   ; -> {S: [DP] (now), T: [DP] (old)}
 fDo    WordStore, .end   ; -> {}
+and VMFlags, ~VMIf       ; clear VM flag for compiling-IF-block-in-progress
 .end:
 ret
 

@@ -92,11 +92,13 @@ section .text
 mErrPutW:                     ; Print error from W and set error flag
 call mStrPut.W
 and VMFlags, ~VMCompile       ; clear compile flag
+and VMFlags, ~VMIf            ; clear compiling-IF-block-in-progress flag
 or VMFlags, VMErr             ; set error flag
 ret
 
 mErr:
 and VMFlags, ~VMCompile       ; clear compile flag
+and VMFlags, ~VMIf            ; clear compiling-IF-block-in-progress flag
 or VMFlags, VMErr             ; set error flag (hide OK prompt)
 ret
 

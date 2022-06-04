@@ -148,6 +148,7 @@ default rel
 %define VMNaN 4               ; NaN bit: set means number conversion failed
 %define VMCompile 8           ; Compile bit: set means compile mode is active
 %define VMReturn 16           ; Return bit: set means end of outermost word
+%define VMIf 32               ; If bit: set while compiling `IF..;IF`
 %define VMFlags r12b          ; Virtual machine status flags
 
 %define T r13d                ; Top item of data stack (32-bits)
