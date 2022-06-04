@@ -6,5 +6,5 @@
 (   Stack is empty  OK)               .ret
 ( >r should not be defined when not compiling)  1 >r
 ( ------------------------ TODO: also fix this! ^^^)
-clearreturn
-( ^^^^^^^^^ compensate for the 1 >r above)
+reset
+( ^^^ compensate for the 1 >r above)

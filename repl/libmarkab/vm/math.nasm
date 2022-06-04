@@ -41,12 +41,9 @@ sub T, W
 .end:
 ret
 
-mNegate:                      ; Negate T (two's complement)
-movq rdi, DSDeep              ; need at least 1 item on stack
-cmp dil, 1
-jb mErr1Underflow
-neg T
-ret
+
+; mNegate is gone. Use `0 swap -` if you need two's complement negation.
+
 
 mMul:                         ; *   ( 2nd T -- 2nd*T )
 fDo PopW, .end

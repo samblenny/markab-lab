@@ -10,19 +10,19 @@
 65536 b@
 65536 w@
 65535 w@
-clearstack
+reset
 1 0 !
 1 0 w!
 1 0 b!
 1 65536 !
 1 65535 !
 1 65534 !
-clearstack
+reset
 1 65533 !
 1 65536 w!
 1 65535 w!
 1 65536 b!
-clearstack
+reset
 ( -- These should give OK: --)
 1 2000 !
 2000 @ .

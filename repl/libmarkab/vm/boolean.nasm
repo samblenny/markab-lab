@@ -27,8 +27,8 @@ global mGreater
 global mGreaterEq
 global mEqual
 global mNotEq
-global mZeroLess
 global mZeroEqual
+global mZeroLess
 
 
 mAnd:                         ; AND   ( 2nd T -- bitwise_and_2nd_T )
@@ -122,18 +122,6 @@ cmovne T, esi                 ; if so, change new T to true
 .end:
 ret
 
-mZeroLess:                    ; 0<   ( T -- bool_is_T_less_than_0 )
-movq rdi, DSDeep              ; need at least 1 item on stack
-cmp dil, 1
-jb mErr1Underflow
-mov W, T
-xor T, T                      ; set T to false (0)
-xor edi, edi                  ; prepare value of true (-1) in edi
-dec edi
-test W, W                     ; check of old T<0 by setting sign flag (SF)
-cmovs T, edi                  ; if so, change new T to true
-ret
-
 mZeroEqual:                   ; 0=   ( T -- bool_is_T_equal_0 )
 movq rdi, DSDeep              ; need at least 1 item on stack
 cmp dil, 1
@@ -144,4 +132,16 @@ xor edi, edi                  ; prepare value of true (-1) in edi
 dec edi
 test W, W                     ; check if old T was zero (set ZF for W and W)
 cmove T, edi                  ; if so, change new T to true
+ret
+
+mZeroLess:                    ; 0<   ( T -- boolean: T < 0 )
+movq rdi, DSDeep              ; need at least 1 item on stack
+cmp dil, 1
+jb mErr1Underflow
+mov W, T                      ; save value of T
+xor T, T                      ; set T to false (0)
+xor edi, edi                  ; prepare value of true (-1) in edi
+dec edi
+test W, W                     ; check if old T was zero (set ZF for W and W)
+cmovl T, edi                  ; if so, change new T to true
 ret

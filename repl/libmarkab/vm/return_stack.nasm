@@ -16,7 +16,6 @@ extern mErr21ReturnFull
 extern mPush
 extern RSBase
 
-global mClearReturn
 global mI
 global mToR
 global mRFrom
@@ -68,10 +67,7 @@ test VMFlags, VMErr           ; check if it worked
 jz mPush                      ; if so: push W (old R) to data stack
 ret
 
-mClearReturn:                 ; Clear the return stack
-xor rdi, rdi
-movq RSDeep, rdi
-ret
+; mReset --> see ./data_stack.nasm
 
 mJump:                        ; Jump -- set the VM token instruction pointer
 movzx edi, word [Mem+ebp]     ; read pointer literal address from token stream

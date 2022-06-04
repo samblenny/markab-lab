@@ -1,5 +1,5 @@
 ( === test/var_const.fs ===)
-clearstack
+reset
 ( <number>  OK)               here .
 (  E15...)               70000 allot
 (        This is too big ^^^^^     )

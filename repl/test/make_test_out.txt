@@ -6,7 +6,7 @@ type 'bye' or ^C to exit
 |_|  |_\__,_|_| |_\_\__,_|_.__/
   OK
 ( === test/var_const.fs ===)  OK
-clearstack  OK
+reset  OK
 ( <number>  OK)               here . 5283  OK
 (  E15...)               70000 allot  E15 Heap full
 (        This is too big ^^^^^     )  OK
@@ -41,19 +41,19 @@ clearstack  OK
 65536 b@  E13 Address out of range
 65536 w@  E13 Address out of range
 65535 w@  E13 Address out of range
-clearstack  OK
+reset  OK
 1 0 !  E13 Address out of range
 1 0 w!  E13 Address out of range
 1 0 b!  E13 Address out of range
 1 65536 !  E13 Address out of range
 1 65535 !  E13 Address out of range
 1 65534 !  E13 Address out of range
-clearstack  OK
+reset  OK
 1 65533 !  E13 Address out of range
 1 65536 w!  E13 Address out of range
 1 65535 w!  E13 Address out of range
 1 65536 b!  E13 Address out of range
-clearstack  OK
+reset  OK
 ( -- These should give OK: --)  OK
 1 2000 !  OK
 2000 @ . 1  OK
@@ -89,24 +89,24 @@ clearstack  OK
 ." word"word  OK
 ."  word" word  OK
 ( === test/stack.fs ===)  OK
-clearstack  OK
+reset  OK
 ( 1  OK)     1    .s  1  OK
 ( 1 1  OK)   dup  .s  1 1  OK
 ( 1  OK)     drop .s  1  OK
 ( 1 2  OK)   2    .s  1 2  OK
 ( 2 1  OK)   swap .s  2 1  OK
 ( 2 1 2  OK) over .s  2 1 2  OK
-clearstack  OK
+reset  OK
 ( error)      dup  E1 Stack underflow
 ( error)     drop  E1 Stack underflow
 ( error)     swap  E1 Stack underflow
 ( error)     over  E1 Stack underflow
-clearstack  OK
+reset  OK
 ( --- These demonstrate that, while there are 17 stack slots, ---)  OK
 ( --- processing input text needs 2 of those to be left free. ---)  OK
-(  E2...)  1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17  E2 Stack overflow (cleared stack)
+(  E2...)  1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17  E2 Stack overflow (reset stacks)
 (  OK)        1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16  OK
-(  E2...)                                         .s  E2 Stack overflow (cleared stack)
+(  E2...)                                         .s  E2 Stack overflow (reset stacks)
 (  OK)           1 2 3 4 5 6 7 8 9 10 11 12 13 14 15  OK
 (  1 2 ... 14 15  OK)                             .s  1 2 3 4 5 6 7 8 9 10 11 12 13 14 15  OK
 (   This works -- 2 free slots for parsing and .s ^^)  OK
@@ -114,45 +114,52 @@ clearstack  OK
 (  ... 13 15 14  OK)       drop .s  1 2 3 4 5 6 7 8 9 10 11 12 13 15  OK
 (  ... 13 15 13  OK)       over .s  1 2 3 4 5 6 7 8 9 10 11 12 13 15 13  OK
 (  OK)                         dup  OK
-(  E2...)                       .s  E2 Stack overflow (cleared stack)
-clearstack  OK
+(  E2...)                       .s  E2 Stack overflow (reset stacks)
+reset  OK
 ( Stack is empty  OK) .s  Stack is empty  OK
 ( === test/math.fs ===)  OK
-clearstack  OK
+reset  OK
+( ** Arithmetic **)  OK
 ( 6  OK)                        3  3 + . 6  OK
 ( 1  OK)                        6  5 - . 1  OK
 ( -19  OK)                      1 20 - . -19  OK
 ( 19  OK)                     -19 -1 * . 19  OK
-( 2147483647  OK) hex 7fffffff decimal . 2147483647  OK
-( 3FFF0001  OK)        hex 7fff 7fff * . 3FFF0001  OK
-( error)                           1 0 /  E12 Divide by 0
-( error)                         1 0 mod  E12 Divide by 0
-( error)                        1 0 /mod  E12 Divide by 0
-( 2  OK)             clearstack 9 4 / .s  2  OK
-( 1  OK)           clearstack 9 4 mod .s  1  OK
-( 1 2 OK)         clearstack 9 4 /mod .s  1 2  OK
-( error)                   hex 1ffffeeee  E6 Overflow: 1ffffeeee
-( 0  OK)                  ffffffff 1 + . 0  OK
-( 1 OK)                 7fffffff dup * . 1  OK
-( FFFFFFFF  OK)         decimal -1 hex . FFFFFFFF  OK
-( 0  OK)                      0 negate . 0  OK
-( FFFFFFFF  OK)               0 invert . FFFFFFFF  OK
-( 1  OK)         decimal -1 hex negate . 1  OK
-( 0  OK)         decimal -1 hex invert . 0  OK
-( FFFFFFFF  OK)               1 negate . FFFFFFFF  OK
-( FFFFFFFE  OK)               1 invert . FFFFFFFE  OK
-( FF  OK)           hex ff 0 + . decimal FF  OK
-(  E7...)           hex -1 0 + decimal .  E7 [Base=Hex] Unknown word: -1
-( -1  OK)               decimal -1 0 + . -1  OK
+( ** Division and modulo division **)  OK
+( E12...)                          1 0 /  E12 Divide by 0
+( E12...)                          1 0 %  E12 Divide by 0
+( E12...)                         1 0 /%  E12 Divide by 0
+( 2  OK)                  reset 9 4 / .s  2  OK
+( 1  OK)                  reset 9 4 % .s  1  OK
+( 1 2 OK)                reset 9 4 /% .s  1 2  OK
 ( * Negative dividends are here to check that division operations have  *)  OK
 ( * been implemented correctly with the right cdq and idiv instructions *)  OK
 ( * for the proper width of sign extension. Messing up sign extension   *)  OK
 ( * during division can raise a floating-point exception, so I want to  *)  OK
 ( * make very sure that won't happen.                                   *)  OK
 ( -1  OK)                       -9 7 / . -1  OK
-( -2  OK)                     -9 7 mod . -2  OK
-( -1 -2  OK)               -9 7 /mod . . -1 -2  OK
-clearstack  OK
+( -2  OK)                       -9 7 % . -2  OK
+( -1 -2  OK)                 -9 7 /% . . -1 -2  OK
+( ** Parsing and overflow behavior for 32-bit signed integers **)  OK
+( 2147483647  OK) hex 7fffffff decimal . 2147483647  OK
+( 3FFF0001  OK)        hex 7fff 7fff * . 3FFF0001  OK
+( E6...)                   hex 1ffffeeee  E6 Overflow: 1ffffeeee
+( 0  OK)                  ffffffff 1 + . 0  OK
+( 1 OK)                 7fffffff dup * . 1  OK
+( FFFFFFFF  OK)         decimal -1 hex . FFFFFFFF  OK
+( ** Two's complement negation with `0 swap -` **)  OK
+( 1  OK)           decimal -1 0 swap - . 1  OK
+( 0  OK)                    0 0 swap - . 0  OK
+( FFFFFFFF  OK)         hex 1 0 swap - . FFFFFFFF  OK
+( -2  OK)           decimal 2 0 swap - . -2  OK
+( ** One's complement negation with `~` **)  OK
+( FFFFFFFF  OK)                hex 0 ~ . FFFFFFFF  OK
+( 0  OK)              decimal -1 hex ~ . 0  OK
+( FFFFFFFE  OK)                    1 ~ . FFFFFFFE  OK
+( ** Behavior of negative number parsing depends on hex or decimal **)  OK
+( FF  OK)                   hex ff 0 + . FF  OK
+(  E7...)           hex -1 0 + decimal .  E7 [Base=Hex] Unknown word: -1
+( -1  OK)               decimal -1 0 + . -1  OK
+( ** Shorthand plus and minus combo words for common increments **)  OK
 ( 6  OK)  5 1+ . 6  OK
 ( 7  OK)  5 2+ . 7  OK
 ( 9  OK)  5 4+ . 9  OK
@@ -168,60 +175,54 @@ clearstack  OK
 ( error)  : a  : b ;  E18 Expected ;
 (  OK)       decimal : f -2147483647 -32768 -128 -1 .s ;  OK
 (  OK)  hex : g 80000001 ffff8000 ffffff80 ffffffff .s ;  OK
-( -2147483647 -32768 -128 -1  OK)   decimal clearstack f  -2147483647 -32768 -128 -1  OK
-( -2147483647 -32768 -128 -1  OK)           clearstack g  -2147483647 -32768 -128 -1  OK
+( -2147483647 -32768 -128 -1  OK)        decimal reset f  -2147483647 -32768 -128 -1  OK
+( -2147483647 -32768 -128 -1  OK)                reset g  -2147483647 -32768 -128 -1  OK
 (  OK)         decimal : h 2147483647 65535 255 1 0 .s ;  OK
 (  OK)                 hex : k 7fffffff ffff ff 1 0 .s ;  OK
-(  2147483647 65535 255 1 0  OK)    decimal clearstack h  2147483647 65535 255 1 0  OK
-(  2147483647 65535 255 1 0  OK)            clearstack k  2147483647 65535 255 1 0  OK
+(  2147483647 65535 255 1 0  OK)         decimal reset h  2147483647 65535 255 1 0  OK
+(  2147483647 65535 255 1 0  OK)                 reset k  2147483647 65535 255 1 0  OK
 ( I'm a train  OK)           : 🚆 ."  I'm a train" ;  🚆 I'm a train  OK
 ( --- Test nested function calls ---)  OK
 (  OK)       : f0 swap dup . over + ;  OK
 (  OK)                : f1 f0 f0 f0 ;  OK
 (  OK)       : fib 1 dup f1 f1 f1 . ;  OK
 ( 1 1 2 3 5 8 13 21 34 55 89  OK) fib 1 1 2 3 5 8 13 21 34 89  OK
-clearstack  OK
 ( --- Test maxing out return stack ---)  OK
 (  OK)  : rs1 1 + 42 emit rs1 nop ; : rs0 0 space rs1 ;  OK
 (                    nop here ^^^ stops tail call optimization)  OK
-( ***************** E21...)        clearstack rs0 ******************  E21 Return stack full
+( ***************** E21...)             reset rs0 ******************  E21 Return stack full
 ( ***************** E21...)                   rs0 ******************  E21 Return stack full
 ( ^^ note auto-recovery from full return stack)  OK
-(  18 18  OK)                                  .s  18 18  OK
+( Stack is empty  OK)                        .ret  Stack is empty  OK
+( Stack is empty  OK)                          .s  Stack is empty  OK
+reset  OK
 ( --- Test tail call optimization ---)  OK
 (  OK)   : tc0 0 . ;  : tc1 1 . tc0 ;  OK
-( 1 0  OK)             clearstack tc1 1 0  OK
+( 1 0  OK)                  reset tc1 1 0  OK
 (  OK)  : tc3 1 + tc3 ; : tc2 0 tc3 ;  OK
 (                 ^^^ infinite tail recursion)  OK
-(  E22...)             clearstack tc2  E22 Loop too long
+(  E22...)                  reset tc2  E22 Loop too long
 (  174762  OK)                     .s  174762  OK
 ( === test/loops.fs ===)  OK
-clearstack  OK
-(  OK)                    : 9down 9 1 - for i . next ;  OK
+reset  OK
+(  OK)                    : 9down 9 1 - for i . ;for ;  OK
 ( 8 7 6 5 4 3 2 1 0  OK)                         9down 8 7 6 5 4 3 2 1 0  OK
-(  OK)                   : 9up 9 1- for 8 i - . next ;  OK
+(  OK)                   : 9up 9 1- for 8 i - . ;for ;  OK
 ( 0 1 2 3 4 5 6 7 8  OK)                           9up 0 1 2 3 4 5 6 7 8  OK
-(  OK)               : 9under 9 1-  for 0 i - . next ;  OK
+(  OK)               : 9under 9 1-  for 0 i - . ;for ;  OK
 ( -8 -7 -6 -5 -4 -3 -2 -1 0  OK)                9under -8 -7 -6 -5 -4 -3 -2 -1 0  OK
 ( === tests/fizzbuzz.fs ===)  OK
-clearstack  OK
+reset  OK
 ( for integers 1..n, print:            )  OK
 (  n divisible by 3       -> "Fizz"    )  OK
 (  n divisible by 5       -> "Buzz"    )  OK
 (  n divisible by both    -> "FizzBuzz")  OK
 (  n divisible by neither -> n         )  OK
-( for `0=`, `=`, etc, true is 0, false is 0xffffffff)  OK
-( `factors` pushes 1 for divisible by 3, 2 for 5, and 3 for 15)  OK
-: if-eq-push-1 = 1 and ;  OK
-: if-1-f  1 = if ."  Fz" endif ;  OK
-: if-2-b  2 = if ."  Bz" endif ;  OK
-: if-3-fb 3 = if ."  FzBz" endif ;  OK
-: if-0-.  0= if . endif ;  OK
-: factors dup  3 mod 0= 1 and  swap 5 mod 0= 2 and  or ;  OK
-: fbz-inner dup factors  dup if-1-f  dup if-2-b  dup if-3-fb  if-0-. ;  OK
-: n! 60000 ! ;  OK
-: n@ 60000 @ ;  OK
-: fbz space dup n! 1 - for n@ i - fbz-inner next ;  OK
+: buzz? dup  5 % 0= if drop ."  Bz"   else .     ;if ;  OK
+: fizz? dup  3 % 0= if drop ."  Fz"   else buzz? ;if ;  OK
+: fzbz? dup 15 % 0= if drop ."  FzBz" else fizz? ;if ;  OK
+var n  OK
+: fbz space dup n ! 1 - for n @ i - fzbz? ;for ;  OK
 ( 1 2 Fz 4 Bz Fz 7 8 Fz Bz 11 Fz 13 14 FzBz 16  OK) 16 fbz  1 2 Fz 4 Bz Fz 7 8 Fz Bz 11 Fz 13 14 FzBz 16  OK
 ( === tests/return_stack.fs ===)  OK
 (  OK)  : a 1 >r 2 >r 3 >r .ret r> r> r> ;  OK
@@ -231,17 +232,17 @@ clearstack  OK
 (   Stack is empty  OK)               .ret  Stack is empty  OK
 ( >r should not be defined when not compiling)  1 >r  OK
 ( ------------------------ TODO: also fix this! ^^^)  OK
-clearreturn  OK
-( ^^^^^^^^^ compensate for the 1 >r above)  OK
+reset  OK
+( ^^^ compensate for the 1 >r above)  OK
 ( === test/control_flow.fs ===)  OK
-clearstack  OK
-(  OK) : zero? 0= if ."   Y" else ."   N" endif ." ." ;  OK
+reset  OK
+(  OK) : zero? 0= if ."   Y" else ."   N" ;if ." ." ;  OK
 (  E1...)                                      zero?  E1 Stack underflow
 (  Y.  OK)                                   0 zero?  Y.  OK
 (  N.  OK)                                   1 zero?  N.  OK
 (  N.  OK)                                  -1 zero?  N.  OK
 (  N.  OK)                                  99 zero?  N.  OK
-(  OK)    : red space 0= if ."  Blue" endif ."  x" ;  OK
+(  OK)      : red space 0= if ."  Blue" ;if ."  x" ;  OK
 (  Blue  x  OK)                                0 red  Blue x  OK
 (  x  OK)                                      1 red  x  OK
 ( === test/boolean.fs ===)  OK
@@ -251,7 +252,7 @@ clearstack  OK
 ( ** been other Forths that flip it around backwards. I started **)  OK
 ( ** off doing it that way for some reason -- maybe I read some **)  OK
 ( ** old thing of Chuck's? But, this way is better.             **)  OK
-decimal clearstack  OK
+decimal reset  OK
 ( -1 0 0  OK)    1 2 <  .  2 2 <  .  2 1 <  . -1 0 0  OK
 ( 0 0 -1  OK)    1 2 >  .  2 2 >  .  2 1 >  . 0 0 -1  OK
 ( -1 -1 0  OK)   1 2 <= .  2 2 <= .  2 1 <= . -1 -1 0  OK
@@ -262,14 +263,14 @@ decimal clearstack  OK
 ( -1 0 0  OK)     -1 0< .    0 0< .    1 0< . -1 0 0  OK
 : true ."  T" ;  OK
 : false ."  F" ;  OK
-: if<  <  if true else false endif ;  OK
-: if>  >  if true else false endif ;  OK
-: if<= <= if true else false endif ;  OK
-: if>= >= if true else false endif ;  OK
-: if=  =  if true else false endif ;  OK
-: if<> <> if true else false endif ;  OK
-: if0= 0= if true else false endif ;  OK
-: if0< 0< if true else false endif ;  OK
+: if<  <  if true else false ;if ;  OK
+: if>  >  if true else false ;if ;  OK
+: if<= <= if true else false ;if ;  OK
+: if>= >= if true else false ;if ;  OK
+: if=  =  if true else false ;if ;  OK
+: if<> <> if true else false ;if ;  OK
+: if0= 0= if true else false ;if ;  OK
+: if0< 0< if true else false ;if ;  OK
 ( T F F  OK)  1 2 if<   2 2 if<   2 1  if< T F F  OK
 ( F F T  OK)  1 2 if>   2 2 if>   2 1  if> F F T  OK
 ( T T F  OK)  1 2 if<=  2 2 if<=  2 1 if<= T T F  OK

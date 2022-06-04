@@ -17,7 +17,7 @@ global mNop
 global mDup
 global mSwap
 global mOver
-global mClearStack
+global mReset
 global mPush
 global mPopW
 global mDrop
@@ -53,9 +53,10 @@ sub edi, 2
 mov W, [DSBase+4*edi]
 jmp mPush
 
-mClearStack:                  ; CLEARSTACK - Drop all stack cells
+mReset:                       ; RESET - Drop all stack cells (data & return)
 xor rdi, rdi
 movq DSDeep, rdi
+movq RSDeep, rdi
 ret
 
 mPush:                        ; PUSH - Push W to data stack

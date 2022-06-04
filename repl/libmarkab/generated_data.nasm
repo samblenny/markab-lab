@@ -26,8 +26,6 @@ extern mAnd
 extern mByteFetch
 extern mByteStore
 extern mCall
-extern mClearReturn
-extern mClearStack
 extern mDiv
 extern mDivMod
 extern mDrop
@@ -50,7 +48,6 @@ extern mMin
 extern mMinus
 extern mMod
 extern mMul
-extern mNegate
 extern mNop
 extern mNotEq
 extern mOneMinus
@@ -59,6 +56,7 @@ extern mOr
 extern mOver
 extern mPlus
 extern mPopW
+extern mReset
 extern mReturn
 extern mRFrom
 extern mRPopW
@@ -77,7 +75,7 @@ extern mIf
 extern mElse
 extern mEndIf
 extern mFor
-extern mNext
+extern mEndFor
 extern mParen
 extern mColon
 extern mSemiColon
@@ -109,80 +107,78 @@ dd mAnd         ;  1
 dd mByteFetch   ;  2
 dd mByteStore   ;  3
 dd mCall        ;  4
-dd mClearReturn  ;  5
-dd mClearStack  ;  6
-dd mDiv         ;  7
-dd mDivMod      ;  8
-dd mDrop        ;  9
-dd mDup         ; 10
-dd mEqual       ; 11
-dd mFetch       ; 12
-dd mFourPlus    ; 13
-dd mGreater     ; 14
-dd mGreaterEq   ; 15
-dd mI           ; 16
-dd mI16         ; 17
-dd mI32         ; 18
-dd mI8          ; 19
-dd mInvert      ; 20
-dd mJump        ; 21
-dd mLess        ; 22
-dd mLessEq      ; 23
-dd mMax         ; 24
-dd mMin         ; 25
-dd mMinus       ; 26
-dd mMod         ; 27
-dd mMul         ; 28
-dd mNegate      ; 29
-dd mNop         ; 30
-dd mNotEq       ; 31
-dd mOneMinus    ; 32
-dd mOnePlus     ; 33
-dd mOr          ; 34
-dd mOver        ; 35
-dd mPlus        ; 36
-dd mPopW        ; 37
-dd mReturn      ; 38
-dd mRFrom       ; 39
-dd mRPopW       ; 40
-dd mStore       ; 41
-dd mSwap        ; 42
-dd mToR         ; 43
-dd mTwoPlus     ; 44
-dd mU16         ; 45
-dd mU8          ; 46
-dd mWordFetch   ; 47
-dd mWordStore   ; 48
-dd mXor         ; 49
-dd mZeroEqual   ; 50
-dd mZeroLess    ; 51
-dd mIf          ; 52
-dd mElse        ; 53
-dd mEndIf       ; 54
-dd mFor         ; 55
-dd mNext        ; 56
-dd mParen       ; 57
-dd mColon       ; 58
-dd mSemiColon   ; 59
-dd mCreate      ; 60
-dd mAllot       ; 61
-dd mHere        ; 62
-dd mLast        ; 63
-dd mTick        ; 64
-dd mEmit        ; 65
-dd mCR          ; 66
-dd mSpace       ; 67
-dd mDotQuoteI   ; 68
-dd mDotQuoteC   ; 69
-dd mDot         ; 70
-dd mHex         ; 71
-dd mDecimal     ; 72
-dd mDotS        ; 73
-dd mDotRet      ; 74
-dd mDumpVars    ; 75
-dd mBye         ; 76
+dd mDiv         ;  5
+dd mDivMod      ;  6
+dd mDrop        ;  7
+dd mDup         ;  8
+dd mEqual       ;  9
+dd mFetch       ; 10
+dd mFourPlus    ; 11
+dd mGreater     ; 12
+dd mGreaterEq   ; 13
+dd mI           ; 14
+dd mI16         ; 15
+dd mI32         ; 16
+dd mI8          ; 17
+dd mInvert      ; 18
+dd mJump        ; 19
+dd mLess        ; 20
+dd mLessEq      ; 21
+dd mMax         ; 22
+dd mMin         ; 23
+dd mMinus       ; 24
+dd mMod         ; 25
+dd mMul         ; 26
+dd mNop         ; 27
+dd mNotEq       ; 28
+dd mOneMinus    ; 29
+dd mOnePlus     ; 30
+dd mOr          ; 31
+dd mOver        ; 32
+dd mPlus        ; 33
+dd mPopW        ; 34
+dd mReset       ; 35
+dd mReturn      ; 36
+dd mRFrom       ; 37
+dd mRPopW       ; 38
+dd mStore       ; 39
+dd mSwap        ; 40
+dd mToR         ; 41
+dd mTwoPlus     ; 42
+dd mU16         ; 43
+dd mU8          ; 44
+dd mWordFetch   ; 45
+dd mWordStore   ; 46
+dd mXor         ; 47
+dd mZeroEqual   ; 48
+dd mZeroLess    ; 49
+dd mIf          ; 50
+dd mElse        ; 51
+dd mEndIf       ; 52
+dd mFor         ; 53
+dd mEndFor      ; 54
+dd mParen       ; 55
+dd mColon       ; 56
+dd mSemiColon   ; 57
+dd mCreate      ; 58
+dd mAllot       ; 59
+dd mHere        ; 60
+dd mLast        ; 61
+dd mTick        ; 62
+dd mEmit        ; 63
+dd mCR          ; 64
+dd mSpace       ; 65
+dd mDotQuoteI   ; 66
+dd mDotQuoteC   ; 67
+dd mDot         ; 68
+dd mHex         ; 69
+dd mDecimal     ; 70
+dd mDotS        ; 71
+dd mDotRet      ; 72
+dd mDumpVars    ; 73
+dd mBye         ; 74
 
-%define JumpTableLen 77
+%define JumpTableLen 75
 
 
 ;-------------------------------------------------------------
@@ -217,136 +213,128 @@ dd 0
 dw 58
 db 3, "abs", TpToken, tAbs, 0
 dw 73
-db 3, "and", TpToken, tAnd, 0
+db 1, "&", TpToken, tAnd, 0
 dw 82
 db 2, "b@", TpToken, tByteFetch, 0
-dw 91
+dw 89
 db 2, "b!", TpToken, tByteStore, 0
-dw 99
-db 11, "clearreturn", TpToken, tClearReturn, 0
-dw 107
-db 10, "clearstack", TpToken, tClearStack, 0
-dw 124
+dw 97
 db 1, "/", TpToken, tDiv, 0
-dw 140
-db 4, "/mod", TpToken, tDivMod, 0
-dw 147
+dw 105
+db 2, "/%", TpToken, tDivMod, 0
+dw 112
 db 4, "drop", TpToken, tDrop, 0
-dw 157
+dw 120
 db 3, "dup", TpToken, tDup, 0
-dw 167
+dw 130
 db 1, "=", TpToken, tEqual, 0
-dw 176
+dw 139
 db 1, "@", TpToken, tFetch, 0
-dw 183
+dw 146
 db 2, "4+", TpToken, tFourPlus, 0
-dw 190
+dw 153
 db 1, ">", TpToken, tGreater, 0
-dw 198
+dw 161
 db 2, ">=", TpToken, tGreaterEq, 0
-dw 205
+dw 168
 db 1, "i", TpToken, tI, 0
-dw 213
-db 6, "invert", TpToken, tInvert, 0
-dw 220
+dw 176
+db 1, "~", TpToken, tInvert, 0
+dw 183
 db 1, "<", TpToken, tLess, 0
-dw 232
+dw 190
 db 2, "<=", TpToken, tLessEq, 0
-dw 239
-db 3, "max", TpToken, tMax, 0
-dw 247
-db 3, "min", TpToken, tMin, 0
-dw 256
+dw 197
 db 1, "-", TpToken, tMinus, 0
-dw 265
-db 3, "mod", TpToken, tMod, 0
-dw 272
+dw 205
+db 1, "%", TpToken, tMod, 0
+dw 212
 db 1, "*", TpToken, tMul, 0
-dw 281
-db 6, "negate", TpToken, tNegate, 0
-dw 288
+dw 219
 db 3, "nop", TpToken, tNop, 0
-dw 300
+dw 226
 db 2, "<>", TpToken, tNotEq, 0
-dw 309
+dw 235
 db 2, "1-", TpToken, tOneMinus, 0
-dw 317
+dw 243
 db 2, "1+", TpToken, tOnePlus, 0
-dw 325
-db 2, "or", TpToken, tOr, 0
-dw 333
+dw 251
+db 1, "|", TpToken, tOr, 0
+dw 259
 db 4, "over", TpToken, tOver, 0
-dw 341
+dw 266
 db 1, "+", TpToken, tPlus, 0
-dw 351
+dw 276
+db 5, "reset", TpToken, tReset, 0
+dw 283
 db 2, "r>", TpToken, tRFrom, 0
-dw 358
+dw 294
 db 1, "!", TpToken, tStore, 0
-dw 366
+dw 302
 db 4, "swap", TpToken, tSwap, 0
-dw 373
+dw 309
 db 2, ">r", TpToken, tToR, 0
-dw 383
+dw 319
 db 2, "2+", TpToken, tTwoPlus, 0
-dw 391
+dw 327
 db 2, "w@", TpToken, tWordFetch, 0
-dw 399
+dw 335
 db 2, "w!", TpToken, tWordStore, 0
-dw 407
-db 3, "xor", TpToken, tXor, 0
-dw 415
-db 2, "0<", TpToken, tZeroLess, 0
-dw 424
+dw 343
+db 1, "^", TpToken, tXor, 0
+dw 351
 db 2, "0=", TpToken, tZeroEqual, 0
-dw 432
+dw 358
+db 2, "0<", TpToken, tZeroLess, 0
+dw 366
 db 2, "if", TpToken, tIf, -1
-dw 440
+dw 374
 db 4, "else", TpToken, tElse, -1
-dw 448
-db 5, "endif", TpToken, tEndIf, -1
-dw 458
+dw 382
+db 3, ";if", TpToken, tEndIf, -1
+dw 392
 db 3, "for", TpToken, tFor, -1
-dw 469
-db 4, "next", TpToken, tNext, -1
-dw 478
+dw 401
+db 4, ";for", TpToken, tEndFor, -1
+dw 410
 db 1, "(", TpToken, tParen, -1
-dw 488
+dw 420
 db 1, ":", TpToken, tColon, -1
-dw 495
+dw 427
 db 1, ";", TpToken, tSemiColon, -1
-dw 502
+dw 434
 db 6, "create", TpToken, tCreate, 0
-dw 509
+dw 441
 db 5, "allot", TpToken, tAllot, 0
-dw 521
+dw 453
 db 4, "here", TpToken, tHere, 0
-dw 532
+dw 464
 db 4, "last", TpToken, tLast, 0
-dw 542
+dw 474
 db 1, "'", TpToken, tTick, -1
-dw 552
+dw 484
 db 4, "emit", TpToken, tEmit, 0
-dw 559
+dw 491
 db 2, "cr", TpToken, tCR, 0
-dw 569
+dw 501
 db 5, "space", TpToken, tSpace, 0
-dw 577
+dw 509
 db 2, '."', TpToken, tDotQuoteI, -1
-dw 588
+dw 520
 db 1, ".", TpToken, tDot, 0
-dw 596
+dw 528
 db 3, "hex", TpToken, tHex, 0
-dw 603
+dw 535
 db 7, "decimal", TpToken, tDecimal, 0
-dw 612
+dw 544
 db 2, ".s", TpToken, tDotS, 0
-dw 625
+dw 557
 db 4, ".ret", TpToken, tDotRet, 0
-dw 633
+dw 565
 db 5, ".vars", TpToken, tDumpVars, 0
-dw 643
+dw 575
 db 3, "bye", TpToken, tBye, 0
 Voc0End: db 0
 align 16, db 0
-Voc0Len: dd Voc0End - Voc0  ; 663
-Voc0Head: dd 654
+Voc0Len: dd Voc0End - Voc0  ; 595
+Voc0Head: dd 586

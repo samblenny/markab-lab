@@ -32,13 +32,12 @@ TP_VAR = 3
 # Markab's source code.
 #
 TOKENS = """
-Abs And ByteFetch ByteStore Call ClearReturn ClearStack Div DivMod Drop Dup
-Equal Fetch FourPlus Greater GreaterEq I I16 I32 I8 Invert Jump Less LessEq Max
-Min Minus Mod Mul Negate Nop NotEq OneMinus OnePlus Or Over Plus PopW Return
-RFrom RPopW Store Swap ToR TwoPlus U16 U8 WordFetch WordStore Xor ZeroEqual
-ZeroLess
+Abs And ByteFetch ByteStore Call Div DivMod Drop Dup Equal Fetch FourPlus
+Greater GreaterEq I I16 I32 I8 Invert Jump Less LessEq Max Min Minus Mod Mul
+Nop NotEq OneMinus OnePlus Or Over Plus PopW Reset Return RFrom RPopW Store
+Swap ToR TwoPlus U16 U8 WordFetch WordStore Xor ZeroEqual ZeroLess
 If Else EndIf
-For Next
+For EndFor
 Paren
 Colon SemiColon Create Allot Here Last Tick
 Emit CR Space DotQuoteI DotQuoteC Dot Hex Decimal
@@ -51,18 +50,13 @@ Bye
 # Forth pronunciations, but using characters that are allowable for assembly
 # language labels.
 #
-# The main difference between VOC0_LIST and TOKENS is that VOC0_LIST does not
-# include some tokens that are only used as part of compiled words.
-#
 VOC0_TOKS = """
 abs Abs 0
-and And 0
+& And 0
 b@ ByteFetch 0
 b! ByteStore 0
-clearreturn ClearReturn 0
-clearstack ClearStack 0
 / Div 0
-/mod DivMod 0
+/% DivMod 0
 drop Drop 0
 dup Dup 0
 = Equal 0
@@ -71,22 +65,20 @@ dup Dup 0
 > Greater 0
 >= GreaterEq 0
 i I 0
-invert Invert 0
+~ Invert 0
 < Less 0
 <= LessEq 0
-max Max 0
-min Min 0
 - Minus 0
-mod Mod 0
+% Mod 0
 * Mul 0
-negate Negate 0
 nop Nop 0
 <> NotEq 0
 1- OneMinus 0
 1+ OnePlus 0
-or Or 0
+| Or 0
 over Over 0
 + Plus 0
+reset Reset 0
 r> RFrom 0
 ! Store 0
 swap Swap 0
@@ -94,14 +86,14 @@ swap Swap 0
 2+ TwoPlus 0
 w@ WordFetch 0
 w! WordStore 0
-xor Xor 0
-0< ZeroLess 0
+^ Xor 0
 0= ZeroEqual 0
+0< ZeroLess 0
 if If -1
 else Else -1
-endif EndIf -1
+;if EndIf -1
 for For -1
-next Next -1
+;for EndFor -1
 ( Paren -1
 : Colon -1
 ; SemiColon -1

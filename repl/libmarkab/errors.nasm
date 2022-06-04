@@ -8,8 +8,7 @@
 ; include path is relative to ../Makefile, which is confusing.
 %include "libmarkab/common_macros.nasm"
 
-extern mClearReturn
-extern mClearStack
+extern mReset
 extern mDot.W
 extern Mem
 extern mStrPut.RdiRsi
@@ -54,7 +53,7 @@ section .data
 align 16, db 0
 db "== Error Msgs =="
 datErr1se:   mkStr "  E1 Stack underflow"
-datErr2sf:   mkStr "  E2 Stack overflow (cleared stack)"
+datErr2sf:   mkStr "  E2 Stack overflow (reset stacks)"
 datErr3bt:   mkStr "  E3 Bad token: "
 datErr4nq:   mkStr `  E4 Expected \"`
 datErr5nf:   mkStr "  E5 Number format"
@@ -92,11 +91,13 @@ section .text
 
 mErrPutW:                     ; Print error from W and set error flag
 call mStrPut.W
-or VMFlags, VMErr
+and VMFlags, ~VMCompile       ; clear compile flag
+or VMFlags, VMErr             ; set error flag
 ret
 
 mErr:
-or VMFlags, VMErr             ; set error condition flag (hide OK prompt)
+and VMFlags, ~VMCompile       ; clear compile flag
+or VMFlags, VMErr             ; set error flag (hide OK prompt)
 ret
 
 mErr1Underflow:               ; Error 1: Stack underflow
@@ -104,7 +105,7 @@ lea W, [datErr1se]
 jmp mErrPutW
 
 mErr2Overflow:                ; Error 2: Stack overflow
-call mClearStack              ; clear the stack
+call mReset                   ; clear the stacks
 lea W, [datErr2sf]            ; print error message
 jmp mErrPutW
 
@@ -209,7 +210,7 @@ lea W, [datErr20rsu]
 jmp mErrPutW
 
 mErr21ReturnFull:             ; Error 21: Return stack full
-call mClearReturn             ; clear return stack
+call mReset                   ; clear stacks
 lea W, [datErr21rsf]
 jmp mErrPutW
 

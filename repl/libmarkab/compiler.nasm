@@ -57,7 +57,7 @@ global mIf
 global mElse
 global mEndIf
 global mFor
-global mNext
+global mEndFor
 
 
 mColon:                    ; COLON - define a word
@@ -599,19 +599,19 @@ fDo    WordStore, .end   ; -> {}
 ret
 
 
-mFor:                    ; FOR -- Start a FOR..NEXT loop
+mFor:                    ; FOR -- Start a FOR..;FOR loop
 test VMFlags, VMCompile  ; stop if not in compile mode
 jz mErr30CompileOnlyWord
 ;-----------------------
 fPush tToR,       .end   ; -> {T: tToR}   (>R token to use T as loop counter)
 fDo   CompileU8,  .end   ; -> {}
-fDo   Here,       .end   ; -> {T: [DP]}   (push jump target address for NEXT)
+fDo   Here,       .end   ; -> {T: [DP]}   (push jump target address for ;FOR)
 .end:
 ret
 
-mNext:                   ; NEXT -- If R is 0, drop R; else decrement R and jump
+mEndFor:                 ; ;FOR -- If R is 0, drop R; else decrement R and jump
 test VMFlags, VMCompile  ; if in compile mode, jump to the compiler
-jnz .compileNext
+jnz .compileEndFor
 ;-----------------------
 movq rdi, RSDeep         ; make sure return stack is not empty
 cmp dil, 1
@@ -629,8 +629,8 @@ ret
 add ebp, 2               ; advance I (ebp) past the jump address
 jmp mRPopW               ; drop R
 ;-----------------------
-.compileNext:            ; Compile a tNext token with address of FOR
-fPush tNext,      .end   ; {S: [CodeP] (from FOR), T: tNext}
+.compileEndFor:          ; Compile a tEndFor token with address of FOR
+fPush tEndFor,    .end   ; {S: [CodeP] (from FOR), T: tEndFor}
 fDo   CompileU8,  .end   ; {T: [CodeP] (from FOR)}
 fDo   CompileU16, .end   ; {}   (compile the address for backwards jump to FOR)
 .end:
