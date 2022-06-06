@@ -15,27 +15,25 @@
  7 const Fetch
  8 const Greater
  9 const Invert
-10 const IOFetch
-11 const IOStore
-12 const Less
-13 const Minus
-14 const Mul
-15 const NotEq
-16 const Or
-17 const Over
-18 const Plus
-19 const Reset
-20 const RFrom
-21 const ShiftLeft
-22 const ShiftRightU32
-23 const ShiftRightI32
-24 const Store
-25 const Swap
-26 const ToR
-27 const WFetch
-28 const WStore
-29 const Xor
-30 const ZeroEq
+10 const Less
+11 const Minus
+12 const Mul
+13 const NotEq
+14 const Or
+15 const Over
+16 const Plus
+17 const Reset
+18 const RFrom
+19 const ShiftLeft
+20 const ShiftRightU32
+21 const ShiftRightI32
+22 const Store
+23 const Swap
+24 const ToR
+25 const WFetch
+26 const WStore
+27 const Xor
+28 const ZeroEq
 
 ( MarkabForth core vocabulary)
 : nop   tok> Nop ;
@@ -48,8 +46,6 @@
 : @     tok> Fetch ;
 : >     tok> Greater ;
 : ~     tok> Invert ;
-: io@   tok> IOFetch ;
-: io!   tok> IOStore ;
 : <     tok> Less ;
 : -     tok> Minus ;
 : *     tok> Mul ;

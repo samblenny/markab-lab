@@ -21,8 +21,6 @@ dup Dup
 @ Fetch
 > Greater
 ~ Invert
-io@ IOFetch
-io! IOStore
 < Less
 - Minus
 * Mul

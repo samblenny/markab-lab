@@ -24,6 +24,30 @@ class VMTask:
     self.ram = bytearray(MemMax+1)
     self.error = 0
 
+  def _op_st(self, fn):
+    """Apply operation λ(S,T), storing the result in S and dropping T"""
+    deep = self.ram[DSDeep]
+    if deep < 2:
+      self.error = ERR_D_UNDER
+      return
+    _t = int.from_bytes(self.ram[T:T+4], 'little', signed=True)
+    _s = int.from_bytes(self.ram[S:S+4], 'little', signed=True)
+    _s = fn(_s, _t) & 0xffffffff
+    self.ram[S:S+4] = int.to_bytes(_s, 4, 'little')
+    self.drop()
+
+  def nop(self):
+    pass
+
+  def and_(self):
+    pass
+
+  def bFetch(self):
+    pass
+
+  def bStore(self):
+    pass
+
   def drop(self):
     """Drop T, the top item of the data stack"""
     deep = self.ram[DSDeep]
@@ -41,6 +65,42 @@ class VMTask:
     _t = int.from_bytes(self.ram[T:T+4], 'little', signed=True)
     self.push(_t)
 
+  def equal(self):
+    pass
+
+  def fetch(self):
+    pass
+
+  def greater(self):
+    pass
+
+  def invert(self):
+    pass
+
+  def less(self):
+    pass
+
+  def minus(self):
+    """Subtract T from S, store result in S, drop T"""
+    self._op_st(lambda s, t: s - t)
+
+  def mul(self):
+    """Multiply S by T, store result in S, drop T"""
+    self._op_st(lambda s, t: s * t)
+
+  def notEq(self):
+    pass
+
+  def or_(self):
+    pass
+
+  def over(self):
+    pass
+
+  def plus(self):
+    """Add T to S, store result in S, drop T"""
+    self._op_st(lambda s, t: s + t)
+
   def push(self, n):
     """Push n onto the data stack as a 32-bit signed integer"""
     deep = self.ram[DSDeep]
@@ -55,85 +115,49 @@ class VMTask:
     self.ram[T:T+4] = int.to_bytes(n, 4, 'little', signed=True)
     self.ram[DSDeep] = deep+1
 
-  def plus(self):
-    """Add T to S, store result in S, drop T"""
-    deep = self.ram[DSDeep]
-    if deep < 2:
-      self.error = ERR_D_UNDER
-      return
-    _t = int.from_bytes(self.ram[T:T+4], 'little', signed=True)
-    _s = int.from_bytes(self.ram[S:S+4], 'little', signed=True)
-    _s = (_s + _t) & 0xffffffff
-    self.ram[S:S+4] = int.to_bytes(_s, 4, 'little')
-    self.drop()
-
-  def minus(self):
-    """Subtract T from S, store result in S, drop T"""
-    deep = self.ram[DSDeep]
-    if deep < 2:
-      self.error = ERR_D_UNDER
-      return
-    _t = int.from_bytes(self.ram[T:T+4], 'little', signed=True)
-    _s = int.from_bytes(self.ram[S:S+4], 'little', signed=True)
-    _s = (_s - _t) & 0xffffffff
-    self.ram[S:S+4] = int.to_bytes(_s, 4, 'little')
-    self.drop()
-
-  def mul(self):
-    """Multiply S by T, store result in S, drop T"""
-    deep = self.ram[DSDeep]
-    if deep < 2:
-      self.error = ERR_D_UNDER
-      return
-    _t = int.from_bytes(self.ram[T:T+4], 'little', signed=True)
-    _s = int.from_bytes(self.ram[S:S+4], 'little', signed=True)
-    _s = (_s * _t) & 0xffffffff
-    self.ram[S:S+4] = int.to_bytes(_s, 4, 'little')
-    self.drop()
-
-  def shiftLeft(self):
-    """Shift S left by T, store result in S, drop T"""
-    deep = self.ram[DSDeep]
-    if deep < 2:
-      self.error = ERR_D_UNDER
-      return
-    _t = int.from_bytes(self.ram[T:T+4], 'little', signed=True)
-    _s = int.from_bytes(self.ram[S:S+4], 'little', signed=True)
-    _s = (_s << _t) & 0xffffffff
-    self.ram[S:S+4] = int.to_bytes(_s, 4, 'little')
-    self.drop()
-
-  def shiftRightU32(self):
-    """Unsigned (logic) shift S right by T, store result in S, drop T"""
-    deep = self.ram[DSDeep]
-    if deep < 2:
-      self.error = ERR_D_UNDER
-      return
-    _t = int.from_bytes(self.ram[T:T+4], 'little', signed=True)
-    _s = int.from_bytes(self.ram[S:S+4], 'little', signed=True)
-    _s &= 0xffffffff  # Mask first because Python right shift is always signed
-    _s >>= _t
-    self.ram[S:S+4] = int.to_bytes(_s, 4, 'little')
-    self.drop()
-
-  def shiftRightI32(self):
-    """Signed (arithmetic) shift S right by T, store result in S, drop T"""
-    deep = self.ram[DSDeep]
-    if deep < 2:
-      self.error = ERR_D_UNDER
-      return
-    _t = int.from_bytes(self.ram[T:T+4], 'little', signed=True)
-    _s = int.from_bytes(self.ram[S:S+4], 'little', signed=True)
-    _s >>= _t         # Python right shift is always signed
-    _s &= 0xffffffff  # Mask to 32-bits after shift has done sign extension
-    self.ram[S:S+4] = int.to_bytes(_s, 4, 'little')
-    self.drop()
-
   def reset(self):
     """Reset the data stack, return stack and error code"""
     self.ram[DSDeep] = b'\x00'
     self.ram[RSDeep] = b'\x00'
     self.error = 0
+
+  def rFrom(self):
+    pass
+
+  def shiftLeft(self):
+    """Shift S left by T, store result in S, drop T"""
+    self._op_st(lambda s, t: s << t)
+
+  def shiftRightI32(self):
+    """Signed (arithmetic) shift S right by T, store result in S, drop T"""
+    # Python right shift is always an arithmetic (signed) shift
+    self._op_st(lambda s, t: s >> t)
+
+  def shiftRightU32(self):
+    """Unsigned (logic) shift S right by T, store result in S, drop T"""
+    # Mask first because Python right shift is always signed
+    self._op_st(lambda s, t: (s & 0xffffffff) >> t)
+
+  def store(self):
+    pass
+
+  def swap(self):
+    pass
+
+  def toR(self):
+    pass
+
+  def wFetch(self):
+    pass
+
+  def wStore(self):
+    pass
+
+  def xor(self):
+    pass
+
+  def zeroEq(self):
+    pass
 
   def dotS(self, hex=False):
     """Print the data stack in the manner of .S"""
