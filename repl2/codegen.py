@@ -15,7 +15,6 @@ nop Nop
 & And
 b@ BFetch
 b! BStore
-/% DivMod
 drop Drop
 dup Dup
 = Equal
@@ -33,6 +32,9 @@ over Over
 + Plus
 reset Reset
 r> RFrom
+<< ShiftLeft
+>> ShiftRightU32
+>>> ShiftRightI32
 ! Store
 swap Swap
 >r ToR
