@@ -15,13 +15,18 @@ nop Nop
 & And
 b@ BFetch
 b! BStore
+<ASM> Call
 drop Drop
 dup Dup
 = Equal
 @ Fetch
 > Greater
 ~ Invert
+<ASM> Jump
 < Less
+<ASM> Lit16
+<ASM> Lit32
+<ASM> Lit8
 - Minus
 * Mul
 <> NotEq
@@ -29,6 +34,7 @@ dup Dup
 over Over
 + Plus
 reset Reset
+; Return
 r> RFrom
 << ShiftLeft
 >> ShiftRightU32
@@ -57,9 +63,13 @@ MEMORY_MAP = """
 00A0 RStack   # Return Stack                    64=16*4 bytes
 00E0 Fence    # Fence (write-protect for !)     2 bytes
 #...
-0100 Heap     # Heap (dictionary)               51 KB
-CD00 HeapRes  # Heap Reserved buffer for WORD    1 KB
+0100 Boot     # Boot code (IP=Boot on reset)    768 bytes
+03FF BootMax
+#...
+0400 Heap     # Heap (dictionary)               50 KB
+CC00 HeapRes  # Heap Reserved buffer for WORD   1 KB
 CFFF HeapMax
+#...
 D000 DP       # Dictionary Pointer              2 bytes (align 4)
 D004 IN       # INput buffer INdex              2 bytes (align 4)
 D008 IBPtr    # Input Buffer Pointer            2 bytes (align 4)
@@ -95,6 +105,8 @@ def fs_core_vocab():
   words = []
   for line in filter(TOKENS):
     (name, opcode) = line.strip().split(" ")
+    if name == "<ASM>":
+      continue  # don't create vocab words for tokens that are assembler-only
     words += [f": {name:5} tok> {opcode} ;"]
   return "\n".join(words)
 

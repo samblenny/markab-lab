@@ -74,3 +74,7 @@ ffffffff 3333 & .s drop       (  3333  OK)  3333  OK
 55555555 ~ .s drop        (  aaaaaaaa  OK)  aaaaaaaa  OK
 decimal
 
+=== test.vm.test_literals() ===
+0 255 .s drop drop          (  0 255  OK)  0 255  OK
+256 65535 .s drop drop  (  256 65536  OK)  256 65535  OK
+65536 -1 .s drop drop    (  65536 -1  OK)  65536 -1  OK

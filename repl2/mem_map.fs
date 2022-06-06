@@ -20,8 +20,10 @@ hex
 0060 const DStack
 00A0 const RStack
 00E0 const Fence
-0100 const Heap
-CD00 const HeapRes
+0100 const Boot
+03FF const BootMax
+0400 const Heap
+CC00 const HeapRes
 CFFF const HeapMax
 D000 const DP
 D004 const IN

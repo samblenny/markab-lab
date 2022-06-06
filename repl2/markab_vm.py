@@ -8,11 +8,15 @@ from ctypes import c_uint32, c_int32
 
 from tokens  import get_token, get_opcode
 from mem_map import (
-  IO, IOEnd, A, T, S, R, DSDeep, RSDeep, DStack, RStack, IP, Fence, MemMax)
+  IO, IOEnd, A, T, S, R, DSDeep, RSDeep, DStack, RStack,
+  IP, Fence, Boot, BootMax, MemMax)
 
 ROM_FILE = 'kernel.bin'
 ERR_D_OVER = 1
 ERR_D_UNDER = 2
+ERR_ADDR_OOR = 3
+ERR_BOOT_OVERFLOW = 4
+ERR_BAD_TOKEN = 5
 
 class VMTask:
   """
@@ -24,6 +28,55 @@ class VMTask:
     self.ram = bytearray(MemMax+1)
     self.error = 0
     self.base = 10
+    self._setIP(Boot)
+
+  def _getIP(self):
+    """Get Instruction Pointer"""
+    return int.from_bytes(self.ram[IP:IP+2], 'little', signed=False)
+
+  def _setIP(self, addr):
+    """Set Instruction Pointer"""
+    if (addr > MemMax) or (addr > 0xffff):
+      self.error = ERR_ADDR_OOR
+      return
+    self.ram[IP:IP+2] = int.to_bytes(addr, 2, 'little', signed=False)
+
+  def _nextToken(self):
+    """Get the next token from ram[IP]"""
+    _ip = self._getIP()
+    self._setIP(_ip+1)
+    return self.ram[_ip]
+
+  def _loadBoot(self, code):
+    """Load bytearray of token code into the Boot..BootMax memory region"""
+    n = len(code)
+    if n > (BootMax+1)-Boot:
+      self.error = ERR_BOOT_OVERFLOW
+      return
+    self.ram[Boot:Boot+n] = code[0:]
+
+  def _warmBoot(self, code):
+    """Load a bytearray of token code into Boot..BootMax, then run it."""
+    self._loadBoot(code)
+    self._setIP(Boot)
+    self._step(len(code))
+
+  def _step(self, count):
+    """Step the virtual CPU for enough cycles to consume count tokens"""
+    stopIP = self._getIP() + count
+    for _ in range(count):
+      t = self._nextToken()
+      if t == get_token('Lit8'):
+        self.lit8()
+      elif t == get_token('Lit16'):
+        self.lit16()
+      elif t == get_token('Lit32'):
+        self.lit32()
+      elif t == get_token('Return'):
+        return
+      else:
+        self.error = ERR_BAD_TOKEN
+        return
 
   def _op_st(self, fn):
     """Apply operation λ(S,T), storing the result in S and dropping T"""
@@ -47,6 +100,20 @@ class VMTask:
     _t = fn(_t) & 0xffffffff
     self.ram[T:T+4] = int.to_bytes(_t, 4, 'little')
 
+  def _push(self, n):
+    """Push n onto the data stack as a 32-bit signed integer"""
+    deep = self.ram[DSDeep]
+    if deep > 17:
+      self.error = ERR_D_OVER
+      return
+    if deep > 1:
+      third = DStack + (4 * (deep-2))
+      self.ram[third:third+4] = self.ram[S:S+4]
+    self.ram[S:S+4] = self.ram[T:T+4]
+    n = c_int32(n).value
+    self.ram[T:T+4] = int.to_bytes(n, 4, 'little', signed=True)
+    self.ram[DSDeep] = deep+1
+
   def nop(self):
     """Do nothing, but consume a little time for the non-doing"""
     pass
@@ -59,6 +126,9 @@ class VMTask:
     pass
 
   def bStore(self):
+    pass
+
+  def call(self):
     pass
 
   def drop(self):
@@ -76,7 +146,7 @@ class VMTask:
   def dup(self):
     """Push a copy of T"""
     _t = int.from_bytes(self.ram[T:T+4], 'little', signed=True)
-    self.push(_t)
+    self._push(_t)
 
   def equal(self):
     pass
@@ -91,7 +161,34 @@ class VMTask:
     """Invert the bits of T (ones' complement negation)"""
     self._op_t(lambda t: ~ t)
 
+  def jump(self):
+    pass
+
   def less(self):
+    pass
+
+  def lit16(self):
+    """Read uint16 (2 bytes) from token stream, zero-extend it, push as T"""
+    _ip = self._getIP()
+    n = int.from_bytes(self.ram[_ip:_ip+2], 'little', signed=False)
+    self._setIP(_ip+2)
+    self._push(n)
+    pass
+
+  def lit32(self):
+    """Read int32 (4 bytes) from token stream, push as T"""
+    _ip = self._getIP()
+    n = int.from_bytes(self.ram[_ip:_ip+4], 'little', signed=True)
+    self._setIP(_ip+4)
+    self._push(n)
+    pass
+
+  def lit8(self):
+    """Read uint8 (1 byte) from token stream, zero-extend it, push as T"""
+    _ip = self._getIP()
+    n = int.from_bytes(self.ram[_ip:_ip+1], 'little', signed=False)
+    self._setIP(_ip+1)
+    self._push(n)
     pass
 
   def minus(self):
@@ -117,25 +214,14 @@ class VMTask:
     """Add T to S, store result in S, drop T"""
     self._op_st(lambda s, t: s + t)
 
-  def push(self, n):
-    """Push n onto the data stack as a 32-bit signed integer"""
-    deep = self.ram[DSDeep]
-    if deep > 17:
-      self.error = ERR_D_OVER
-      return
-    if deep > 1:
-      third = DStack + (4 * (deep-2))
-      self.ram[third:third+4] = self.ram[S:S+4]
-    self.ram[S:S+4] = self.ram[T:T+4]
-    n = c_int32(n).value
-    self.ram[T:T+4] = int.to_bytes(n, 4, 'little', signed=True)
-    self.ram[DSDeep] = deep+1
-
   def reset(self):
     """Reset the data stack, return stack and error code"""
     self.ram[DSDeep] = b'\x00'
     self.ram[RSDeep] = b'\x00'
     self.error = 0
+
+  def return_(self):
+    pass
 
   def rFrom(self):
     pass
@@ -189,7 +275,7 @@ class VMTask:
     """Print the data stack in the manner of .S"""
     if self.error != 0:
       print(f"  ERR: {self.error}")
-      self.clearError()
+      self._clearError()
       return
     print(" ", end='')
     deep = self.ram[DSDeep]
@@ -216,5 +302,9 @@ class VMTask:
     else:
       print(" Stack is empty  OK")
 
-  def clearError(self):
+  def _clearError(self):
+    """Clear VM error status code"""
     self.error = 0
+
+  def _load(self, tokens):
+    """Copy a bytearray of token code to RAM starting at reset vector"""

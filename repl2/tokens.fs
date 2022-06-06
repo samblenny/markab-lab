@@ -9,31 +9,37 @@
  1 const And
  2 const BFetch
  3 const BStore
- 4 const Drop
- 5 const Dup
- 6 const Equal
- 7 const Fetch
- 8 const Greater
- 9 const Invert
-10 const Less
-11 const Minus
-12 const Mul
-13 const NotEq
-14 const Or
-15 const Over
-16 const Plus
-17 const Reset
-18 const RFrom
-19 const ShiftLeft
-20 const ShiftRightU32
-21 const ShiftRightI32
-22 const Store
-23 const Swap
-24 const ToR
-25 const WFetch
-26 const WStore
-27 const Xor
-28 const ZeroEq
+ 4 const Call
+ 5 const Drop
+ 6 const Dup
+ 7 const Equal
+ 8 const Fetch
+ 9 const Greater
+10 const Invert
+11 const Jump
+12 const Less
+13 const Lit16
+14 const Lit32
+15 const Lit8
+16 const Minus
+17 const Mul
+18 const NotEq
+19 const Or
+20 const Over
+21 const Plus
+22 const Reset
+23 const Return
+24 const RFrom
+25 const ShiftLeft
+26 const ShiftRightU32
+27 const ShiftRightI32
+28 const Store
+29 const Swap
+30 const ToR
+31 const WFetch
+32 const WStore
+33 const Xor
+34 const ZeroEq
 
 ( MarkabForth core vocabulary)
 : nop   tok> Nop ;
@@ -54,6 +60,7 @@
 : over  tok> Over ;
 : +     tok> Plus ;
 : reset tok> Reset ;
+: ;     tok> Return ;
 : r>    tok> RFrom ;
 : <<    tok> ShiftLeft ;
 : >>    tok> ShiftRightU32 ;
