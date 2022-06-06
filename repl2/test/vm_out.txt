@@ -66,3 +66,11 @@ decimal .s          (  2147483647  OK)  2147483647  OK
 4 << .s                     (  16  OK)  16  OK
 2 >> .s                      (  4  OK)  4  OK
 
+=== test.vm.test_bitwise() ===
+hex
+ffffffff 3333 & .s drop       (  3333  OK)  3333  OK
+55555555 aaaa | .s drop   (  5555ffff  OK)  5555ffff  OK
+55555555 ffff ^ .s drop   (  5555aaaa  OK)  5555aaaa  OK
+55555555 ~ .s drop        (  aaaaaaaa  OK)  aaaaaaaa  OK
+decimal
+

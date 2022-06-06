@@ -23,6 +23,7 @@ class VMTask:
     """Initialize each instance of VMTask with its own state variables"""
     self.ram = bytearray(MemMax+1)
     self.error = 0
+    self.base = 10
 
   def _op_st(self, fn):
     """Apply operation λ(S,T), storing the result in S and dropping T"""
@@ -36,11 +37,23 @@ class VMTask:
     self.ram[S:S+4] = int.to_bytes(_s, 4, 'little')
     self.drop()
 
+  def _op_t(self, fn):
+    """Apply operation λ(T), storing the result in T"""
+    deep = self.ram[DSDeep]
+    if deep < 1:
+      self.error = ERR_D_UNDER
+      return
+    _t = int.from_bytes(self.ram[T:T+4], 'little', signed=True)
+    _t = fn(_t) & 0xffffffff
+    self.ram[T:T+4] = int.to_bytes(_t, 4, 'little')
+
   def nop(self):
+    """Do nothing, but consume a little time for the non-doing"""
     pass
 
   def and_(self):
-    pass
+    """Store bitwise AND of S with T into S, then drop T"""
+    self._op_st(lambda s, t: s & t)
 
   def bFetch(self):
     pass
@@ -75,7 +88,8 @@ class VMTask:
     pass
 
   def invert(self):
-    pass
+    """Invert the bits of T (ones' complement negation)"""
+    self._op_t(lambda t: ~ t)
 
   def less(self):
     pass
@@ -92,6 +106,8 @@ class VMTask:
     pass
 
   def or_(self):
+    """Store bitwise OR of S with T into S, then drop T"""
+    self._op_st(lambda s, t: s | t)
     pass
 
   def over(self):
@@ -154,12 +170,22 @@ class VMTask:
     pass
 
   def xor(self):
+    """Store bitwise XOR of S with T into S, then drop T"""
+    self._op_st(lambda s, t: s ^ t)
     pass
 
   def zeroEq(self):
     pass
 
-  def dotS(self, hex=False):
+  def _hex(self):
+    """Set debug printing number base to 16"""
+    self.base = 16
+
+  def _decimal(self):
+    """Set debug printing number base to 10"""
+    self.base = 10
+
+  def _dotS(self):
     """Print the data stack in the manner of .S"""
     if self.error != 0:
       print(f"  ERR: {self.error}")
@@ -171,19 +197,19 @@ class VMTask:
       for i in range(deep-2):
         x = DStack + (4 * i)
         n = int.from_bytes(self.ram[x:x+4], 'little', signed=True)
-        if hex:
+        if self.base == 16:
           print(f" {n&0xffffffff:x}", end='')
         else:
           print(f" {n}", end='')
     if deep > 1:
       _s = int.from_bytes(self.ram[S:S+4], 'little', signed=True)
-      if hex:
+      if self.base == 16:
         print(f" {_s&0xffffffff:x}", end='')
       else:
         print(f" {_s}", end='')
     if deep > 0:
       _t = int.from_bytes(self.ram[T:T+4], 'little', signed=True)
-      if hex:
+      if self.base == 16:
         print(f" {_t&0xffffffff:x}  OK")
       else:
         print(f" {_t}  OK")
