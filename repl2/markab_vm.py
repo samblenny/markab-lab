@@ -15,6 +15,8 @@ ERR_D_UNDER = 2
 ERR_BAD_ADDRESS = 3
 ERR_BOOT_OVERFLOW = 4
 ERR_BAD_TOKEN = 5
+ERR_R_OVER = 6
+ERR_R_UNDER = 7
 
 class VM:
   """
@@ -240,7 +242,20 @@ class VM:
     pass
 
   def rFrom(self):
-    pass
+    """Move top of return stack (R) to top of data stack (T)"""
+    if self.RSDeep < 1:
+      self.reset()
+      self.error = ERR_R_UNDER
+      return
+    if self.DSDeep > 17:
+      self.reset()
+      self.error = ERR_D_OVER
+      return
+    self._push(self.R)
+    if self.RSDeep > 1:
+      rSecond = self.RSDeep - 2
+      self.R = self.RStack[rSecond]
+    self.RSDeep -= 1
 
   def shiftLeft(self):
     """Shift S left by T, store result in S, drop T"""
@@ -273,7 +288,21 @@ class VM:
     pass
 
   def toR(self):
-    pass
+    """Move top of data stack (T) to top of return stack (R)"""
+    if self.RSDeep > 16:
+      self.reset()
+      self.error = ERR_R_OVER
+      return
+    if self.DSDeep < 1:
+      self.reset()
+      self.error = ERR_D_UNDER
+      return
+    if self.RSDeep > 0:
+      rSecond = self.RSDeep - 1
+      self.RStack[rSecond] = self.R
+    self.R = self.T
+    self.RSDeep += 1
+    self.drop()
 
   def wFetch(self):
     if self.DSDeep < 1:
@@ -337,6 +366,30 @@ class VM:
         print(f" {self.T}", end='')
     else:
       print(" Stack is empty", end='')
+    if self.error != 0:
+      print(f"  ERR{self.error}")
+      self._clearError()
+    else:
+      print("  OK")
+
+  def _dotRet(self):
+    """Print the return stack in the manner of .S"""
+    print(" ", end='')
+    deep = self.RSDeep
+    if deep > 1:
+      for i in range(deep-1):
+        n = self.RStack[i]
+        if self.base == 16:
+          print(f" {n&0xffffffff:x}", end='')
+        else:
+          print(f" {n}", end='')
+    if deep > 0:
+      if self.base == 16:
+        print(f" {self.R&0xffffffff:x}", end='')
+      else:
+        print(f" {self.R}", end='')
+    else:
+      print(" R-Stack is empty", end='')
     if self.error != 0:
       print(f"  ERR{self.error}")
       self._clearError()
