@@ -100,7 +100,8 @@ class VMTask:
     """Push n onto the data stack as a 32-bit signed integer"""
     deep = self.DSDeep
     if deep > 17:
-      self.error = ERR_D_OVER
+      self.reset()             # Clear data and return stacks
+      self.error = ERR_D_OVER  # Set error code
       return
     if deep > 1:
       third = deep-2

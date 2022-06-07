@@ -14,7 +14,14 @@ def test_push_pop():
   print("=== test.vm.test_push_pop() ===")
   p(".s")
   v._dotS()
+  print("( Stack capacity is 18. Trying to push 19th item will clear stack)")
   for i in range(19):
+    p(f"{i} ")
+    v._push(i)
+    p(".s")
+    v._dotS()
+  print("( This time, the stack won't clear because only 18 items are pushed)")
+  for i in range(18):
     p(f"{i} ")
     v._push(i)
     p(".s")

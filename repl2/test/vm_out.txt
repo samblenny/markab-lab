@@ -1,5 +1,6 @@
 === test.vm.test_push_pop() ===
 .s  Stack is empty  OK
+( Stack capacity is 18. Trying to push 19th item will clear stack)
 0 .s  0  OK
 1 .s  0 1  OK
 2 .s  0 1 2  OK
@@ -19,6 +20,25 @@
 16 .s  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16  OK
 17 .s  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17  OK
 18 .s  ERR: 1
+( This time, the stack won't clear because only 18 items are pushed)
+0 .s  0  OK
+1 .s  0 1  OK
+2 .s  0 1 2  OK
+3 .s  0 1 2 3  OK
+4 .s  0 1 2 3 4  OK
+5 .s  0 1 2 3 4 5  OK
+6 .s  0 1 2 3 4 5 6  OK
+7 .s  0 1 2 3 4 5 6 7  OK
+8 .s  0 1 2 3 4 5 6 7 8  OK
+9 .s  0 1 2 3 4 5 6 7 8 9  OK
+10 .s  0 1 2 3 4 5 6 7 8 9 10  OK
+11 .s  0 1 2 3 4 5 6 7 8 9 10 11  OK
+12 .s  0 1 2 3 4 5 6 7 8 9 10 11 12  OK
+13 .s  0 1 2 3 4 5 6 7 8 9 10 11 12 13  OK
+14 .s  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14  OK
+15 .s  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15  OK
+16 .s  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16  OK
+17 .s  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17  OK
 drop .s  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16  OK
 drop .s  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15  OK
 drop .s  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14  OK
