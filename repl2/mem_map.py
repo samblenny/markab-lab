@@ -6,17 +6,7 @@
 # See codegen.py for details
 
 IO      = 0x0000
-IOEnd   = 0x003F
-A       = 0x0040
-T       = 0x0044
-S       = 0x0048
-R       = 0x004C
-IP      = 0x0050
-DSDeep  = 0x0052
-RSDeep  = 0x0053
-DStack  = 0x0060
-RStack  = 0x00A0
-Fence   = 0x00E0
+IOEnd   = 0x00FF
 Boot    = 0x0100
 BootMax = 0x03FF
 Heap    = 0x0400

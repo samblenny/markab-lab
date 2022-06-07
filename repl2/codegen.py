@@ -50,18 +50,7 @@ w! WStore
 
 MEMORY_MAP = """
 0000 IO       # Memory mapped IO area           64 bytes
-003F IOEnd    # End memory mapped IO area
-0040 A        # Accumulator, Address register   4 bytes
-0044 T        # Top of data stack               4 bytes
-0048 S        # Second on data stack            4 bytes
-004C R        # top of Return stack             4 bytes
-0050 IP       # Instruction Pointer             2 bytes
-0052 DSDeep   # Data Stack Depth                1 byte
-0053 RSDeep   # Return Stack Depth              1 byte
-#...
-0060 DStack   # Data Stack                      64=16*4 bytes
-00A0 RStack   # Return Stack                    64=16*4 bytes
-00E0 Fence    # Fence (write-protect for !)     2 bytes
+00FF IOEnd    # End memory mapped IO area
 #...
 0100 Boot     # Boot code (IP=Boot on reset)    768 bytes
 03FF BootMax

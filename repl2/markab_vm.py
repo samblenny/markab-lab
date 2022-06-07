@@ -7,9 +7,7 @@
 from ctypes import c_uint32, c_int32
 
 from tokens  import get_token, get_opcode
-from mem_map import (
-  IO, IOEnd, A, T, S, R, DSDeep, RSDeep, DStack, RStack,
-  IP, Fence, Boot, BootMax, MemMax)
+from mem_map import IO, IOEnd, Boot, BootMax, MemMax
 
 ROM_FILE = 'kernel.bin'
 ERR_D_OVER = 1
@@ -25,25 +23,30 @@ class VMTask:
 
   def __init__(self):
     """Initialize each instance of VMTask with its own state variables"""
-    self.ram = bytearray(MemMax+1)
-    self.error = 0
-    self.base = 10
-    self._setIP(Boot)
-
-  def _getIP(self):
-    """Get Instruction Pointer"""
-    return int.from_bytes(self.ram[IP:IP+2], 'little', signed=False)
+    self.error = 0                  # Error code register
+    self.base = 10                  # number Base for debug printing
+    self.A = 0                      # Address/Accumulator register
+    self.T = 0                      # Top of data stack
+    self.S = 0                      # Second on data stack
+    self.R = 0                      # top of Return stack
+    self.IP = Boot                  # Instruction Pointer
+    self.Fence = 0                  # Fence between read-only and read/write
+    self.DSDeep = 0                 # Data Stack Depth (count include T and S)
+    self.RSDeep = 0                 # Return Stack Depth (count inlcudes R)
+    self.DStack = [0] * 16          # Data Stack
+    self.RStack = [0] * 16          # Return Stack
+    self.ram = bytearray(MemMax+1)  # Random Access Memory
 
   def _setIP(self, addr):
-    """Set Instruction Pointer"""
+    """Set Instruction Pointer with range check"""
     if (addr > MemMax) or (addr > 0xffff):
       self.error = ERR_ADDR_OOR
       return
-    self.ram[IP:IP+2] = int.to_bytes(addr, 2, 'little', signed=False)
+    self.IP = addr
 
   def _nextToken(self):
     """Get the next token from ram[IP]"""
-    _ip = self._getIP()
+    _ip = self.IP
     self._setIP(_ip+1)
     return self.ram[_ip]
 
@@ -63,7 +66,7 @@ class VMTask:
 
   def _step(self, count):
     """Step the virtual CPU for enough cycles to consume count tokens"""
-    stopIP = self._getIP() + count
+    stopIP = self.IP + count
     for _ in range(count):
       t = self._nextToken()
       if t == get_token('Lit8'):
@@ -80,39 +83,31 @@ class VMTask:
 
   def _op_st(self, fn):
     """Apply operation λ(S,T), storing the result in S and dropping T"""
-    deep = self.ram[DSDeep]
-    if deep < 2:
+    if self.DSDeep < 2:
       self.error = ERR_D_UNDER
       return
-    _t = int.from_bytes(self.ram[T:T+4], 'little', signed=True)
-    _s = int.from_bytes(self.ram[S:S+4], 'little', signed=True)
-    _s = fn(_s, _t) & 0xffffffff
-    self.ram[S:S+4] = int.to_bytes(_s, 4, 'little')
+    self.S = c_int32(fn(self.S, self.T)).value
     self.drop()
 
   def _op_t(self, fn):
     """Apply operation λ(T), storing the result in T"""
-    deep = self.ram[DSDeep]
-    if deep < 1:
+    if self.DSDeep < 1:
       self.error = ERR_D_UNDER
       return
-    _t = int.from_bytes(self.ram[T:T+4], 'little', signed=True)
-    _t = fn(_t) & 0xffffffff
-    self.ram[T:T+4] = int.to_bytes(_t, 4, 'little')
+    self.T = c_int32(fn(self.T)).value
 
   def _push(self, n):
     """Push n onto the data stack as a 32-bit signed integer"""
-    deep = self.ram[DSDeep]
+    deep = self.DSDeep
     if deep > 17:
       self.error = ERR_D_OVER
       return
     if deep > 1:
-      third = DStack + (4 * (deep-2))
-      self.ram[third:third+4] = self.ram[S:S+4]
-    self.ram[S:S+4] = self.ram[T:T+4]
-    n = c_int32(n).value
-    self.ram[T:T+4] = int.to_bytes(n, 4, 'little', signed=True)
-    self.ram[DSDeep] = deep+1
+      third = deep-2
+      self.DStack[third] = self.S
+    self.S = self.T
+    self.T = c_int32(n).value
+    self.DSDeep += 1
 
   def nop(self):
     """Do nothing, but consume a little time for the non-doing"""
@@ -133,20 +128,19 @@ class VMTask:
 
   def drop(self):
     """Drop T, the top item of the data stack"""
-    deep = self.ram[DSDeep]
+    deep = self.DSDeep
     if deep < 1:
       self.error = ERR_D_UNDER
       return
-    self.ram[T:T+4] = self.ram[S:S+4]
+    self.T = self.S
     if deep > 2:
-      third = DStack + (4 * (deep-3))
-      self.ram[S:S+4] = self.ram[third:third+4]
-    self.ram[DSDeep] = deep-1
+      third = deep-3
+      self.S = self.DStack[third]
+    self.DSDeep -= 1
 
   def dup(self):
     """Push a copy of T"""
-    _t = int.from_bytes(self.ram[T:T+4], 'little', signed=True)
-    self._push(_t)
+    self._push(self.T)
 
   def equal(self):
     pass
@@ -169,27 +163,24 @@ class VMTask:
 
   def lit16(self):
     """Read uint16 (2 bytes) from token stream, zero-extend it, push as T"""
-    _ip = self._getIP()
-    n = int.from_bytes(self.ram[_ip:_ip+2], 'little', signed=False)
-    self._setIP(_ip+2)
+    ip = self.IP
+    n = int.from_bytes(self.ram[ip:ip+2], 'little', signed=False)
+    self._setIP(ip+2)
     self._push(n)
-    pass
 
   def lit32(self):
     """Read int32 (4 bytes) from token stream, push as T"""
-    _ip = self._getIP()
-    n = int.from_bytes(self.ram[_ip:_ip+4], 'little', signed=True)
-    self._setIP(_ip+4)
+    ip = self.IP
+    n = int.from_bytes(self.ram[ip:ip+4], 'little', signed=True)
+    self._setIP(ip+4)
     self._push(n)
-    pass
 
   def lit8(self):
     """Read uint8 (1 byte) from token stream, zero-extend it, push as T"""
-    _ip = self._getIP()
-    n = int.from_bytes(self.ram[_ip:_ip+1], 'little', signed=False)
-    self._setIP(_ip+1)
+    ip = self.IP
+    n = int.from_bytes(self.ram[ip:ip+1], 'little', signed=False)
+    self._setIP(ip+1)
     self._push(n)
-    pass
 
   def minus(self):
     """Subtract T from S, store result in S, drop T"""
@@ -216,8 +207,8 @@ class VMTask:
 
   def reset(self):
     """Reset the data stack, return stack and error code"""
-    self.ram[DSDeep] = b'\x00'
-    self.ram[RSDeep] = b'\x00'
+    self.DSDeep = 0
+    self.RSDeep = 0
     self.error = 0
 
   def return_(self):
@@ -278,27 +269,24 @@ class VMTask:
       self._clearError()
       return
     print(" ", end='')
-    deep = self.ram[DSDeep]
+    deep = self.DSDeep
     if deep > 2:
       for i in range(deep-2):
-        x = DStack + (4 * i)
-        n = int.from_bytes(self.ram[x:x+4], 'little', signed=True)
+        n = self.DStack[i]
         if self.base == 16:
           print(f" {n&0xffffffff:x}", end='')
         else:
           print(f" {n}", end='')
     if deep > 1:
-      _s = int.from_bytes(self.ram[S:S+4], 'little', signed=True)
       if self.base == 16:
-        print(f" {_s&0xffffffff:x}", end='')
+        print(f" {self.S&0xffffffff:x}", end='')
       else:
-        print(f" {_s}", end='')
+        print(f" {self.S}", end='')
     if deep > 0:
-      _t = int.from_bytes(self.ram[T:T+4], 'little', signed=True)
       if self.base == 16:
-        print(f" {_t&0xffffffff:x}  OK")
+        print(f" {self.T&0xffffffff:x}  OK")
       else:
-        print(f" {_t}  OK")
+        print(f" {self.T}  OK")
     else:
       print(" Stack is empty  OK")
 

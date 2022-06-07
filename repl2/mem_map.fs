@@ -9,17 +9,7 @@
 ( 0100..FFFF belongs to kernel)
 hex
 0000 const IO
-003F const IOEnd
-0040 const A
-0044 const T
-0048 const S
-004C const R
-0050 const IP
-0052 const DSDeep
-0053 const RSDeep
-0060 const DStack
-00A0 const RStack
-00E0 const Fence
+00FF const IOEnd
 0100 const Boot
 03FF const BootMax
 0400 const Heap
