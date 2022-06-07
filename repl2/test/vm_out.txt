@@ -240,3 +240,7 @@ reset 1 2 <   2 2 <   2 1 <   .s   (  -1 0 0  OK)  -1 0 0  OK
 reset 1 2 <>  2 2 <>  2 1 <>  .s  (  -1 0 -1  OK)  -1 0 -1  OK
 reset  -1 0=    0 0=    1 0=  .s   (  0 -1 0  OK)  0 -1 0  OK
 
+=== test.vm.test_over_swap() ===
+1 2 over .s                         (  1 2 1  OK)  1 2 1  OK
+swap .s                             (  1 1 2  OK)  1 1 2  OK
+

@@ -233,7 +233,11 @@ class VM:
     pass
 
   def over(self):
-    pass
+    """Push a copy of S"""
+    if self.DSDeep < 1:
+      self.error = ERR_D_UNDER
+      return
+    self._push(self.S)
 
   def plus(self):
     """Add T to S, store result in S, drop T"""
@@ -293,7 +297,13 @@ class VM:
     self.drop()
 
   def swap(self):
-    pass
+    """Swap S with T"""
+    if self.DSDeep < 2:
+      self.error = ERR_D_UNDER
+      return
+    tmp = self.T
+    self.T = self.S
+    self.S = tmp
 
   def toR(self):
     """Move top of data stack (T) to top of return stack (R)"""
