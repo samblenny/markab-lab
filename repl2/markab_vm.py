@@ -121,6 +121,7 @@ class VM:
     self._op_st(lambda s, t: s & t)
 
   def bFetch(self):
+    """Fetch an unsigned uint8 (1 byte) from memory address T, into T"""
     if self.DSDeep < 1:
       self.error = ERR_D_UNDER
       return
@@ -131,6 +132,7 @@ class VM:
     self.T = int.from_bytes(self.ram[addr:addr+1], 'little', signed=False)
 
   def bStore(self):
+    """Store low bytes from S (uint8) at memory address T"""
     if self.DSDeep < 2:
       self.error = ERR_D_UNDER
       return
@@ -163,9 +165,11 @@ class VM:
     self._push(self.T)
 
   def equal(self):
-    pass
+    """Evaluate S == T (true:-1, false:0), store result in S, drop T"""
+    self._op_st(lambda s, t: -1 if s == t else 0)
 
   def fetch(self):
+    """Fetch a signed uint32 (4 bytes) from memory address T, into T"""
     if self.DSDeep < 1:
       self.error = ERR_D_UNDER
       return
@@ -176,7 +180,8 @@ class VM:
     self.T = int.from_bytes(self.ram[addr:addr+4], 'little', signed=True)
 
   def greater(self):
-    pass
+    """Evaluate S > T (true:-1, false:0), store result in S, drop T"""
+    self._op_st(lambda s, t: -1 if s > t else 0)
 
   def invert(self):
     """Invert the bits of T (ones' complement negation)"""
@@ -186,7 +191,8 @@ class VM:
     pass
 
   def less(self):
-    pass
+    """Evaluate S < T (true:-1, false:0), store result in S, drop T"""
+    self._op_st(lambda s, t: -1 if s < t else 0)
 
   def lit16(self):
     """Read uint16 (2 bytes) from token stream, zero-extend it, push as T"""
@@ -218,7 +224,8 @@ class VM:
     self._op_st(lambda s, t: s * t)
 
   def notEq(self):
-    pass
+    """Evaluate S <> T (true:-1, false:0), store result in S, drop T"""
+    self._op_st(lambda s, t: -1 if s != t else 0)
 
   def or_(self):
     """Store bitwise OR of S with T into S, then drop T"""
@@ -272,6 +279,7 @@ class VM:
     self._op_st(lambda s, t: (s & 0xffffffff) >> t)
 
   def store(self):
+    """Store all 4 bytes of S (signed int32) at memory address T"""
     if self.DSDeep < 2:
       self.error = ERR_D_UNDER
       return
@@ -305,6 +313,7 @@ class VM:
     self.drop()
 
   def wFetch(self):
+    """Fetch an unsigned uint16 (2 bytes) from memory address T, into T"""
     if self.DSDeep < 1:
       self.error = ERR_D_UNDER
       return
@@ -315,6 +324,7 @@ class VM:
     self.T = int.from_bytes(self.ram[addr:addr+2], 'little', signed=False)
 
   def wStore(self):
+    """Store low 2 bytes from S (uint16) at memory address T"""
     if self.DSDeep < 2:
       self.error = ERR_D_UNDER
       return
@@ -330,10 +340,10 @@ class VM:
   def xor(self):
     """Store bitwise XOR of S with T into S, then drop T"""
     self._op_st(lambda s, t: s ^ t)
-    pass
 
   def zeroEq(self):
-    pass
+    """Evaluate 0 == T (true:-1, false:0), store result in T"""
+    self._op_t(lambda t: -1 if 0 == t else 0)
 
   def _hex(self):
     """Set debug printing number base to 16"""

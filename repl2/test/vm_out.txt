@@ -233,3 +233,10 @@ r> .ret  R-Stack is empty  OK
 r> .ret   (  R-Stack is empty  ERR7)  R-Stack is empty  ERR7
 .s            (  Stack is empty  OK)  Stack is empty  OK
 
+=== test.vm.test_comparisons() ===
+reset 1 2 =   2 2 =   2 1 =   .s   (  0 -1 0  OK)  0 -1 0  OK
+reset 1 2 >   2 2 >   2 1 >   .s   (  0 0 -1  OK)  0 0 -1  OK
+reset 1 2 <   2 2 <   2 1 <   .s   (  -1 0 0  OK)  -1 0 0  OK
+reset 1 2 <>  2 2 <>  2 1 <>  .s  (  -1 0 -1  OK)  -1 0 -1  OK
+reset  -1 0=    0 0=    1 0=  .s   (  0 -1 0  OK)  0 -1 0  OK
+
