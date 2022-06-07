@@ -19,7 +19,7 @@
 15 .s  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15  OK
 16 .s  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16  OK
 17 .s  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17  OK
-18 .s  ERR: 1
+18 .s  Stack is empty  ERR1
 ( This time, the stack won't clear because only 18 items are pushed)
 0 .s  0  OK
 1 .s  0 1  OK
@@ -57,7 +57,7 @@ drop .s  0 1 2  OK
 drop .s  0 1  OK
 drop .s  0  OK
 drop .s  Stack is empty  OK
-drop .s  ERR: 2
+drop .s  Stack is empty  ERR2
 
 === test.vm.test_plus_minus() ===
 -5 1 2 .s      (  -6 1 2  OK)  -6 1 2  OK
@@ -98,3 +98,66 @@ decimal
 0 255 .s drop drop          (  0 255  OK)  0 255  OK
 256 65535 .s drop drop  (  256 65536  OK)  256 65535  OK
 65536 -1 .s drop drop    (  65536 -1  OK)  65536 -1  OK
+
+=== test.vm.test_store_fetch() ===
+( fetch words take 1 argument)
+@ .s         (  Stack is empty  ERR2)  Stack is empty  ERR2
+w@ .s        (  Stack is empty  ERR2)  Stack is empty  ERR2
+b@ .s        (  Stack is empty  ERR2)  Stack is empty  ERR2
+( store words take 2 arguments)
+9000 ! .s              (  9000  ERR2)  9000  ERR2
+w! .s                  (  9000  ERR2)  9000  ERR2
+b! .s                  (  9000  ERR2)  9000  ERR2
+drop  OK
+( @ and ! addresses must be >= 0)
+-1 @ .s                  (  -1  ERR3)  -1  ERR3
+w@ .s                    (  -1  ERR3)  -1  ERR3
+b@ .s                    (  -1  ERR3)  -1  ERR3
+-1 ! .s               (  -1 -1  ERR3)  -1 -1  ERR3
+w! .s                 (  -1 -1  ERR3)  -1 -1  ERR3
+b! .s                 (  -1 -1  ERR3)  -1 -1  ERR3
+drop drop  OK
+( ! address must be <= 0xffff - 3)
+4 65536 ! .s        (  4 65536  ERR3)  4 65536  ERR3
+1 - ! .s            (  4 65535  ERR3)  4 65535  ERR3
+1 - ! .s            (  4 65534  ERR3)  4 65534  ERR3
+1 - ! .s            (  4 65533  ERR3)  4 65533  ERR3
+1 - ! .s       (  Stack is empty  OK)  Stack is empty  OK
+( @ address must be <= 0xffff - 3)
+65536 @ .s            (  65536  ERR3)  65536  ERR3
+1 - @ .s              (  65535  ERR3)  65535  ERR3
+1 - @ .s              (  65534  ERR3)  65534  ERR3
+1 - @ .s              (  65533  ERR3)  65533  ERR3
+1 - @ .s                    (  4  OK)  4  OK
+drop  OK
+( w! address must be <= 0xffff - 1)
+2 65536 w! .s       (  2 65536  ERR3)  2 65536  ERR3
+1 - w! .s           (  2 65535  ERR3)  2 65535  ERR3
+1 - w! .s      (  Stack is empty  OK)  Stack is empty  OK
+( w@ address must be <= 0xffff - 1)
+65536 w@ .s           (  65536  ERR3)  65536  ERR3
+1 - w@ .s             (  65535  ERR3)  65535  ERR3
+1 - w@ .s                   (  2  OK)  2  OK
+drop  OK
+( b! address must be <= 0xffff)
+1 65536 b! .s       (  1 65536  ERR3)  1 65536  ERR3
+1 - b! .s      (  Stack is empty  OK)  Stack is empty  OK
+( b@ address must be <= 0xffff)
+65536 b@ .s           (  65536  ERR3)  65536  ERR3
+1 - b@ .s                   (  1  OK)  1  OK
+drop  OK
+( ! and @ cover full signed int32 range )
+( note: @ does sign extension)
+-1 9000 ! 9000 @               (  -1  OK)  -1  OK
+1 >> 9000 ! 9000 @ .s  (  2147483647  OK)  2147483647  OK
+drop  OK
+( w! and w@ clip to unsigned uint16 range)
+( note: w@ does not do sign extension)
+-1 9000 w! 9000 w@          (  65535  OK)  65535  OK
+1 >> 9000 w! 9000 w@ .s     (  32767  OK)  32767  OK
+drop  OK
+( b! and b@ clip to unsigned uint8 range)
+( note: b@ does not do sign extension)
+-1 9000 b! 9000 b@            (  255  OK)  255  OK
+1 >> 9000 b! 9000 b@ .s       (  127  OK)  127  OK
+drop  OK

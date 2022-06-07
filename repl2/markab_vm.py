@@ -12,11 +12,11 @@ from mem_map import IO, IOEnd, Boot, BootMax, MemMax
 ROM_FILE = 'kernel.bin'
 ERR_D_OVER = 1
 ERR_D_UNDER = 2
-ERR_ADDR_OOR = 3
+ERR_BAD_ADDRESS = 3
 ERR_BOOT_OVERFLOW = 4
 ERR_BAD_TOKEN = 5
 
-class VMTask:
+class VM:
   """
   VMTask manages CPU, RAM, and peripheral state for one markabForth task.
   """
@@ -40,7 +40,7 @@ class VMTask:
   def _setIP(self, addr):
     """Set Instruction Pointer with range check"""
     if (addr > MemMax) or (addr > 0xffff):
-      self.error = ERR_ADDR_OOR
+      self.error = ERR_BAD_ADDRESS
       return
     self.IP = addr
 
@@ -119,10 +119,27 @@ class VMTask:
     self._op_st(lambda s, t: s & t)
 
   def bFetch(self):
-    pass
+    if self.DSDeep < 1:
+      self.error = ERR_D_UNDER
+      return
+    addr = self.T
+    if (addr < 0) or (addr > MemMax):
+      self.error = ERR_BAD_ADDRESS
+      return
+    self.T = int.from_bytes(self.ram[addr:addr+1], 'little', signed=False)
 
   def bStore(self):
-    pass
+    if self.DSDeep < 2:
+      self.error = ERR_D_UNDER
+      return
+    addr = self.T
+    if (addr < 0) or (addr > MemMax) or (addr <= self.Fence):
+      self.error = ERR_BAD_ADDRESS
+      return
+    x = int.to_bytes((self.S & 0xff), 1, 'little', signed=False)
+    self.ram[addr:addr+1] = x
+    self.drop()
+    self.drop()
 
   def call(self):
     pass
@@ -147,7 +164,14 @@ class VMTask:
     pass
 
   def fetch(self):
-    pass
+    if self.DSDeep < 1:
+      self.error = ERR_D_UNDER
+      return
+    addr = self.T
+    if (addr < 0) or (addr > MemMax-3):
+      self.error = ERR_BAD_ADDRESS
+      return
+    self.T = int.from_bytes(self.ram[addr:addr+4], 'little', signed=True)
 
   def greater(self):
     pass
@@ -233,7 +257,17 @@ class VMTask:
     self._op_st(lambda s, t: (s & 0xffffffff) >> t)
 
   def store(self):
-    pass
+    if self.DSDeep < 2:
+      self.error = ERR_D_UNDER
+      return
+    addr = self.T
+    if (addr < 0) or (addr > MemMax-3) or (addr <= self.Fence):
+      self.error = ERR_BAD_ADDRESS
+      return
+    x = int.to_bytes(c_int32(self.S).value, 4, 'little', signed=True)
+    self.ram[addr:addr+4] = x
+    self.drop()
+    self.drop()
 
   def swap(self):
     pass
@@ -242,10 +276,27 @@ class VMTask:
     pass
 
   def wFetch(self):
-    pass
+    if self.DSDeep < 1:
+      self.error = ERR_D_UNDER
+      return
+    addr = self.T
+    if (addr < 0) or (addr > MemMax-1):
+      self.error = ERR_BAD_ADDRESS
+      return
+    self.T = int.from_bytes(self.ram[addr:addr+2], 'little', signed=False)
 
   def wStore(self):
-    pass
+    if self.DSDeep < 2:
+      self.error = ERR_D_UNDER
+      return
+    addr = self.T
+    if (addr < 0) or (addr > MemMax-1) or (addr <= self.Fence):
+      self.error = ERR_BAD_ADDRESS
+      return
+    x = int.to_bytes((self.S & 0xffff), 2, 'little', signed=False)
+    self.ram[addr:addr+2] = x
+    self.drop()
+    self.drop()
 
   def xor(self):
     """Store bitwise XOR of S with T into S, then drop T"""
@@ -265,10 +316,6 @@ class VMTask:
 
   def _dotS(self):
     """Print the data stack in the manner of .S"""
-    if self.error != 0:
-      print(f"  ERR: {self.error}")
-      self._clearError()
-      return
     print(" ", end='')
     deep = self.DSDeep
     if deep > 2:
@@ -285,11 +332,16 @@ class VMTask:
         print(f" {self.S}", end='')
     if deep > 0:
       if self.base == 16:
-        print(f" {self.T&0xffffffff:x}  OK")
+        print(f" {self.T&0xffffffff:x}", end='')
       else:
-        print(f" {self.T}  OK")
+        print(f" {self.T}", end='')
     else:
-      print(" Stack is empty  OK")
+      print(" Stack is empty", end='')
+    if self.error != 0:
+      print(f"  ERR{self.error}")
+      self._clearError()
+    else:
+      print("  OK")
 
   def _clearError(self):
     """Clear VM error status code"""
