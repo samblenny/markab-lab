@@ -4,7 +4,7 @@
 #
 # MarkabForth VM emulator
 #
-from ctypes import c_uint32, c_int32
+from ctypes import c_int32
 
 from tokens  import get_token, get_opcode
 from mem_map import IO, IOEnd, Boot, BootMax, MemMax
@@ -20,11 +20,11 @@ ERR_R_UNDER = 7
 
 class VM:
   """
-  VMTask manages CPU, RAM, and peripheral state for one markabForth task.
+  VM emulates CPU, RAM, and peripheral state for a Markab virtual machine.
   """
 
   def __init__(self):
-    """Initialize each instance of VMTask with its own state variables"""
+    """Initialize virtual CPU and RAM"""
     self.error = 0                  # Error code register
     self.base = 10                  # number Base for debug printing
     self.A = 0                      # Address/Accumulator register
@@ -458,6 +458,3 @@ class VM:
   def _clearError(self):
     """Clear VM error status code"""
     self.error = 0
-
-  def _load(self, tokens):
-    """Copy a bytearray of token code to RAM starting at reset vector"""
