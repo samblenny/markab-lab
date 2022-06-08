@@ -12,40 +12,40 @@ PY_OUTFILE_MEM = "mem_map.py"
 
 TOKENS = """
 nop Nop
++ Add
+- Sub
+* Mul
 & And
-b@ BFetch
-b! BStore
+~ Inv
+| Or
+^ Xor
+<< ShL
+>> ShR
+>>> ShA
+= Eq
+> GT
+< LT
+<> NEq
+0= ZEq
 <ASM> Call
+<ASM> Jmp
+; Ret
+r> RFrom
+>r ToR
+reset Reset
 drop Drop
 dup Dup
-= Equal
-@ Fetch
-> Greater
-~ Invert
-<ASM> Jump
-< Less
-<ASM> Lit16
-<ASM> Lit32
-<ASM> Lit8
-- Minus
-* Mul
-<> NotEq
-| Or
 over Over
-+ Plus
-reset Reset
-; Return
-r> RFrom
-<< ShiftLeft
->> ShiftRightU32
->>> ShiftRightI32
-! Store
 swap Swap
->r ToR
+<ASM> Lit1
+<ASM> Lit2
+<ASM> Lit4
+b@ BFetch
+b! BStore
 w@ WFetch
 w! WStore
-^ Xor
-0= ZeroEq
+@ Fetch
+! Store
 """
 
 MEMORY_MAP = """
@@ -127,6 +127,13 @@ def py_addresses():
     addrs += [f"{name:7} = 0x{addr}"]
   return "\n".join(addrs)
 
+def py_opcode_constants():
+  ops = []
+  for (i, line) in enumerate(filter(TOKENS)):
+    (name, opcode) = line.strip().split(" ")
+    ops += [f"{opcode.upper():6} = {i:2}"]
+  return "\n".join(ops)
+
 FS_TEMPLATE_TOK = f"""
 ( Copyright © 2022 Sam Blenny)
 ( SPDX-License-Identifier: MIT)
@@ -171,6 +178,8 @@ OPCODE_FOR_TOKEN = {{
 TOKEN_FOR_OPCODE = {{
 {py_token_for_opcode()}
 }}
+
+{py_opcode_constants()}
 
 def get_opcode(token):
   return OPCODE_FOR_TOKEN[token]

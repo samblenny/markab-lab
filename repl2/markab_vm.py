@@ -6,7 +6,7 @@
 #
 from ctypes import c_int32
 
-from tokens  import get_token, get_opcode
+from tokens  import (LIT1, LIT2, LIT4, JMP, CALL, RET)
 from mem_map import IO, IOEnd, Boot, BootMax, MemMax
 
 ROM_FILE = 'kernel.bin'
@@ -70,17 +70,17 @@ class VM:
     """Step the virtual CPU for enough cycles to consume count tokens"""
     for _ in range(max_cycles):
       t = self._nextToken()
-      if t == get_token('Lit8'):
-        self.lit8()
-      elif t == get_token('Lit16'):
-        self.lit16()
-      elif t == get_token('Lit32'):
-        self.lit32()
-      elif t == get_token('Call'):
+      if t == LIT1:
+        self.litU8()
+      elif t == LIT2:
+        self.litU16()
+      elif t == LIT4:
+        self.litI32()
+      elif t == CALL:
         self.call()
-      elif t == get_token('Jump'):
-        self.call()
-      elif t == get_token('Return'):
+      elif t == JMP:
+        self.jump()
+      elif t == RET:
         if self.RSDeep == 0:
           return
         else:
@@ -222,21 +222,21 @@ class VM:
     """Evaluate S < T (true:-1, false:0), store result in S, drop T"""
     self._op_st(lambda s, t: -1 if s < t else 0)
 
-  def lit16(self):
+  def litU16(self):
     """Read uint16 (2 bytes) from token stream, zero-extend it, push as T"""
     ip = self.IP
     n = int.from_bytes(self.ram[ip:ip+2], 'little', signed=False)
     self._setIP(ip+2)
     self._push(n)
 
-  def lit32(self):
+  def litI32(self):
     """Read int32 (4 bytes) from token stream, push as T"""
     ip = self.IP
     n = int.from_bytes(self.ram[ip:ip+4], 'little', signed=True)
     self._setIP(ip+4)
     self._push(n)
 
-  def lit8(self):
+  def litU8(self):
     """Read uint8 (1 byte) from token stream, zero-extend it, push as T"""
     ip = self.IP
     n = int.from_bytes(self.ram[ip:ip+1], 'little', signed=False)

@@ -4,7 +4,7 @@
 #
 
 from markab_vm import VM
-from tokens import get_token
+from tokens import (LIT1, LIT2, LIT4, JMP, CALL, RET)
 
 def p(s):
   print(s, end='')
@@ -167,27 +167,25 @@ def test_literals():
   print("=== test.vm.test_literals() ===")
   p("0 255 .s drop drop          (  0 255  OK)")
   code = bytearray()
-  code.extend([get_token('Lit8'), 0])
-  code.extend([get_token('Lit8'), 255])
-  code.extend([get_token('Return')])
+  code.extend([LIT1, 0, LIT1, 255, RET])
   v._warmBoot(code, max_cycles=len(code))
   v._dotS()
   v.drop()
   v.drop()
   p("256 65535 .s drop drop  (  256 65536  OK)")
   code = bytearray()
-  code.extend([get_token('Lit16'), 0x00, 0x01])  # 256
-  code.extend([get_token('Lit16'), 0xff, 0xff])  # 65535
-  code.extend([get_token('Return')])
+  code.extend([LIT2, 0x00, 0x01])  # 256
+  code.extend([LIT2, 0xff, 0xff])  # 65535
+  code.extend([RET])
   v._warmBoot(code, max_cycles=len(code))
   v._dotS()
   v.drop()
   v.drop()
   p("65536 -1 .s drop drop    (  65536 -1  OK)")
   code = bytearray()
-  code.extend([get_token('Lit32'), 0x00, 0x00, 0x01, 0x00])  # 65536
-  code.extend([get_token('Lit32'), 0xff, 0xff, 0xff, 0xff])  # -1
-  code.extend([get_token('Return')])
+  code.extend([LIT4, 0x00, 0x00, 0x01, 0x00])  # 65536
+  code.extend([LIT4, 0xff, 0xff, 0xff, 0xff])  # -1
+  code.extend([RET])
   v._warmBoot(code, max_cycles=len(code))
   v._dotS()
   v.drop()
@@ -543,8 +541,6 @@ def test_over_swap():
 
 def test_call_return():
   v = VM()
-  opcodes = ['Call', 'Lit8', 'Return']
-  (call, lit8, ret) = [get_token(x) for x in opcodes]
   print("=== test.vm.test_call_return() ===")
   print("( assemble tokens to memory starting at Boot vector 256)")
   print("( 256+ 0: Call 256+7=0x0107, or [7, 1] little endian   )")
@@ -553,10 +549,10 @@ def test_call_return():
   print("( 256+ 7: Subroutine: push 9 to data stack, return     )")
   print("( 256+10: Subroutine: push 5 to data stack, return     )")
   print("(   256+:   0 1 2    3  4 5   6    7 8   9   10 11  12 )")
-  print("256 ASM{ call 7 1 call 10 1 ret lit8 9 ret lit8  5 ret }ASM")
+  print("256 ASM{ call 7 1 call 10 1 ret lit1 9 ret lit1  5 ret }ASM")
   code = bytearray()
-  code.extend([call, 7, 1, call, 10, 1, ret, lit8, 9, ret, lit8, 5, ret])
-  v._warmBoot(code, max_cycles=7)  # call lit8 ret call lit8 ret ret
+  code.extend([CALL, 7, 1, CALL, 10, 1, RET, LIT1, 9, RET, LIT1, 5, RET])
+  v._warmBoot(code, max_cycles=7)  # call lit1 ret call lit1 ret ret
   print("warmboot  OK")
   p(".s                                           (  9 5  OK)")
   v._dotS()
@@ -564,8 +560,6 @@ def test_call_return():
 
 def test_jump_return():
   v = VM()
-  opcodes = ['Lit8', 'Return', 'Jump']
-  (lit8, ret, jmp) = [get_token(x) for x in opcodes]
   print("=== test.vm.test_jump_return() ===")
   print("( assemble tokens to memory starting at Boot vector 256)")
   print("( 256+0: push 5                                        )")
@@ -573,10 +567,10 @@ def test_jump_return():
   print("( 256+5: push 6, return                                )")
   print("( 256+8: push 7, jump to 256+5                         )")
   print("(   256+:   0 1   2 3 4    5 6   7    8 9  10 11 12    )")
-  print("256 ASM{ lit8 5 jmp 8 1 lit8 6 ret lit8 7 jmp  5  1 }ASM")
+  print("256 ASM{ lit1 5 jmp 8 1 lit1 6 ret lit1 7 jmp  5  1 }ASM")
   code = bytearray()
-  code.extend([lit8, 5, jmp, 8, 1, lit8, 6, ret, lit8, 7, jmp, 5, 1])
-  v._warmBoot(code, max_cycles=6)  # lit8 jmp lit8 jmp lit8 ret
+  code.extend([LIT1, 5, JMP, 8, 1, LIT1, 6, RET, LIT1, 7, JMP, 5, 1])
+  v._warmBoot(code, max_cycles=6)  # lit1 jmp lit1 jmp lit1 ret
   print("warmboot  OK")
   p(".s                                         (  5 7 6  OK)")
   v._dotS()

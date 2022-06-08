@@ -252,7 +252,7 @@ swap .s                             (  1 1 2  OK)  1 1 2  OK
 ( 256+ 7: Subroutine: push 9 to data stack, return     )
 ( 256+10: Subroutine: push 5 to data stack, return     )
 (   256+:   0 1 2    3  4 5   6    7 8   9   10 11  12 )
-256 ASM{ call 7 1 call 10 1 ret lit8 9 ret lit8  5 ret }ASM
+256 ASM{ call 7 1 call 10 1 ret lit1 9 ret lit1  5 ret }ASM
 warmboot  OK
 .s                                           (  9 5  OK)  9 5  OK
 
@@ -263,7 +263,7 @@ warmboot  OK
 ( 256+5: push 6, return                                )
 ( 256+8: push 7, jump to 256+5                         )
 (   256+:   0 1   2 3 4    5 6   7    8 9  10 11 12    )
-256 ASM{ lit8 5 jmp 8 1 lit8 6 ret lit8 7 jmp  5  1 }ASM
+256 ASM{ lit1 5 jmp 8 1 lit1 6 ret lit1 7 jmp  5  1 }ASM
 warmboot  OK
 .s                                         (  5 7 6  OK)  5 7 6  OK
 

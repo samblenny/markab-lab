@@ -6,69 +6,69 @@
 
 ( MarkabVM virtual CPU opcode tokens)
  0 const Nop
- 1 const And
- 2 const BFetch
- 3 const BStore
- 4 const Call
- 5 const Drop
- 6 const Dup
- 7 const Equal
- 8 const Fetch
- 9 const Greater
-10 const Invert
-11 const Jump
-12 const Less
-13 const Lit16
-14 const Lit32
-15 const Lit8
-16 const Minus
-17 const Mul
-18 const NotEq
-19 const Or
-20 const Over
-21 const Plus
-22 const Reset
-23 const Return
-24 const RFrom
-25 const ShiftLeft
-26 const ShiftRightU32
-27 const ShiftRightI32
-28 const Store
-29 const Swap
-30 const ToR
+ 1 const Add
+ 2 const Sub
+ 3 const Mul
+ 4 const And
+ 5 const Inv
+ 6 const Or
+ 7 const Xor
+ 8 const ShL
+ 9 const ShR
+10 const ShA
+11 const Eq
+12 const GT
+13 const LT
+14 const NEq
+15 const ZEq
+16 const Call
+17 const Jmp
+18 const Ret
+19 const RFrom
+20 const ToR
+21 const Reset
+22 const Drop
+23 const Dup
+24 const Over
+25 const Swap
+26 const Lit1
+27 const Lit2
+28 const Lit4
+29 const BFetch
+30 const BStore
 31 const WFetch
 32 const WStore
-33 const Xor
-34 const ZeroEq
+33 const Fetch
+34 const Store
 
 ( MarkabForth core vocabulary)
 : nop   tok> Nop ;
+: +     tok> Add ;
+: -     tok> Sub ;
+: *     tok> Mul ;
 : &     tok> And ;
-: b@    tok> BFetch ;
-: b!    tok> BStore ;
+: ~     tok> Inv ;
+: |     tok> Or ;
+: ^     tok> Xor ;
+: <<    tok> ShL ;
+: >>    tok> ShR ;
+: >>>   tok> ShA ;
+: =     tok> Eq ;
+: >     tok> GT ;
+: <     tok> LT ;
+: <>    tok> NEq ;
+: 0=    tok> ZEq ;
+: ;     tok> Ret ;
+: r>    tok> RFrom ;
+: >r    tok> ToR ;
+: reset tok> Reset ;
 : drop  tok> Drop ;
 : dup   tok> Dup ;
-: =     tok> Equal ;
-: @     tok> Fetch ;
-: >     tok> Greater ;
-: ~     tok> Invert ;
-: <     tok> Less ;
-: -     tok> Minus ;
-: *     tok> Mul ;
-: <>    tok> NotEq ;
-: |     tok> Or ;
 : over  tok> Over ;
-: +     tok> Plus ;
-: reset tok> Reset ;
-: ;     tok> Return ;
-: r>    tok> RFrom ;
-: <<    tok> ShiftLeft ;
-: >>    tok> ShiftRightU32 ;
-: >>>   tok> ShiftRightI32 ;
-: !     tok> Store ;
 : swap  tok> Swap ;
-: >r    tok> ToR ;
+: b@    tok> BFetch ;
+: b!    tok> BStore ;
 : w@    tok> WFetch ;
 : w!    tok> WStore ;
-: ^     tok> Xor ;
-: 0=    tok> ZeroEq ;
+: @     tok> Fetch ;
+: !     tok> Store ;
