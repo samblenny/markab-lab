@@ -60,16 +60,15 @@ class VM:
       return
     self.ram[Boot:Boot+n] = code[0:]
 
-  def _warmBoot(self, code):
+  def _warmBoot(self, code, max_cycles=1):
     """Load a bytearray of token code into Boot..BootMax, then run it."""
     self._loadBoot(code)
     self._setIP(Boot)
-    self._step(len(code))
+    self._step(max_cycles)
 
-  def _step(self, count):
+  def _step(self, max_cycles):
     """Step the virtual CPU for enough cycles to consume count tokens"""
-    stopIP = self.IP + count
-    for _ in range(count):
+    for _ in range(max_cycles):
       t = self._nextToken()
       if t == get_token('Lit8'):
         self.lit8()
@@ -77,8 +76,15 @@ class VM:
         self.lit16()
       elif t == get_token('Lit32'):
         self.lit32()
+      elif t == get_token('Call'):
+        self.call()
+      elif t == get_token('Jump'):
+        self.call()
       elif t == get_token('Return'):
-        return
+        if self.RSDeep == 0:
+          return
+        else:
+          self.return_()
       else:
         self.error = ERR_BAD_TOKEN
         return
@@ -146,7 +152,23 @@ class VM:
     self.drop()
 
   def call(self):
-    pass
+    """Call subroutine at address read from instruction stream"""
+    if self.RSDeep > 16:
+      self.reset()
+      self.error = ERR_R_OVER
+      return
+    # read a 16-bit address from the instruction stream
+    ip = self.IP
+    n = int.from_bytes(self.ram[ip:ip+2], 'little', signed=False)
+    self._setIP(ip+2)
+    # push the current instruction pointer to return stack
+    if self.RSDeep > 0:
+      rSecond = self.RSDeep - 1
+      self.RStack[rSecond] = self.IP
+    self.R = self.IP
+    self.RSDeep += 1
+    # set instruction pointer to the new address
+    self.IP = n
 
   def drop(self):
     """Drop T, the top item of the data stack"""
@@ -188,7 +210,13 @@ class VM:
     self._op_t(lambda t: ~ t)
 
   def jump(self):
-    pass
+    """Jump to subroutine at address read from instruction stream"""
+    # read a 16-bit address from the instruction stream
+    ip = self.IP
+    n = int.from_bytes(self.ram[ip:ip+2], 'little', signed=False)
+    self._setIP(ip+2)
+    # set instruction pointer to the new address
+    self.IP = n
 
   def less(self):
     """Evaluate S < T (true:-1, false:0), store result in S, drop T"""
@@ -250,7 +278,18 @@ class VM:
     self.error = 0
 
   def return_(self):
-    pass
+    """Return from subroutine, taking address from return stack"""
+    if self.RSDeep < 1:
+      self.reset()
+      self.error = ERR_R_UNDER
+      return
+    # Set instruction pointer from top of return stack
+    self.IP = self.R
+    # Drop top of return stack
+    if self.RSDeep > 1:
+      rSecond = self.RSDeep - 2
+      self.R = self.RStack[rSecond]
+    self.RSDeep -= 1
 
   def rFrom(self):
     """Move top of return stack (R) to top of data stack (T)"""

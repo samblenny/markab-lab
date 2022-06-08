@@ -170,7 +170,7 @@ def test_literals():
   code.extend([get_token('Lit8'), 0])
   code.extend([get_token('Lit8'), 255])
   code.extend([get_token('Return')])
-  v._warmBoot(code)
+  v._warmBoot(code, max_cycles=len(code))
   v._dotS()
   v.drop()
   v.drop()
@@ -179,7 +179,7 @@ def test_literals():
   code.extend([get_token('Lit16'), 0x00, 0x01])  # 256
   code.extend([get_token('Lit16'), 0xff, 0xff])  # 65535
   code.extend([get_token('Return')])
-  v._warmBoot(code)
+  v._warmBoot(code, max_cycles=len(code))
   v._dotS()
   v.drop()
   v.drop()
@@ -188,7 +188,7 @@ def test_literals():
   code.extend([get_token('Lit32'), 0x00, 0x00, 0x01, 0x00])  # 65536
   code.extend([get_token('Lit32'), 0xff, 0xff, 0xff, 0xff])  # -1
   code.extend([get_token('Return')])
-  v._warmBoot(code)
+  v._warmBoot(code, max_cycles=len(code))
   v._dotS()
   v.drop()
   v.drop()
@@ -541,6 +541,47 @@ def test_over_swap():
   v._dotS()
   print()
 
+def test_call_return():
+  v = VM()
+  opcodes = ['Call', 'Lit8', 'Return']
+  (call, lit8, ret) = [get_token(x) for x in opcodes]
+  print("=== test.vm.test_call_return() ===")
+  print("( assemble tokens to memory starting at Boot vector 256)")
+  print("( 256+ 0: Call 256+7=0x0107, or [7, 1] little endian   )")
+  print("( 256+ 3: Call 256+10=0x010A, or [10, 1] little endian )")
+  print("( 256+ 6: Return                                       )")
+  print("( 256+ 7: Subroutine: push 9 to data stack, return     )")
+  print("( 256+10: Subroutine: push 5 to data stack, return     )")
+  print("(   256+:   0 1 2    3  4 5   6    7 8   9   10 11  12 )")
+  print("256 ASM{ call 7 1 call 10 1 ret lit8 9 ret lit8  5 ret }ASM")
+  code = bytearray()
+  code.extend([call, 7, 1, call, 10, 1, ret, lit8, 9, ret, lit8, 5, ret])
+  v._warmBoot(code, max_cycles=7)  # call lit8 ret call lit8 ret ret
+  print("warmboot  OK")
+  p(".s                                           (  9 5  OK)")
+  v._dotS()
+  print()
+
+def test_jump_return():
+  v = VM()
+  opcodes = ['Lit8', 'Return', 'Jump']
+  (lit8, ret, jmp) = [get_token(x) for x in opcodes]
+  print("=== test.vm.test_jump_return() ===")
+  print("( assemble tokens to memory starting at Boot vector 256)")
+  print("( 256+0: push 5                                        )")
+  print("( 256+2: jump to 256+8                                 )")
+  print("( 256+5: push 6, return                                )")
+  print("( 256+8: push 7, jump to 256+5                         )")
+  print("(   256+:   0 1   2 3 4    5 6   7    8 9  10 11 12    )")
+  print("256 ASM{ lit8 5 jmp 8 1 lit8 6 ret lit8 7 jmp  5  1 }ASM")
+  code = bytearray()
+  code.extend([lit8, 5, jmp, 8, 1, lit8, 6, ret, lit8, 7, jmp, 5, 1])
+  v._warmBoot(code, max_cycles=6)  # lit8 jmp lit8 jmp lit8 ret
+  print("warmboot  OK")
+  p(".s                                         (  5 7 6  OK)")
+  v._dotS()
+  print()
+
 test_push_pop()
 test_plus_minus()
 test_multiply()
@@ -551,3 +592,5 @@ test_store_fetch()
 test_return_stack()
 test_comparisons()
 test_over_swap()
+test_call_return()
+test_jump_return()
