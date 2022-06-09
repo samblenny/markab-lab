@@ -7,78 +7,82 @@
 
 OPCODE_FOR_TOKEN = {
   0: 'Nop',
-  1: 'Add',
-  2: 'Sub',
-  3: 'Mul',
-  4: 'And',
-  5: 'Inv',
-  6: 'Or',
-  7: 'Xor',
-  8: 'ShL',
-  9: 'ShR',
-  10: 'ShA',
-  11: 'Eq',
+  1: 'ADD',
+  2: 'SUB',
+  3: 'MUL',
+  4: 'AND',
+  5: 'INV',
+  6: 'OR',
+  7: 'XOR',
+  8: 'SHL',
+  9: 'SHR',
+  10: 'SHA',
+  11: 'EQ',
   12: 'GT',
   13: 'LT',
   14: 'NE',
   15: 'ZE',
-  16: 'Jmp',
-  17: 'Call',
-  18: 'Ret',
-  19: 'RFrom',
-  20: 'ToR',
-  21: 'Reset',
-  22: 'Drop',
-  23: 'Dup',
-  24: 'Over',
-  25: 'Swap',
-  26: 'U8',
-  27: 'U16',
-  28: 'I32',
-  29: 'BFetch',
-  30: 'BStore',
-  31: 'WFetch',
-  32: 'WStore',
-  33: 'Fetch',
-  34: 'Store',
+  16: 'JMP',
+  17: 'CALL',
+  18: 'RET',
+  19: 'JZ',
+  20: 'DRJNN',
+  21: 'RFROM',
+  22: 'TOR',
+  23: 'RESET',
+  24: 'DROP',
+  25: 'DUP',
+  26: 'OVER',
+  27: 'SWAP',
+  28: 'U8',
+  29: 'U16',
+  30: 'I32',
+  31: 'BFET',
+  32: 'BSTO',
+  33: 'WFET',
+  34: 'WSTO',
+  35: 'FET',
+  36: 'STO',
 }
 
 TOKEN_FOR_OPCODE = {
   'Nop': 0,
-  'Add': 1,
-  'Sub': 2,
-  'Mul': 3,
-  'And': 4,
-  'Inv': 5,
-  'Or': 6,
-  'Xor': 7,
-  'ShL': 8,
-  'ShR': 9,
-  'ShA': 10,
-  'Eq': 11,
+  'ADD': 1,
+  'SUB': 2,
+  'MUL': 3,
+  'AND': 4,
+  'INV': 5,
+  'OR': 6,
+  'XOR': 7,
+  'SHL': 8,
+  'SHR': 9,
+  'SHA': 10,
+  'EQ': 11,
   'GT': 12,
   'LT': 13,
   'NE': 14,
   'ZE': 15,
-  'Jmp': 16,
-  'Call': 17,
-  'Ret': 18,
-  'RFrom': 19,
-  'ToR': 20,
-  'Reset': 21,
-  'Drop': 22,
-  'Dup': 23,
-  'Over': 24,
-  'Swap': 25,
-  'U8': 26,
-  'U16': 27,
-  'I32': 28,
-  'BFetch': 29,
-  'BStore': 30,
-  'WFetch': 31,
-  'WStore': 32,
-  'Fetch': 33,
-  'Store': 34,
+  'JMP': 16,
+  'CALL': 17,
+  'RET': 18,
+  'JZ': 19,
+  'DRJNN': 20,
+  'RFROM': 21,
+  'TOR': 22,
+  'RESET': 23,
+  'DROP': 24,
+  'DUP': 25,
+  'OVER': 26,
+  'SWAP': 27,
+  'U8': 28,
+  'U16': 29,
+  'I32': 30,
+  'BFET': 31,
+  'BSTO': 32,
+  'WFET': 33,
+  'WSTO': 34,
+  'FET': 35,
+  'STO': 36,
 }
 
 NOP    =  0
@@ -100,22 +104,24 @@ ZE     = 15
 JMP    = 16
 CALL   = 17
 RET    = 18
-RFROM  = 19
-TOR    = 20
-RESET  = 21
-DROP   = 22
-DUP    = 23
-OVER   = 24
-SWAP   = 25
-U8     = 26
-U16    = 27
-I32    = 28
-BFETCH = 29
-BSTORE = 30
-WFETCH = 31
-WSTORE = 32
-FETCH  = 33
-STORE  = 34
+JZ     = 19
+DRJNN  = 20
+RFROM  = 21
+TOR    = 22
+RESET  = 23
+DROP   = 24
+DUP    = 25
+OVER   = 26
+SWAP   = 27
+U8     = 28
+U16    = 29
+I32    = 30
+BFET   = 31
+BSTO   = 32
+WFET   = 33
+WSTO   = 34
+FET    = 35
+STO    = 36
 
 def get_opcode(token):
   return OPCODE_FOR_TOKEN[token]

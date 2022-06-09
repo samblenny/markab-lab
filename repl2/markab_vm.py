@@ -9,8 +9,8 @@ from typing import Callable, Dict
 
 from tokens import (
   NOP, ADD, SUB, MUL, AND, INV, OR, XOR, SHL, SHR, SHA, EQ, GT, LT, NE, ZE,
-  JMP, CALL, RET, RFROM, TOR, RESET, DROP, DUP, OVER, SWAP,
-  U8, U16, I32, BFETCH, BSTORE, WFETCH, WSTORE, FETCH, STORE
+  JMP, CALL, RET, JZ, DRJNN, RFROM, TOR, RESET, DROP, DUP, OVER, SWAP,
+  U8, U16, I32, BFET, BSTO, WFET, WSTO, FET, STO
 )
 from mem_map import IO, IOEnd, Boot, BootMax, MemMax
 
@@ -46,41 +46,43 @@ class VM:
     #
     # Jump Table for instruction decoder
     self.jumpTable: Dict[int, Callable] = {}
-    self.jumpTable[NOP   ] = self.nop
-    self.jumpTable[ADD   ] = self.plus
-    self.jumpTable[SUB   ] = self.minus
-    self.jumpTable[MUL   ] = self.mul
-    self.jumpTable[AND   ] = self.and_
-    self.jumpTable[INV   ] = self.invert
-    self.jumpTable[OR    ] = self.or_
-    self.jumpTable[XOR   ] = self.xor
-    self.jumpTable[SHL   ] = self.shiftLeft
-    self.jumpTable[SHR   ] = self.shiftRightU32
-    self.jumpTable[SHA   ] = self.shiftRightI32
-    self.jumpTable[EQ    ] = self.equal
-    self.jumpTable[GT    ] = self.greater
-    self.jumpTable[LT    ] = self.less
-    self.jumpTable[NE    ] = self.notEq
-    self.jumpTable[ZE    ] = self.zeroEq
-    self.jumpTable[JMP   ] = self.jump
-    self.jumpTable[CALL  ] = self.call
-    self.jumpTable[RET   ] = self.return_
-    self.jumpTable[RFROM ] = self.rFrom
-    self.jumpTable[TOR   ] = self.toR
-    self.jumpTable[RESET ] = self.reset
-    self.jumpTable[DROP  ] = self.drop
-    self.jumpTable[DUP   ] = self.dup
-    self.jumpTable[OVER  ] = self.over
-    self.jumpTable[SWAP  ] = self.swap
-    self.jumpTable[U8    ] = self.litU8
-    self.jumpTable[U16   ] = self.litU16
-    self.jumpTable[I32   ] = self.litI32
-    self.jumpTable[BFETCH] = self.bFetch
-    self.jumpTable[BSTORE] = self.bStore
-    self.jumpTable[WFETCH] = self.wFetch
-    self.jumpTable[WSTORE] = self.wStore
-    self.jumpTable[FETCH ] = self.fetch
-    self.jumpTable[STORE ] = self.store
+    self.jumpTable[NOP  ] = self.nop
+    self.jumpTable[ADD  ] = self.plus
+    self.jumpTable[SUB  ] = self.minus
+    self.jumpTable[MUL  ] = self.mul
+    self.jumpTable[AND  ] = self.and_
+    self.jumpTable[INV  ] = self.invert
+    self.jumpTable[OR   ] = self.or_
+    self.jumpTable[XOR  ] = self.xor
+    self.jumpTable[SHL  ] = self.shiftLeft
+    self.jumpTable[SHR  ] = self.shiftRightU32
+    self.jumpTable[SHA  ] = self.shiftRightI32
+    self.jumpTable[EQ   ] = self.equal
+    self.jumpTable[GT   ] = self.greater
+    self.jumpTable[LT   ] = self.less
+    self.jumpTable[NE   ] = self.notEq
+    self.jumpTable[ZE   ] = self.zeroEq
+    self.jumpTable[JMP  ] = self.jump
+    self.jumpTable[CALL ] = self.call
+    self.jumpTable[RET  ] = self.return_
+    self.jumpTable[JZ   ] = self.jumpZero
+    self.jumpTable[DRJNN] = self.DecRJumpNotNegative
+    self.jumpTable[RFROM] = self.rFrom
+    self.jumpTable[TOR  ] = self.toR
+    self.jumpTable[RESET] = self.reset
+    self.jumpTable[DROP ] = self.drop
+    self.jumpTable[DUP  ] = self.dup
+    self.jumpTable[OVER ] = self.over
+    self.jumpTable[SWAP ] = self.swap
+    self.jumpTable[U8   ] = self.litU8
+    self.jumpTable[U16  ] = self.litU16
+    self.jumpTable[I32  ] = self.litI32
+    self.jumpTable[BFET ] = self.bFetch
+    self.jumpTable[BSTO ] = self.bStore
+    self.jumpTable[WFET ] = self.wFetch
+    self.jumpTable[WSTO ] = self.wStore
+    self.jumpTable[FET  ] = self.fetch
+    self.jumpTable[STO  ] = self.store
 
   def _setIP(self, addr):
     """Set Instruction Pointer with range check"""
@@ -249,6 +251,33 @@ class VM:
     self._setIP(ip+2)
     # set instruction pointer to the new address
     self.IP = n
+
+  def jumpZero(self):
+    """Jump to address read from instruction stream if T == 0"""
+    if self.DSDeep < 1:
+      self.error = ERR_D_UNDER
+      return
+    # read a 16-bit address from the instruction stream
+    ip = self.IP
+    n = int.from_bytes(self.ram[ip:ip+2], 'little', signed=False)
+    self._setIP(ip+2)
+    # handle conditional jump based on value of T
+    if self.T == 0:
+      self.IP = n   # set instruction pointer to the jump target
+
+  def DecRJumpNotNegative(self):
+    """Decrement R and Jump to address if Not Negative (jump when R>=0)"""
+    if self.RSDeep < 1:
+      self.error = ERR_R_UNDER
+      return
+    # read a 16-bit address from the instruction stream
+    ip = self.IP
+    n = int.from_bytes(self.ram[ip:ip+2], 'little', signed=False)
+    self._setIP(ip+2)
+    # handle conditional jump based on value of R
+    self.R -= 1      # decrement R (loop counter)
+    if self.R >= 0:
+      self.IP = n    # set instruction pointer to the jump target
 
   def less(self):
     """Evaluate S < T (true:-1, false:0), store result in S, drop T"""

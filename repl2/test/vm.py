@@ -6,8 +6,8 @@
 from markab_vm import VM
 from tokens import (
   NOP, ADD, SUB, MUL, AND, INV, OR, XOR, SHL, SHR, SHA, EQ, GT, LT, NE, ZE,
-  JMP, CALL, RET, RFROM, TOR, RESET, DROP, DUP, OVER, SWAP,
-  U8, U16, I32, BFETCH, BSTORE, WFETCH, WSTORE, FETCH, STORE
+  JMP, CALL, RET, JZ, DRJNN, RFROM, TOR, RESET, DROP, DUP, OVER, SWAP,
+  U8, U16, I32, BFET, BSTO, WFET, WSTO, FET, STO
 )
 
 def p(s):
@@ -668,6 +668,42 @@ def test_instruction_decode_call_return():
   v._dotS()
   print()
 
+def test_instruction_decode_jz():
+  v = VM()
+  print("=== test.vm.test_instruction_decode_jz() ===")
+  print("( opcode coverage: JZ                                  )")
+  print("( equivalent to 0 IF{ 7 }IF 0 0= IF{ 8 }IF             )")
+  print("( 256+:  0 1  2 3 4  5 6  7 8  9 10 11 12 13 14  15    )")
+  print("ASM{    U8 0 JZ 7 1 U8 7 U8 0 ZE JZ 15  1 U8  8 RET }ASM")
+  print("(          0 if{       7 }if                           )")
+  print("(                           0 0= if{          8 }if    )")
+  code = bytearray()
+  code.extend([U8, 0, JZ, 7, 1, U8, 7, U8, 0, ZE, JZ, 15, 1, U8, 8, RET])
+  print("warmboot  OK")
+  v._warmBoot(code, max_cycles=99)
+  p(".s                                        (  0 -1 8  OK)")
+  v._dotS()
+  print()
+
+def test_instruction_decode_drjnn_rpush_rpop():
+  v = VM()
+  print("=== test.vm.test_instruction_decode_drjnn_rpush_rpop() ===")
+  print("( opcode coverage: DRJNN TOR RFROM                     )")
+  print("(    equivalent to: 3 for{ i }for                      )")
+  print("( which expands to: 3 >r :FOR r> dup >r jrnz :FOR      )")
+  print("( and assembled at the Boot vector, 256, looks like... )")
+  print("( 256+: 0 1   2        3   4   5     6 7  8     9   10  11)")
+  print("ASM{   U8 3 TOR    RFROM DUP TOR DRJNN 3  1 RFROM DROP RET }ASM")
+  print("(         3 for{               i }FOR                  )")
+  print("(           >r :FOR   r> dup  >r drjnn :FOR    >r drop )")
+  code = bytearray()
+  code.extend([U8, 3, TOR, RFROM, DUP, TOR, DRJNN, 3, 1, RET])
+  print("warmboot  OK")
+  v._warmBoot(code, max_cycles=99)
+  p(".s                                       (  3 2 1 0  OK)")
+  v._dotS()
+  print()
+
 test_push_pop()
 test_plus_minus()
 test_multiply()
@@ -681,3 +717,5 @@ test_over_swap()
 test_instruction_decode_math_logic()
 test_instruction_decode_jump()
 test_instruction_decode_call_return()
+test_instruction_decode_jz()
+test_instruction_decode_drjnn_rpush_rpop()

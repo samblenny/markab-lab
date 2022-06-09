@@ -314,3 +314,25 @@ ASM{ call 7 1 call 10 1 ret U8 9 ret U8  5 ret }ASM
 warmboot  OK
 .s                                           (  9 5  OK)  9 5  OK
 
+=== test.vm.test_instruction_decode_jz() ===
+( opcode coverage: JZ                                  )
+( equivalent to 0 IF{ 7 }IF 0 0= IF{ 8 }IF             )
+( 256+:  0 1  2 3 4  5 6  7 8  9 10 11 12 13 14  15    )
+ASM{    U8 0 JZ 7 1 U8 7 U8 0 ZE JZ 15  1 U8  8 RET }ASM
+(          0 if{       7 }if                           )
+(                           0 0= if{          8 }if    )
+warmboot  OK
+.s                                        (  0 -1 8  OK)  0 -1 8  OK
+
+=== test.vm.test_instruction_decode_drjnn_rpush_rpop() ===
+( opcode coverage: DRJNN TOR RFROM                     )
+(    equivalent to: 3 for{ i }for                      )
+( which expands to: 3 >r :FOR r> dup >r jrnz :FOR      )
+( and assembled at the Boot vector, 256, looks like... )
+( 256+: 0 1   2        3   4   5     6 7  8     9   10  11)
+ASM{   U8 3 TOR    RFROM DUP TOR DRJNN 3  1 RFROM DROP RET }ASM
+(         3 for{               i }FOR                  )
+(           >r :FOR   r> dup  >r drjnn :FOR    >r drop )
+warmboot  OK
+.s                                       (  3 2 1 0  OK)  3 2 1 0  OK
+
