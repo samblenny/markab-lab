@@ -66,7 +66,7 @@ class VM:
     self.jumpTable[CALL ] = self.call
     self.jumpTable[RET  ] = self.return_
     self.jumpTable[JZ   ] = self.jumpZero
-    self.jumpTable[DRJNN] = self.DecRJumpNotNegative
+    self.jumpTable[DRJNN] = self.decRJumpNotNegative
     self.jumpTable[RFROM] = self.rFrom
     self.jumpTable[TOR  ] = self.toR
     self.jumpTable[RESET] = self.reset
@@ -265,7 +265,7 @@ class VM:
     if self.T == 0:
       self.IP = n   # set instruction pointer to the jump target
 
-  def DecRJumpNotNegative(self):
+  def decRJumpNotNegative(self):
     """Decrement R and Jump to address if Not Negative (jump when R>=0)"""
     if self.RSDeep < 1:
       self.error = ERR_R_UNDER
