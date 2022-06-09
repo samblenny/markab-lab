@@ -8,9 +8,9 @@ from ctypes import c_int32
 from typing import Callable, Dict
 
 from tokens import (
-  NOP, ADD, SUB, MUL, AND, INV, OR, XOR, SHL, SHR, SHA, EQ, GT, LT, NE, ZE,
-  JMP, CALL, RET, JZ, DRJNN, RFROM, TOR, RESET, DROP, DUP, OVER, SWAP,
-  U8, U16, I32, BFET, BSTO, WFET, WSTO, FET, STO
+  NOP, ADD, SUB, MUL, AND, INV, OR, XOR, SLL, SRL, SRA, EQ, GT, LT, NE, ZE,
+  JMP, JAL, RET, BZ, DRBLT, MTR, MRT, DROP, DUP, OVER, SWAP,
+  U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET, BREAK
 )
 from mem_map import IO, IOEnd, Boot, BootMax, MemMax
 
@@ -19,7 +19,7 @@ ERR_D_OVER = 1
 ERR_D_UNDER = 2
 ERR_BAD_ADDRESS = 3
 ERR_BOOT_OVERFLOW = 4
-ERR_BAD_TOKEN = 5
+ERR_BAD_INSTRUCTION = 5
 ERR_R_OVER = 6
 ERR_R_UNDER = 7
 
@@ -36,7 +36,7 @@ class VM:
     self.T = 0                      # Top of data stack
     self.S = 0                      # Second on data stack
     self.R = 0                      # top of Return stack
-    self.IP = Boot                  # Instruction Pointer
+    self.PC = Boot                  # Program Counter
     self.Fence = 0                  # Fence between read-only and read/write
     self.DSDeep = 0                 # Data Stack Depth (count include T and S)
     self.RSDeep = 0                 # Return Stack Depth (count inlcudes R)
@@ -47,80 +47,81 @@ class VM:
     # Jump Table for instruction decoder
     self.jumpTable: Dict[int, Callable] = {}
     self.jumpTable[NOP  ] = self.nop
-    self.jumpTable[ADD  ] = self.plus
-    self.jumpTable[SUB  ] = self.minus
-    self.jumpTable[MUL  ] = self.mul
+    self.jumpTable[ADD  ] = self.add
+    self.jumpTable[SUB  ] = self.subtract
+    self.jumpTable[MUL  ] = self.multiply
     self.jumpTable[AND  ] = self.and_
     self.jumpTable[INV  ] = self.invert
     self.jumpTable[OR   ] = self.or_
     self.jumpTable[XOR  ] = self.xor
-    self.jumpTable[SHL  ] = self.shiftLeft
-    self.jumpTable[SHR  ] = self.shiftRightU32
-    self.jumpTable[SHA  ] = self.shiftRightI32
+    self.jumpTable[SLL  ] = self.shift_left_logical
+    self.jumpTable[SRL  ] = self.shift_right_logical     # zero extend
+    self.jumpTable[SRA  ] = self.shift_right_arithmetic  # sign extend
     self.jumpTable[EQ   ] = self.equal
-    self.jumpTable[GT   ] = self.greater
-    self.jumpTable[LT   ] = self.less
-    self.jumpTable[NE   ] = self.notEq
-    self.jumpTable[ZE   ] = self.zeroEq
+    self.jumpTable[GT   ] = self.greater_than
+    self.jumpTable[LT   ] = self.less_than
+    self.jumpTable[NE   ] = self.not_equal
+    self.jumpTable[ZE   ] = self.zero_equal
     self.jumpTable[JMP  ] = self.jump
-    self.jumpTable[CALL ] = self.call
+    self.jumpTable[JAL  ] = self.jump_and_link           # call subroutine
     self.jumpTable[RET  ] = self.return_
-    self.jumpTable[JZ   ] = self.jumpZero
-    self.jumpTable[DRJNN] = self.decRJumpNotNegative
-    self.jumpTable[RFROM] = self.rFrom
-    self.jumpTable[TOR  ] = self.toR
+    self.jumpTable[BZ   ] = self.branch_zero
+    self.jumpTable[DRBLT] = self.dec_r_branch_less_than
+    self.jumpTable[MTR  ] = self.move_t_to_r
+    self.jumpTable[MRT  ] = self.move_r_to_t
     self.jumpTable[RESET] = self.reset
+    self.jumpTable[BREAK] = self.break_
     self.jumpTable[DROP ] = self.drop
     self.jumpTable[DUP  ] = self.dup
     self.jumpTable[OVER ] = self.over
     self.jumpTable[SWAP ] = self.swap
-    self.jumpTable[U8   ] = self.litU8
-    self.jumpTable[U16  ] = self.litU16
-    self.jumpTable[I32  ] = self.litI32
-    self.jumpTable[BFET ] = self.bFetch
-    self.jumpTable[BSTO ] = self.bStore
-    self.jumpTable[WFET ] = self.wFetch
-    self.jumpTable[WSTO ] = self.wStore
-    self.jumpTable[FET  ] = self.fetch
-    self.jumpTable[STO  ] = self.store
+    self.jumpTable[U8   ] = self.u8_literal
+    self.jumpTable[U16  ] = self.u16_literal
+    self.jumpTable[I32  ] = self.i32_literal
+    self.jumpTable[LB   ] = self.load_byte
+    self.jumpTable[SB   ] = self.store_byte
+    self.jumpTable[LH   ] = self.load_halfword
+    self.jumpTable[SH   ] = self.store_halfword
+    self.jumpTable[LW   ] = self.load_word
+    self.jumpTable[SW   ] = self.store_word
 
-  def _setIP(self, addr):
-    """Set Instruction Pointer with range check"""
+  def _set_pc(self, addr):
+    """Set Program Counter with range check"""
     if (addr > MemMax) or (addr > 0xffff):
       self.error = ERR_BAD_ADDRESS
       return
-    self.IP = addr
+    self.PC = addr
 
-  def _nextToken(self):
-    """Get the next token from ram[IP]"""
-    _ip = self.IP
-    self._setIP(_ip+1)
-    return self.ram[_ip]
+  def _next_instruction(self):
+    """Load an instruction from location pointed to by Program Counter (PC)"""
+    pc = self.PC
+    self._set_pc(pc+1)
+    return self.ram[pc]
 
-  def _loadBoot(self, code):
-    """Load bytearray of token code into the Boot..BootMax memory region"""
+  def _load_boot(self, code):
+    """Load byte array of machine code instructions into the Boot memory"""
     n = len(code)
     if n > (BootMax+1)-Boot:
       self.error = ERR_BOOT_OVERFLOW
       return
     self.ram[Boot:Boot+n] = code[0:]
 
-  def _warmBoot(self, code, max_cycles=1):
-    """Load a bytearray of token code into Boot..BootMax, then run it."""
-    self._loadBoot(code)
-    self._setIP(Boot)
+  def _warm_boot(self, code, max_cycles=1):
+    """Load a byte array of machine code into Boot memory, then run it."""
+    self._load_boot(code)
+    self._set_pc(Boot)
     self._step(max_cycles)
 
   def _step(self, max_cycles):
-    """Step the virtual CPU for enough cycles to consume count tokens"""
+    """Step the virtual CPU clock to run up to max_cycles instructions"""
     for _ in range(max_cycles):
-      t = self._nextToken()
+      t = self._next_instruction()
       if self.RSDeep == 0 and t == RET:
         return
       if t in self.jumpTable:
         (self.jumpTable[t])()
       else:
-        self.error = ERR_BAD_TOKEN
+        self.error = ERR_BAD_INSTRUCTION
         return
 
   def _op_st(self, fn):
@@ -160,8 +161,8 @@ class VM:
     """Store bitwise AND of S with T into S, then drop T"""
     self._op_st(lambda s, t: s & t)
 
-  def bFetch(self):
-    """Fetch an unsigned uint8 (1 byte) from memory address T, into T"""
+  def load_byte(self):
+    """Load a uint8 (1 byte) from memory address T, saving result in T"""
     if self.DSDeep < 1:
       self.error = ERR_D_UNDER
       return
@@ -171,8 +172,8 @@ class VM:
       return
     self.T = int.from_bytes(self.ram[addr:addr+1], 'little', signed=False)
 
-  def bStore(self):
-    """Store low bytes from S (uint8) at memory address T"""
+  def store_byte(self):
+    """Store low byte of S (uint8) at memory address T"""
     if self.DSDeep < 2:
       self.error = ERR_D_UNDER
       return
@@ -185,24 +186,24 @@ class VM:
     self.drop()
     self.drop()
 
-  def call(self):
-    """Call subroutine at address read from instruction stream"""
+  def jump_and_link(self):
+    """Jump to subroutine after pushing old value of PC to return stack"""
     if self.RSDeep > 16:
       self.reset()
       self.error = ERR_R_OVER
       return
     # read a 16-bit address from the instruction stream
-    ip = self.IP
-    n = int.from_bytes(self.ram[ip:ip+2], 'little', signed=False)
-    self._setIP(ip+2)
-    # push the current instruction pointer to return stack
+    pc = self.PC
+    n = int.from_bytes(self.ram[pc:pc+2], 'little', signed=False)
+    self._set_pc(pc+2)
+    # push the current Program Counter (PC) to return stack
     if self.RSDeep > 0:
       rSecond = self.RSDeep - 1
-      self.RStack[rSecond] = self.IP
-    self.R = self.IP
+      self.RStack[rSecond] = self.PC
+    self.R = self.PC
     self.RSDeep += 1
-    # set instruction pointer to the new address
-    self.IP = n
+    # set Program Counter to the new address
+    self.PC = n
 
   def drop(self):
     """Drop T, the top item of the data stack"""
@@ -224,8 +225,8 @@ class VM:
     """Evaluate S == T (true:-1, false:0), store result in S, drop T"""
     self._op_st(lambda s, t: -1 if s == t else 0)
 
-  def fetch(self):
-    """Fetch a signed uint32 (4 bytes) from memory address T, into T"""
+  def load_word(self):
+    """Load a signed int32 (word = 4 bytes) from memory address T, into T"""
     if self.DSDeep < 1:
       self.error = ERR_D_UNDER
       return
@@ -235,7 +236,7 @@ class VM:
       return
     self.T = int.from_bytes(self.ram[addr:addr+4], 'little', signed=True)
 
-  def greater(self):
+  def greater_than(self):
     """Evaluate S > T (true:-1, false:0), store result in S, drop T"""
     self._op_st(lambda s, t: -1 if s > t else 0)
 
@@ -246,73 +247,75 @@ class VM:
   def jump(self):
     """Jump to subroutine at address read from instruction stream"""
     # read a 16-bit address from the instruction stream
-    ip = self.IP
-    n = int.from_bytes(self.ram[ip:ip+2], 'little', signed=False)
-    self._setIP(ip+2)
-    # set instruction pointer to the new address
-    self.IP = n
+    pc = self.PC
+    n = int.from_bytes(self.ram[pc:pc+2], 'little', signed=False)
+    self._set_pc(pc+2)
+    # set program counter to the new address
+    self.PC = n
 
-  def jumpZero(self):
-    """Jump to address read from instruction stream if T == 0"""
+  def branch_zero(self):
+    """Branch to address read from instruction stream if T == 0"""
     if self.DSDeep < 1:
       self.error = ERR_D_UNDER
       return
-    # read a 16-bit address from the instruction stream
-    ip = self.IP
-    n = int.from_bytes(self.ram[ip:ip+2], 'little', signed=False)
-    self._setIP(ip+2)
-    # handle conditional jump based on value of T
+    pc = self.PC
     if self.T == 0:
-      self.IP = n   # set instruction pointer to the jump target
+      # Branch past conditional block: Set PC to address literal
+      n = int.from_bytes(self.ram[pc:pc+2], 'little', signed=False)
+      self.PC = n
+    else:
+      # Enter conditional block: Advance PC past address literal
+      self._set_pc(pc+2)
 
-  def decRJumpNotNegative(self):
-    """Decrement R and Jump to address if Not Negative (jump when R>=0)"""
+  def dec_r_branch_less_than(self):
+    """Decrement R and Branch to address if R is Less Than 0"""
     if self.RSDeep < 1:
       self.error = ERR_R_UNDER
       return
-    # read a 16-bit address from the instruction stream
-    ip = self.IP
-    n = int.from_bytes(self.ram[ip:ip+2], 'little', signed=False)
-    self._setIP(ip+2)
-    # handle conditional jump based on value of R
-    self.R -= 1      # decrement R (loop counter)
+    self.R -= 1
+    pc = self.PC
     if self.R >= 0:
-      self.IP = n    # set instruction pointer to the jump target
+      # Keep looping: Set PC to address literal
+      n = int.from_bytes(self.ram[pc:pc+2], 'little', signed=False)
+      self.PC = n
+    else:
+      # End of loop: Advance PC past address literal
+      self._set_pc(pc+2)
 
-  def less(self):
+  def less_than(self):
     """Evaluate S < T (true:-1, false:0), store result in S, drop T"""
     self._op_st(lambda s, t: -1 if s < t else 0)
 
-  def litU16(self):
-    """Read uint16 (2 bytes) from token stream, zero-extend it, push as T"""
-    ip = self.IP
-    n = int.from_bytes(self.ram[ip:ip+2], 'little', signed=False)
-    self._setIP(ip+2)
+  def u16_literal(self):
+    """Read uint16 halfword (2 bytes) literal, zero-extend it, push as T"""
+    pc = self.PC
+    n = int.from_bytes(self.ram[pc:pc+2], 'little', signed=False)
+    self._set_pc(pc+2)
     self._push(n)
 
-  def litI32(self):
-    """Read int32 (4 bytes) from token stream, push as T"""
-    ip = self.IP
-    n = int.from_bytes(self.ram[ip:ip+4], 'little', signed=True)
-    self._setIP(ip+4)
+  def i32_literal(self):
+    """Read int32 word (4 bytes) signed literal, push as T"""
+    pc = self.PC
+    n = int.from_bytes(self.ram[pc:pc+4], 'little', signed=True)
+    self._set_pc(pc+4)
     self._push(n)
 
-  def litU8(self):
-    """Read uint8 (1 byte) from token stream, zero-extend it, push as T"""
-    ip = self.IP
-    n = int.from_bytes(self.ram[ip:ip+1], 'little', signed=False)
-    self._setIP(ip+1)
+  def u8_literal(self):
+    """Read uint8 byte literal, zero-extend it, push as T"""
+    pc = self.PC
+    n = int.from_bytes(self.ram[pc:pc+1], 'little', signed=False)
+    self._set_pc(pc+1)
     self._push(n)
 
-  def minus(self):
+  def subtract(self):
     """Subtract T from S, store result in S, drop T"""
     self._op_st(lambda s, t: s - t)
 
-  def mul(self):
+  def multiply(self):
     """Multiply S by T, store result in S, drop T"""
     self._op_st(lambda s, t: s * t)
 
-  def notEq(self):
+  def not_equal(self):
     """Evaluate S <> T (true:-1, false:0), store result in S, drop T"""
     self._op_st(lambda s, t: -1 if s != t else 0)
 
@@ -328,7 +331,7 @@ class VM:
       return
     self._push(self.S)
 
-  def plus(self):
+  def add(self):
     """Add T to S, store result in S, drop T"""
     self._op_st(lambda s, t: s + t)
 
@@ -344,15 +347,20 @@ class VM:
       self.reset()
       self.error = ERR_R_UNDER
       return
-    # Set instruction pointer from top of return stack
-    self.IP = self.R
+    # Set program counter from top of return stack
+    self.PC = self.R
     # Drop top of return stack
     if self.RSDeep > 1:
       rSecond = self.RSDeep - 2
       self.R = self.RStack[rSecond]
     self.RSDeep -= 1
 
-  def rFrom(self):
+  def break_(self):
+    """Breakpoint: stop normal Program Counter and enter debug mode"""
+    # TODO: figure out how to handle BREAK
+    pass
+
+  def move_r_to_t(self):
     """Move top of return stack (R) to top of data stack (T)"""
     if self.RSDeep < 1:
       self.reset()
@@ -368,22 +376,22 @@ class VM:
       self.R = self.RStack[rSecond]
     self.RSDeep -= 1
 
-  def shiftLeft(self):
+  def shift_left_logical(self):
     """Shift S left by T, store result in S, drop T"""
     self._op_st(lambda s, t: s << t)
 
-  def shiftRightI32(self):
+  def shift_right_arithmetic(self):
     """Signed (arithmetic) shift S right by T, store result in S, drop T"""
     # Python right shift is always an arithmetic (signed) shift
     self._op_st(lambda s, t: s >> t)
 
-  def shiftRightU32(self):
+  def shift_right_logical(self):
     """Unsigned (logic) shift S right by T, store result in S, drop T"""
     # Mask first because Python right shift is always signed
     self._op_st(lambda s, t: (s & 0xffffffff) >> t)
 
-  def store(self):
-    """Store all 4 bytes of S (signed int32) at memory address T"""
+  def store_word(self):
+    """Store word (4 bytes) from S as signed int32 at memory address T"""
     if self.DSDeep < 2:
       self.error = ERR_D_UNDER
       return
@@ -405,7 +413,7 @@ class VM:
     self.T = self.S
     self.S = tmp
 
-  def toR(self):
+  def move_t_to_r(self):
     """Move top of data stack (T) to top of return stack (R)"""
     if self.RSDeep > 16:
       self.reset()
@@ -422,8 +430,8 @@ class VM:
     self.RSDeep += 1
     self.drop()
 
-  def wFetch(self):
-    """Fetch an unsigned uint16 (2 bytes) from memory address T, into T"""
+  def load_halfword(self):
+    """Load halfword (2 bytes, zero-extended) from memory address T, into T"""
     if self.DSDeep < 1:
       self.error = ERR_D_UNDER
       return
@@ -433,7 +441,7 @@ class VM:
       return
     self.T = int.from_bytes(self.ram[addr:addr+2], 'little', signed=False)
 
-  def wStore(self):
+  def store_halfword(self):
     """Store low 2 bytes from S (uint16) at memory address T"""
     if self.DSDeep < 2:
       self.error = ERR_D_UNDER
@@ -451,7 +459,7 @@ class VM:
     """Store bitwise XOR of S with T into S, then drop T"""
     self._op_st(lambda s, t: s ^ t)
 
-  def zeroEq(self):
+  def zero_equal(self):
     """Evaluate 0 == T (true:-1, false:0), store result in T"""
     self._op_t(lambda t: -1 if 0 == t else 0)
 
@@ -463,8 +471,8 @@ class VM:
     """Set debug printing number base to 10"""
     self.base = 10
 
-  def _dotS(self):
-    """Print the data stack in the manner of .S"""
+  def _log_ds(self):
+    """Log (debug print) the data stack in the manner of .S"""
     print(" ", end='')
     deep = self.DSDeep
     if deep > 2:
@@ -488,12 +496,12 @@ class VM:
       print(" Stack is empty", end='')
     if self.error != 0:
       print(f"  ERR{self.error}")
-      self._clearError()
+      self._clear_error()
     else:
       print("  OK")
 
-  def _dotRet(self):
-    """Print the return stack in the manner of .S"""
+  def _log_rs(self):
+    """Log (debug print) the return stack in the manner of .S"""
     print(" ", end='')
     deep = self.RSDeep
     if deep > 1:
@@ -512,10 +520,10 @@ class VM:
       print(" R-Stack is empty", end='')
     if self.error != 0:
       print(f"  ERR{self.error}")
-      self._clearError()
+      self._clear_error()
     else:
       print("  OK")
 
-  def _clearError(self):
+  def _clear_error(self):
     """Clear VM error status code"""
     self.error = 0

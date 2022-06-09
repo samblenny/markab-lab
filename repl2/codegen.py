@@ -11,7 +11,7 @@ FS_OUTFILE_MEM = "mem_map.fs"
 PY_OUTFILE_MEM = "mem_map.py"
 
 TOKENS = """
-nop Nop
+nop NOP
 + ADD
 - SUB
 * MUL
@@ -19,22 +19,21 @@ nop Nop
 ~ INV
 | OR
 ^ XOR
-<< SHL
->> SHR
->>> SHA
+<< SLL
+>> SRL
+>>> SRA
 = EQ
 > GT
 < LT
 <> NE
 0= ZE
 <ASM> JMP
-<ASM> CALL
+<ASM> JAL
 ; RET
-<ASM> JZ
-<ASM> DRJNN
-r> RFROM
->r TOR
-reset RESET
+<ASM> BZ
+<ASM> DRBLT
+r> MRT
+>r MTR
 drop DROP
 dup DUP
 over OVER
@@ -42,12 +41,14 @@ swap SWAP
 <ASM> U8
 <ASM> U16
 <ASM> I32
-b@ BFET
-b! BSTO
-w@ WFET
-w! WSTO
-@ FET
-! STO
+b@ LB
+b! SB
+h@ LH
+h! SH
+w@ LW
+w! SW
+reset RESET
+break BREAK
 """
 
 MEMORY_MAP = """

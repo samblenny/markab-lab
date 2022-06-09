@@ -6,7 +6,7 @@
 # See codegen.py for details
 
 OPCODE_FOR_TOKEN = {
-  0: 'Nop',
+  0: 'NOP',
   1: 'ADD',
   2: 'SUB',
   3: 'MUL',
@@ -14,39 +14,40 @@ OPCODE_FOR_TOKEN = {
   5: 'INV',
   6: 'OR',
   7: 'XOR',
-  8: 'SHL',
-  9: 'SHR',
-  10: 'SHA',
+  8: 'SLL',
+  9: 'SRL',
+  10: 'SRA',
   11: 'EQ',
   12: 'GT',
   13: 'LT',
   14: 'NE',
   15: 'ZE',
   16: 'JMP',
-  17: 'CALL',
+  17: 'JAL',
   18: 'RET',
-  19: 'JZ',
-  20: 'DRJNN',
-  21: 'RFROM',
-  22: 'TOR',
-  23: 'RESET',
-  24: 'DROP',
-  25: 'DUP',
-  26: 'OVER',
-  27: 'SWAP',
-  28: 'U8',
-  29: 'U16',
-  30: 'I32',
-  31: 'BFET',
-  32: 'BSTO',
-  33: 'WFET',
-  34: 'WSTO',
-  35: 'FET',
-  36: 'STO',
+  19: 'BZ',
+  20: 'DRBLT',
+  21: 'MRT',
+  22: 'MTR',
+  23: 'DROP',
+  24: 'DUP',
+  25: 'OVER',
+  26: 'SWAP',
+  27: 'U8',
+  28: 'U16',
+  29: 'I32',
+  30: 'LB',
+  31: 'SB',
+  32: 'LH',
+  33: 'SH',
+  34: 'LW',
+  35: 'SW',
+  36: 'RESET',
+  37: 'BREAK',
 }
 
 TOKEN_FOR_OPCODE = {
-  'Nop': 0,
+  'NOP': 0,
   'ADD': 1,
   'SUB': 2,
   'MUL': 3,
@@ -54,35 +55,36 @@ TOKEN_FOR_OPCODE = {
   'INV': 5,
   'OR': 6,
   'XOR': 7,
-  'SHL': 8,
-  'SHR': 9,
-  'SHA': 10,
+  'SLL': 8,
+  'SRL': 9,
+  'SRA': 10,
   'EQ': 11,
   'GT': 12,
   'LT': 13,
   'NE': 14,
   'ZE': 15,
   'JMP': 16,
-  'CALL': 17,
+  'JAL': 17,
   'RET': 18,
-  'JZ': 19,
-  'DRJNN': 20,
-  'RFROM': 21,
-  'TOR': 22,
-  'RESET': 23,
-  'DROP': 24,
-  'DUP': 25,
-  'OVER': 26,
-  'SWAP': 27,
-  'U8': 28,
-  'U16': 29,
-  'I32': 30,
-  'BFET': 31,
-  'BSTO': 32,
-  'WFET': 33,
-  'WSTO': 34,
-  'FET': 35,
-  'STO': 36,
+  'BZ': 19,
+  'DRBLT': 20,
+  'MRT': 21,
+  'MTR': 22,
+  'DROP': 23,
+  'DUP': 24,
+  'OVER': 25,
+  'SWAP': 26,
+  'U8': 27,
+  'U16': 28,
+  'I32': 29,
+  'LB': 30,
+  'SB': 31,
+  'LH': 32,
+  'SH': 33,
+  'LW': 34,
+  'SW': 35,
+  'RESET': 36,
+  'BREAK': 37,
 }
 
 NOP    =  0
@@ -93,35 +95,36 @@ AND    =  4
 INV    =  5
 OR     =  6
 XOR    =  7
-SHL    =  8
-SHR    =  9
-SHA    = 10
+SLL    =  8
+SRL    =  9
+SRA    = 10
 EQ     = 11
 GT     = 12
 LT     = 13
 NE     = 14
 ZE     = 15
 JMP    = 16
-CALL   = 17
+JAL    = 17
 RET    = 18
-JZ     = 19
-DRJNN  = 20
-RFROM  = 21
-TOR    = 22
-RESET  = 23
-DROP   = 24
-DUP    = 25
-OVER   = 26
-SWAP   = 27
-U8     = 28
-U16    = 29
-I32    = 30
-BFET   = 31
-BSTO   = 32
-WFET   = 33
-WSTO   = 34
-FET    = 35
-STO    = 36
+BZ     = 19
+DRBLT  = 20
+MRT    = 21
+MTR    = 22
+DROP   = 23
+DUP    = 24
+OVER   = 25
+SWAP   = 26
+U8     = 27
+U16    = 28
+I32    = 29
+LB     = 30
+SB     = 31
+LH     = 32
+SH     = 33
+LW     = 34
+SW     = 35
+RESET  = 36
+BREAK  = 37
 
 def get_opcode(token):
   return OPCODE_FOR_TOKEN[token]

@@ -5,7 +5,7 @@
 ( ===      See codegen.py for details      ===)
 
 ( MarkabVM virtual CPU opcode tokens)
- 0 const Nop
+ 0 const NOP
  1 const ADD
  2 const SUB
  3 const MUL
@@ -13,38 +13,39 @@
  5 const INV
  6 const OR
  7 const XOR
- 8 const SHL
- 9 const SHR
-10 const SHA
+ 8 const SLL
+ 9 const SRL
+10 const SRA
 11 const EQ
 12 const GT
 13 const LT
 14 const NE
 15 const ZE
 16 const JMP
-17 const CALL
+17 const JAL
 18 const RET
-19 const JZ
-20 const DRJNN
-21 const RFROM
-22 const TOR
-23 const RESET
-24 const DROP
-25 const DUP
-26 const OVER
-27 const SWAP
-28 const U8
-29 const U16
-30 const I32
-31 const BFET
-32 const BSTO
-33 const WFET
-34 const WSTO
-35 const FET
-36 const STO
+19 const BZ
+20 const DRBLT
+21 const MRT
+22 const MTR
+23 const DROP
+24 const DUP
+25 const OVER
+26 const SWAP
+27 const U8
+28 const U16
+29 const I32
+30 const LB
+31 const SB
+32 const LH
+33 const SH
+34 const LW
+35 const SW
+36 const RESET
+37 const BREAK
 
 ( MarkabForth core vocabulary)
-: nop   tok> Nop ;
+: nop   tok> NOP ;
 : +     tok> ADD ;
 : -     tok> SUB ;
 : *     tok> MUL ;
@@ -52,25 +53,26 @@
 : ~     tok> INV ;
 : |     tok> OR ;
 : ^     tok> XOR ;
-: <<    tok> SHL ;
-: >>    tok> SHR ;
-: >>>   tok> SHA ;
+: <<    tok> SLL ;
+: >>    tok> SRL ;
+: >>>   tok> SRA ;
 : =     tok> EQ ;
 : >     tok> GT ;
 : <     tok> LT ;
 : <>    tok> NE ;
 : 0=    tok> ZE ;
 : ;     tok> RET ;
-: r>    tok> RFROM ;
-: >r    tok> TOR ;
-: reset tok> RESET ;
+: r>    tok> MRT ;
+: >r    tok> MTR ;
 : drop  tok> DROP ;
 : dup   tok> DUP ;
 : over  tok> OVER ;
 : swap  tok> SWAP ;
-: b@    tok> BFET ;
-: b!    tok> BSTO ;
-: w@    tok> WFET ;
-: w!    tok> WSTO ;
-: @     tok> FET ;
-: !     tok> STO ;
+: b@    tok> LB ;
+: b!    tok> SB ;
+: h@    tok> LH ;
+: h!    tok> SH ;
+: w@    tok> LW ;
+: w!    tok> SW ;
+: reset tok> RESET ;
+: break tok> BREAK ;
