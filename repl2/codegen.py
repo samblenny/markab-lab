@@ -27,8 +27,8 @@ nop Nop
 < LT
 <> NE
 0= ZE
-<ASM> Call
 <ASM> Jmp
+<ASM> Call
 ; Ret
 r> RFrom
 >r ToR

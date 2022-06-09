@@ -6,7 +6,7 @@
 from markab_vm import VM
 from tokens import (
   NOP, ADD, SUB, MUL, AND, INV, OR, XOR, SHL, SHR, SHA, EQ, GT, LT, NE, ZE,
-  CALL, JMP, RET, RFROM, TOR, RESET, DROP, DUP, OVER, SWAP,
+  JMP, CALL, RET, RFROM, TOR, RESET, DROP, DUP, OVER, SWAP,
   U8, U16, I32, BFETCH, BSTORE, WFETCH, WSTORE, FETCH, STORE
 )
 
@@ -543,43 +543,6 @@ def test_over_swap():
   v._dotS()
   print()
 
-def test_call_return():
-  v = VM()
-  print("=== test.vm.test_call_return() ===")
-  print("( assemble tokens to memory starting at Boot vector 256)")
-  print("( 256+ 0: Call 256+7=0x0107, or [7, 1] little endian   )")
-  print("( 256+ 3: Call 256+10=0x010A, or [10, 1] little endian )")
-  print("( 256+ 6: Return                                       )")
-  print("( 256+ 7: Subroutine: push 9 to data stack, return     )")
-  print("( 256+10: Subroutine: push 5 to data stack, return     )")
-  print("(   256+:   0 1 2    3  4 5   6    7 8   9   10 11  12 )")
-  print("ASM{ call 7 1 call 10 1 ret U8 9 ret U8  5 ret }ASM")
-  code = bytearray()
-  code.extend([CALL, 7, 1, CALL, 10, 1, RET, U8, 9, RET, U8, 5, RET])
-  v._warmBoot(code, max_cycles=7)  # call U8 ret call U8 ret ret
-  print("warmboot  OK")
-  p(".s                                           (  9 5  OK)")
-  v._dotS()
-  print()
-
-def test_jump_return():
-  v = VM()
-  print("=== test.vm.test_jump_return() ===")
-  print("( assemble tokens to memory starting at Boot vector 256)")
-  print("( 256+0: push 5                                        )")
-  print("( 256+2: jump to 256+8                                 )")
-  print("( 256+5: push 6, return                                )")
-  print("( 256+8: push 7, jump to 256+5                         )")
-  print("(   256+:   0 1   2 3 4    5 6   7    8 9  10 11 12    )")
-  print("ASM{ U8 5 jmp 8 1 U8 6 ret U8 7 jmp  5  1 }ASM")
-  code = bytearray()
-  code.extend([U8, 5, JMP, 8, 1, U8, 6, RET, U8, 7, JMP, 5, 1])
-  v._warmBoot(code, max_cycles=6)  # U8 jmp U8 jmp U8 ret
-  print("warmboot  OK")
-  p(".s                                         (  5 7 6  OK)")
-  v._dotS()
-  print()
-
 def test_instruction_decode_math_logic():
   v = VM()
   print("=== test.vm.test_instruction_decode_math_logic() ===")
@@ -666,6 +629,45 @@ def test_instruction_decode_math_logic():
   v.reset()
   print()
 
+def test_instruction_decode_jump():
+  v = VM()
+  print("=== test.vm.test_instruction_decode_jump() ===")
+  print("( opcode coverage: JMP                                 )")
+  print("( assemble tokens to memory starting at Boot vector 256)")
+  print("( 256+0: push 5                                        )")
+  print("( 256+2: jump to 256+8                                 )")
+  print("( 256+5: push 6, return                                )")
+  print("( 256+8: push 7, jump to 256+5                         )")
+  print("(   256+:   0 1   2 3 4    5 6   7    8 9  10 11 12    )")
+  print("ASM{ U8 5 jmp 8 1 U8 6 ret U8 7 jmp  5  1 }ASM")
+  code = bytearray()
+  code.extend([U8, 5, JMP, 8, 1, U8, 6, RET, U8, 7, JMP, 5, 1])
+  v._warmBoot(code, max_cycles=6)  # U8 jmp U8 jmp U8 ret
+  print("warmboot  OK")
+  p(".s                                         (  5 7 6  OK)")
+  v._dotS()
+  print()
+
+def test_instruction_decode_call_return():
+  v = VM()
+  print("=== test.vm.test_instruction_decode_call_return() ===")
+  print("( opcode coverage: CALL RET                            )")
+  print("( assemble tokens to memory starting at Boot vector 256)")
+  print("( 256+ 0: Call 256+7=0x0107, or [7, 1] little endian   )")
+  print("( 256+ 3: Call 256+10=0x010A, or [10, 1] little endian )")
+  print("( 256+ 6: Return                                       )")
+  print("( 256+ 7: Subroutine: push 9 to data stack, return     )")
+  print("( 256+10: Subroutine: push 5 to data stack, return     )")
+  print("(   256+:   0 1 2    3  4 5   6    7 8   9   10 11  12 )")
+  print("ASM{ call 7 1 call 10 1 ret U8 9 ret U8  5 ret }ASM")
+  code = bytearray()
+  code.extend([CALL, 7, 1, CALL, 10, 1, RET, U8, 9, RET, U8, 5, RET])
+  v._warmBoot(code, max_cycles=7)  # call U8 ret call U8 ret ret
+  print("warmboot  OK")
+  p(".s                                           (  9 5  OK)")
+  v._dotS()
+  print()
+
 test_push_pop()
 test_plus_minus()
 test_multiply()
@@ -676,6 +678,6 @@ test_store_fetch()
 test_return_stack()
 test_comparisons()
 test_over_swap()
-test_call_return()
-test_jump_return()
 test_instruction_decode_math_logic()
+test_instruction_decode_jump()
+test_instruction_decode_call_return()

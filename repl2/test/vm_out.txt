@@ -244,29 +244,6 @@ reset  -1 0=    0 0=    1 0=  .s   (  0 -1 0  OK)  0 -1 0  OK
 1 2 over .s                         (  1 2 1  OK)  1 2 1  OK
 swap .s                             (  1 1 2  OK)  1 1 2  OK
 
-=== test.vm.test_call_return() ===
-( assemble tokens to memory starting at Boot vector 256)
-( 256+ 0: Call 256+7=0x0107, or [7, 1] little endian   )
-( 256+ 3: Call 256+10=0x010A, or [10, 1] little endian )
-( 256+ 6: Return                                       )
-( 256+ 7: Subroutine: push 9 to data stack, return     )
-( 256+10: Subroutine: push 5 to data stack, return     )
-(   256+:   0 1 2    3  4 5   6    7 8   9   10 11  12 )
-ASM{ call 7 1 call 10 1 ret U8 9 ret U8  5 ret }ASM
-warmboot  OK
-.s                                           (  9 5  OK)  9 5  OK
-
-=== test.vm.test_jump_return() ===
-( assemble tokens to memory starting at Boot vector 256)
-( 256+0: push 5                                        )
-( 256+2: jump to 256+8                                 )
-( 256+5: push 6, return                                )
-( 256+8: push 7, jump to 256+5                         )
-(   256+:   0 1   2 3 4    5 6   7    8 9  10 11 12    )
-ASM{ U8 5 jmp 8 1 U8 6 ret U8 7 jmp  5  1 }ASM
-warmboot  OK
-.s                                         (  5 7 6  OK)  5 7 6  OK
-
 === test.vm.test_instruction_decode_math_logic() ===
 ( opcode coverage: NOP ADD SUB MUL                     )
 ( equivalent to: 1 dup + dup 9 - dup *                 )
@@ -311,4 +288,29 @@ reset  OK
 ASM{ i32 255 255 255 255 ze  u8 0 ze  u8 1 ze  ret }ASM
 warmboot .s                               (  0 -1 0  OK)  0 -1 0  OK
 reset  OK
+
+=== test.vm.test_instruction_decode_jump() ===
+( opcode coverage: JMP                                 )
+( assemble tokens to memory starting at Boot vector 256)
+( 256+0: push 5                                        )
+( 256+2: jump to 256+8                                 )
+( 256+5: push 6, return                                )
+( 256+8: push 7, jump to 256+5                         )
+(   256+:   0 1   2 3 4    5 6   7    8 9  10 11 12    )
+ASM{ U8 5 jmp 8 1 U8 6 ret U8 7 jmp  5  1 }ASM
+warmboot  OK
+.s                                         (  5 7 6  OK)  5 7 6  OK
+
+=== test.vm.test_instruction_decode_call_return() ===
+( opcode coverage: CALL RET                            )
+( assemble tokens to memory starting at Boot vector 256)
+( 256+ 0: Call 256+7=0x0107, or [7, 1] little endian   )
+( 256+ 3: Call 256+10=0x010A, or [10, 1] little endian )
+( 256+ 6: Return                                       )
+( 256+ 7: Subroutine: push 9 to data stack, return     )
+( 256+10: Subroutine: push 5 to data stack, return     )
+(   256+:   0 1 2    3  4 5   6    7 8   9   10 11  12 )
+ASM{ call 7 1 call 10 1 ret U8 9 ret U8  5 ret }ASM
+warmboot  OK
+.s                                           (  9 5  OK)  9 5  OK
 

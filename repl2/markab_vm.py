@@ -9,7 +9,7 @@ from typing import Callable, Dict
 
 from tokens import (
   NOP, ADD, SUB, MUL, AND, INV, OR, XOR, SHL, SHR, SHA, EQ, GT, LT, NE, ZE,
-  CALL, JMP, RET, RFROM, TOR, RESET, DROP, DUP, OVER, SWAP,
+  JMP, CALL, RET, RFROM, TOR, RESET, DROP, DUP, OVER, SWAP,
   U8, U16, I32, BFETCH, BSTORE, WFETCH, WSTORE, FETCH, STORE
 )
 from mem_map import IO, IOEnd, Boot, BootMax, MemMax
@@ -62,8 +62,8 @@ class VM:
     self.jumpTable[LT    ] = self.less
     self.jumpTable[NE    ] = self.notEq
     self.jumpTable[ZE    ] = self.zeroEq
-    self.jumpTable[CALL  ] = self.call
     self.jumpTable[JMP   ] = self.jump
+    self.jumpTable[CALL  ] = self.call
     self.jumpTable[RET   ] = self.return_
     self.jumpTable[RFROM ] = self.rFrom
     self.jumpTable[TOR   ] = self.toR

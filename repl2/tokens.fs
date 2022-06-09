@@ -21,8 +21,8 @@
 13 const LT
 14 const NE
 15 const ZE
-16 const Call
-17 const Jmp
+16 const Jmp
+17 const Call
 18 const Ret
 19 const RFrom
 20 const ToR

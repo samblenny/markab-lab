@@ -22,8 +22,8 @@ OPCODE_FOR_TOKEN = {
   13: 'LT',
   14: 'NE',
   15: 'ZE',
-  16: 'Call',
-  17: 'Jmp',
+  16: 'Jmp',
+  17: 'Call',
   18: 'Ret',
   19: 'RFrom',
   20: 'ToR',
@@ -60,8 +60,8 @@ TOKEN_FOR_OPCODE = {
   'LT': 13,
   'NE': 14,
   'ZE': 15,
-  'Call': 16,
-  'Jmp': 17,
+  'Jmp': 16,
+  'Call': 17,
   'Ret': 18,
   'RFrom': 19,
   'ToR': 20,
@@ -97,8 +97,8 @@ GT     = 12
 LT     = 13
 NE     = 14
 ZE     = 15
-CALL   = 16
-JMP    = 17
+JMP    = 16
+CALL   = 17
 RET    = 18
 RFROM  = 19
 TOR    = 20
