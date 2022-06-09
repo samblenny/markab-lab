@@ -5,8 +5,13 @@
 # MarkabForth VM emulator
 #
 from ctypes import c_int32
+from typing import Callable, Dict
 
-from tokens  import (LIT1, LIT2, LIT4, JMP, CALL, RET)
+from tokens import (
+  NOP, ADD, SUB, MUL, AND, INV, OR, XOR, SHL, SHR, SHA, EQ, GT, LT, NE, ZE,
+  CALL, JMP, RET, RFROM, TOR, RESET, DROP, DUP, OVER, SWAP,
+  U8, U16, I32, BFETCH, BSTORE, WFETCH, WSTORE, FETCH, STORE
+)
 from mem_map import IO, IOEnd, Boot, BootMax, MemMax
 
 ROM_FILE = 'kernel.bin'
@@ -38,6 +43,44 @@ class VM:
     self.DStack = [0] * 16          # Data Stack
     self.RStack = [0] * 16          # Return Stack
     self.ram = bytearray(MemMax+1)  # Random Access Memory
+    #
+    # Jump Table for instruction decoder
+    self.jumpTable: Dict[int, Callable] = {}
+    self.jumpTable[NOP   ] = self.nop
+    self.jumpTable[ADD   ] = self.plus
+    self.jumpTable[SUB   ] = self.minus
+    self.jumpTable[MUL   ] = self.mul
+    self.jumpTable[AND   ] = self.and_
+    self.jumpTable[INV   ] = self.invert
+    self.jumpTable[OR    ] = self.or_
+    self.jumpTable[XOR   ] = self.xor
+    self.jumpTable[SHL   ] = self.shiftLeft
+    self.jumpTable[SHR   ] = self.shiftRightU32
+    self.jumpTable[SHA   ] = self.shiftRightI32
+    self.jumpTable[EQ    ] = self.equal
+    self.jumpTable[GT    ] = self.greater
+    self.jumpTable[LT    ] = self.less
+    self.jumpTable[NE    ] = self.notEq
+    self.jumpTable[ZE    ] = self.zeroEq
+    self.jumpTable[CALL  ] = self.call
+    self.jumpTable[JMP   ] = self.jump
+    self.jumpTable[RET   ] = self.return_
+    self.jumpTable[RFROM ] = self.rFrom
+    self.jumpTable[TOR   ] = self.toR
+    self.jumpTable[RESET ] = self.reset
+    self.jumpTable[DROP  ] = self.drop
+    self.jumpTable[DUP   ] = self.dup
+    self.jumpTable[OVER  ] = self.over
+    self.jumpTable[SWAP  ] = self.swap
+    self.jumpTable[U8    ] = self.litU8
+    self.jumpTable[U16   ] = self.litU16
+    self.jumpTable[I32   ] = self.litI32
+    self.jumpTable[BFETCH] = self.bFetch
+    self.jumpTable[BSTORE] = self.bStore
+    self.jumpTable[WFETCH] = self.wFetch
+    self.jumpTable[WSTORE] = self.wStore
+    self.jumpTable[FETCH ] = self.fetch
+    self.jumpTable[STORE ] = self.store
 
   def _setIP(self, addr):
     """Set Instruction Pointer with range check"""
@@ -70,21 +113,10 @@ class VM:
     """Step the virtual CPU for enough cycles to consume count tokens"""
     for _ in range(max_cycles):
       t = self._nextToken()
-      if t == LIT1:
-        self.litU8()
-      elif t == LIT2:
-        self.litU16()
-      elif t == LIT4:
-        self.litI32()
-      elif t == CALL:
-        self.call()
-      elif t == JMP:
-        self.jump()
-      elif t == RET:
-        if self.RSDeep == 0:
-          return
-        else:
-          self.return_()
+      if self.RSDeep == 0 and t == RET:
+        return
+      if t in self.jumpTable:
+        (self.jumpTable[t])()
       else:
         self.error = ERR_BAD_TOKEN
         return

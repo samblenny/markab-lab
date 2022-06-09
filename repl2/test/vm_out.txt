@@ -252,7 +252,7 @@ swap .s                             (  1 1 2  OK)  1 1 2  OK
 ( 256+ 7: Subroutine: push 9 to data stack, return     )
 ( 256+10: Subroutine: push 5 to data stack, return     )
 (   256+:   0 1 2    3  4 5   6    7 8   9   10 11  12 )
-256 ASM{ call 7 1 call 10 1 ret lit1 9 ret lit1  5 ret }ASM
+ASM{ call 7 1 call 10 1 ret U8 9 ret U8  5 ret }ASM
 warmboot  OK
 .s                                           (  9 5  OK)  9 5  OK
 
@@ -263,7 +263,52 @@ warmboot  OK
 ( 256+5: push 6, return                                )
 ( 256+8: push 7, jump to 256+5                         )
 (   256+:   0 1   2 3 4    5 6   7    8 9  10 11 12    )
-256 ASM{ lit1 5 jmp 8 1 lit1 6 ret lit1 7 jmp  5  1 }ASM
+ASM{ U8 5 jmp 8 1 U8 6 ret U8 7 jmp  5  1 }ASM
 warmboot  OK
 .s                                         (  5 7 6  OK)  5 7 6  OK
+
+=== test.vm.test_instruction_decode_math_logic() ===
+( opcode coverage: NOP ADD SUB MUL                     )
+( equivalent to: 1 dup + dup 9 - dup *                 )
+ASM{ nop U8 1 dup add dup U8 9 sub dup mul ret }ASM
+warmboot  OK
+.s                                          (  2 49  OK)  2 49  OK
+reset  OK
+( opcode coverage: AND INV OR XOR                      )
+( equivalent to: hex 55 ~ 7f and dup 80 or 0f xor      )
+ASM{ U8 85 inv U8 127 and dup U8 128 or U8 15 xor ret }ASM
+warmboot  OK
+hex .s decimal                             (  2a a5  OK)  2a a5  OK
+reset  OK
+( opcode coverage: SHL SHR SHA                         )
+( equivalent to: 1 31 << dup 15 >>> dup 16 >>          )
+ASM{  ret }ASM
+warmboot  OK
+hex .s decimal             (  8000000 ffff0000 ffff  OK)  80000000 ffff0000 ffff  OK
+reset  OK
+( opcode coverage: EQ                                  )
+( equivalent to: 1 2 =     2 2 =   2 1 =               )
+ASM{ u8 1 u8 2 eq  u8 2 u8 2 eq  u8 2 u8 1 eq  ret }ASM
+warmboot .s                               (  0 -1 0  OK)  0 -1 0  OK
+reset  OK
+( opcode coverage: GT                                  )
+( equivalent to: 1 2 >     2 2 >   2 1 >               )
+ASM{ u8 1 u8 2 gt  u8 2 u8 2 gt  u8 2 u8 1 gt  ret }ASM
+warmboot .s                               (  0 0 -1  OK)  0 0 -1  OK
+reset  OK
+( opcode coverage: LT                                  )
+( equivalent to: 1 2 <     2 2 <   2 1 <               )
+ASM{ u8 1 u8 2 lt  u8 2 u8 2 lt  u8 2 u8 1 lt  ret }ASM
+warmboot .s                               (  -1 0 0  OK)  -1 0 0  OK
+reset  OK
+( opcode coverage: NE                                  )
+( equivalent to: 1 2 <>    2 2 <>  2 1 <>              )
+ASM{ u8 1 u8 2 ne  u8 2 u8 2 ne  u8 2 u8 1 ne  ret }ASM
+warmboot .s                              (  -1 0 -1  OK)  -1 0 -1  OK
+reset  OK
+( opcode coverage: ZE                                  )
+( equivalent to:  -1 0=    0 0=      1 0=              )
+ASM{ i32 255 255 255 255 ze  u8 0 ze  u8 1 ze  ret }ASM
+warmboot .s                               (  0 -1 0  OK)  0 -1 0  OK
+reset  OK
 

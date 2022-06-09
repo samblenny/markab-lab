@@ -19,8 +19,8 @@
 11 const Eq
 12 const GT
 13 const LT
-14 const NEq
-15 const ZEq
+14 const NE
+15 const ZE
 16 const Call
 17 const Jmp
 18 const Ret
@@ -31,9 +31,9 @@
 23 const Dup
 24 const Over
 25 const Swap
-26 const Lit1
-27 const Lit2
-28 const Lit4
+26 const U8
+27 const U16
+28 const I32
 29 const BFetch
 30 const BStore
 31 const WFetch
@@ -56,8 +56,8 @@
 : =     tok> Eq ;
 : >     tok> GT ;
 : <     tok> LT ;
-: <>    tok> NEq ;
-: 0=    tok> ZEq ;
+: <>    tok> NE ;
+: 0=    tok> ZE ;
 : ;     tok> Ret ;
 : r>    tok> RFrom ;
 : >r    tok> ToR ;

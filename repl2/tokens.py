@@ -20,8 +20,8 @@ OPCODE_FOR_TOKEN = {
   11: 'Eq',
   12: 'GT',
   13: 'LT',
-  14: 'NEq',
-  15: 'ZEq',
+  14: 'NE',
+  15: 'ZE',
   16: 'Call',
   17: 'Jmp',
   18: 'Ret',
@@ -32,9 +32,9 @@ OPCODE_FOR_TOKEN = {
   23: 'Dup',
   24: 'Over',
   25: 'Swap',
-  26: 'Lit1',
-  27: 'Lit2',
-  28: 'Lit4',
+  26: 'U8',
+  27: 'U16',
+  28: 'I32',
   29: 'BFetch',
   30: 'BStore',
   31: 'WFetch',
@@ -58,8 +58,8 @@ TOKEN_FOR_OPCODE = {
   'Eq': 11,
   'GT': 12,
   'LT': 13,
-  'NEq': 14,
-  'ZEq': 15,
+  'NE': 14,
+  'ZE': 15,
   'Call': 16,
   'Jmp': 17,
   'Ret': 18,
@@ -70,9 +70,9 @@ TOKEN_FOR_OPCODE = {
   'Dup': 23,
   'Over': 24,
   'Swap': 25,
-  'Lit1': 26,
-  'Lit2': 27,
-  'Lit4': 28,
+  'U8': 26,
+  'U16': 27,
+  'I32': 28,
   'BFetch': 29,
   'BStore': 30,
   'WFetch': 31,
@@ -95,8 +95,8 @@ SHA    = 10
 EQ     = 11
 GT     = 12
 LT     = 13
-NEQ    = 14
-ZEQ    = 15
+NE     = 14
+ZE     = 15
 CALL   = 16
 JMP    = 17
 RET    = 18
@@ -107,9 +107,9 @@ DROP   = 22
 DUP    = 23
 OVER   = 24
 SWAP   = 25
-LIT1   = 26
-LIT2   = 27
-LIT4   = 28
+U8     = 26
+U16    = 27
+I32    = 28
 BFETCH = 29
 BSTORE = 30
 WFETCH = 31

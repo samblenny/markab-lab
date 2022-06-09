@@ -25,8 +25,8 @@ nop Nop
 = Eq
 > GT
 < LT
-<> NEq
-0= ZEq
+<> NE
+0= ZE
 <ASM> Call
 <ASM> Jmp
 ; Ret
@@ -37,9 +37,9 @@ drop Drop
 dup Dup
 over Over
 swap Swap
-<ASM> Lit1
-<ASM> Lit2
-<ASM> Lit4
+<ASM> U8
+<ASM> U16
+<ASM> I32
 b@ BFetch
 b! BStore
 w@ WFetch
