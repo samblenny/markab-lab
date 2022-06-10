@@ -44,13 +44,13 @@ These ideas are not new -- many others are working in similar directions.
    non-latin glyphs. Imagine a language tutor game where you match illustrations
    or sound clips with Kanji ideograms -- that would be a multi-media program.
 
-4. **Programming environment**: A programming environment is an ecosystem of
+4. **Programming Environment**: A programming environment is an ecosystem of
    tools and documentation for making programs. For text, you need a text
-   editor, compiler or interpreter, and a runtime environment (e.g. VM). For
-   sound, you also need tools for working with audio samples and maybe MIDI
-   notes, effects, filters, or synthesizer parameters. For 2D graphics you might
-   need editors for sprites, color themes, font glyphs, vector images, or
-   raster images.
+   editor, compiler or interpreter, and a runtime environment (VM). For sound,
+   you also need tools for working with audio samples and maybe MIDI notes,
+   effects, filters, or synthesizer parameters. For 2D graphics you might need
+   editors for sprites, color themes, font glyphs, vector images, or raster
+   images.
 
 
 ## Source Code Contents
