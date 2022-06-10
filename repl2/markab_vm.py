@@ -69,8 +69,6 @@ class VM:
     self.jumpTable[DRBLT] = self.dec_r_branch_less_than
     self.jumpTable[MTR  ] = self.move_t_to_r
     self.jumpTable[MRT  ] = self.move_r_to_t
-    self.jumpTable[RESET] = self.reset
-    self.jumpTable[BREAK] = self.break_
     self.jumpTable[DROP ] = self.drop
     self.jumpTable[DUP  ] = self.dup
     self.jumpTable[OVER ] = self.over
@@ -84,6 +82,8 @@ class VM:
     self.jumpTable[SH   ] = self.store_halfword
     self.jumpTable[LW   ] = self.load_word
     self.jumpTable[SW   ] = self.store_word
+    self.jumpTable[RESET] = self.reset
+    self.jumpTable[BREAK] = self.break_
 
   def _set_pc(self, addr):
     """Set Program Counter with range check"""

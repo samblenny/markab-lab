@@ -336,3 +336,48 @@ ASM{   U8 3 MTR    MRT DUP MTR DRBLT 3  1 RTT DROP RET }ASM
 warmboot  OK
 .s                                       (  3 2 1 0  OK)  3 2 1 0  OK
 
+( opcode coverage: DROP DUP OVER SWAP   )
+( equivalent to: 1 2 over dup drop swap )
+ASM{ u8 1 u8 255 over dup drop swap }ASM
+warmboot .s                              (  1 1 255  OK)  1 1 255  OK
+reset  OK
+
+== vm.test.test_instruction_decode_u8_sb_lb() ===
+( opcode coverage: U16 SB LB             )
+(     512     1    over b! b@            )
+( IR{ 512     1    OVER SB LB }IR        )
+ASM{  U16 0 2 U8 1 OVER SB LB }ASM
+warmboot .s                                    (  1  OK)  1  OK
+reset  OK
+(     512     65530       over B! b@     )
+( IR{ 512     65530       OVER SB LB }IR )
+ASM{  U16 0 2 U8 255 OVER SB LB }ASM
+warmboot .s                                  (  255  OK)  255  OK
+reset  OK
+
+== vm.test.test_instruction_decode_u16_sh_lh() ===
+( opcode coverage: U16 SH LH             )
+(     512     1    over h! h@            )
+( IR{ 512     1    OVER SH LH }IR        )
+ASM{  U16 0 2 U8 1 OVER SH LH }ASM
+warmboot .s                                    (  1  OK)  1  OK
+reset  OK
+(     512     65530       over h! h@     )
+( IR{ 512     65530       OVER SH LH }IR )
+ASM{  U16 0 2 U16 250 255 OVER SH LH }ASM
+warmboot .s                                (  65530  OK)  65530  OK
+reset  OK
+
+== vm.test.test_instruction_decode_i32_sw_lw() ===
+( opcode coverage: I32 SW LW RESET               )
+(     512     -6                  over w! w@     )
+( IR{ 512     -6                  OVER SW LW }IR )
+ASM{  U16 0 2 I32 250 255 255 255 OVER SW LW }ASM
+warmboot .s                                   (  -6  OK)  -6  OK
+reset  OK
+(     512     2147483647          over w! w@     )
+( IR{ 512     2147483647          OVER SW LW }IR )
+ASM{  U16 0 2 I32 255 255 255 127 OVER SW LW }ASM
+warmboot .s                           (  2147483647  OK)  2147483647  OK
+reset  OK
+
