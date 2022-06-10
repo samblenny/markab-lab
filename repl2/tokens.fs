@@ -43,36 +43,3 @@
 35 const SW
 36 const RESET
 37 const BREAK
-
-( MarkabForth core vocabulary)
-: nop   tok> NOP ;
-: +     tok> ADD ;
-: -     tok> SUB ;
-: *     tok> MUL ;
-: &     tok> AND ;
-: ~     tok> INV ;
-: |     tok> OR ;
-: ^     tok> XOR ;
-: <<    tok> SLL ;
-: >>    tok> SRL ;
-: >>>   tok> SRA ;
-: =     tok> EQ ;
-: >     tok> GT ;
-: <     tok> LT ;
-: <>    tok> NE ;
-: 0=    tok> ZE ;
-: ;     tok> RET ;
-: r>    tok> MRT ;
-: >r    tok> MTR ;
-: drop  tok> DROP ;
-: dup   tok> DUP ;
-: over  tok> OVER ;
-: swap  tok> SWAP ;
-: b@    tok> LB ;
-: b!    tok> SB ;
-: h@    tok> LH ;
-: h!    tok> SH ;
-: w@    tok> LW ;
-: w!    tok> SW ;
-: reset tok> RESET ;
-: break tok> BREAK ;

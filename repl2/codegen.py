@@ -25,7 +25,7 @@ nop NOP
 = EQ
 > GT
 < LT
-<> NE
+!= NE
 0= ZE
 <ASM> JMP
 <ASM> JAL
@@ -93,35 +93,12 @@ def fs_tokens():
     constants += [f"{i:2} const {opcode}"]
   return "\n".join(constants)
 
-def fs_core_vocab():
-  words = []
-  for line in filter(TOKENS):
-    (name, opcode) = line.strip().split(" ")
-    if name == "<ASM>":
-      continue  # don't create vocab words for tokens that are assembler-only
-    words += [f": {name:5} tok> {opcode} ;"]
-  return "\n".join(words)
-
 def fs_memory_map():
   constants = []
   for line in filter(MEMORY_MAP):
     (addr, name) = line.split(" ")
     constants += [f"{addr} const {name}"]
   return "\n".join(constants)
-
-def py_token_for_opcode():
-  kv_pairs = []
-  for (i, line) in enumerate(filter(TOKENS)):
-    (name, opcode) = line.strip().split(" ")
-    kv_pairs += [f"  '{opcode}': {i},"]
-  return "\n".join(kv_pairs)
-
-def py_opcode_for_token():
-  kv_pairs = []
-  for (i, line) in enumerate(filter(TOKENS)):
-    (name, opcode) = line.strip().split(" ")
-    kv_pairs += [f"  {i}: '{opcode}',"]
-  return "\n".join(kv_pairs)
 
 def py_addresses():
   addrs = []
@@ -146,9 +123,6 @@ FS_TEMPLATE_TOK = f"""
 
 ( MarkabVM virtual CPU opcode tokens)
 {fs_tokens()}
-
-( MarkabForth core vocabulary)
-{fs_core_vocab()}
 """.strip()
 
 FS_TEMPLATE_MEM = f"""
@@ -174,21 +148,7 @@ PY_TEMPLATE_TOK = f"""
 # DO NOT MAKE EDITS HERE
 # See codegen.py for details
 
-OPCODE_FOR_TOKEN = {{
-{py_opcode_for_token()}
-}}
-
-TOKEN_FOR_OPCODE = {{
-{py_token_for_opcode()}
-}}
-
 {py_opcode_constants()}
-
-def get_opcode(token):
-  return OPCODE_FOR_TOKEN[token]
-
-def get_token(opcode):
-  return TOKEN_FOR_OPCODE[opcode]
 """.strip()
 
 PY_TEMPLATE_MEM = f"""

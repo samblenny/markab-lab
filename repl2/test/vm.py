@@ -506,7 +506,7 @@ def test_comparisons():
   v.less_than()
   v._log_ds()
   # =====================================================
-  p("reset 1 2 <>  2 2 <>  2 1 <>  .s  (  -1 0 -1  OK)")
+  p("reset 1 2 !=  2 2 !=  2 1 !=  .s  (  -1 0 -1  OK)")
   v.reset()
   v._push(1)
   v._push(2)
@@ -610,7 +610,7 @@ def test_instruction_decode_math_logic():
   print("reset  OK")
   v.reset()
   print("( opcode coverage: NE                                  )")
-  print("( equivalent to: 1 2 <>    2 2 <>  2 1 <>              )")
+  print("( equivalent to: 1 2 !=    2 2 !=  2 1 !=              )")
   print("ASM{ u8 1 u8 2 ne  u8 2 u8 2 ne  u8 2 u8 1 ne  ret }ASM")
   code = bytearray([U8,1,U8,2,NE, U8,2,U8,2,NE, U8,2,U8,1,NE, RET])
   p("warmboot .s                              (  -1 0 -1  OK)")

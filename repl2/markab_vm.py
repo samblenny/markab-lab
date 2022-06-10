@@ -316,7 +316,7 @@ class VM:
     self._op_st(lambda s, t: s * t)
 
   def not_equal(self):
-    """Evaluate S <> T (true:-1, false:0), store result in S, drop T"""
+    """Evaluate S != T (true:-1, false:0), store result in S, drop T"""
     self._op_st(lambda s, t: -1 if s != t else 0)
 
   def or_(self):

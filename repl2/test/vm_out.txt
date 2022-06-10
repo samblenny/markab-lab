@@ -237,7 +237,7 @@ r> .ret   (  R-Stack is empty  ERR7)  R-Stack is empty  ERR7
 reset 1 2 =   2 2 =   2 1 =   .s   (  0 -1 0  OK)  0 -1 0  OK
 reset 1 2 >   2 2 >   2 1 >   .s   (  0 0 -1  OK)  0 0 -1  OK
 reset 1 2 <   2 2 <   2 1 <   .s   (  -1 0 0  OK)  -1 0 0  OK
-reset 1 2 <>  2 2 <>  2 1 <>  .s  (  -1 0 -1  OK)  -1 0 -1  OK
+reset 1 2 !=  2 2 !=  2 1 !=  .s  (  -1 0 -1  OK)  -1 0 -1  OK
 reset  -1 0=    0 0=    1 0=  .s   (  0 -1 0  OK)  0 -1 0  OK
 
 === test.vm.test_over_swap() ===
@@ -279,7 +279,7 @@ ASM{ u8 1 u8 2 lt  u8 2 u8 2 lt  u8 2 u8 1 lt  ret }ASM
 warmboot .s                               (  -1 0 0  OK)  -1 0 0  OK
 reset  OK
 ( opcode coverage: NE                                  )
-( equivalent to: 1 2 <>    2 2 <>  2 1 <>              )
+( equivalent to: 1 2 !=    2 2 !=  2 1 !=              )
 ASM{ u8 1 u8 2 ne  u8 2 u8 2 ne  u8 2 u8 1 ne  ret }ASM
 warmboot .s                              (  -1 0 -1  OK)  -1 0 -1  OK
 reset  OK
