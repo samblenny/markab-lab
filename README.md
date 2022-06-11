@@ -5,9 +5,10 @@ a new VM-based, Forth-like, multi-media programming environment.
 
 The point of all this is to have a simple, stable system for working on
 long-term small-scale projects in areas like illustration, music, writing, game
-dev, and language learning. The primary emphasis is on "simple" and "stable"
-because those qualities are important for working on long-term projects without
-having to waste a lot of time on fixing things that break and decay.
+dev, language learning, and perhaps embedded devices. The primary emphasis is
+on "simple" and "stable" because those qualities are important for working on
+long-term projects without having to waste a lot of time on fixing things that
+break and decay.
 
 Similar to how acid-free paper is good for making books that last for a long
 time, and climate controlled vaults are good for storing originals of film or
@@ -16,6 +17,25 @@ once finished, can be used, or archived, for many years without decay. This
 problem has been solved, mostly, with POSIX and C for text-based programs. But,
 making long-term stable programs with graphics and sound is still difficult.
 These ideas are not new -- many others are working in similar directions.
+
+
+## Markab Is Part of an Art Practice
+
+What I'm doing here is publishing documentation of an art practice as part of a
+larger conversation around art and languages in the context of archival
+computing, permacomputing, and low-power computing. My intent is that Markab
+will inspire people to seek out the experience of working with software tools
+that are simple, efficient, and durable.
+
+Markab is not an "Open Source project", and I am not seeking "contributions". I
+use an open license because my goals for an archival grade programming
+environment require reference implementations that others are free to adapt and
+modify.
+
+For now, follows are appreciated (Hi!), and forks are fine. Eventually, I hope
+Markab will evolve into more of a community oriented thing, in some form. But,
+I need to write a lot of code and documentation before that would be
+reasonable.
 
 
 ## Unpacking the Tagline
@@ -57,7 +77,7 @@ These ideas are not new -- many others are working in similar directions.
 
 1. [repl2/](repl2): Work in progress on a VM emulator in Python with a
    stack-based kernel interpreters, assembler, and compiler running on top
-   of the VM. 
+   of the VM.
 
 2. [repl/](repl): A simple plain-text Forth system with interpreters and
    compiler running on top of a kernel written in amd64 assembly language for
