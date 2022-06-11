@@ -371,9 +371,9 @@ class VM:
     elif t == E_DSH:
       self._log_ds(base=16)
     elif t == E_RSH:
-      self._log_ds(base=16)
+      self._log_rs(base=16)
     elif t == E_PC:
-      self._push_pc()
+      self._load_pc()
     elif t == E_READ:
       self._read()
     elif t == E_WRITE:

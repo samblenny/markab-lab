@@ -7,7 +7,8 @@ from markab_vm import VM
 from opcodes import (
   NOP, ADD, SUB, MUL, AND, INV, OR, XOR, SLL, SRL, SRA, EQ, GT, LT, NE, ZE,
   JMP, JAL, RET, BZ, DRBLT, MRT, MTR, DROP, DUP, OVER, SWAP,
-  U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET, ECALL
+  U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET, ECALL,
+  E_DS, E_RS, E_DSH, E_RSH, E_PC, E_READ, E_WRITE,
 )
 
 def p(s):
@@ -775,6 +776,58 @@ def test_instruction_decode_i32_sw_lw():
   v.reset()
   print()
 
+
+def test_instruction_decode_reset_ecall():
+  v = VM()
+  print("=== test.vm.test_instruction_decode_ecall() ===")
+  print("( opcode coverage: RESET ECALL")
+  print("( ---------------------------------------)")
+  print("( E_DS ECALL -- log data stack decimal   )")
+  print("(       33 decimal    .s reset           )")
+  print("ASM{ U8 33 U8 E_DS ECALL RESET }ASM")
+  code = bytearray([U8, 33, U8, E_DS, ECALL, RESET, RET])
+  p("warmboot                                      (  33  OK)")
+  v._warm_boot(code, max_cycles=99)
+  print("( ---------------------------------------)")
+  print("( E_DSH ECALL -- log data stack hex      )")
+  print("(       33      hex    .s reset          )")
+  print("ASM{ U8 33 U8 E_DSH ECALL RESET }ASM")
+  code = bytearray([U8, 33, U8, E_DSH, ECALL, RESET, RET])
+  p("warmboot                                      (  21  OK)")
+  v._warm_boot(code, max_cycles=99)
+  print("( ---------------------------------------)")
+  print("( E_RS ECALL -- log return stack decimal )")
+  print("(       33  >r decimal   .ret reset      )")
+  print("ASM{ U8 33 MTR U8 E_RS  ECALL RESET }ASM")
+  code = bytearray([U8, 33, MTR, U8, E_RS, ECALL, RESET, RET])
+  p("warmboot                                      (  33  OK)")
+  v._warm_boot(code, max_cycles=99)
+  print("( ---------------------------------------)")
+  print("( E_RSH ECALL -- log return stack hex    )")
+  print("(       33  >r      hex  .ret reset      )")
+  print("ASM{ U8 33 MTR U8 E_RSH ECALL RESET }ASM")
+  code = bytearray([U8, 33, MTR, U8, E_RSH, ECALL, RESET, RET])
+  p("warmboot                                      (  21  OK)")
+  v._warm_boot(code, max_cycles=99)
+  print("( ---------------------------------------)")
+  print("( E_PC ECALL -- push Program Counter     )")
+  print("(         E_PC ecall            .s reset )")
+  print("( 256+: 0    1     2  3    4     5     6 )")
+  print("ASM{   U8 E_PC ECALL U8 E_DS ECALL RESET }ASM")
+  code = bytearray([U8, E_PC, ECALL, U8, E_DS, ECALL, RESET, RET])
+  p("warmboot                                     (  259  OK)")
+  v._warm_boot(code, max_cycles=99)
+  print("( ---------------------------------------)")
+  print("( E_READ ECALL -- read byte from STDIN   )")
+  print("( TODO: write test for E_READ            )")
+  print("                                                     ( )")
+  print("( ---------------------------------------)")
+  print("( E_WRITE ECALL -- write to STDOUT       )")
+  print("( TODO: write test for E_WRITE           )")
+  print("                                                     ( )")
+  print()
+
+  
 test_push_pop()
 test_add_subtract()
 test_multiply()
@@ -794,3 +847,4 @@ test_instruction_decode_drop_dup_over_swap()
 test_instruction_decode_u8_sb_lb()
 test_instruction_decode_u16_sh_lh()
 test_instruction_decode_i32_sw_lw()
+test_instruction_decode_reset_ecall()

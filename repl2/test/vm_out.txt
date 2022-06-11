@@ -381,3 +381,40 @@ ASM{  U16 0 2 I32 255 255 255 127 OVER SW LW }ASM
 warmboot .s                           (  2147483647  OK)  2147483647  OK
 reset  OK
 
+=== test.vm.test_instruction_decode_ecall() ===
+( opcode coverage: RESET ECALL
+( ---------------------------------------)
+( E_DS ECALL -- log data stack decimal   )
+(       33 decimal    .s reset           )
+ASM{ U8 33 U8 E_DS ECALL RESET }ASM
+warmboot                                      (  33  OK)  33  OK
+( ---------------------------------------)
+( E_DSH ECALL -- log data stack hex      )
+(       33      hex    .s reset          )
+ASM{ U8 33 U8 E_DSH ECALL RESET }ASM
+warmboot                                      (  21  OK)  21  OK
+( ---------------------------------------)
+( E_RS ECALL -- log return stack decimal )
+(       33  >r decimal   .ret reset      )
+ASM{ U8 33 MTR U8 E_RS  ECALL RESET }ASM
+warmboot                                      (  33  OK)  33  OK
+( ---------------------------------------)
+( E_RSH ECALL -- log return stack hex    )
+(       33  >r      hex  .ret reset      )
+ASM{ U8 33 MTR U8 E_RSH ECALL RESET }ASM
+warmboot                                      (  21  OK)  21  OK
+( ---------------------------------------)
+( E_PC ECALL -- push Program Counter     )
+(         E_PC ecall            .s reset )
+( 256+: 0    1     2  3    4     5     6 )
+ASM{   U8 E_PC ECALL U8 E_DS ECALL RESET }ASM
+warmboot                                     (  259  OK)  259  OK
+( ---------------------------------------)
+( E_READ ECALL -- read byte from STDIN   )
+( TODO: write test for E_READ            )
+                                                     ( )
+( ---------------------------------------)
+( E_WRITE ECALL -- write to STDOUT       )
+( TODO: write test for E_WRITE           )
+                                                     ( )
+
