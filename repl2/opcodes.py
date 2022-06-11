@@ -42,4 +42,12 @@ SH     = 33
 LW     = 34
 SW     = 35
 RESET  = 36
-BREAK  = 37
+ECALL  = 37
+
+E_DS    =  1
+E_RS    =  2
+E_DSH   =  3
+E_RSH   =  4
+E_PC    =  5
+E_READ  =  6
+E_WRITE =  7

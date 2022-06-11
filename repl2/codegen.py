@@ -5,12 +5,12 @@
 # MarkabForth code generator for shared resources between VM and kernel
 #
 
-FS_OUTFILE_TOK = "tokens.fs"
-PY_OUTFILE_TOK = "tokens.py"
+FS_OUTFILE_TOK = "opcodes.fs"
+PY_OUTFILE_TOK = "opcodes.py"
 FS_OUTFILE_MEM = "mem_map.fs"
 PY_OUTFILE_MEM = "mem_map.py"
 
-TOKENS = """
+OPCODES = """
 nop NOP
 + ADD
 - SUB
@@ -48,7 +48,17 @@ h! SH
 w@ LW
 w! SW
 reset RESET
-break BREAK
+ecall ECALL
+"""
+
+ECALLS = """
+1 E_DS
+2 E_RS
+3 E_DSH
+4 E_RSH
+5 E_PC
+6 E_READ
+7 E_WRITE
 """
 
 MEMORY_MAP = """
@@ -86,9 +96,9 @@ def filter(src):
   lines = [L for L in lines if len(L) > 0]            # filter empty lines
   return lines
 
-def fs_tokens():
+def fs_opcodes():
   constants = []
-  for (i, line) in enumerate(filter(TOKENS)):
+  for (i, line) in enumerate(filter(OPCODES)):
     (name, opcode) = line.strip().split(" ")
     constants += [f"{i:2} const {opcode}"]
   return "\n".join(constants)
@@ -100,6 +110,13 @@ def fs_memory_map():
     constants += [f"{addr} const {name}"]
   return "\n".join(constants)
 
+def fs_ecall_constants():
+  ecalls = []
+  for (i, line) in enumerate(filter(ECALLS)):
+    (code, name) = line.strip().split(" ")
+    ecalls += [f"{code:>2} const {name}"]
+  return "\n".join(ecalls)
+
 def py_addresses():
   addrs = []
   for line in filter(MEMORY_MAP):
@@ -109,10 +126,17 @@ def py_addresses():
 
 def py_opcode_constants():
   ops = []
-  for (i, line) in enumerate(filter(TOKENS)):
+  for (i, line) in enumerate(filter(OPCODES)):
     (name, opcode) = line.strip().split(" ")
     ops += [f"{opcode.upper():6} = {i:2}"]
   return "\n".join(ops)
+
+def py_ecall_constants():
+  ecalls = []
+  for (i, line) in enumerate(filter(ECALLS)):
+    (code, name) = line.strip().split(" ")
+    ecalls += [f"{name:7} = {code:>2}"]
+  return "\n".join(ecalls)
 
 FS_TEMPLATE_TOK = f"""
 ( Copyright © 2022 Sam Blenny)
@@ -121,8 +145,11 @@ FS_TEMPLATE_TOK = f"""
 ( ===        DO NOT MAKE EDITS HERE        ===)
 ( ===      See codegen.py for details      ===)
 
-( MarkabVM virtual CPU opcode tokens)
-{fs_tokens()}
+( MarkabVM virtual CPU opcodes)
+{fs_opcodes()}
+
+( MarkabVM environment call (syscall) constants
+{fs_ecall_constants()}
 """.strip()
 
 FS_TEMPLATE_MEM = f"""
@@ -149,6 +176,8 @@ PY_TEMPLATE_TOK = f"""
 # See codegen.py for details
 
 {py_opcode_constants()}
+
+{py_ecall_constants()}
 """.strip()
 
 PY_TEMPLATE_MEM = f"""

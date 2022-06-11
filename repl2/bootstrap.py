@@ -4,8 +4,8 @@
 #
 # MarkabForth bootstrap compiler
 #
-import tokens   # get_token(opcode), get_opcode(token)
-import mem_map  # get_addr(name)
+import opcodes
+import mem_map
 
 
 ROM_FILE = 'kernel.bin'

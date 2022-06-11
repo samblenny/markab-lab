@@ -7,10 +7,11 @@
 from ctypes import c_int32
 from typing import Callable, Dict
 
-from tokens import (
+from opcodes import (
   NOP, ADD, SUB, MUL, AND, INV, OR, XOR, SLL, SRL, SRA, EQ, GT, LT, NE, ZE,
   JMP, JAL, RET, BZ, DRBLT, MTR, MRT, DROP, DUP, OVER, SWAP,
-  U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET, BREAK
+  U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET, ECALL,
+  E_DS, E_RS, E_DSH, E_RSH, E_PC, E_READ, E_WRITE,
 )
 from mem_map import IO, IOEnd, Boot, BootMax, MemMax
 
@@ -22,6 +23,7 @@ ERR_BOOT_OVERFLOW = 4
 ERR_BAD_INSTRUCTION = 5
 ERR_R_OVER = 6
 ERR_R_UNDER = 7
+ERR_BAD_ECALL = 8
 
 class VM:
   """
@@ -83,7 +85,7 @@ class VM:
     self.jumpTable[LW   ] = self.load_word
     self.jumpTable[SW   ] = self.store_word
     self.jumpTable[RESET] = self.reset
-    self.jumpTable[BREAK] = self.break_
+    self.jumpTable[ECALL] = self.ecall
 
   def _set_pc(self, addr):
     """Set Program Counter with range check"""
@@ -355,10 +357,29 @@ class VM:
       self.R = self.RStack[rSecond]
     self.RSDeep -= 1
 
-  def break_(self):
-    """Breakpoint: stop normal Program Counter and enter debug mode"""
-    # TODO: figure out how to handle BREAK
-    pass
+  def ecall(self):
+    """Call to host environment for privilege mode input/output routines"""
+    if self.DSDeep < 1:
+      self.error = ERR_D_UNDER
+      return
+    t = self.T
+    self.drop()
+    if t == E_DS:
+      self._log_ds(base=10)
+    elif t == E_RS:
+      self._log_rs(base=10)
+    elif t == E_DSH:
+      self._log_ds(base=16)
+    elif t == E_RSH:
+      self._log_ds(base=16)
+    elif t == E_PC:
+      self._push_pc()
+    elif t == E_READ:
+      self._read()
+    elif t == E_WRITE:
+      self._write()
+    else:
+      self.error = ERR_BAD_ECALL
 
   def move_r_to_t(self):
     """Move top of return stack (R) to top of data stack (T)"""
@@ -463,32 +484,24 @@ class VM:
     """Evaluate 0 == T (true:-1, false:0), store result in T"""
     self._op_t(lambda t: -1 if 0 == t else 0)
 
-  def _hex(self):
-    """Set debug printing number base to 16"""
-    self.base = 16
-
-  def _decimal(self):
-    """Set debug printing number base to 10"""
-    self.base = 10
-
-  def _log_ds(self):
+  def _log_ds(self, base=10):
     """Log (debug print) the data stack in the manner of .S"""
     print(" ", end='')
     deep = self.DSDeep
     if deep > 2:
       for i in range(deep-2):
         n = self.DStack[i]
-        if self.base == 16:
+        if base == 16:
           print(f" {n&0xffffffff:x}", end='')
         else:
           print(f" {n}", end='')
     if deep > 1:
-      if self.base == 16:
+      if base == 16:
         print(f" {self.S&0xffffffff:x}", end='')
       else:
         print(f" {self.S}", end='')
     if deep > 0:
-      if self.base == 16:
+      if base == 16:
         print(f" {self.T&0xffffffff:x}", end='')
       else:
         print(f" {self.T}", end='')
@@ -500,19 +513,19 @@ class VM:
     else:
       print("  OK")
 
-  def _log_rs(self):
+  def _log_rs(self, base=10):
     """Log (debug print) the return stack in the manner of .S"""
     print(" ", end='')
     deep = self.RSDeep
     if deep > 1:
       for i in range(deep-1):
         n = self.RStack[i]
-        if self.base == 16:
+        if base == 16:
           print(f" {n&0xffffffff:x}", end='')
         else:
           print(f" {n}", end='')
     if deep > 0:
-      if self.base == 16:
+      if base == 16:
         print(f" {self.R&0xffffffff:x}", end='')
       else:
         print(f" {self.R}", end='')
@@ -527,3 +540,22 @@ class VM:
   def _clear_error(self):
     """Clear VM error status code"""
     self.error = 0
+
+  def _load_pc(self):
+    """Push a copy of the Program Counter (PC) to the data stack"""
+    self._push(self.PC)
+
+  def _read(self):
+    """
+    Read a byte from the Standard Input stream, push results to data stack.
+    Results:
+    - Got an input byte, push 2 items: {S: byte, T: -1 (true)}
+    - No byte available, push 1 item:           {T: 0 (false)}
+    """
+    self._push(0)
+    # TODO: implement: read byte from standard input
+
+  def _write(self):
+    """Write low byte of T to the Standard Output stream"""
+    self.drop()
+    # TODO: implement: write byte to standard output
