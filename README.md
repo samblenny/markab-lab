@@ -94,4 +94,4 @@ The conduct policy for Markab is simple: be nice or get banned.
 This is an art project, and I'm busy making stuff. I don't have the time or
 inclination to engage in internet drama with randos.
 
-On the other hand, to fans and supporters: you have my gratitude.
+On the other hand, to friends, fans, and supporters: you have my gratitude.
