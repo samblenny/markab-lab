@@ -6,6 +6,8 @@
 #
 from ctypes import c_int32
 from typing import Callable, Dict
+import readline
+import sys
 
 from opcodes import (
   NOP, ADD, SUB, MUL, AND, INV, OR, XOR, SLL, SRL, SRA, EQ, GT, LT, NE, ZE,
@@ -24,14 +26,27 @@ ERR_BAD_INSTRUCTION = 5
 ERR_R_OVER = 6
 ERR_R_UNDER = 7
 ERR_BAD_ECALL = 8
+ERR_MAX_CYCLES = 9
+
+# Configure STDIN/STDOUT at load-time for use utf-8 encoding without buffering.
+# This is not optimally efficient, but it does not matter. The objective is to
+# get correct results from tests to validate the VM implementation without
+# distractions for issues related to IO buffering. High-speed IO is not a
+# priority now. For documentation on arguments to `reconfigure()`, see
+# https://docs.python.org/3/library/io.html#io.TextIOWrapper
+sys.stdout.reconfigure(encoding='utf-8', write_through=True)
+sys.stdin.reconfigure(encoding='utf-8', line_buffering=False)
+
+# Turn off readline's automatic appending of input to the history file
+readline.write_history_file = lambda *args: None
 
 class VM:
   """
-  VM emulates CPU, RAM, and peripheral state for a Markab virtual machine.
+  Emulate CPU, RAM, and peripherals for a Markab virtual machine instance.
   """
 
   def __init__(self):
-    """Initialize virtual CPU and RAM"""
+    """Initialize virtual CPU, RAM, and peripherals"""
     self.error = 0                  # Error code register
     self.base = 10                  # number Base for debug printing
     self.A = 0                      # Address/Accumulator register
@@ -45,6 +60,7 @@ class VM:
     self.DStack = [0] * 16          # Data Stack
     self.RStack = [0] * 16          # Return Stack
     self.ram = bytearray(MemMax+1)  # Random Access Memory
+    self.inbuf = ''                 # Input buffer
     #
     # Jump Table for instruction decoder
     self.jumpTable: Dict[int, Callable] = {}
@@ -110,13 +126,19 @@ class VM:
 
   def _warm_boot(self, code, max_cycles=1):
     """Load a byte array of machine code into Boot memory, then run it."""
+    self.error = 0
     self._load_boot(code)
     self._set_pc(Boot)
     self._step(max_cycles)
+    if self.error != 0:
+      print(f"  ERR{self.error}")
 
   def _step(self, max_cycles):
     """Step the virtual CPU clock to run up to max_cycles instructions"""
-    for _ in range(max_cycles):
+    for i in range(max_cycles):
+      if self.error != 0:
+        print(f"<<ERR:{self.error}>>", end='')
+        return
       t = self._next_instruction()
       if self.RSDeep == 0 and t == RET:
         return
@@ -125,6 +147,7 @@ class VM:
       else:
         self.error = ERR_BAD_INSTRUCTION
         return
+    self.error = ERR_MAX_CYCLES
 
   def _op_st(self, fn):
     """Apply operation λ(S,T), storing the result in S and dropping T"""
@@ -507,11 +530,7 @@ class VM:
         print(f" {self.T}", end='')
     else:
       print(" Stack is empty", end='')
-    if self.error != 0:
-      print(f"  ERR{self.error}")
-      self._clear_error()
-    else:
-      print("  OK")
+    self._ok_or_err()
 
   def _log_rs(self, base=10):
     """Log (debug print) the return stack in the manner of .S"""
@@ -531,11 +550,7 @@ class VM:
         print(f" {self.R}", end='')
     else:
       print(" R-Stack is empty", end='')
-    if self.error != 0:
-      print(f"  ERR{self.error}")
-      self._clear_error()
-    else:
-      print("  OK")
+    self._ok_or_err()
 
   def _clear_error(self):
     """Clear VM error status code"""
@@ -546,16 +561,39 @@ class VM:
     self._push(self.PC)
 
   def _read(self):
-    """
-    Read a byte from the Standard Input stream, push results to data stack.
-    Results:
+    """Push the next byte from Standard Input to the data stack.
+
+    Input comes from readline, which is line buffered. So, this can block the
+    event loop until a full line of text is available. The result of a call
+    to `input()` is cached and returned byte by byte. Then, when that line has
+    been completely consumed, `_read()` will make another call to `input()`.
+
+    Results (stack effects):
     - Got an input byte, push 2 items: {S: byte, T: -1 (true)}
-    - No byte available, push 1 item:           {T: 0 (false)}
+    - End of file, push 1 item:           {T: 0 (false)}
     """
-    self._push(0)
-    # TODO: implement: read byte from standard input
+    if len(self.inbuf) < 1:
+      try:
+          self.inbuf = input().encode('utf-8')+b'\x0a'
+      except EOFError:
+        self.inbuf = b''
+    if len(self.inbuf) > 0:
+      self._push(self.inbuf[0])
+      self._push(-1)
+      self.inbuf = self.inbuf[1:]
+    else:
+      print("<!>", end='')
+      self._push(0)
 
   def _write(self):
     """Write low byte of T to the Standard Output stream"""
+    sys.stdout.buffer.write(int.to_bytes(self.T & 0xff, 1, 'little'))
     self.drop()
-    # TODO: implement: write byte to standard output
+
+  def _ok_or_err(self):
+    """Print the OK or ERR line-end status message and clear any errors"""
+    if self.error != 0:
+      print(f"  ERR{self.error}")
+      self.error = 0
+    else:
+      print("  OK")

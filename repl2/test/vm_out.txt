@@ -410,11 +410,36 @@ warmboot                                      (  21  OK)  21  OK
 ASM{   U8 E_PC ECALL U8 E_DS ECALL RESET }ASM
 warmboot                                     (  259  OK)  259  OK
 ( ---------------------------------------)
-( E_READ ECALL -- read byte from STDIN   )
-( TODO: write test for E_READ            )
-                                                     ( )
+( E_READ ECALL -- echo a line from STDIN )
+( do: 99 for{                            )
+(      key                               )
+(      0= if{ drop r> drop ret }if drop  )
+(      dup 10 = if{ drop r> drop ret }if )
+(      drop emit                         )
+(     }for                               )
+( 256+: 0  1   2 *3*      4     5        )
+ASM{   U8 99 MTR  U8 E_READ ECALL
+( 256+:  6  7  8  9   10  11   12 13 *14*)
+        ZE BZ 14 1 DROP MRT DROP RET DROP
+( 256+: 15 16 17 18 19 20 21  22  23  24  25)
+       DUP U8 10 EQ BZ 26 1 DROP MRT DROP RET
+( 256+ *26*                              )
+       DROP U8 E_WRITE ECALL
+       DRBLT 3 1 MRT DROP             }ASM
+warmboot                                       ( test1  OK)test1  OK
 ( ---------------------------------------)
 ( E_WRITE ECALL -- write to STDOUT       )
-( TODO: write test for E_WRITE           )
-                                                     ( )
+( Write space, space, star               )
+ASM{ U8 E_WRITE
+     U8 32 OVER ECALL U8 32 OVER ECALL
+     U8 42 SWAP ECALL RESET           }ASM
+warmboot                                       (  *  OK)  *  OK
+( Write utf-8 bytes for U+2708 U+FE0F    )
+ASM{ U8 E_WRITE
+     U8  32 OVER ECALL U8  32 OVER ECALL
+     U8 226 OVER ECALL U8 156 OVER ECALL
+     U8 136 OVER ECALL U8 239 OVER ECALL
+     U8 184 OVER ECALL U8 143 SWAP ECALL
+     RESET                            }ASM
+warmboot                                        ( ✈️  OK)  ✈️  OK
 

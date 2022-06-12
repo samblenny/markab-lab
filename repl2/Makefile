@@ -5,6 +5,8 @@
 .SUFFIXES:
 .PHONY: all run test clean
 AUTOGEN=opcodes.fs mem_map.fs opcodes.py mem_map.py
+TEST_IN=test/read_test_data.txt
+TEST_OUT=test/vm_out.txt
 
 all: kernel.bin
 
@@ -27,7 +29,7 @@ mem_map.py: codegen.py
 	@python3 codegen.py
 
 test: kernel.bin
-	@PYTHONPATH=. python3 test/vm.py | tee test/vm_out.txt
+	@cat $(TEST_IN) | PYTHONPATH=. python3 test/vm.py | tee $(TEST_OUT)
 
 clean:
 	@rm -rf __pycache__
