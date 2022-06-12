@@ -6,7 +6,7 @@
 from markab_vm import VM
 from opcodes import (
   NOP, ADD, SUB, MUL, AND, INV, OR, XOR, SLL, SRL, SRA, EQ, GT, LT, NE, ZE,
-  JMP, JAL, RET, BZ, DRBLT, MRT, MTR, DROP, DUP, OVER, SWAP,
+  JMP, JAL, RET, BZ, DRBLT, MRT, MTR, RDROP, DROP, DUP, OVER, SWAP,
   U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET, ECALL,
   E_DS, E_RS, E_DSH, E_RSH, E_PC, E_READ, E_WRITE,
 )
@@ -821,25 +821,25 @@ def test_instruction_decode_reset_ecall():
   print("( E_READ ECALL -- echo a line from STDIN )")
   print("( do: 99 for{                            )")
   print("(      key                               )")
-  print("(      0= if{ drop r> drop ret }if drop  )")
-  print("(      dup 10 = if{ drop r> drop ret }if )")
+  print("(      0= if{ drop rdrop ret }if drop    )")
+  print("(      dup 10 = if{ drop rdrop ret }if   )")
   print("(      drop emit                         )")
   print("(     }for                               )")
   print("( 256+: 0  1   2 *3*      4     5        )")
   print("ASM{   U8 99 MTR  U8 E_READ ECALL")
-  print("( 256+:  6  7  8  9   10  11   12 13 *14*)")
-  print("        ZE BZ 14 1 DROP MRT DROP RET DROP")
-  print("( 256+: 15 16 17 18 19 20 21  22  23  24  25)")
-  print("       DUP U8 10 EQ BZ 26 1 DROP MRT DROP RET")
-  print("( 256+ *26*                              )")
+  print("( 256+:  6  7  8 9   10    11  12 *13*   )")
+  print("        ZE BZ 13 1 DROP RDROP RET DROP")
+  print("( 256+: 14 15 16 17 18 19 20  21    22 23)")
+  print("       DUP U8 10 EQ BZ 24 1 DROP RDROP RET")
+  print("( 256+ *24*                              )")
   print("       DROP U8 E_WRITE ECALL")
-  print("       DRBLT 3 1 MRT DROP             }ASM")
+  print("       DRBLT 3 1 RDROP                }ASM")
   code = bytearray()
   code.extend([U8, 99, MTR, U8, E_READ, ECALL])
-  code.extend([             ZE, BZ, 14, 1, DROP, MRT, DROP, RET, DROP])
-  code.extend([DUP, U8, 10, EQ, BZ, 26, 1, DROP, MRT, DROP, RET])
+  code.extend([             ZE, BZ, 13, 1, DROP, RDROP, RET, DROP])
+  code.extend([DUP, U8, 10, EQ, BZ, 24, 1, DROP, RDROP, RET])
   code.extend([DROP, U8, E_WRITE, ECALL,])
-  code.extend([DRBLT, 3, 1, MRT, DROP, RET])
+  code.extend([DRBLT, 3, 1, RDROP, RET])
   p("warmboot                                       ( test1  OK)")
   v._warm_boot(code, max_cycles=9999)
   v._ok_or_err()

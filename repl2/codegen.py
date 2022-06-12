@@ -34,6 +34,7 @@ nop NOP
 <ASM> DRBLT
 r> MRT
 >r MTR
+rdrop RDROP
 drop DROP
 dup DUP
 over OVER

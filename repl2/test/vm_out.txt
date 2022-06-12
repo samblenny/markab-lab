@@ -413,19 +413,19 @@ warmboot                                     (  259  OK)  259  OK
 ( E_READ ECALL -- echo a line from STDIN )
 ( do: 99 for{                            )
 (      key                               )
-(      0= if{ drop r> drop ret }if drop  )
-(      dup 10 = if{ drop r> drop ret }if )
+(      0= if{ drop rdrop ret }if drop    )
+(      dup 10 = if{ drop rdrop ret }if   )
 (      drop emit                         )
 (     }for                               )
 ( 256+: 0  1   2 *3*      4     5        )
 ASM{   U8 99 MTR  U8 E_READ ECALL
-( 256+:  6  7  8  9   10  11   12 13 *14*)
-        ZE BZ 14 1 DROP MRT DROP RET DROP
-( 256+: 15 16 17 18 19 20 21  22  23  24  25)
-       DUP U8 10 EQ BZ 26 1 DROP MRT DROP RET
-( 256+ *26*                              )
+( 256+:  6  7  8 9   10    11  12 *13*   )
+        ZE BZ 13 1 DROP RDROP RET DROP
+( 256+: 14 15 16 17 18 19 20  21    22 23)
+       DUP U8 10 EQ BZ 24 1 DROP RDROP RET
+( 256+ *24*                              )
        DROP U8 E_WRITE ECALL
-       DRBLT 3 1 MRT DROP             }ASM
+       DRBLT 3 1 RDROP                }ASM
 warmboot                                       ( test1  OK)test1  OK
 ( ---------------------------------------)
 ( E_WRITE ECALL -- write to STDOUT       )

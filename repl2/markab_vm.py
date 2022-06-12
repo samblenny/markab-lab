@@ -11,7 +11,7 @@ import sys
 
 from opcodes import (
   NOP, ADD, SUB, MUL, AND, INV, OR, XOR, SLL, SRL, SRA, EQ, GT, LT, NE, ZE,
-  JMP, JAL, RET, BZ, DRBLT, MTR, MRT, DROP, DUP, OVER, SWAP,
+  JMP, JAL, RET, BZ, DRBLT, MTR, MRT, RDROP, DROP, DUP, OVER, SWAP,
   U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET, ECALL,
   E_DS, E_RS, E_DSH, E_RSH, E_PC, E_READ, E_WRITE,
 )
@@ -87,6 +87,7 @@ class VM:
     self.jumpTable[DRBLT] = self.dec_r_branch_less_than
     self.jumpTable[MTR  ] = self.move_t_to_r
     self.jumpTable[MRT  ] = self.move_r_to_t
+    self.jumpTable[RDROP] = self.r_drop
     self.jumpTable[DROP ] = self.drop
     self.jumpTable[DUP  ] = self.dup
     self.jumpTable[OVER ] = self.over
@@ -415,6 +416,17 @@ class VM:
       self.error = ERR_D_OVER
       return
     self._push(self.R)
+    if self.RSDeep > 1:
+      rSecond = self.RSDeep - 2
+      self.R = self.RStack[rSecond]
+    self.RSDeep -= 1
+
+  def r_drop(self):
+    """Drop R in the manner needed when exiting from a counted loop"""
+    if self.RSDeep < 1:
+      self.reset()
+      self.error = ERR_R_UNDER
+      return
     if self.RSDeep > 1:
       rSecond = self.RSDeep - 2
       self.R = self.RStack[rSecond]

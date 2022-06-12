@@ -28,21 +28,22 @@
 20 const DRBLT
 21 const MRT
 22 const MTR
-23 const DROP
-24 const DUP
-25 const OVER
-26 const SWAP
-27 const U8
-28 const U16
-29 const I32
-30 const LB
-31 const SB
-32 const LH
-33 const SH
-34 const LW
-35 const SW
-36 const RESET
-37 const ECALL
+23 const RDROP
+24 const DROP
+25 const DUP
+26 const OVER
+27 const SWAP
+28 const U8
+29 const U16
+30 const I32
+31 const LB
+32 const SB
+33 const LH
+34 const SH
+35 const LW
+36 const SW
+37 const RESET
+38 const ECALL
 
 ( MarkabVM environment call (syscall) constants
  1 const E_DS
