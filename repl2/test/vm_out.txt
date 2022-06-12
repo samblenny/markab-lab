@@ -315,12 +315,12 @@ warmboot  OK
 .s                                           (  9 5  OK)  9 5  OK
 
 === test.vm.test_instruction_decode_jz() ===
-( opcode coverage: BZ                                  )
-( equivalent to 0 IF{ 7 }IF 0 0= IF{ 8 }IF             )
-( 256+:  0 1  2 3 4  5 6  7 8  9 10 11 12 13 14  15    )
-ASM{    U8 0 BZ 7 1 U8 7 U8 0 ZE BZ 15  1 U8  8 RET }ASM
-(          0 if{       7 }if                           )
-(                           0 0= if{          8 }if    )
+( opcode coverage: BZ                                     )
+( equivalent to: 0 dup if{ 7 }if 0 0= dup if{ 8 }IF       )
+( 256+: 0 1   2  3 4 5  6 7  8 9 10  11 12 13 14 15 16 17 )
+ASM{   U8 0 DUP BZ 8 1 U8 7 U8 0 ZE DUP BZ 17  1 U8  8 RET }ASM
+(         0 dup if{       7 }if                           )
+(                              0 0= dup if{          8 }if)
 warmboot  OK
 .s                                        (  0 -1 8  OK)  0 -1 8  OK
 
@@ -413,19 +413,19 @@ warmboot                                     (  259  OK)  259  OK
 ( E_READ ECALL -- echo a line from STDIN )
 ( do: 99 for{                            )
 (      key                               )
-(      0= if{ drop rdrop ret }if drop    )
-(      dup 10 = if{ drop rdrop ret }if   )
-(      drop emit                         )
+(      0=   if{ rdrop ret }if dup        )
+(      10 = if{ rdrop ret }if            )
+(      emit                              )
 (     }for                               )
 ( 256+: 0  1   2 *3*      4     5        )
 ASM{   U8 99 MTR  U8 E_READ ECALL
-( 256+:  6  7  8 9   10    11  12 *13*   )
-        ZE BZ 13 1 DROP RDROP RET DROP
-( 256+: 14 15 16 17 18 19 20  21    22 23)
-       DUP U8 10 EQ BZ 24 1 DROP RDROP RET
-( 256+ *24*                              )
-       DROP U8 E_WRITE ECALL
-       DRBLT 3 1 RDROP                }ASM
+( 256+:  6  7  8 9    10  11 *12* 13 14  )
+        ZE BZ 12 1 RDROP RET DUP  U8 10
+( 256+: 15 16 17 18   19  20             )
+        EQ BZ 21 1 RDROP RET
+( 256+: *21*                             )
+        U8 E_WRITE ECALL
+        DRBLT 3 1 RDROP               }ASM
 warmboot                                       ( test1  OK)test1  OK
 ( ---------------------------------------)
 ( E_WRITE ECALL -- write to STDOUT       )

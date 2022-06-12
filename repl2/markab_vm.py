@@ -280,7 +280,7 @@ class VM:
     self.PC = n
 
   def branch_zero(self):
-    """Branch to address read from instruction stream if T == 0"""
+    """Branch to address read from instruction stream if T == 0, drop T"""
     if self.DSDeep < 1:
       self.error = ERR_D_UNDER
       return
@@ -292,6 +292,7 @@ class VM:
     else:
       # Enter conditional block: Advance PC past address literal
       self._set_pc(pc+2)
+    self.drop()
 
   def dec_r_branch_less_than(self):
     """Decrement R and Branch to address if R is Less Than 0"""
