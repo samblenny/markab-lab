@@ -76,7 +76,7 @@ reasonable.
 ## Source Code Contents
 
 1. [repl2/](repl2): Work in progress on a VM emulator in Python with a
-   stack-based kernel interpreters, assembler, and compiler running on top
+   stack-based kernel, interpreters, assembler, and compiler running on top
    of the VM.
 
 2. [repl/](repl): A simple plain-text Forth system with interpreters and
