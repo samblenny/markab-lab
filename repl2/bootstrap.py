@@ -2,7 +2,7 @@
 # Copyright (c) 2022 Sam Blenny
 # SPDX-License-Identifier: MIT
 #
-# MarkabForth bootstrap compiler
+# Markab bootstrap compiler
 #
 import opcodes
 import mem_map

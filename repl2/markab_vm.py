@@ -2,7 +2,7 @@
 # Copyright (c) 2022 Sam Blenny
 # SPDX-License-Identifier: MIT
 #
-# MarkabForth VM emulator
+# Markab VM emulator
 #
 from ctypes import c_int32
 from typing import Callable, Dict

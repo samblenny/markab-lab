@@ -1,6 +1,6 @@
 ( Copyright © 2022 Sam Blenny)
 ( SPDX-License-Identifier: MIT)
-( MarkabForth kernel: binary rom image to be compiled by bootstrap compiler)
+( Markab kernel: binary rom image to be compiled by bootstrap compiler)
 
 
 ( TODO: make this actually work)

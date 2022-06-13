@@ -4,7 +4,7 @@
 ( ===        DO NOT MAKE EDITS HERE        ===)
 ( ===      See codegen.py for details      ===)
 
-( MarkabVM virtual CPU opcodes)
+( CPU opcodes)
  0 const NOP
  1 const ADD
  2 const SUB
@@ -45,7 +45,7 @@
 37 const RESET
 38 const ECALL
 
-( MarkabVM environment call (syscall) constants
+( Environment call (ECALL) constants)
  1 const E_DS
  2 const E_RS
  3 const E_DSH

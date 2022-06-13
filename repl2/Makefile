@@ -4,7 +4,7 @@
 .POSIX:
 .SUFFIXES:
 .PHONY: all run test clean
-AUTOGEN=opcodes.fs mem_map.fs opcodes.py mem_map.py
+AUTOGEN=opcodes.mkb mem_map.mkb opcodes.py mem_map.py
 TEST_IN=test/read_test_data.txt
 TEST_OUT=test/vm_out.txt
 
@@ -16,10 +16,10 @@ run: kernel.bin $(AUTOGEN)
 kernel.bin: bootstrap.py $(AUTOGEN)
 	@python3 bootstrap.py
 
-opcodes.fs: codegen.py
+opcodes.mkb: codegen.py
 	@python3 codegen.py
 
-mem_map.fs: codegen.py
+mem_map.mkb: codegen.py
 	@python3 codegen.py
 
 opcodes.py: codegen.py

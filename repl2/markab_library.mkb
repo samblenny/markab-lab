@@ -1,0 +1,13 @@
+( Copyright © 2022 Sam Blenny)
+( SPDX-License-Identifier: MIT)
+( Markab library: all the stuff that runs on top of the kernel)
+
+: here dp @ ;
+: allot here + dp ! ;
+: , here 4 allot ! ;
+: ? @ . ;
+: setType here b! 1 allot ;
+: setParam here ! 4 allot ;
+: setHead last w! ;
+: var here create TpVar setType 0 ( init to 0) setParam setHead ;
+: const here swap create TpConst setType ( T: n) setParam setHead ;
