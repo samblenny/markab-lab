@@ -7,6 +7,57 @@ This page documents the Markab programming language. Or, more accurately,
 that's the plan, which is still in the early stages of implementation.
 
 
+## CPU opcodes, ECALL constants, and core words
+
+These are instruction opcode mnemonics used by the Markab assembler to generate
+bytecode for the Markab virtual machine:
+
+```
+NOP ADD SUB MUL AND INV OR XOR SLL SRL SRA
+EQ GT LT NE ZE JMP JAL RET
+BZ DRBLT MRT MTR RDROP DROP DUP OVER SWAP
+U8 U16 I32 LB SB LH SH LW SW RESET ECALL
+```
+
+The `ECALL` instruction stands for environment call. I borrowed the opcode name
+from the RISC-V instruction set. `ECALL` is used for invoking input/output (IO)
+operations, and it takes one stack argument to select which IO operation is
+being requested. IO operations include printing debug logging information about
+CPU state (stacks and program counter), reading keyboard input, and writing
+text output to the terminal. The `ECALL` argument constants used by the Markab
+assembler are:
+
+```
+E_DS E_DSH E_RS E_RSH E_PC E_READ E_WRITE
+```
+
+Markab is a Forth-like stack language. The usage of "words", "vocabulary",
+"dictionary", and "immediate words" here borrow the meanings of those terms from
+the tradition of Forth. The dictionary of the Markab kernel gets initialized
+with a core vocabulary containing definitions for these core words:
+
+```
+nop + - * & ~ | ^ << >> >>>
+= > < != 0=
+r> >r rdrop drop dup over swap
+b@ b! h@ h! w@ w!
+: ; var const
+if{ }if for{ }for ASM{ }ASM
+```
+
+Most of the core words are simple words that invoke a CPU instruction on one
+one or two arguments from the data or return stacks. The simple words do not
+run any code when they are being compiled into a dictionary entry. "Compiling"
+a simple word consists of adding the bytecode for that word's CPU instruction
+into the dictionary entry that is being compiled.
+
+The remaining core words are "immediate" words: `:`, `;`, `var`, `const`,
+`if{`, `}if`, `for{`, `}for`, `ASM{`, and `}ASM`. Immediate words are used for
+language features that require decisions and calculations at compile time. For
+example, immediate words can do things like adding a dictionary entry or
+calculating addresses for loops and branching.
+
+
 ## Markab file extension
 
 The file extension for Markab source code is `.mkb`
@@ -25,9 +76,9 @@ highlighting for the Markab source code in `.mkb` files.
 
 Install Procedure:
 
-1. Copy `markab-mode.el` to your into somewhere on your emacs load-path
+1. Copy `markab-mode.el` into somewhere on your emacs load-path
 
-2. Add something similar to this to your `.emacs`:
+2. Add this, or something similar, to your `.emacs`:
    ```
    (when (locate-library "markab-mode")
       (require 'markab-mode))
