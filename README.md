@@ -79,11 +79,14 @@ reasonable.
    stack-based kernel, interpreters, assembler, and compiler running on top
    of the VM.
 
-2. [repl/](repl): A simple plain-text Forth system with interpreters and
+2. [markab-language/](markab-language): Work in progress on language spec and
+   text editor syntax highlighting plugins for the Markab programming language.
+
+3. [repl/](repl): A simple plain-text Forth system with interpreters and
    compiler running on top of a kernel written in amd64 assembly language for
    linux.
 
-3. [asm/amd64/](asm/amd64): Several C and amd64 assembly language experiments
+4. [asm/amd64/](asm/amd64): Several C and amd64 assembly language experiments
    written to prepare for making the prototype Forth system in [repl/](repl).
 
 
