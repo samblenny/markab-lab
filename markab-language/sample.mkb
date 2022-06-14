@@ -4,19 +4,17 @@
 ( parentheses enclose comments)
 ( ASM{ and }ASM enclose blocks of assembly language code)
 ( : and ; enclose a definition)
-( U8 and ECALL are Markab VM opcodes)
-( E_DS, E_RS, E_READ, E_WRITE, and E_DS are parameters for ECALL)
-: .s   ASM{ U8 E_DS    ECALL }ASM ;
-: .ret ASM{ U8 E_RS    ECALL }ASM ;
-: key  ASM{ U8 E_READ  ECALL }ASM ;
-: emit ASM{ U8 E_WRITE ECALL }ASM ;
+: .s   ASM{ IOD }ASM ;
+: .ret ASM{ IOR }ASM ;
+: key  ASM{ IOKEY }ASM ;
+: emit ASM{ IOEMIT }ASM ;
 
 ( `if{` and `}if` enclose a conditional block)
 ( A pair of `'` enclose an ASCII character constant)
 : if-AB dup 1 = if{ 'A' emit }if 2 = if{ 'B' emit }if ;
 
 ( `for{` and `}for` enclose a counted loop. `for{` takes its count from T)
-: count '0' 9 for{ dup emit 1 + }for drop ;
+: count '0' 9 for{ dup emit 1+ }for drop ;
 
 ( These are the Markab language core dictionary words)
 ( Markab is case-sensitive, so uppercase and lowercase are not the same)
@@ -24,14 +22,14 @@ nop + - * & ~ | ^ << >> >>>
 = > < != 0=
 : ; var const
 r> >r rdrop drop dup over swap
-b@ b! h@ h! w@ w!
+b@ b! h@ h! w@ w! lr lpc
+>a b@a+ 1+ 1-
 if{ }if for{ }for ASM{ }ASM
 
 ( These are VM instruction opcodes)
 NOP ADD SUB MUL AND INV OR XOR SLL SRL SRA
 EQ GT LT NE ZE JMP JAL RET
 BZ DRBLT MRT MTR RDROP DROP DUP OVER SWAP
-U8 U16 I32 LB SB LH SH LW SW RESET ECALL
-
-( These are parameters for ECALL)
-E_DS E_DSH E_RS E_RSH E_PC E_READ E_WRITE
+U8 U16 I32 LB SB LH SH LW SW LR LPC RESET
+IOD IOR IODH IORH IOKEY IOEMIT
+MTA LBAI INC DEC

@@ -15,17 +15,18 @@
     "NOP" "ADD" "SUB" "MUL" "AND" "INV" "OR" "XOR" "SLL" "SRL" "SRA"
     "EQ" "GT" "LT" "NE" "ZE" "JMP" "JAL" "RET"
     "BZ" "DRBLT" "MRT" "MTR" "RDROP" "DROP" "DUP" "OVER" "SWAP"
-    "U8" "U16" "I32" "LB" "SB" "LH" "SH" "LW" "SW" "RESET" "ECALL"
-
-    ;; ECALL Codes
-    "E_DS" "E_DSH" "E_RS" "E_RSH" "E_PC" "E_READ" "E_WRITE"
+    "U8" "U16" "I32" "LB" "SB" "LH" "SH" "LW" "SW" "LR" "LPC" "RESET"
+    "IOD" "IOR" "IODH" "IORH" "IOKEY" "IOEMIT"
+    "MTA" "LBAI" "INC" "DEC"
 
     ;; Core Words
     "nop" "+" "-" "*" "&" "~" "|" "^" "<<" ">>" ">>>"
     "=" ">" "<" "!=" "0="
     ":" ";" "var" "const"
     "r>" ">r" "rdrop" "drop" "dup" "over" "swap"
-    "b@" "b!" "h@" "h!" "w@" "w!"
+    "b@" "b!" "h@" "h!" "w@" "w!" "lr" "lpc"
+    "iod" "ior" "iodh" "iorh" "key" "emit"
+    ">a" "b@a+" "1+" "1-"
     "if{" "}if" "for{" "}for" "ASM{" "}ASM"))
 
 (defconst markab-comments '(("( " . ")")))
