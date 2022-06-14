@@ -8,6 +8,7 @@ from ctypes import c_int32
 from typing import Callable, Dict
 import readline
 import sys
+import os
 
 from opcodes import (
   NOP, ADD, SUB, MUL, AND, INV, OR, XOR, SLL, SRL, SRA, EQ, GT, LT, NE, ZE,
@@ -28,14 +29,11 @@ ERR_R_UNDER = 7
 ERR_BAD_ECALL = 8
 ERR_MAX_CYCLES = 9
 
-# Configure STDIN/STDOUT at load-time for use utf-8 encoding without buffering.
-# This is not optimally efficient, but it does not matter. The objective is to
-# get correct results from tests to validate the VM implementation without
-# distractions for issues related to IO buffering. High-speed IO is not a
-# priority now. For documentation on arguments to `reconfigure()`, see
+# Configure STDIN/STDOUT at load-time for use utf-8 encoding.
+# For documentation on arguments to `reconfigure()`, see
 # https://docs.python.org/3/library/io.html#io.TextIOWrapper
-sys.stdout.reconfigure(encoding='utf-8', write_through=True)
-sys.stdin.reconfigure(encoding='utf-8', line_buffering=False)
+sys.stdout.reconfigure(encoding='utf-8', line_buffering=True)
+sys.stdin.reconfigure(encoding='utf-8', line_buffering=True)
 
 # Turn off readline's automatic appending of input to the history file
 readline.write_history_file = lambda *args: None
@@ -599,8 +597,17 @@ class VM:
       self._push(0)
 
   def _write(self):
-    """Write low byte of T to the Standard Output stream"""
+    """Write low byte of T to the Standard Output stream.
+
+    Doing the buffer.write() thing allows for writing utf-8 sequences byte by
+    byte without having to buffer and parse UTF-8, or fight with Python's type
+    system. This output method is most suitable for tests, demo code, and
+    prototypes, where simplicity of the code is more important than its
+    efficiency. Using this method to print long strings would be inefficient.
+    """
+    sys.stdout.flush()
     sys.stdout.buffer.write(int.to_bytes(self.T & 0xff, 1, 'little'))
+    sys.stdout.flush()
     self.drop()
 
   def _ok_or_err(self):
@@ -619,5 +626,3 @@ if __name__ == '__main__':
     v = VM()
     rom = f.read()
     v._warm_boot(rom, 9999)
-    # TODO: fix buffering/flushing for E_WRITE so this print() can be removed
-    print()

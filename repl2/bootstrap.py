@@ -21,10 +21,10 @@ ROM_FILE = 'kernel.bin'
 
 KERNEL_ASM = """
 # addr:  0  1  2  3   4  *5*  6  7       8     9 10  11  12    13 14 15    16
-        U8 18 U8 14 MTR  DUP LB U8 E_WRITE ECALL U8  1  ADD DRBLT  5  0 RDROP
+        U8 18 U8 13 MTR  DUP LB U8 E_WRITE ECALL U8  1  ADD DRBLT  5  0 RDROP
 # addr: 17 *18*
 #            H   e   l   l   o  , <SP>  w   o   r   l   d  ! <LF> (14 bytes)
-        RET 72 101 108 108 111 44  32 119 111 114 108 100 33 13
+        RET 72 101 108 108 111 44  32 119 111 114 108 100 33 10
 """
 
 def filter(src):
@@ -76,7 +76,5 @@ def compile_kernel():
         raise Exception("not an op, not an int", word)
   return obj
 
-print(f"Compiling kernel to {ROM_FILE}")
 with open(ROM_FILE, 'w') as f:
   f.buffer.write(compile_kernel())
-print("done")

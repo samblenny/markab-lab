@@ -10,7 +10,8 @@ TEST_OUT=test/vm_out.txt
 
 all: kernel.bin
 
-run: kernel.bin $(AUTOGEN)
+run: $(AUTOGEN)
+	@python3 bootstrap.py
 	@python3 markab_vm.py
 
 kernel.bin: bootstrap.py $(AUTOGEN)
