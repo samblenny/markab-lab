@@ -16,20 +16,24 @@ bytecode for the Markab virtual machine:
 NOP ADD SUB MUL AND INV OR XOR SLL SRL SRA
 EQ GT LT NE ZE JMP JAL RET
 BZ DRBLT MRT MTR RDROP DROP DUP OVER SWAP
-U8 U16 I32 LB SB LH SH LW SW RESET ECALL
+U8 U16 I32 LB SB LH SH LW SW LR LPC RESET
+IOD IOR IODH IORH IOKEY IOEMIT
+MTA LBAI INC DEC
 ```
 
-The `ECALL` instruction stands for environment call. I borrowed the opcode name
-from the RISC-V instruction set. `ECALL` is used for invoking input/output (IO)
-operations, and it takes one stack argument to select which IO operation is
-being requested. IO operations include printing debug logging information about
-CPU state (stacks and program counter), reading keyboard input, and writing
-text output to the terminal. The `ECALL` argument constants used by the Markab
-assembler are:
+The `U8` ... `SW` opcodes are for working with different widths of data. For
+example, `U16` pushes a 16-bit unsigned integer to the stack, and `LH` loads a
+16-bit "halfword" from a memory address. The "byte", "halfword", and "word"
+data width naming matches their usage in the RISC-V instruction set, which is
+oriented around a CPU with 32-bit registers.
 
-```
-E_DS E_DSH E_RS E_RSH E_PC E_READ E_WRITE
-```
+The `IO..` opcodes do terminal input/output (IO) operations like debug printing
+stack contents to the terminal, getting a byte of keyboard input, or emitting a
+byte of output.
+
+The `MTA` and `LBAI` opcodes are for loading a byte from a address stored in the
+VM's `A` register with an automatically increment of the address. They help for
+loops that need to copy or move bytes.
 
 Markab is a Forth-like stack language. The usage of "words", "vocabulary",
 "dictionary", and "immediate words" here borrow the meanings of those terms from
@@ -40,7 +44,8 @@ with a core vocabulary containing definitions for these core words:
 nop + - * & ~ | ^ << >> >>>
 = > < != 0=
 r> >r rdrop drop dup over swap
-b@ b! h@ h! w@ w!
+b@ b! h@ h! w@ w! lr lpc
+iod ior iod iorh key emit
 : ; var const
 if{ }if for{ }for ASM{ }ASM
 ```
