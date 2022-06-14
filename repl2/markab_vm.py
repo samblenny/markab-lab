@@ -610,3 +610,14 @@ class VM:
       self.error = 0
     else:
       print("  OK")
+
+"""
+Load and boot the ROM file when VM is run as a module rather than imported
+"""
+if __name__ == '__main__':
+  with open(ROM_FILE, 'rb') as f:
+    v = VM()
+    rom = f.read()
+    v._warm_boot(rom, 9999)
+    # TODO: fix buffering/flushing for E_WRITE so this print() can be removed
+    print()

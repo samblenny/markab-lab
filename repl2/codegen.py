@@ -127,6 +127,18 @@ def py_opcode_constants():
     ops += [f"{opcode.upper():6} = {i:2}"]
   return "\n".join(ops)
 
+def py_opcode_ecall_dictionary():
+  ope = []
+  for (i, line) in enumerate(filter(OPCODES)):
+    (name, opcode) = line.strip().split(" ")
+    key = f"'{opcode.upper()}':"
+    ope += [f"  {key:9} {i:>2},"]
+  for (i, line) in enumerate(filter(ECALLS)):
+    (code, name) = line.strip().split(" ")
+    key = f"'{name}':"
+    ope += [f"  {key:11} {code:>2},"]
+  return "\n".join(ope)
+
 def py_ecall_constants():
   ecalls = []
   for (i, line) in enumerate(filter(ECALLS)):
@@ -139,14 +151,14 @@ def py_core_voc():
   for line in filter(MEMORY_MAP):
     (addr, name) = line.split(" ")
     key = f"'{name}':"
-    cv += [f"  {key:10} (T_CON, 0x{addr}),"]
+    cv += [f"  {key:10} (T_CONST, 0x{addr}),"]
   for (i, line) in enumerate(filter(OPCODES)):
     (name, code) = line.strip().split(" ")
     if name == '<ASM>':
       continue
     fmt_name = f"'{name}':"
     key = f"'{name}':"
-    cv += [f"  {key:10} (T_OP,  {code}),"]
+    cv += [f"  {key:10} (T_OP,    {code}),"]
   return "\n".join(cv)
 
 MKB_TEMPLATE_OP = f"""
@@ -189,6 +201,10 @@ PY_TEMPLATE_OP = f"""
 {py_opcode_constants()}
 
 {py_ecall_constants()}
+
+OPCODE_ECALL = {{
+{py_opcode_ecall_dictionary()}
+}}
 """.strip()
 
 PY_TEMPLATE_MEM = f"""
@@ -210,7 +226,12 @@ PY_TEMPLATE_CV = f"""
 # DO NOT MAKE EDITS HERE
 # See codegen.py for details
 #
-import * from {PY_OUTFILE_OP}
+from {PY_OUTFILE_OP[:-3]} import *
+
+T_VAR   = 0
+T_CONST = 1
+T_OP    = 2
+T_CODE  = 3
 
 CORE_VOC = {{
 {py_core_voc()}
