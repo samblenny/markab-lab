@@ -447,7 +447,7 @@ warmboot                                       (  5  OK)  5  OK
 ASM{   NOP NOP LPC IOD RESET }ASM
 warmboot                                       (  3  OK)  3  OK
 
-=== test.vm.test_instruction_decode_mta_lbai_inc() ===
+=== test.vm.test_instruction_decode_mta_lbai_inc_dec() ===
 ( ---------------------------------------)
 ( MTA -- Move T to A: >a                 )
 ( LBAI -- Load Byte via A, inc A: b@a+   )
@@ -462,6 +462,11 @@ warmboot                                   (  Hello  OK)  Hello  OK
 ( ---------------------------------------)
 ( INC -- Add 1 to T                      )
 (       3  1+  1+  .s reset              )
-ASM{ U8 1 INC INC IOD RESET RET }ASM
+ASM{ U8 3 INC INC IOD RESET RET }ASM
 warmboot                                       (  5  OK)  5  OK
+( ---------------------------------------)
+( Dec -- Subtract 1 from T               )
+(       6  1-  1-  .s reset              )
+ASM{ U8 6 DEC DEC IOD RESET RET }ASM
+warmboot                                       (  4  OK)  4  OK
 

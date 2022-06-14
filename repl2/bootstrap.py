@@ -9,7 +9,7 @@ from opcodes import (
   JMP, JAL, RET, BZ, DRBLT, MTR, MRT, RDROP, DROP, DUP, OVER, SWAP,
   U8, U16, I32, LB, SB, LH, SH, LW, SW, LR, LPC, RESET,
   IOD, IOR, IODH, IORH, IOKEY, IOEMIT,
-  MTA, LBAI, INC,
+  MTA, LBAI, INC, DEC,
   OPCODES,
 )
 from mem_map import (

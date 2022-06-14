@@ -54,6 +54,7 @@ IOEMIT = 45
 MTA    = 46
 LBAI   = 47
 INC    = 48
+DEC    = 49
 
 OPCODES = {
   'NOP':     0,
@@ -105,4 +106,5 @@ OPCODES = {
   'MTA':    46,
   'LBAI':   47,
   'INC':    48,
+  'DEC':    49,
 }

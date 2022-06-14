@@ -68,4 +68,5 @@ CORE_VOC = {
   '>a':      (T_OP,    MTA),
   'b@a+':    (T_OP,    LBAI),
   '1+':      (T_OP,    INC),
+  '1-':      (T_OP,    DEC),
 }

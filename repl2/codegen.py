@@ -61,6 +61,7 @@ emit IOEMIT
 >a MTA
 b@a+ LBAI
 1+ INC
+1- DEC
 """
 
 MEMORY_MAP = """

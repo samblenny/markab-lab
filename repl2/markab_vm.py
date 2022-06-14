@@ -15,7 +15,7 @@ from opcodes import (
   JMP, JAL, RET, BZ, DRBLT, MTR, MRT, RDROP, DROP, DUP, OVER, SWAP,
   U8, U16, I32, LB, SB, LH, SH, LW, SW, LR, LPC, RESET,
   IOD, IOR, IODH, IORH, IOKEY, IOEMIT,
-  MTA, LBAI, INC,
+  MTA, LBAI, INC, DEC,
 )
 from mem_map import Boot, BootMax, MemMax
 
@@ -111,6 +111,7 @@ class VM:
     self.jumpTable[MTA  ] = self.move_t_to_a
     self.jumpTable[LBAI ] = self.load_byte_a_increment
     self.jumpTable[INC  ] = self.increment
+    self.jumpTable[DEC  ] = self.decrement
 
   def _set_pc(self, addr):
     """Set Program Counter with range check"""
@@ -383,6 +384,10 @@ class VM:
   def increment(self):
     """Add 1 to T"""
     self._op_t(lambda t: t + 1)
+
+  def decrement(self):
+    """Subtract 1 from T"""
+    self._op_t(lambda t: t - 1)
 
   def reset(self):
     """Reset the data stack, return stack and error code"""

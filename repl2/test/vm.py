@@ -9,7 +9,7 @@ from opcodes import (
   JMP, JAL, RET, BZ, DRBLT, MTR, MRT, RDROP, DROP, DUP, OVER, SWAP,
   U8, U16, I32, LB, SB, LH, SH, LW, SW, LR, LPC, RESET,
   IOD, IOR, IODH, IORH, IOKEY, IOEMIT,
-  MTA, LBAI, INC,
+  MTA, LBAI, INC, DEC,
 )
 
 def p(s):
@@ -882,9 +882,9 @@ def test_instruction_decode_lr_lpc():
   v._warm_boot(code, max_cycles=99)
   print()
 
-def test_instruction_decode_mta_lbai_inc():
+def test_instruction_decode_mta_lbai_inc_dec():
   v = VM()
-  print("=== test.vm.test_instruction_decode_mta_lbai_inc() ===")
+  print("=== test.vm.test_instruction_decode_mta_lbai_inc_dec() ===")
   print("( ---------------------------------------)")
   print("( MTA -- Move T to A: >a                 )")
   print("( LBAI -- Load Byte via A, inc A: b@a+   )")
@@ -904,9 +904,16 @@ def test_instruction_decode_mta_lbai_inc():
   print("( ---------------------------------------)")
   print("( INC -- Add 1 to T                      )")
   print("(       3  1+  1+  .s reset              )")
-  print("ASM{ U8 1 INC INC IOD RESET RET }ASM")
+  print("ASM{ U8 3 INC INC IOD RESET RET }ASM")
   code = bytearray([U8, 3, INC, INC, IOD, RESET, RET])
   p("warmboot                                       (  5  OK)")
+  v._warm_boot(code, max_cycles=99)
+  print("( ---------------------------------------)")
+  print("( Dec -- Subtract 1 from T               )")
+  print("(       6  1-  1-  .s reset              )")
+  print("ASM{ U8 6 DEC DEC IOD RESET RET }ASM")
+  code = bytearray([U8, 6, DEC, DEC, IOD, RESET, RET])
+  p("warmboot                                       (  4  OK)")
   v._warm_boot(code, max_cycles=99)
   print()
 
@@ -931,4 +938,4 @@ test_instruction_decode_u16_sh_lh()
 test_instruction_decode_i32_sw_lw()
 test_instruction_decode_reset_io()
 test_instruction_decode_lr_lpc()
-test_instruction_decode_mta_lbai_inc()
+test_instruction_decode_mta_lbai_inc_dec()
