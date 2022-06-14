@@ -58,6 +58,9 @@ iodh IODH
 iorh IORH
 key IOKEY
 emit IOEMIT
+>a MTA
+b@a+ LBAI
+1+ INC
 """
 
 MEMORY_MAP = """

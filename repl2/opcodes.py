@@ -51,6 +51,9 @@ IODH   = 42
 IORH   = 43
 IOKEY  = 44
 IOEMIT = 45
+MTA    = 46
+LBAI   = 47
+INC    = 48
 
 OPCODES = {
   'NOP':     0,
@@ -99,4 +102,7 @@ OPCODES = {
   'IORH':   43,
   'IOKEY':  44,
   'IOEMIT': 45,
+  'MTA':    46,
+  'LBAI':   47,
+  'INC':    48,
 }

@@ -9,6 +9,7 @@ from opcodes import (
   JMP, JAL, RET, BZ, DRBLT, MTR, MRT, RDROP, DROP, DUP, OVER, SWAP,
   U8, U16, I32, LB, SB, LH, SH, LW, SW, LR, LPC, RESET,
   IOD, IOR, IODH, IORH, IOKEY, IOEMIT,
+  MTA, LBAI, INC,
   OPCODES,
 )
 from mem_map import (
@@ -20,11 +21,12 @@ from core_voc import CORE_VOC, T_VAR, T_CONST, T_OP, T_CODE
 ROM_FILE = 'kernel.bin'
 
 KERNEL_ASM = """
-# addr:  0  1  2  3   4  *5*  6      7  8  9  10    11 12 13    14
-        U8 16 U8 13 MTR  DUP LB IOEMIT U8  1 ADD DRBLT  5  0 RDROP
-# addr: 15 *16*
-#            H   e   l   l   o  , <SP>  w   o   r   l   d  ! <LF> (14 bytes)
-        RET 72 101 108 108 111 44  32 119 111 114 108 100 33 10
+#          13  >a    13 for{ b@a+   emit       }for
+# addr:  0  1   2  3  4   5   *6*      7     8 9 10    11  12
+        U8 13 MTA U8 13 MTR  LBAI IOEMIT DRBLT 6  0 RDROP RET
+# addr: *13*
+#         H   e   l   l   o  , <SP>  w   o   r   l   d  ! <LF> (14 bytes)
+         72 101 108 108 111 44  32 119 111 114 108 100 33 10
 """
 
 def filter(src):

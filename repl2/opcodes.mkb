@@ -51,3 +51,6 @@
 43 const IORH
 44 const IOKEY
 45 const IOEMIT
+46 const MTA
+47 const LBAI
+48 const INC

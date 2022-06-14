@@ -15,6 +15,7 @@ from opcodes import (
   JMP, JAL, RET, BZ, DRBLT, MTR, MRT, RDROP, DROP, DUP, OVER, SWAP,
   U8, U16, I32, LB, SB, LH, SH, LW, SW, LR, LPC, RESET,
   IOD, IOR, IODH, IORH, IOKEY, IOEMIT,
+  MTA, LBAI, INC,
 )
 from mem_map import Boot, BootMax, MemMax
 
@@ -107,6 +108,9 @@ class VM:
     self.jumpTable[IORH ] = self.io_return_stack_hex
     self.jumpTable[IOKEY] = self.io_key
     self.jumpTable[IOEMIT] = self.io_emit
+    self.jumpTable[MTA  ] = self.move_t_to_a
+    self.jumpTable[LBAI ] = self.load_byte_a_increment
+    self.jumpTable[INC  ] = self.increment
 
   def _set_pc(self, addr):
     """Set Program Counter with range check"""
@@ -201,6 +205,16 @@ class VM:
       self.error = ERR_BAD_ADDRESS
       return
     self.T = int.from_bytes(self.ram[addr:addr+1], 'little', signed=False)
+
+  def load_byte_a_increment(self):
+    """Load byte from memory using address in register A, then increment A"""
+    addr = self.A
+    if (addr < 0) or (addr > MemMax):
+      self.error = ERR_BAD_ADDRESS
+      return
+    x = int.from_bytes(self.ram[addr:addr+1], 'little', signed=False)
+    self.A += 1
+    self._push(x)
 
   def store_byte(self):
     """Store low byte of S (uint8) at memory address T"""
@@ -366,6 +380,10 @@ class VM:
     """Add T to S, store result in S, drop T"""
     self._op_st(lambda s, t: s + t)
 
+  def increment(self):
+    """Add 1 to T"""
+    self._op_t(lambda t: t + 1)
+
   def reset(self):
     """Reset the data stack, return stack and error code"""
     self.DSDeep = 0
@@ -477,6 +495,15 @@ class VM:
       self.RStack[rSecond] = self.R
     self.R = self.T
     self.RSDeep += 1
+    self.drop()
+
+  def move_t_to_a(self):
+    """Move top of data stack (T) to address register (A)"""
+    if self.DSDeep < 1:
+      self.reset()
+      self.error = ERR_D_UNDER
+      return
+    self.A = self.T
     self.drop()
 
   def load_halfword(self):
@@ -591,7 +618,6 @@ class VM:
       self._push(-1)
       self.inbuf = self.inbuf[1:]
     else:
-      print("<!>", end='')
       self._push(0)
 
   def io_emit(self):

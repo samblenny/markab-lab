@@ -9,6 +9,7 @@ from opcodes import (
   JMP, JAL, RET, BZ, DRBLT, MTR, MRT, RDROP, DROP, DUP, OVER, SWAP,
   U8, U16, I32, LB, SB, LH, SH, LW, SW, LR, LPC, RESET,
   IOD, IOR, IODH, IORH, IOKEY, IOEMIT,
+  MTA, LBAI, INC,
 )
 
 def p(s):
@@ -879,6 +880,35 @@ def test_instruction_decode_lr_lpc():
   code = bytearray([NOP, NOP, LPC, IOD, RESET, RET])
   p("warmboot                                       (  3  OK)")
   v._warm_boot(code, max_cycles=99)
+  print()
+
+def test_instruction_decode_mta_lbai_inc():
+  v = VM()
+  print("=== test.vm.test_instruction_decode_mta_lbai_inc() ===")
+  print("( ---------------------------------------)")
+  print("( MTA -- Move T to A: >a                 )")
+  print("( LBAI -- Load Byte via A, inc A: b@a+   )")
+  print("(         14 >a 6 for{ b@a+ emit }for    )")
+  print("( addr: 0  1   2  3 4   5  *6*      7    )")
+  print("ASM{   U8 14 MTA U8 6 MTR LBAI IOEMIT")
+  print("( addr:    8 9 10   11    12  13         )")
+  print("       DRBLT 6 0 RDROP RESET RET")
+  print("( addr: *14*                             )")
+  print("         32 32 72 101 108 108 111 }ASM")
+  code = bytearray([U8, 14, MTA, U8, 6, MTR, LBAI, IOEMIT])
+  code.extend([DRBLT, 6, 0, RDROP, RESET, RET])
+  code.extend([32, 32, 72, 101, 108, 108, 111])
+  p("warmboot                                   (  Hello  OK)")
+  v._warm_boot(code, max_cycles=99)
+  print("  OK")
+  print("( ---------------------------------------)")
+  print("( INC -- Add 1 to T                      )")
+  print("(       3  1+  1+  .s reset              )")
+  print("ASM{ U8 1 INC INC IOD RESET RET }ASM")
+  code = bytearray([U8, 3, INC, INC, IOD, RESET, RET])
+  p("warmboot                                       (  5  OK)")
+  v._warm_boot(code, max_cycles=99)
+  print()
 
 test_push_pop()
 test_add_subtract()
@@ -901,3 +931,4 @@ test_instruction_decode_u16_sh_lh()
 test_instruction_decode_i32_sw_lw()
 test_instruction_decode_reset_io()
 test_instruction_decode_lr_lpc()
+test_instruction_decode_mta_lbai_inc()

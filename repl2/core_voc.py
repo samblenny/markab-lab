@@ -65,4 +65,7 @@ CORE_VOC = {
   'iorh':    (T_OP,    IORH),
   'key':     (T_OP,    IOKEY),
   'emit':    (T_OP,    IOEMIT),
+  '>a':      (T_OP,    MTA),
+  'b@a+':    (T_OP,    LBAI),
+  '1+':      (T_OP,    INC),
 }
