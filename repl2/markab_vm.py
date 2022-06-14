@@ -15,7 +15,7 @@ from opcodes import (
   U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET, ECALL,
   E_DS, E_RS, E_DSH, E_RSH, E_PC, E_READ, E_WRITE,
 )
-from mem_map import IO, IOEnd, Boot, BootMax, MemMax
+from mem_map import Boot, BootMax, MemMax
 
 ROM_FILE = 'kernel.bin'
 ERR_D_OVER = 1

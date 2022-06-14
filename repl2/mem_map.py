@@ -5,23 +5,17 @@
 # DO NOT MAKE EDITS HERE
 # See codegen.py for details
 
-IO      = 0x0000
-IOEnd   = 0x00FF
-Boot    = 0x0100
+Boot    = 0x0000
 BootMax = 0x03FF
 Heap    = 0x0400
-HeapRes = 0xCC00
-HeapMax = 0xCFFF
-DP      = 0xD000
-IN      = 0xD004
-IBPtr   = 0xD008
-IBLen   = 0xD00C
-TIB     = 0xE000
-TIBMax  = 0xE3FF
-BLK     = 0xE400
-BLKMax  = 0xE7FF
-Pad     = 0xE800
-PadMax  = 0xEBFF
-Fmt     = 0xEC00
-FmtMax  = 0xEFFF
+HeapRes = 0xE000
+HeapMax = 0xE0FF
+DP      = 0xE100
+IN      = 0xE104
+IBLen   = 0xE200
+IB      = 0xE201
+PadLen  = 0xE300
+Pad     = 0xE301
+FmtLen  = 0xE400
+Fmt     = 0xE401
 MemMax  = 0xFFFF

@@ -290,35 +290,35 @@ warmboot .s                               (  0 -1 0  OK)  0 -1 0  OK
 reset  OK
 
 === test.vm.test_instruction_decode_jump() ===
-( opcode coverage: JMP                                 )
-( assemble tokens to memory starting at Boot vector 256)
-( 256+0: push 5                                        )
-( 256+2: jump to 256+8                                 )
-( 256+5: push 6, return                                )
-( 256+8: push 7, jump to 256+5                         )
-(   256+:   0 1   2 3 4    5 6   7    8 9  10 11 12    )
-ASM{ U8 5 jmp 8 1 U8 6 ret U8 7 jmp  5  1 }ASM
+( opcode coverage: JMP                            )
+( assemble tokens to memory starting at address 0 )
+( 0: push 5                                       )
+( 2: jump to 8                                    )
+( 5: push 6, return                               )
+( 8: push 7, jump to 5                            )
+( addr: 0 1   2 3 4  5 6   7  8 9  10 11 12       )
+ASM{   U8 5 JMP 8 0 U8 6 RET U8 7 JMP  5  0 }ASM
 warmboot  OK
 .s                                         (  5 7 6  OK)  5 7 6  OK
 
 === test.vm.test_instruction_decode_jal_return() ===
-( opcode coverage: JAL RET                             )
-( assemble tokens to memory starting at Boot vector 256)
-( 256+ 0: JAL 256+7=0x0107, or [7, 1] little endian    )
-( 256+ 3: JAL 256+10=0x010A, or [10, 1] little endian  )
-( 256+ 6: Return                                       )
-( 256+ 7: Subroutine: push 9 to data stack, return     )
-( 256+10: Subroutine: push 5 to data stack, return     )
-(   256+:   0 1 2    3  4 5   6    7 8   9   10 11  12 )
-ASM{ jal 7 1 jal 10 1 ret U8 9 ret U8  5 ret }ASM
+( opcode coverage: JAL RET                        )
+( assemble tokens to memory starting at address 0 )
+(  0: JAL  7=0x0007, or [ 7, 0] little endian     )
+(  3: JAL 10=0x000A, or [10, 0] little endian     )
+(  6: Return                                      )
+(  7: Subroutine: push 9 to data stack, return    )
+( 10: Subroutine: push 5 to data stack, return    )
+( addr: 0 1 2   3  4 5   6  7 8   9 10 11  12     )
+ASM{  jal 7 0 jal 10 0 ret U8 9 ret U8  5 ret }ASM
 warmboot  OK
 .s                                           (  9 5  OK)  9 5  OK
 
 === test.vm.test_instruction_decode_jz() ===
 ( opcode coverage: BZ                                     )
 ( equivalent to: 0 dup if{ 7 }if 0 0= dup if{ 8 }IF       )
-( 256+: 0 1   2  3 4 5  6 7  8 9 10  11 12 13 14 15 16 17 )
-ASM{   U8 0 DUP BZ 8 1 U8 7 U8 0 ZE DUP BZ 17  1 U8  8 RET }ASM
+( addr: 0 1   2  3 4 5  6 7  8 9 10  11 12 13 14 15 16 17 )
+ASM{   U8 0 DUP BZ 8 0 U8 7 U8 0 ZE DUP BZ 17  0 U8  8 RET }ASM
 (         0 dup if{       7 }if                           )
 (                              0 0= dup if{          8 }if)
 warmboot  OK
@@ -328,9 +328,9 @@ warmboot  OK
 ( opcode coverage: DRBLT MTR MRT                       )
 (    equivalent to: 3 for{ i }for                      )
 ( which expands to: 3 >r :FOR r> dup >r jrnz :FOR      )
-( and assembled at the Boot vector, 256, looks like... )
-( 256+: 0 1   2      3   4   5     6 7  8   9   10  11 )
-ASM{   U8 3 MTR    MRT DUP MTR DRBLT 3  1 RTT DROP RET }ASM
+( and assembled at address 0, looks like...            )
+( addr: 0 1   2      3   4   5     6 7  8   9   10  11 )
+ASM{   U8 3 MTR    MRT DUP MTR DRBLT 3  0 RTT DROP RET }ASM
 (         3 for{             i  }FOR                   )
 (           >r :FOR r> dup  >r drblt :FOR  >r drop     )
 warmboot  OK
@@ -406,9 +406,9 @@ warmboot                                      (  21  OK)  21  OK
 ( ---------------------------------------)
 ( E_PC ECALL -- push Program Counter     )
 (         E_PC ecall            .s reset )
-( 256+: 0    1     2  3    4     5     6 )
+( addr: 0    1     2  3    4     5     6 )
 ASM{   U8 E_PC ECALL U8 E_DS ECALL RESET }ASM
-warmboot                                     (  259  OK)  259  OK
+warmboot                                       (  3  OK)  3  OK
 ( ---------------------------------------)
 ( E_READ ECALL -- echo a line from STDIN )
 ( do: 99 for{                            )
@@ -417,15 +417,15 @@ warmboot                                     (  259  OK)  259  OK
 (      10 = if{ rdrop ret }if            )
 (      emit                              )
 (     }for                               )
-( 256+: 0  1   2 *3*      4     5        )
+( addr: 0  1   2 *3*      4     5        )
 ASM{   U8 99 MTR  U8 E_READ ECALL
-( 256+:  6  7  8 9    10  11 *12* 13 14  )
-        ZE BZ 12 1 RDROP RET DUP  U8 10
-( 256+: 15 16 17 18   19  20             )
-        EQ BZ 21 1 RDROP RET
-( 256+: *21*                             )
+( addr:  6  7  8 9    10  11 *12* 13 14  )
+        ZE BZ 12 0 RDROP RET DUP  U8 10
+( addr: 15 16 17 18   19  20             )
+        EQ BZ 21 0 RDROP RET
+( addr: *21*                             )
         U8 E_WRITE ECALL
-        DRBLT 3 1 RDROP               }ASM
+        DRBLT 3 0 RDROP               }ASM
 warmboot                                       ( test1  OK)test1  OK
 ( ---------------------------------------)
 ( E_WRITE ECALL -- write to STDOUT       )
