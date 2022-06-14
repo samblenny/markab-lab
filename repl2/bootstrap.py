@@ -7,9 +7,9 @@
 from opcodes import (
   NOP, ADD, SUB, MUL, AND, INV, OR, XOR, SLL, SRL, SRA, EQ, GT, LT, NE, ZE,
   JMP, JAL, RET, BZ, DRBLT, MTR, MRT, RDROP, DROP, DUP, OVER, SWAP,
-  U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET, ECALL,
-  E_DS, E_RS, E_DSH, E_RSH, E_PC, E_READ, E_WRITE,
-  OPCODE_ECALL,
+  U8, U16, I32, LB, SB, LH, SH, LW, SW, LR, LPC, RESET,
+  IOD, IOR, IODH, IORH, IOKEY, IOEMIT,
+  OPCODES,
 )
 from mem_map import (
   Boot, BootMax, Heap, HeapRes, HeapMax, DP,
@@ -20,9 +20,9 @@ from core_voc import CORE_VOC, T_VAR, T_CONST, T_OP, T_CODE
 ROM_FILE = 'kernel.bin'
 
 KERNEL_ASM = """
-# addr:  0  1  2  3   4  *5*  6  7       8     9 10  11  12    13 14 15    16
-        U8 18 U8 13 MTR  DUP LB U8 E_WRITE ECALL U8  1  ADD DRBLT  5  0 RDROP
-# addr: 17 *18*
+# addr:  0  1  2  3   4  *5*  6      7  8  9  10    11 12 13    14
+        U8 16 U8 13 MTR  DUP LB IOEMIT U8  1 ADD DRBLT  5  0 RDROP
+# addr: 15 *16*
 #            H   e   l   l   o  , <SP>  w   o   r   l   d  ! <LF> (14 bytes)
         RET 72 101 108 108 111 44  32 119 111 114 108 100 33 10
 """
@@ -67,8 +67,8 @@ def compile_kernel():
           continue
         elif type_code == T_CONST:
           word = f"{value}"
-      elif word in OPCODE_ECALL:
-        obj.append(OPCODE_ECALL[word])
+      elif word in OPCODES:
+        obj.extend(int.to_bytes(OPCODES[word], 1, 'little', signed=False))
         continue
       if word.isnumeric():
         obj.extend(int.to_bytes(int(word), 1, 'little', signed=False))

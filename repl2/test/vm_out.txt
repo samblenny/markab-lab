@@ -381,65 +381,68 @@ ASM{  U16 0 2 I32 255 255 255 127 OVER SW LW }ASM
 warmboot .s                           (  2147483647  OK)  2147483647  OK
 reset  OK
 
-=== test.vm.test_instruction_decode_ecall() ===
-( opcode coverage: RESET ECALL
+=== test.vm.test_instruction_decode_reset_io() ===
+( opcode coverage: RESET IOD             )
 ( ---------------------------------------)
-( E_DS ECALL -- log data stack decimal   )
+( IOD -- log data stack decimal          )
 (       33 decimal    .s reset           )
-ASM{ U8 33 U8 E_DS ECALL RESET }ASM
+ASM{ U8 33 IOD RESET }ASM
 warmboot                                      (  33  OK)  33  OK
 ( ---------------------------------------)
-( E_DSH ECALL -- log data stack hex      )
+( IODH -- log data stack hex             )
 (       33      hex    .s reset          )
-ASM{ U8 33 U8 E_DSH ECALL RESET }ASM
+ASM{ U8 33 IODH RESET }ASM
 warmboot                                      (  21  OK)  21  OK
 ( ---------------------------------------)
-( E_RS ECALL -- log return stack decimal )
+( IOR -- log return stack decimal        )
 (       33  >r decimal   .ret reset      )
-ASM{ U8 33 MTR U8 E_RS  ECALL RESET }ASM
+ASM{ U8 33 MTR IOR RESET }ASM
 warmboot                                      (  33  OK)  33  OK
 ( ---------------------------------------)
-( E_RSH ECALL -- log return stack hex    )
-(       33  >r      hex  .ret reset      )
-ASM{ U8 33 MTR U8 E_RSH ECALL RESET }ASM
+( IORH -- log return stack hex           )
+(       33  >r iorh reset                )
+ASM{ U8 33 MTR IORH RESET }ASM
 warmboot                                      (  21  OK)  21  OK
 ( ---------------------------------------)
-( E_PC ECALL -- push Program Counter     )
-(         E_PC ecall            .s reset )
-( addr: 0    1     2  3    4     5     6 )
-ASM{   U8 E_PC ECALL U8 E_DS ECALL RESET }ASM
-warmboot                                       (  3  OK)  3  OK
-( ---------------------------------------)
-( E_READ ECALL -- echo a line from STDIN )
+( IOKEY -- echo a line from STDIN        )
 ( do: 99 for{                            )
 (      key                               )
 (      0=   if{ rdrop ret }if dup        )
 (      10 = if{ rdrop ret }if            )
 (      emit                              )
 (     }for                               )
-( addr: 0  1   2 *3*      4     5        )
-ASM{   U8 99 MTR  U8 E_READ ECALL
-( addr:  6  7  8 9    10  11 *12* 13 14  )
-        ZE BZ 12 0 RDROP RET DUP  U8 10
-( addr: 15 16 17 18   19  20             )
-        EQ BZ 21 0 RDROP RET
-( addr: *21*                             )
-        U8 E_WRITE ECALL
+( addr: 0  1   2 *3*                     )
+ASM{   U8 99 MTR IOKEY
+( addr:  4  5  6 7     8   9 *10* 11 12  )
+        ZE BZ 10 0 RDROP RET DUP  U8 10
+( addr: 13 14 15 16   17  18   *19*      )
+        EQ BZ 19 0 RDROP RET IOEMIT
         DRBLT 3 0 RDROP               }ASM
 warmboot                                       ( test1  OK)test1  OK
 ( ---------------------------------------)
-( E_WRITE ECALL -- write to STDOUT       )
+( IOEMIT -- write to STDOUT              )
 ( Write space, space, star               )
-ASM{ U8 E_WRITE
-     U8 32 OVER ECALL U8 32 OVER ECALL
-     U8 42 SWAP ECALL RESET           }ASM
+ASM{ U8 32 IOEMIT U8 32 IOEMIT
+     U8 42 IOEMIT RESET           }ASM
 warmboot                                       (  *  OK)  *  OK
 ( Write utf-8 bytes for U+2708 U+FE0F    )
-ASM{ U8 E_WRITE
-     U8  32 OVER ECALL U8  32 OVER ECALL
-     U8 226 OVER ECALL U8 156 OVER ECALL
-     U8 136 OVER ECALL U8 239 OVER ECALL
-     U8 184 OVER ECALL U8 143 SWAP ECALL
+ASM{ U8  32 IOEMIT U8  32 IOEMIT
+     U8 226 IOEMIT U8 156 IOEMIT
+     U8 136 IOEMIT U8 239 IOEMIT
+     U8 184 IOEMIT U8 143 IOEMIT
      RESET                            }ASM
 warmboot                                        ( ✈️  OK)  ✈️  OK
 
+=== test.vm.test_instruction_decode_lr_lpc() ===
+( opcode coverage: LR LPC                )
+( ---------------------------------------)
+( LPC -- Load R, top of return stack     )
+(         5 >r  lr  .s reset             )
+ASM{   U8 5 MTR LR IOD RESET }ASM
+warmboot                                       (  5  OK)  5  OK
+( ---------------------------------------)
+( LPC -- Load Program Counter            )
+(      nop nop lpc  .s reset             )
+( addr:  0   1   2   3     4             )
+ASM{   NOP NOP LPC IOD RESET }ASM
+warmboot                                       (  3  OK)  3  OK

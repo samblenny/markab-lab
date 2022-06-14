@@ -42,18 +42,17 @@ LH     = 33
 SH     = 34
 LW     = 35
 SW     = 36
-RESET  = 37
-ECALL  = 38
+LR     = 37
+LPC    = 38
+RESET  = 39
+IOD    = 40
+IOR    = 41
+IODH   = 42
+IORH   = 43
+IOKEY  = 44
+IOEMIT = 45
 
-E_DS    =  1
-E_RS    =  2
-E_DSH   =  3
-E_RSH   =  4
-E_PC    =  5
-E_READ  =  6
-E_WRITE =  7
-
-OPCODE_ECALL = {
+OPCODES = {
   'NOP':     0,
   'ADD':     1,
   'SUB':     2,
@@ -91,13 +90,13 @@ OPCODE_ECALL = {
   'SH':     34,
   'LW':     35,
   'SW':     36,
-  'RESET':  37,
-  'ECALL':  38,
-  'E_DS':      1,
-  'E_RS':      2,
-  'E_DSH':     3,
-  'E_RSH':     4,
-  'E_PC':      5,
-  'E_READ':    6,
-  'E_WRITE':   7,
+  'LR':     37,
+  'LPC':    38,
+  'RESET':  39,
+  'IOD':    40,
+  'IOR':    41,
+  'IODH':   42,
+  'IORH':   43,
+  'IOKEY':  44,
+  'IOEMIT': 45,
 }

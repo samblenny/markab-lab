@@ -13,8 +13,8 @@ import os
 from opcodes import (
   NOP, ADD, SUB, MUL, AND, INV, OR, XOR, SLL, SRL, SRA, EQ, GT, LT, NE, ZE,
   JMP, JAL, RET, BZ, DRBLT, MTR, MRT, RDROP, DROP, DUP, OVER, SWAP,
-  U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET, ECALL,
-  E_DS, E_RS, E_DSH, E_RSH, E_PC, E_READ, E_WRITE,
+  U8, U16, I32, LB, SB, LH, SH, LW, SW, LR, LPC, RESET,
+  IOD, IOR, IODH, IORH, IOKEY, IOEMIT,
 )
 from mem_map import Boot, BootMax, MemMax
 
@@ -26,8 +26,7 @@ ERR_BOOT_OVERFLOW = 4
 ERR_BAD_INSTRUCTION = 5
 ERR_R_OVER = 6
 ERR_R_UNDER = 7
-ERR_BAD_ECALL = 8
-ERR_MAX_CYCLES = 9
+ERR_MAX_CYCLES = 8
 
 # Configure STDIN/STDOUT at load-time for use utf-8 encoding.
 # For documentation on arguments to `reconfigure()`, see
@@ -99,8 +98,15 @@ class VM:
     self.jumpTable[SH   ] = self.store_halfword
     self.jumpTable[LW   ] = self.load_word
     self.jumpTable[SW   ] = self.store_word
+    self.jumpTable[LR   ] = self.load_r
+    self.jumpTable[LPC  ] = self.load_pc
     self.jumpTable[RESET] = self.reset
-    self.jumpTable[ECALL] = self.ecall
+    self.jumpTable[IOD  ] = self.io_data_stack
+    self.jumpTable[IOR  ] = self.io_return_stack
+    self.jumpTable[IODH ] = self.io_data_stack_hex
+    self.jumpTable[IORH ] = self.io_return_stack_hex
+    self.jumpTable[IOKEY] = self.io_key
+    self.jumpTable[IOEMIT] = self.io_emit
 
   def _set_pc(self, addr):
     """Set Program Counter with range check"""
@@ -380,29 +386,17 @@ class VM:
       self.R = self.RStack[rSecond]
     self.RSDeep -= 1
 
-  def ecall(self):
-    """Call to host environment for privilege mode input/output routines"""
-    if self.DSDeep < 1:
-      self.error = ERR_D_UNDER
-      return
-    t = self.T
-    self.drop()
-    if t == E_DS:
-      self._log_ds(base=10)
-    elif t == E_RS:
-      self._log_rs(base=10)
-    elif t == E_DSH:
-      self._log_ds(base=16)
-    elif t == E_RSH:
-      self._log_rs(base=16)
-    elif t == E_PC:
-      self._load_pc()
-    elif t == E_READ:
-      self._read()
-    elif t == E_WRITE:
-      self._write()
-    else:
-      self.error = ERR_BAD_ECALL
+  def io_data_stack(self):
+    self._log_ds(base=10)
+
+  def io_return_stack(self):
+    self._log_rs(base=10)
+
+  def io_data_stack_hex(self):
+    self._log_ds(base=16)
+
+  def io_return_stack_hex(self):
+    self._log_rs(base=16)
 
   def move_r_to_t(self):
     """Move top of return stack (R) to top of data stack (T)"""
@@ -567,11 +561,15 @@ class VM:
     """Clear VM error status code"""
     self.error = 0
 
-  def _load_pc(self):
+  def load_r(self):
+    """Push a copy of top of Return stack (R) to the data stack"""
+    self._push(self.R)
+
+  def load_pc(self):
     """Push a copy of the Program Counter (PC) to the data stack"""
     self._push(self.PC)
 
-  def _read(self):
+  def io_key(self):
     """Push the next byte from Standard Input to the data stack.
 
     Input comes from readline, which is line buffered. So, this can block the
@@ -596,7 +594,7 @@ class VM:
       print("<!>", end='')
       self._push(0)
 
-  def _write(self):
+  def io_emit(self):
     """Write low byte of T to the Standard Output stream.
 
     Doing the buffer.write() thing allows for writing utf-8 sequences byte by

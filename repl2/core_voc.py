@@ -57,4 +57,12 @@ CORE_VOC = {
   'h!':      (T_OP,    SH),
   'w@':      (T_OP,    LW),
   'w!':      (T_OP,    SW),
+  'lr':      (T_OP,    LR),
+  'lpc':     (T_OP,    LPC),
+  'iod':     (T_OP,    IOD),
+  'ior':     (T_OP,    IOR),
+  'iodh':    (T_OP,    IODH),
+  'iorh':    (T_OP,    IORH),
+  'key':     (T_OP,    IOKEY),
+  'emit':    (T_OP,    IOEMIT),
 }

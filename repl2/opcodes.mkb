@@ -42,14 +42,12 @@
 34 const SH
 35 const LW
 36 const SW
-37 const RESET
-38 const ECALL
-
-( Environment call (ECALL) constants)
- 1 const E_DS
- 2 const E_RS
- 3 const E_DSH
- 4 const E_RSH
- 5 const E_PC
- 6 const E_READ
- 7 const E_WRITE
+37 const LR
+38 const LPC
+39 const RESET
+40 const IOD
+41 const IOR
+42 const IODH
+43 const IORH
+44 const IOKEY
+45 const IOEMIT

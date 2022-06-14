@@ -49,18 +49,15 @@ h@ LH
 h! SH
 w@ LW
 w! SW
+lr LR
+lpc LPC
 <ASM> RESET
-<ASM> ECALL
-"""
-
-ECALLS = """
-1 E_DS
-2 E_RS
-3 E_DSH
-4 E_RSH
-5 E_PC
-6 E_READ
-7 E_WRITE
+iod IOD
+ior IOR
+iodh IODH
+iorh IORH
+key IOKEY
+emit IOEMIT
 """
 
 MEMORY_MAP = """
@@ -106,13 +103,6 @@ def mkb_memory_map():
     constants += [f"{addr} const {name}"]
   return "\n".join(constants)
 
-def mkb_ecall_constants():
-  ecalls = []
-  for (i, line) in enumerate(filter(ECALLS)):
-    (code, name) = line.strip().split(" ")
-    ecalls += [f"{code:>2} const {name}"]
-  return "\n".join(ecalls)
-
 def py_addresses():
   addrs = []
   for line in filter(MEMORY_MAP):
@@ -127,24 +117,13 @@ def py_opcode_constants():
     ops += [f"{opcode.upper():6} = {i:2}"]
   return "\n".join(ops)
 
-def py_opcode_ecall_dictionary():
+def py_opcode_dictionary():
   ope = []
   for (i, line) in enumerate(filter(OPCODES)):
     (name, opcode) = line.strip().split(" ")
     key = f"'{opcode.upper()}':"
     ope += [f"  {key:9} {i:>2},"]
-  for (i, line) in enumerate(filter(ECALLS)):
-    (code, name) = line.strip().split(" ")
-    key = f"'{name}':"
-    ope += [f"  {key:11} {code:>2},"]
   return "\n".join(ope)
-
-def py_ecall_constants():
-  ecalls = []
-  for (i, line) in enumerate(filter(ECALLS)):
-    (code, name) = line.strip().split(" ")
-    ecalls += [f"{name:7} = {code:>2}"]
-  return "\n".join(ecalls)
 
 def py_core_voc():
   cv = []
@@ -170,9 +149,6 @@ MKB_TEMPLATE_OP = f"""
 
 ( CPU opcodes)
 {mkb_opcodes()}
-
-( Environment call (ECALL) constants)
-{mkb_ecall_constants()}
 """.strip()
 
 MKB_TEMPLATE_MEM = f"""
@@ -200,10 +176,8 @@ PY_TEMPLATE_OP = f"""
 
 {py_opcode_constants()}
 
-{py_ecall_constants()}
-
-OPCODE_ECALL = {{
-{py_opcode_ecall_dictionary()}
+OPCODES = {{
+{py_opcode_dictionary()}
 }}
 """.strip()
 
