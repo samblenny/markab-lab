@@ -10,26 +10,27 @@
 : emit ASM{ IOEMIT }ASM ;
 
 ( `if{` and `}if` enclose a conditional block)
-( A pair of `'` enclose an ASCII character constant)
-: if-AB dup 1 = if{ 'A' emit }if 2 = if{ 'B' emit }if ;
+: if-AB dup 1 = if{ 65 emit }if 2 = if{ 66 emit }if ;
 
 ( `for{` and `}for` enclose a counted loop. `for{` takes its count from T)
 : count '0' 9 for{ dup emit 1+ }for drop ;
 
 ( These are the Markab language core dictionary words)
 ( Markab is case-sensitive, so uppercase and lowercase are not the same)
-nop + - * & ~ | ^ << >> >>>
+nop + - * and inv or xor << >> >>>
 = > < != 0=
+r> >r rdrop r pc drop dup over swap
+@ ! h@ h! w@ w!
+>a @a+ a+ a- a
+>b !b+ b+ b- b >x x >y y
 : ; var const
-r> >r rdrop drop dup over swap
-b@ b! h@ h! w@ w! lr lpc
->a b@a+ 1+ 1-
-if{ }if for{ }for ASM{ }ASM
+if{ }if for{ break }for ASM{ }ASM
 
 ( These are VM instruction opcodes)
 NOP ADD SUB MUL AND INV OR XOR SLL SRL SRA
 EQ GT LT NE ZE JMP JAL RET
-BZ DRBLT MRT MTR RDROP DROP DUP OVER SWAP
-U8 U16 I32 LB SB LH SH LW SW LR LPC RESET
+BZ DRBLT MRT MTR RDROP R PC DROP DUP OVER SWAP
+U8 U16 I32 LB SB LH SH LW SW RESET
 IOD IOR IODH IORH IOKEY IOEMIT
-MTA LBAI INC DEC
+MTA LBAI AINC ADEC A
+MTB SBBI BINC BDEC B MTX X MTY Y

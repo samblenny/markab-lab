@@ -14,20 +14,22 @@
   '(;; VM Opcodes
     "NOP" "ADD" "SUB" "MUL" "AND" "INV" "OR" "XOR" "SLL" "SRL" "SRA"
     "EQ" "GT" "LT" "NE" "ZE" "JMP" "JAL" "RET"
-    "BZ" "DRBLT" "MRT" "MTR" "RDROP" "DROP" "DUP" "OVER" "SWAP"
-    "U8" "U16" "I32" "LB" "SB" "LH" "SH" "LW" "SW" "LR" "LPC" "RESET"
+    "BZ" "DRBLT" "MRT" "MTR" "RDROP" "R" "PC" "DROP" "DUP" "OVER" "SWAP"
+    "U8" "U16" "I32" "LB" "SB" "LH" "SH" "LW" "SW" "RESET"
     "IOD" "IOR" "IODH" "IORH" "IOKEY" "IOEMIT"
-    "MTA" "LBAI" "INC" "DEC"
+    "MTA" "LBAI" "AINC" "ADEC" "A"
+    "MTB" "SBBI" "BINC" "BDEC" "B" "MTX" "X" "MTY" "Y"
 
     ;; Core Words
-    "nop" "+" "-" "*" "&" "~" "|" "^" "<<" ">>" ">>>"
+    "nop" "+" "-" "*" "and" "inv" "or" "xor" "<<" ">>" ">>>"
     "=" ">" "<" "!=" "0="
-    ":" ";" "var" "const"
-    "r>" ">r" "rdrop" "drop" "dup" "over" "swap"
-    "b@" "b!" "h@" "h!" "w@" "w!" "lr" "lpc"
+    "r>" ">r" "rdrop" "drop" "r" "pc" "dup" "over" "swap"
+    "@" "!" "h@" "h!" "w@" "w!"
     "iod" "ior" "iodh" "iorh" "key" "emit"
-    ">a" "b@a+" "1+" "1-"
-    "if{" "}if" "for{" "}for" "ASM{" "}ASM"))
+    ">a" "@a+" "a+" "a-" "a"
+    ">b" "!b+" "b+" "b-" "b" ">x" "x" ">y" "y"
+    ":" ";" "var" "const"
+    "if{" "}if" "for{" "break" "}for" "ASM{" "}ASM"))
 
 (defconst markab-comments '(("( " . ")")))
 (defconst markab-fontlocks '())
@@ -38,8 +40,6 @@
 (modify-syntax-entry ?' "\"")
 
 ;; Put these characters in "word constituents" class to enable use in keywords
-(modify-syntax-entry ?~ "\w")
-(modify-syntax-entry ?^ "\w")
 (modify-syntax-entry ?! "\w")
 (modify-syntax-entry ?: "\w")
 (modify-syntax-entry ?; "\w")
@@ -50,14 +50,9 @@
 (modify-syntax-entry ?- "\w")
 (modify-syntax-entry ?* "\w")
 (modify-syntax-entry ?/ "\w")
-(modify-syntax-entry ?& "\w")
-(modify-syntax-entry ?| "\w")
 (modify-syntax-entry ?< "\w")
 (modify-syntax-entry ?> "\w")
 (modify-syntax-entry ?= "\w")
-(modify-syntax-entry ?[ "\w")
-(modify-syntax-entry ?] "\w")
-(modify-syntax-entry ?. "\w")
 
 ;;;###autoload
 (define-generic-mode 'markab-mode markab-comments markab-keywords

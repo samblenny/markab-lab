@@ -88,10 +88,10 @@ decimal .s          (  2147483647  OK)  2147483647  OK
 
 === test.vm.test_bitwise() ===
 hex
-ffffffff 3333 & .s drop       (  3333  OK)  3333  OK
-55555555 aaaa | .s drop   (  5555ffff  OK)  5555ffff  OK
-55555555 ffff ^ .s drop   (  5555aaaa  OK)  5555aaaa  OK
-55555555 ~ .s drop        (  aaaaaaaa  OK)  aaaaaaaa  OK
+ffffffff 3333 and .s drop     (  3333  OK)  3333  OK
+55555555 aaaa or .s drop  (  5555ffff  OK)  5555ffff  OK
+55555555 ffff xor .s drop (  5555aaaa  OK)  5555aaaa  OK
+55555555 inv .s drop      (  aaaaaaaa  OK)  aaaaaaaa  OK
 decimal
 
 === test.vm.test_literals() ===
@@ -252,7 +252,7 @@ warmboot  OK
 .s                                          (  2 49  OK)  2 49  OK
 reset  OK
 ( opcode coverage: AND INV OR XOR                      )
-( equivalent to: hex 55 ~ 7f and dup 80 or 0f xor      )
+( equivalent to: hex 55 inv 7f and dup 80 or 0f xor    )
 ASM{ U8 85 inv U8 127 and dup U8 128 or U8 15 xor ret }ASM
 warmboot  OK
 hex .s decimal                             (  2a a5  OK)  2a a5  OK
@@ -433,25 +433,25 @@ ASM{ U8  32 IOEMIT U8  32 IOEMIT
      RESET                            }ASM
 warmboot                                        ( ✈️  OK)  ✈️  OK
 
-=== test.vm.test_instruction_decode_lr_lpc() ===
-( opcode coverage: LR LPC                )
+=== test.vm.test_instruction_decode_r_pc() ===
+( opcode coverage: R PC                  )
 ( ---------------------------------------)
-( LPC -- Load R, top of return stack     )
-(         5 >r  lr  .s reset             )
-ASM{   U8 5 MTR LR IOD RESET }ASM
+( R -- Load R, top of return stack       )
+(         5 >r  r  .s reset              )
+ASM{   U8 5 MTR R IOD RESET }ASM
 warmboot                                       (  5  OK)  5  OK
 ( ---------------------------------------)
-( LPC -- Load Program Counter            )
-(      nop nop lpc  .s reset             )
-( addr:  0   1   2   3     4             )
-ASM{   NOP NOP LPC IOD RESET }ASM
+( PC -- Load Program Counter             )
+(      nop nop pc  .s reset              )
+( addr:  0   1  2   3     4              )
+ASM{   NOP NOP PC IOD RESET }ASM
 warmboot                                       (  3  OK)  3  OK
 
-=== test.vm.test_instruction_decode_mta_lbai_inc_dec() ===
+=== test.vm.test_instruction_decode_mta_lbai_ainc_adec_a() ===
 ( ---------------------------------------)
-( MTA -- Move T to A: >a                 )
-( LBAI -- Load Byte via A, inc A: b@a+   )
-(         14 >a 6 for{ b@a+ emit }for    )
+( MTA -- Move T to register A            )
+( LBAI -- Load Byte via A, inc A: @a+    )
+(         14 >a 6 for{ @a+ emit }for     )
 ( addr: 0  1   2  3 4   5  *6*      7    )
 ASM{   U8 14 MTA U8 6 MTR LBAI IOEMIT
 ( addr:    8 9 10   11    12  13         )
@@ -460,13 +460,47 @@ ASM{   U8 14 MTA U8 6 MTR LBAI IOEMIT
          32 32 72 101 108 108 111 }ASM
 warmboot                                   (  Hello  OK)  Hello  OK
 ( ---------------------------------------)
-( INC -- Add 1 to T                      )
-(       3  1+  1+  .s reset              )
-ASM{ U8 3 INC INC IOD RESET RET }ASM
+( AINC -- Add 1 to A                     )
+( A -- push a copy of A to data stack    )
+(       4  >a   a+ a  .s reset           )
+ASM{ U8 4 MTA AINC A IOD RESET }ASM
 warmboot                                       (  5  OK)  5  OK
 ( ---------------------------------------)
-( Dec -- Subtract 1 from T               )
-(       6  1-  1-  .s reset              )
-ASM{ U8 6 DEC DEC IOD RESET RET }ASM
+( ADEC -- Subtract 1 from A              )
+(       5  >a   a- a  .s reset           )
+ASM{ U8 5 MTA ADEC A IOD RESET }ASM
 warmboot                                       (  4  OK)  4  OK
+
+=== test.vm.test_instruction_decode_mtb_sbbi_binc_bdec_b() ===
+( ---------------------------------------)
+( MTB -- Move T to register B            )
+( SBBI -- Store Byte via B, inc B: !b+   )
+( B -- push a copy of B to data stack    )
+(         1  >b b  !b+ b  !b+ b  !b+     )
+ASM{   U8 1 MTB B SBBI B SBBI B SBBI
+       U8 1 >a a@+ a@+ a@+ IOD RESET }ASM
+warmboot                                   (  1 2 3  OK)  1 2 3  OK
+  OK
+( ---------------------------------------)
+( BINC -- Add 1 to B                     )
+(       4  >b   b+ b  .s reset           )
+ASM{ U8 8 MTA BINC B IOD RESET }ASM
+warmboot                                       (  9  OK)  9  OK
+( ---------------------------------------)
+( BDEC -- Subtract 1 from B              )
+(       5  >b   b- b  .s reset           )
+ASM{ U8 8 MTB BDEC B IOD RESET }ASM
+warmboot                                       (  7  OK)  7  OK
+
+=== test.vm.test_instruction_decode_mtx_x_mty_y() ===
+( MTX -- Move T to register X            )
+( X -- Push copy of X to the data stack  )
+( MTY -- Move T to register Y            )
+( Y -- Push copy of Y to the data stack  )
+(         1  >x x  >y    5 for{ x x y y  )
+( addr: 0 1   2 3   4  5 6   7 *8*       )
+ASM{   U8 1 MTX X MTY U8 5 MTR  X X Y Y
+(     >x    +  >y            }for  .s    )
+      MTX ADD MTY DRBLT 8 0 RDROP IOD }ASM
+warmboot                             (  1 1 2 3 5 8  OK)  1 1 2 3 5 8  OK
 

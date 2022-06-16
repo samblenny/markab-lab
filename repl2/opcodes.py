@@ -28,22 +28,22 @@ BZ     = 19
 DRBLT  = 20
 MRT    = 21
 MTR    = 22
-RDROP  = 23
-DROP   = 24
-DUP    = 25
-OVER   = 26
-SWAP   = 27
-U8     = 28
-U16    = 29
-I32    = 30
-LB     = 31
-SB     = 32
-LH     = 33
-SH     = 34
-LW     = 35
-SW     = 36
-LR     = 37
-LPC    = 38
+R      = 23
+PC     = 24
+RDROP  = 25
+DROP   = 26
+DUP    = 27
+OVER   = 28
+SWAP   = 29
+U8     = 30
+U16    = 31
+I32    = 32
+LB     = 33
+SB     = 34
+LH     = 35
+SH     = 36
+LW     = 37
+SW     = 38
 RESET  = 39
 IOD    = 40
 IOR    = 41
@@ -53,8 +53,18 @@ IOKEY  = 44
 IOEMIT = 45
 MTA    = 46
 LBAI   = 47
-INC    = 48
-DEC    = 49
+AINC   = 48
+ADEC   = 49
+A      = 50
+MTB    = 51
+SBBI   = 52
+BINC   = 53
+BDEC   = 54
+B      = 55
+MTX    = 56
+X      = 57
+MTY    = 58
+Y      = 59
 
 OPCODES = {
   'NOP':     0,
@@ -80,22 +90,22 @@ OPCODES = {
   'DRBLT':  20,
   'MRT':    21,
   'MTR':    22,
-  'RDROP':  23,
-  'DROP':   24,
-  'DUP':    25,
-  'OVER':   26,
-  'SWAP':   27,
-  'U8':     28,
-  'U16':    29,
-  'I32':    30,
-  'LB':     31,
-  'SB':     32,
-  'LH':     33,
-  'SH':     34,
-  'LW':     35,
-  'SW':     36,
-  'LR':     37,
-  'LPC':    38,
+  'R':      23,
+  'PC':     24,
+  'RDROP':  25,
+  'DROP':   26,
+  'DUP':    27,
+  'OVER':   28,
+  'SWAP':   29,
+  'U8':     30,
+  'U16':    31,
+  'I32':    32,
+  'LB':     33,
+  'SB':     34,
+  'LH':     35,
+  'SH':     36,
+  'LW':     37,
+  'SW':     38,
   'RESET':  39,
   'IOD':    40,
   'IOR':    41,
@@ -105,6 +115,16 @@ OPCODES = {
   'IOEMIT': 45,
   'MTA':    46,
   'LBAI':   47,
-  'INC':    48,
-  'DEC':    49,
+  'AINC':   48,
+  'ADEC':   49,
+  'A':      50,
+  'MTB':    51,
+  'SBBI':   52,
+  'BINC':   53,
+  'BDEC':   54,
+  'B':      55,
+  'MTX':    56,
+  'X':      57,
+  'MTY':    58,
+  'Y':      59,
 }

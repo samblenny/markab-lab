@@ -16,10 +16,10 @@ nop NOP
 + ADD
 - SUB
 * MUL
-& AND
-~ INV
-| OR
-^ XOR
+and AND
+inv INV
+or OR
+xor XOR
 << SLL
 >> SRL
 >>> SRA
@@ -30,11 +30,13 @@ nop NOP
 0= ZE
 <ASM> JMP
 <ASM> JAL
-; RET
+<ASM> RET
 <ASM> BZ
 <ASM> DRBLT
 r> MRT
 >r MTR
+r R
+pc PC
 rdrop RDROP
 drop DROP
 dup DUP
@@ -43,14 +45,12 @@ swap SWAP
 <ASM> U8
 <ASM> U16
 <ASM> I32
-b@ LB
-b! SB
+@ LB
+! SB
 h@ LH
 h! SH
 w@ LW
 w! SW
-lr LR
-lpc LPC
 <ASM> RESET
 iod IOD
 ior IOR
@@ -59,9 +59,19 @@ iorh IORH
 key IOKEY
 emit IOEMIT
 >a MTA
-b@a+ LBAI
-1+ INC
-1- DEC
+@a+ LBAI
+a+ AINC
+a- ADEC
+a A
+>b MTB
+!b+ SBBI
+b+ BINC
+b- BDEC
+b B
+>x MTX
+x X
+>Y MTY
+y Y
 """
 
 MEMORY_MAP = """

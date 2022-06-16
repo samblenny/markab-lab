@@ -6,10 +6,11 @@
 #
 from opcodes import (
   NOP, ADD, SUB, MUL, AND, INV, OR, XOR, SLL, SRL, SRA, EQ, GT, LT, NE, ZE,
-  JMP, JAL, RET, BZ, DRBLT, MTR, MRT, RDROP, DROP, DUP, OVER, SWAP,
-  U8, U16, I32, LB, SB, LH, SH, LW, SW, LR, LPC, RESET,
+  JMP, JAL, RET, BZ, DRBLT, MTR, MRT, R, PC, RDROP, DROP, DUP, OVER, SWAP,
+  U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET,
   IOD, IOR, IODH, IORH, IOKEY, IOEMIT,
-  MTA, LBAI, INC, DEC,
+  MTA, LBAI, AINC, ADEC, A,
+  MTB, SBBI, BINC, BDEC, B, MTX, X, MTY, Y,
   OPCODES,
 )
 from mem_map import (
@@ -21,7 +22,7 @@ from core_voc import CORE_VOC, T_VAR, T_CONST, T_OP, T_CODE
 ROM_FILE = 'kernel.bin'
 
 KERNEL_ASM = """
-#          13  >a    13 for{ b@a+   emit       }for
+#          13  >a    13 for{  @a+   emit       }for
 # addr:  0  1   2  3  4   5   *6*      7     8 9 10    11  12
         U8 13 MTA U8 13 MTR  LBAI IOEMIT DRBLT 6  0 RDROP RET
 # addr: *13*

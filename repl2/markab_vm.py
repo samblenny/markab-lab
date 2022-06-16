@@ -12,10 +12,11 @@ import os
 
 from opcodes import (
   NOP, ADD, SUB, MUL, AND, INV, OR, XOR, SLL, SRL, SRA, EQ, GT, LT, NE, ZE,
-  JMP, JAL, RET, BZ, DRBLT, MTR, MRT, RDROP, DROP, DUP, OVER, SWAP,
-  U8, U16, I32, LB, SB, LH, SH, LW, SW, LR, LPC, RESET,
+  JMP, JAL, RET, BZ, DRBLT, MTR, MRT, RDROP, R, PC, DROP, DUP, OVER, SWAP,
+  U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET,
   IOD, IOR, IODH, IORH, IOKEY, IOEMIT,
-  MTA, LBAI, INC, DEC,
+  MTA, LBAI, AINC, ADEC, A,
+  MTB, SBBI, BINC, BDEC, B, MTX, X, MTY, Y,
 )
 from mem_map import Boot, BootMax, MemMax
 
@@ -47,7 +48,10 @@ class VM:
     """Initialize virtual CPU, RAM, and peripherals"""
     self.error = 0                  # Error code register
     self.base = 10                  # number Base for debug printing
-    self.A = 0                      # Address/Accumulator register
+    self.A = 0                      # register for source address or scratch
+    self.B = 0                      # register for destination addr or scratch
+    self.X = 0                      # scratch (temporary) register
+    self.Y = 0                      # scratch (temporary) register
     self.T = 0                      # Top of data stack
     self.S = 0                      # Second on data stack
     self.R = 0                      # top of Return stack
@@ -86,6 +90,8 @@ class VM:
     self.jumpTable[MTR  ] = self.move_t_to_r
     self.jumpTable[MRT  ] = self.move_r_to_t
     self.jumpTable[RDROP] = self.r_drop
+    self.jumpTable[R    ] = self.r_
+    self.jumpTable[PC   ] = self.pc_
     self.jumpTable[DROP ] = self.drop
     self.jumpTable[DUP  ] = self.dup
     self.jumpTable[OVER ] = self.over
@@ -99,8 +105,6 @@ class VM:
     self.jumpTable[SH   ] = self.store_halfword
     self.jumpTable[LW   ] = self.load_word
     self.jumpTable[SW   ] = self.store_word
-    self.jumpTable[LR   ] = self.load_r
-    self.jumpTable[LPC  ] = self.load_pc
     self.jumpTable[RESET] = self.reset
     self.jumpTable[IOD  ] = self.io_data_stack
     self.jumpTable[IOR  ] = self.io_return_stack
@@ -110,8 +114,18 @@ class VM:
     self.jumpTable[IOEMIT] = self.io_emit
     self.jumpTable[MTA  ] = self.move_t_to_a
     self.jumpTable[LBAI ] = self.load_byte_a_increment
-    self.jumpTable[INC  ] = self.increment
-    self.jumpTable[DEC  ] = self.decrement
+    self.jumpTable[AINC ] = self.a_increment
+    self.jumpTable[ADEC ] = self.a_decrement
+    self.jumpTable[A    ] = self.a_
+    self.jumpTable[MTB  ] = self.move_t_to_b
+    self.jumpTable[SBBI ] = self.store_byte_b_increment
+    self.jumpTable[BINC ] = self.b_increment
+    self.jumpTable[BDEC ] = self.b_decrement
+    self.jumpTable[B    ] = self.b_
+    self.jumpTable[MTX  ] = self.move_t_to_x
+    self.jumpTable[X    ] = self.x_
+    self.jumpTable[MTY  ] = self.move_t_to_y
+    self.jumpTable[Y    ] = self.y_
 
   def _set_pc(self, addr):
     """Set Program Counter with range check"""
@@ -216,6 +230,17 @@ class VM:
     x = int.from_bytes(self.ram[addr:addr+1], 'little', signed=False)
     self.A += 1
     self._push(x)
+
+  def store_byte_b_increment(self):
+    """Store low byte of T byte to address in register B, then increment B"""
+    addr = self.B
+    if (addr < 0) or (addr > MemMax):
+      self.error = ERR_BAD_ADDRESS
+      return
+    x = int.to_bytes((self.T & 0xff), 1, 'little', signed=False)
+    self.B += 1
+    self.ram[addr:addr+1] = x
+    self.drop()
 
   def store_byte(self):
     """Store low byte of S (uint8) at memory address T"""
@@ -381,13 +406,21 @@ class VM:
     """Add T to S, store result in S, drop T"""
     self._op_st(lambda s, t: s + t)
 
-  def increment(self):
-    """Add 1 to T"""
-    self._op_t(lambda t: t + 1)
+  def a_increment(self):
+    """Add 1 to register A"""
+    self.A += 1
 
-  def decrement(self):
-    """Subtract 1 from T"""
-    self._op_t(lambda t: t - 1)
+  def a_decrement(self):
+    """Subtract 1 from register A"""
+    self.A -= 1
+
+  def b_increment(self):
+    """Add 1 to register B"""
+    self.B += 1
+
+  def b_decrement(self):
+    """Subtract 1 from register B"""
+    self.B -= 1
 
   def reset(self):
     """Reset the data stack, return stack and error code"""
@@ -503,12 +536,39 @@ class VM:
     self.drop()
 
   def move_t_to_a(self):
-    """Move top of data stack (T) to address register (A)"""
+    """Move top of data stack (T) to register A"""
     if self.DSDeep < 1:
       self.reset()
       self.error = ERR_D_UNDER
       return
     self.A = self.T
+    self.drop()
+
+  def move_t_to_b(self):
+    """Move top of data stack (T) to register B"""
+    if self.DSDeep < 1:
+      self.reset()
+      self.error = ERR_D_UNDER
+      return
+    self.B = self.T
+    self.drop()
+
+  def move_t_to_x(self):
+    """Move top of data stack (T) to register X"""
+    if self.DSDeep < 1:
+      self.reset()
+      self.error = ERR_D_UNDER
+      return
+    self.X = self.T
+    self.drop()
+
+  def move_t_to_y(self):
+    """Move top of data stack (T) to register Y"""
+    if self.DSDeep < 1:
+      self.reset()
+      self.error = ERR_D_UNDER
+      return
+    self.Y = self.T
     self.drop()
 
   def load_halfword(self):
@@ -593,13 +653,29 @@ class VM:
     """Clear VM error status code"""
     self.error = 0
 
-  def load_r(self):
+  def r_(self):
     """Push a copy of top of Return stack (R) to the data stack"""
     self._push(self.R)
 
-  def load_pc(self):
+  def pc_(self):
     """Push a copy of the Program Counter (PC) to the data stack"""
     self._push(self.PC)
+
+  def a_(self):
+    """Push a copy of register A to the data stack"""
+    self._push(self.A)
+
+  def b_(self):
+    """Push a copy of register B to the data stack"""
+    self._push(self.B)
+
+  def x_(self):
+    """Push a copy of register X to the data stack"""
+    self._push(self.X)
+
+  def y_(self):
+    """Push a copy of register Y to the data stack"""
+    self._push(self.Y)
 
   def io_key(self):
     """Push the next byte from Standard Input to the data stack.
