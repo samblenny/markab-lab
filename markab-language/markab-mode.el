@@ -36,9 +36,6 @@
 (defconst markab-auto-modes '("\\.mkb\\'"))
 (defconst markab-functions '())
 
-;; Add single quote as string delimiter
-(modify-syntax-entry ?' "\"")
-
 ;; Put these characters in "word constituents" class to enable use in keywords
 (modify-syntax-entry ?! "\w")
 (modify-syntax-entry ?: "\w")
@@ -53,6 +50,7 @@
 (modify-syntax-entry ?< "\w")
 (modify-syntax-entry ?> "\w")
 (modify-syntax-entry ?= "\w")
+(modify-syntax-entry ?' "\w")
 
 ;;;###autoload
 (define-generic-mode 'markab-mode markab-comments markab-keywords
