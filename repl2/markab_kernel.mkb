@@ -1,33 +1,109 @@
 ( Copyright © 2022 Sam Blenny)
 ( SPDX-License-Identifier: MIT)
-( Markab kernel: binary rom image to be compiled by bootstrap compiler)
-
+( Markab kernel)
 
 ( TODO: make this actually work)
-( TODO: configure dictionary pointer for new definitions to go to rom file)
 
-var DP       ( dictionary pointer)
-var Current  ( head of dictionary)
-var TIB      ( terminal input buffer)
-var IBPtr    ( input buffer pointer, can be terminal or file)
-var IBLen    ( total bytes available in input buffer)
-var IN       ( current input buffer position: next byte to be read)
+: here DP h@ ;       ( push value of dictionary pointer)
+: curr CURRENT h@ ;  ( push value of current head of dictionary)
 
-: ! ... ;
-: @ ... ;
-: + ... ;
-: - ... ;
-( lots more words for CPU instruction tokens)
+: allot ( bytes -- ) here + DP h! ;
 
-: word   ... ;
-: create ... does> ... ;
-: does>  ... does> ... ;
+:  , here  ! 1 allot ;   ( store low byte of T at DP)
+: h, here h! 2 allot ;   ( store low halfword of T at DP)
+: w, here w! 4 allot ;   ( store full word T at DP)
 
-: var   create ... does> ... ;
-: const create ... does> ... ;
-: :     create ... does> ... ;
-: ;            ... does> ... ;
+: create ( -- lenth-of-name )
+  curr here h,  ( store link to current head of dictionary at DP)
+  here          ( remember address where name will begin)
+  word          ( copy name from input stream to DP)
+  @             ( load string length of name from `word`)
+;
 
-: ( ... ;
+: :
+  here curr                      ( save dictionary state for rollback)
+  create                         ( read name to start dictionary entry)
+  0= if{ Current h! DP h! ; }if  ( empty name --> roll back changes)
+;
 
-: inner ( inner interpreter) ;
+: ;                          ( Return from a word)
+  ( TODO: tail call optimizer)
+  ASM{ RET }ASM
+;
+
+: var create                 ( Add variable to dictionary)
+  T_VAR ,                    ( append type=var to dictionary)
+  ASM{ U16 }ASM here 3 + h,  ( append code to push parameter address literal)
+  ASM{ RET }ASM              ( append return to end code and begin parameter)
+  0 w,                       ( append I32 parameter, initialized to 0)
+;
+
+: const ( i32 -- )                ( Add constant to dictionary)
+  T_CONST ,                       ( append type=const to dictionary)
+  ASM{ I32 }ASM w, ASM{ RET }ASM  ( append code to push I32 literal)
+;
+
+: if{ ( -- addr ) ASM{ BZ }ASM here ASM{ 0 0 }ASM ;
+: }if ( addr -- ) here swap h! ;
+: for{ ( -- addr ) ASM{ MTR }ASM here ;
+: }for ( addr -- ) ASM{ DRBLT }ASM h, ASM{ RDROP }ASM ;
+
+: hex 16 BASE w! ;
+: decimal 10 BASE w! ;
+: cr 10 emit ;
+: space 32 emit ;
+
+: newline? ( byte -- )      ( test if byte is CR or LF)
+  dup 10 = 13 = or
+;
+
+: whitespace? ( byte -- )
+  dup newline?              ( check for CR or LF)
+  over 32 = or swap 9 = or  ( check for space or tab)
+;
+
+: readline
+  0 >a TIB >b 255 for{           ( loop for maximum of 255 bytes)
+    key dup !b+                  ( read stdin byte and store to TIB)
+    a+                           ( update count of bytes read)
+    newline? if{ rdrop 0 >r }if  ( stop for newline)
+  }for a TIBLen !                ( store count of bytes read)
+  0 IN !                         ( reset IN)
+;
+
+: word ( -- length-of-word )  ( Copy word from input stream to dictionary)
+  IN @ >x TIB x + >a x >b     ( source: TIB+IN, b: IN+count)
+  255 x - for{                ( loop to skip over leading whitespace)
+    @a+ b+ dup whitespace?    ( read byte, increment count)
+    0= if{ b- rdrop 0 >r }if  ( stop at first non-whitespace byte)
+  }for b IN !                 ( IN = first non-whitespace byte)
+  IN @ >x here >y             ( x = IN, y = address of length byte)
+  0 ,                         ( store string_length=0 to dictionary)
+  x 255 >= if{ drop ; }if     ( stop now if TIB is empty)
+  TIB x + >a here >b          ( source: TIB+IN, dest: dictionary)
+  255 x - for{                ( loop to copy non-whitespace bytes)
+    @a+ dup whitespace?       ( read a byte)
+    if{ drop rdrop 0 >r }if   ( stop for whitespace)
+    !b+                       ( otherwise, copy it to dictionary)
+  }for here y -               ( calculate string length)
+  dup y !                     ( patch string length with correct count)
+;
+
+: find ( -- addr bool )
+;
+
+: number ( word -- bool )
+;
+
+: inner
+;
+
+: .dp here >a a@+ for{ a@+ emit }for ;  ( print word from DP)
+
+: dowords
+  word 0= if{ ."  OK" cr ; }if
+  find if{ inner dowords ; }if
+  number 0= if{ ." ERR: word not found:" .dp reset cr ; }if
+;
+
+: outer readline dowords outer ;
