@@ -4,7 +4,7 @@
 #
 # Markab bootstrap compiler
 #
-from opcodes import (
+from mkb_autogen import (
   NOP, ADD, SUB, MUL, AND, INV, OR, XOR, SLL, SRL, SRA, EQ, GT, LT, NE, ZE,
   JMP, JAL, RET, BZ, DRBLT, MTR, MRT, R, PC, RDROP, DROP, DUP, OVER, SWAP,
   U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET,
@@ -12,12 +12,13 @@ from opcodes import (
   MTA, LBAI, AINC, ADEC, A,
   MTB, SBBI, BINC, BDEC, B, MTX, X, MTY, Y,
   OPCODES,
-)
-from mem_map import (
+
   Boot, BootMax, Heap, HeapRes, HeapMax, DP,
   IN, IBLen, IB, PadLen, Pad, FmtLen, Fmt, MemMax,
+
+  CORE_VOC, T_VAR, T_CONST, T_OP, T_OBJ, T_IMM,
 )
-from core_voc import CORE_VOC, T_VAR, T_CONST, T_OP, T_CODE
+
 
 ROM_FILE = 'kernel.bin'
 

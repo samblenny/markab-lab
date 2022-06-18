@@ -10,15 +10,16 @@ import readline
 import sys
 import os
 
-from opcodes import (
+from mkb_autogen import (
   NOP, ADD, SUB, MUL, AND, INV, OR, XOR, SLL, SRL, SRA, EQ, GT, LT, NE, ZE,
   JMP, JAL, RET, BZ, DRBLT, MTR, MRT, RDROP, R, PC, DROP, DUP, OVER, SWAP,
   U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET,
   IOD, IOR, IODH, IORH, IOKEY, IOEMIT,
   MTA, LBAI, AINC, ADEC, A,
   MTB, SBBI, BINC, BDEC, B, MTX, X, MTY, Y,
+
+  Boot, BootMax, MemMax,
 )
-from mem_map import Boot, BootMax, MemMax
 
 ROM_FILE = 'kernel.bin'
 ERR_D_OVER = 1
