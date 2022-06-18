@@ -4,8 +4,15 @@
 
 ( TODO: make this actually work)
 
-: here DP h@ ;       ( push value of dictionary pointer)
-: curr CURRENT h@ ;  ( push value of current head of dictionary)
+load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
+
+: here DP h@ ;       ( address for next writable dictionary location)
+: curr CURRENT h@ ;  ( address for head of new definitions vocabulary)
+: ctxt CONTEXT h@ ;  ( address for head of word searching vocabulary)
+
+: interpret? MODE @ MODE_INT = ;
+: compiling? MODE @ MODE_COM = ;
+: immediate? MODE @ MODE_IMM = ;
 
 : allot ( bytes -- ) here + DP h! ;
 
