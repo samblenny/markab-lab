@@ -151,7 +151,7 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 : inner
 ;
 
-: .dp here >a @a+ for{ @a+ emit }for ;  ( print word from DP)
+: .dp here >a @a+ 1- for{ @a+ emit }for ;  ( print word from DP)
 
 : dowords
   word 0= if{ ."  OK" cr ; }if
