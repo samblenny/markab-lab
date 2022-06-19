@@ -63,6 +63,8 @@ drop .s  Stack is empty  ERR2
 -5 1 2 .s      (  -6 1 2  OK)  -6 1 2  OK
 + .s             (  -6 3  OK)  -6 3  OK
 + .s               (  -3  OK)  -3  OK
+1+ .s              (  -2  OK)  -2  OK
+1- .s              (  -3  OK)  -3  OK
 drop 7 9 .s       (  7 9  OK)  7 9  OK
 - .s               (  -2  OK)  -2  OK
 
@@ -98,6 +100,7 @@ decimal
 0 255 .s drop drop          (  0 255  OK)  0 255  OK
 256 65535 .s drop drop  (  256 65536  OK)  256 65535  OK
 65536 -1 .s drop drop    (  65536 -1  OK)  65536 -1  OK
+true false .s reset          (  -1 0  OK)  -1 0  OK
 
 === test.vm.test_load_store() ===
 ( fetch words take 1 argument)
@@ -244,52 +247,56 @@ reset  -1 0=    0 0=    1 0=  .s   (  0 -1 0  OK)  0 -1 0  OK
 1 2 over .s                         (  1 2 1  OK)  1 2 1  OK
 swap .s                             (  1 1 2  OK)  1 1 2  OK
 
-=== test.vm.test_instruction_decode_math_logic() ===
-( opcode coverage: NOP ADD SUB MUL                     )
-( equivalent to: 1 dup + dup 9 - dup *                 )
-ASM{ nop U8 1 dup add dup U8 9 sub dup mul ret }ASM
-warmboot  OK
-.s                                          (  2 49  OK)  2 49  OK
+=== test.vm.test_instructions_math_logic() ===
+( opcode coverage: NOP ADD SUB INC DEC MUL        )
+(    nop    1 dup   + dup    9   - dup   *  .s    )
+ASM{ NOP U8 1 DUP ADD DUP U8 9 SUB DUP MUL IOD }ASM
+warmboot .s                                 (  2 49  OK)  2 49  OK
+reset  OK
+( opcode coverage: INC DEC    )
+(       3  1+    9  1-  .s    )
+ASM{ U8 3 INC U8 9 DEC IOD }ASM
+warmboot .s                                  (  4 8  OK)  4 8  OK
 reset  OK
 ( opcode coverage: AND INV OR XOR                      )
 ( equivalent to: hex 55 inv 7f and dup 80 or 0f xor    )
-ASM{ U8 85 inv U8 127 and dup U8 128 or U8 15 xor ret }ASM
+ASM{ U8 85 INV U8 127 AND DUP U8 128 OR U8 15 XOR RET }ASM
 warmboot  OK
 hex .s decimal                             (  2a a5  OK)  2a a5  OK
 reset  OK
 ( opcode coverage: SLL SRL SRA                         )
 ( equivalent to: 1 31 << dup 15 >>> dup 16 >>          )
-ASM{  ret }ASM
+ASM{  RET }ASM
 warmboot  OK
 hex .s decimal             (  8000000 ffff0000 ffff  OK)  80000000 ffff0000 ffff  OK
 reset  OK
 ( opcode coverage: EQ                                  )
 ( equivalent to: 1 2 =     2 2 =   2 1 =               )
-ASM{ u8 1 u8 2 eq  u8 2 u8 2 eq  u8 2 u8 1 eq  ret }ASM
+ASM{ U8 1 U8 2 EQ  U8 2 U8 2 EQ  U8 2 U8 1 EQ  RET }ASM
 warmboot .s                               (  0 -1 0  OK)  0 -1 0  OK
 reset  OK
 ( opcode coverage: GT                                  )
 ( equivalent to: 1 2 >     2 2 >   2 1 >               )
-ASM{ u8 1 u8 2 gt  u8 2 u8 2 gt  u8 2 u8 1 gt  ret }ASM
+ASM{ U8 1 U8 2 GT  U8 2 U8 2 GT  U8 2 U8 1 GT  RET }ASM
 warmboot .s                               (  0 0 -1  OK)  0 0 -1  OK
 reset  OK
 ( opcode coverage: LT                                  )
 ( equivalent to: 1 2 <     2 2 <   2 1 <               )
-ASM{ u8 1 u8 2 lt  u8 2 u8 2 lt  u8 2 u8 1 lt  ret }ASM
+ASM{ U8 1 U8 2 LT  U8 2 U8 2 LT  U8 2 U8 1 LT  RET }ASM
 warmboot .s                               (  -1 0 0  OK)  -1 0 0  OK
 reset  OK
 ( opcode coverage: NE                                  )
 ( equivalent to: 1 2 !=    2 2 !=  2 1 !=              )
-ASM{ u8 1 u8 2 ne  u8 2 u8 2 ne  u8 2 u8 1 ne  ret }ASM
+ASM{ U8 1 U8 2 NE  U8 2 U8 2 NE  U8 2 U8 1 NE  RET }ASM
 warmboot .s                              (  -1 0 -1  OK)  -1 0 -1  OK
 reset  OK
-( opcode coverage: ZE                                  )
-( equivalent to:  -1 0=    0 0=      1 0=              )
-ASM{ i32 255 255 255 255 ze  u8 0 ze  u8 1 ze  ret }ASM
-warmboot .s                               (  0 -1 0  OK)  0 -1 0  OK
+( opcode coverage: TRUE FALSE ZE                       )
+(    true dup 0=  false dup 0=     1 DUP 0=            )
+ASM{ TRUE DUP ZE  FALSE DUP ZE  U8 1 DUP ZE RET }ASM
+warmboot .s                        (  -1 0 0 -1 1 0  OK)  -1 0 0 -1 1 0  OK
 reset  OK
 
-=== test.vm.test_instruction_decode_jump() ===
+=== test.vm.test_instructions_jump() ===
 ( opcode coverage: JMP                            )
 ( assemble tokens to memory starting at address 0 )
 ( 0: push 5                                       )
@@ -301,7 +308,7 @@ ASM{   U8 5 JMP 8 0 U8 6 RET U8 7 JMP  5  0 }ASM
 warmboot  OK
 .s                                         (  5 7 6  OK)  5 7 6  OK
 
-=== test.vm.test_instruction_decode_jal_return() ===
+=== test.vm.test_instructions_jal_return() ===
 ( opcode coverage: JAL RET                        )
 ( assemble tokens to memory starting at address 0 )
 (  0: JAL  7=0x0007, or [ 7, 0] little endian     )
@@ -314,7 +321,7 @@ ASM{  jal 7 0 jal 10 0 ret U8 9 ret U8  5 ret }ASM
 warmboot  OK
 .s                                           (  9 5  OK)  9 5  OK
 
-=== test.vm.test_instruction_decode_jz() ===
+=== test.vm.test_instructions_jz() ===
 ( opcode coverage: BZ                                     )
 ( equivalent to: 0 dup if{ 7 }if 0 0= dup if{ 8 }IF       )
 ( addr: 0 1   2  3 4 5  6 7  8 9 10  11 12 13 14 15 16 17 )
@@ -324,7 +331,7 @@ ASM{   U8 0 DUP BZ 8 0 U8 7 U8 0 ZE DUP BZ 17  0 U8  8 RET }ASM
 warmboot  OK
 .s                                        (  0 -1 8  OK)  0 -1 8  OK
 
-=== test.vm.test_instruction_decode_drblt_mtr_mrt() ===
+=== test.vm.test_instructions_drblt_mtr_mrt() ===
 ( opcode coverage: DRBLT MTR MRT                       )
 (    equivalent to: 3 for{ i }for                      )
 ( which expands to: 3 >r :FOR r> dup >r jrnz :FOR      )
@@ -342,7 +349,7 @@ ASM{ u8 1 u8 255 over dup drop swap }ASM
 warmboot .s                              (  1 1 255  OK)  1 1 255  OK
 reset  OK
 
-== vm.test.test_instruction_decode_u8_sb_lb() ===
+== vm.test.test_instructions_u8_sb_lb() ===
 ( opcode coverage: U16 SB LB             )
 (     512     1    over b! b@            )
 ( IR{ 512     1    OVER SB LB }IR        )
@@ -355,7 +362,7 @@ ASM{  U16 0 2 U8 255 OVER SB LB }ASM
 warmboot .s                                  (  255  OK)  255  OK
 reset  OK
 
-== vm.test.test_instruction_decode_u16_sh_lh() ===
+== vm.test.test_instructions_u16_sh_lh() ===
 ( opcode coverage: U16 SH LH             )
 (     512     1    over h! h@            )
 ( IR{ 512     1    OVER SH LH }IR        )
@@ -368,7 +375,7 @@ ASM{  U16 0 2 U16 250 255 OVER SH LH }ASM
 warmboot .s                                (  65530  OK)  65530  OK
 reset  OK
 
-== vm.test.test_instruction_decode_i32_sw_lw() ===
+== vm.test.test_instructions_i32_sw_lw() ===
 ( opcode coverage: I32 SW LW RESET               )
 (     512     -6                  over w! w@     )
 ( IR{ 512     -6                  OVER SW LW }IR )
@@ -381,7 +388,7 @@ ASM{  U16 0 2 I32 255 255 255 127 OVER SW LW }ASM
 warmboot .s                           (  2147483647  OK)  2147483647  OK
 reset  OK
 
-=== test.vm.test_instruction_decode_reset_io() ===
+=== test.vm.test_instructions_reset_io() ===
 ( opcode coverage: RESET IOD             )
 ( ---------------------------------------)
 ( IOD -- log data stack decimal          )
@@ -433,7 +440,7 @@ ASM{ U8  32 IOEMIT U8  32 IOEMIT
      RESET                            }ASM
 warmboot                                        ( ✈️  OK)  ✈️  OK
 
-=== test.vm.test_instruction_decode_r_pc() ===
+=== test.vm.test_instructions_r_pc() ===
 ( opcode coverage: R PC                  )
 ( ---------------------------------------)
 ( R -- Load R, top of return stack       )
@@ -447,17 +454,19 @@ warmboot                                       (  5  OK)  5  OK
 ASM{   NOP NOP PC IOD RESET }ASM
 warmboot                                       (  3  OK)  3  OK
 
-=== test.vm.test_instruction_decode_mta_lbai_ainc_adec_a() ===
-( ---------------------------------------)
-( MTA -- Move T to register A            )
-( LBAI -- Load Byte via A, inc A: @a+    )
-(         14 >a 6 for{ @a+ emit }for     )
-( addr: 0  1   2  3 4   5  *6*      7    )
-ASM{   U8 14 MTA U8 6 MTR LBAI IOEMIT
-( addr:    8 9 10   11    12  13         )
-       DRBLT 6 0 RDROP RESET RET
-( addr: *14*                             )
-         32 32 72 101 108 108 111 }ASM
+=== test.vm.test_instructions_mta_lbai_ainc_adec_a() ===
+( ---------------------------------------------)
+( MTA -- Move T to register A                  )
+( LBA -- Load Byte via A                       )
+( LBAI -- Load Byte via A, inc A: @a+          )
+(         15  >a  @a+  1- for{  @a   a+   emit )
+( addr: 0  1   2    3   4    5 *6*    7      8 )
+ASM{   U8 15 MTA LBAI DEC  MTR LBA AINC IOEMIT
+(                   }for reset                 )
+( addr:    9 10 11    12    13  14             )
+       DRBLT  6  0 RDROP RESET RET
+( addr: *15*                                   )
+          7  32 32 72 101 108 108 111 }ASM
 warmboot                                   (  Hello  OK)  Hello  OK
 ( ---------------------------------------)
 ( AINC -- Add 1 to A                     )
@@ -471,7 +480,7 @@ warmboot                                       (  5  OK)  5  OK
 ASM{ U8 5 MTA ADEC A IOD RESET }ASM
 warmboot                                       (  4  OK)  4  OK
 
-=== test.vm.test_instruction_decode_mtb_sbbi_binc_bdec_b() ===
+=== test.vm.test_instructions_mtb_lbb_lbbi_sbbi_binc_bdec_b() ===
 ( ---------------------------------------)
 ( MTB -- Move T to register B            )
 ( SBBI -- Store Byte via B, inc B: !b+   )
@@ -480,7 +489,13 @@ warmboot                                       (  4  OK)  4  OK
 ASM{   U8 1 MTB B SBBI B SBBI B SBBI
        U8 1 >a a@+ a@+ a@+ IOD RESET }ASM
 warmboot                                   (  1 2 3  OK)  1 2 3  OK
-  OK
+( ------------------------------------------)
+( LBB -- Load Byte via B                    )
+( LBBI -- Load Byte via B, inc B: @a+       )
+(         8  >b  @b+  @b  .s reset          )
+(     0 1   2    3   4   5     6   7 *8*    )
+ASM{ U8 8 MTB LBBI LBB IOD RESET RET 98 99 }ASM
+warmboot                                   (  98 99  OK)  98 99  OK
 ( ---------------------------------------)
 ( BINC -- Add 1 to B                     )
 (       4  >b   b+ b  .s reset           )
@@ -492,7 +507,7 @@ warmboot                                       (  9  OK)  9  OK
 ASM{ U8 8 MTB BDEC B IOD RESET }ASM
 warmboot                                       (  7  OK)  7  OK
 
-=== test.vm.test_instruction_decode_mtx_x_mty_y() ===
+=== test.vm.test_instructions_mtx_x_mty_y() ===
 ( MTX -- Move T to register X            )
 ( X -- Push copy of X to the data stack  )
 ( MTY -- Move T to register Y            )

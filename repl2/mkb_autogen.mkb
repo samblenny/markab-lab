@@ -19,63 +19,70 @@
  0 const NOP
  1 const ADD
  2 const SUB
- 3 const MUL
- 4 const AND
- 5 const INV
- 6 const OR
- 7 const XOR
- 8 const SLL
- 9 const SRL
-10 const SRA
-11 const EQ
-12 const GT
-13 const LT
-14 const NE
-15 const ZE
-16 const JMP
-17 const JAL
-18 const RET
-19 const BZ
-20 const DRBLT
-21 const MRT
-22 const MTR
-23 const R
-24 const PC
-25 const RDROP
-26 const DROP
-27 const DUP
-28 const OVER
-29 const SWAP
-30 const U8
-31 const U16
-32 const I32
-33 const LB
-34 const SB
-35 const LH
-36 const SH
-37 const LW
-38 const SW
-39 const RESET
-40 const IOD
-41 const IOR
-42 const IODH
-43 const IORH
-44 const IOKEY
-45 const IOEMIT
-46 const MTA
-47 const LBAI
-48 const AINC
-49 const ADEC
-50 const A
-51 const MTB
-52 const SBBI
-53 const BINC
-54 const BDEC
-55 const B
-56 const MTX
-57 const X
-58 const MTY
-59 const Y
+ 3 const INC
+ 4 const DEC
+ 5 const MUL
+ 6 const AND
+ 7 const INV
+ 8 const OR
+ 9 const XOR
+10 const SLL
+11 const SRL
+12 const SRA
+13 const EQ
+14 const GT
+15 const LT
+16 const NE
+17 const ZE
+18 const TRUE
+19 const FALSE
+20 const JMP
+21 const JAL
+22 const RET
+23 const BZ
+24 const DRBLT
+25 const MRT
+26 const MTR
+27 const R
+28 const PC
+29 const RDROP
+30 const DROP
+31 const DUP
+32 const OVER
+33 const SWAP
+34 const U8
+35 const U16
+36 const I32
+37 const LB
+38 const SB
+39 const LH
+40 const SH
+41 const LW
+42 const SW
+43 const RESET
+44 const IOD
+45 const IOR
+46 const IODH
+47 const IORH
+48 const IOKEY
+49 const IOEMIT
+50 const MTA
+51 const LBA
+52 const LBAI
+53 const AINC
+54 const ADEC
+55 const A
+56 const MTB
+57 const LBB
+58 const LBBI
+59 const SBBI
+60 const BINC
+61 const BDEC
+62 const B
+63 const MTX
+64 const X
+65 const MTY
+66 const Y
 
 ( Memory map)
 ( 0000..00FF belongs to VM)

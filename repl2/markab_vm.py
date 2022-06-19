@@ -11,12 +11,13 @@ import sys
 import os
 
 from mkb_autogen import (
-  NOP, ADD, SUB, MUL, AND, INV, OR, XOR, SLL, SRL, SRA, EQ, GT, LT, NE, ZE,
+  NOP, ADD, SUB, INC, DEC, MUL, AND, INV, OR, XOR, SLL, SRL, SRA,
+  EQ, GT, LT, NE, ZE, TRUE, FALSE,
   JMP, JAL, RET, BZ, DRBLT, MTR, MRT, RDROP, R, PC, DROP, DUP, OVER, SWAP,
   U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET,
   IOD, IOR, IODH, IORH, IOKEY, IOEMIT,
-  MTA, LBAI, AINC, ADEC, A,
-  MTB, SBBI, BINC, BDEC, B, MTX, X, MTY, Y,
+  MTA, LBA, LBAI,       AINC, ADEC, A,
+  MTB, LBB, LBBI, SBBI, BINC, BDEC, B, MTX, X, MTY, Y,
 
   Boot, BootMax, MemMax,
 )
@@ -70,6 +71,8 @@ class VM:
     self.jumpTable[NOP  ] = self.nop
     self.jumpTable[ADD  ] = self.add
     self.jumpTable[SUB  ] = self.subtract
+    self.jumpTable[INC  ] = self.increment
+    self.jumpTable[DEC  ] = self.decrement
     self.jumpTable[MUL  ] = self.multiply
     self.jumpTable[AND  ] = self.and_
     self.jumpTable[INV  ] = self.invert
@@ -83,6 +86,8 @@ class VM:
     self.jumpTable[LT   ] = self.less_than
     self.jumpTable[NE   ] = self.not_equal
     self.jumpTable[ZE   ] = self.zero_equal
+    self.jumpTable[TRUE ] = self.true_
+    self.jumpTable[FALSE] = self.false_
     self.jumpTable[JMP  ] = self.jump
     self.jumpTable[JAL  ] = self.jump_and_link           # call subroutine
     self.jumpTable[RET  ] = self.return_
@@ -114,11 +119,14 @@ class VM:
     self.jumpTable[IOKEY] = self.io_key
     self.jumpTable[IOEMIT] = self.io_emit
     self.jumpTable[MTA  ] = self.move_t_to_a
+    self.jumpTable[LBA  ] = self.load_byte_a
     self.jumpTable[LBAI ] = self.load_byte_a_increment
     self.jumpTable[AINC ] = self.a_increment
     self.jumpTable[ADEC ] = self.a_decrement
     self.jumpTable[A    ] = self.a_
     self.jumpTable[MTB  ] = self.move_t_to_b
+    self.jumpTable[LBB  ] = self.load_byte_b
+    self.jumpTable[LBBI ] = self.load_byte_b_increment
     self.jumpTable[SBBI ] = self.store_byte_b_increment
     self.jumpTable[BINC ] = self.b_increment
     self.jumpTable[BDEC ] = self.b_decrement
@@ -222,6 +230,24 @@ class VM:
       return
     self.T = int.from_bytes(self.ram[addr:addr+1], 'little', signed=False)
 
+  def load_byte_a(self):
+    """Load byte from memory using address in register A"""
+    addr = self.A
+    if (addr < 0) or (addr > MemMax):
+      self.error = ERR_BAD_ADDRESS
+      return
+    x = int.from_bytes(self.ram[addr:addr+1], 'little', signed=False)
+    self._push(x)
+
+  def load_byte_b(self):
+    """Load byte from memory using address in register B"""
+    addr = self.B
+    if (addr < 0) or (addr > MemMax):
+      self.error = ERR_BAD_ADDRESS
+      return
+    x = int.from_bytes(self.ram[addr:addr+1], 'little', signed=False)
+    self._push(x)
+
   def load_byte_a_increment(self):
     """Load byte from memory using address in register A, then increment A"""
     addr = self.A
@@ -230,6 +256,16 @@ class VM:
       return
     x = int.from_bytes(self.ram[addr:addr+1], 'little', signed=False)
     self.A += 1
+    self._push(x)
+
+  def load_byte_b_increment(self):
+    """Load byte from memory using address in register B, then increment B"""
+    addr = self.B
+    if (addr < 0) or (addr > MemMax):
+      self.error = ERR_BAD_ADDRESS
+      return
+    x = int.from_bytes(self.ram[addr:addr+1], 'little', signed=False)
+    self.B += 1
     self._push(x)
 
   def store_byte_b_increment(self):
@@ -383,6 +419,10 @@ class VM:
     """Subtract T from S, store result in S, drop T"""
     self._op_st(lambda s, t: s - t)
 
+  def decrement(self):
+    """Subtract 1 from T"""
+    self._op_t(lambda t: t - 1)
+
   def multiply(self):
     """Multiply S by T, store result in S, drop T"""
     self._op_st(lambda s, t: s * t)
@@ -406,6 +446,10 @@ class VM:
   def add(self):
     """Add T to S, store result in S, drop T"""
     self._op_st(lambda s, t: s + t)
+
+  def increment(self):
+    """Add 1 to T"""
+    self._op_t(lambda t: t + 1)
 
   def a_increment(self):
     """Add 1 to register A"""
@@ -604,6 +648,14 @@ class VM:
   def zero_equal(self):
     """Evaluate 0 == T (true:-1, false:0), store result in T"""
     self._op_t(lambda t: -1 if 0 == t else 0)
+
+  def true_(self):
+    """Push -1 (true) to data stack"""
+    self._push(-1)
+
+  def false_(self):
+    """Push 0 (false) to data stack"""
+    self._push(0)
 
   def _log_ds(self, base=10):
     """Log (debug print) the data stack in the manner of .S"""

@@ -5,12 +5,13 @@
 
 from markab_vm import VM
 from mkb_autogen import (
-  NOP, ADD, SUB, MUL, AND, INV, OR, XOR, SLL, SRL, SRA, EQ, GT, LT, NE, ZE,
+  NOP, ADD, SUB, INC, DEC, MUL, AND, INV, OR, XOR, SLL, SRL, SRA,
+  EQ, GT, LT, NE, ZE, TRUE, FALSE,
   JMP, JAL, RET, BZ, DRBLT, MTR, MRT, RDROP, R, PC, DROP, DUP, OVER, SWAP,
   U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET,
   IOD, IOR, IODH, IORH, IOKEY, IOEMIT,
-  MTA, LBAI, AINC, ADEC, A,
-  MTB, SBBI, BINC, BDEC, B, MTX, X, MTY, Y,
+  MTA, LBA, LBAI,       AINC, ADEC, A,
+  MTB, LBB, LBBI, SBBI, BINC, BDEC, B, MTX, X, MTY, Y,
 )
 
 def p(s):
@@ -52,6 +53,12 @@ def test_add_subtract():
   v._log_ds()
   p("+ .s               (  -3  OK)")
   v.add()
+  v._log_ds()
+  p("1+ .s              (  -2  OK)")
+  v.increment()
+  v._log_ds()
+  p("1- .s              (  -3  OK)")
+  v.decrement()
   v._log_ds()
   p("drop 7 9 .s       (  7 9  OK)")
   v.drop()
@@ -187,6 +194,11 @@ def test_literals():
   v._log_ds()
   v.drop()
   v.drop()
+  p("true false .s reset          (  -1 0  OK)")
+  v.true_()
+  v.false_()
+  v._log_ds()
+  v.reset()
   print()
 
 def test_load_store():
@@ -536,22 +548,28 @@ def test_over_swap():
   v._log_ds()
   print()
 
-def test_instruction_decode_math_logic():
+def test_instructions_math_logic():
   v = VM()
-  print("=== test.vm.test_instruction_decode_math_logic() ===")
-  print("( opcode coverage: NOP ADD SUB MUL                     )")
-  print("( equivalent to: 1 dup + dup 9 - dup *                 )")
-  print("ASM{ nop U8 1 dup add dup U8 9 sub dup mul ret }ASM")
-  code = bytearray([NOP, U8, 1, DUP, ADD, DUP, U8, 9, SUB, DUP, MUL, RET])
+  print("=== test.vm.test_instructions_math_logic() ===")
+  print("( opcode coverage: NOP ADD SUB INC DEC MUL        )")
+  print("(    nop    1 dup   + dup    9   - dup   *  .s    )")
+  print("ASM{ NOP U8 1 DUP ADD DUP U8 9 SUB DUP MUL IOD }ASM")
+  code = bytearray([NOP, U8, 1, DUP, ADD, DUP, U8, 9, SUB, DUP, MUL, IOD, RET])
+  p("warmboot .s                                 (  2 49  OK)")
   v._warm_boot(code, max_cycles=99)
-  print("warmboot  OK")
-  p(".s                                          (  2 49  OK)")
-  v._log_ds()
+  print("reset  OK")
+  v.reset()
+  print("( opcode coverage: INC DEC    )")
+  print("(       3  1+    9  1-  .s    )")
+  print("ASM{ U8 3 INC U8 9 DEC IOD }ASM")
+  code = bytearray([U8, 3, INC, U8, 9, DEC, IOD, RET])
+  p("warmboot .s                                  (  4 8  OK)")
+  v._warm_boot(code, max_cycles=99)
   print("reset  OK")
   v.reset()
   print("( opcode coverage: AND INV OR XOR                      )")
   print("( equivalent to: hex 55 inv 7f and dup 80 or 0f xor    )")
-  print("ASM{ U8 85 inv U8 127 and dup U8 128 or U8 15 xor ret }ASM")
+  print("ASM{ U8 85 INV U8 127 AND DUP U8 128 OR U8 15 XOR RET }ASM")
   code = bytearray([U8, 85, INV, U8, 127, AND, DUP, U8, 128, OR])
   code.extend([U8, 15, XOR, RET])
   v._warm_boot(code, max_cycles=99)
@@ -562,7 +580,7 @@ def test_instruction_decode_math_logic():
   v.reset()
   print("( opcode coverage: SLL SRL SRA                         )")
   print("( equivalent to: 1 31 << dup 15 >>> dup 16 >>          )")
-  print("ASM{  ret }ASM")
+  print("ASM{  RET }ASM")
   code = bytearray([U8, 1, U8, 31, SLL, DUP, U8, 15, SRA, DUP])
   code.extend([U8, 16, SRL, RET])
   v._warm_boot(code, max_cycles=99)
@@ -573,7 +591,7 @@ def test_instruction_decode_math_logic():
   v.reset()
   print("( opcode coverage: EQ                                  )")
   print("( equivalent to: 1 2 =     2 2 =   2 1 =               )")
-  print("ASM{ u8 1 u8 2 eq  u8 2 u8 2 eq  u8 2 u8 1 eq  ret }ASM")
+  print("ASM{ U8 1 U8 2 EQ  U8 2 U8 2 EQ  U8 2 U8 1 EQ  RET }ASM")
   code = bytearray([U8,1,U8,2,EQ, U8,2,U8,2,EQ, U8,2,U8,1,EQ, RET])
   p("warmboot .s                               (  0 -1 0  OK)")
   v._warm_boot(code, max_cycles=99)
@@ -582,7 +600,7 @@ def test_instruction_decode_math_logic():
   v.reset()
   print("( opcode coverage: GT                                  )")
   print("( equivalent to: 1 2 >     2 2 >   2 1 >               )")
-  print("ASM{ u8 1 u8 2 gt  u8 2 u8 2 gt  u8 2 u8 1 gt  ret }ASM")
+  print("ASM{ U8 1 U8 2 GT  U8 2 U8 2 GT  U8 2 U8 1 GT  RET }ASM")
   code = bytearray([U8,1,U8,2,GT, U8,2,U8,2,GT, U8,2,U8,1,GT, RET])
   p("warmboot .s                               (  0 0 -1  OK)")
   v._warm_boot(code, max_cycles=99)
@@ -591,7 +609,7 @@ def test_instruction_decode_math_logic():
   v.reset()
   print("( opcode coverage: LT                                  )")
   print("( equivalent to: 1 2 <     2 2 <   2 1 <               )")
-  print("ASM{ u8 1 u8 2 lt  u8 2 u8 2 lt  u8 2 u8 1 lt  ret }ASM")
+  print("ASM{ U8 1 U8 2 LT  U8 2 U8 2 LT  U8 2 U8 1 LT  RET }ASM")
   code = bytearray([U8,1,U8,2,LT, U8,2,U8,2,LT, U8,2,U8,1,LT, RET])
   p("warmboot .s                               (  -1 0 0  OK)")
   v._warm_boot(code, max_cycles=99)
@@ -600,27 +618,27 @@ def test_instruction_decode_math_logic():
   v.reset()
   print("( opcode coverage: NE                                  )")
   print("( equivalent to: 1 2 !=    2 2 !=  2 1 !=              )")
-  print("ASM{ u8 1 u8 2 ne  u8 2 u8 2 ne  u8 2 u8 1 ne  ret }ASM")
+  print("ASM{ U8 1 U8 2 NE  U8 2 U8 2 NE  U8 2 U8 1 NE  RET }ASM")
   code = bytearray([U8,1,U8,2,NE, U8,2,U8,2,NE, U8,2,U8,1,NE, RET])
   p("warmboot .s                              (  -1 0 -1  OK)")
   v._warm_boot(code, max_cycles=99)
   v._log_ds()
   print("reset  OK")
   v.reset()
-  print("( opcode coverage: ZE                                  )")
-  print("( equivalent to:  -1 0=    0 0=      1 0=              )")
-  print("ASM{ i32 255 255 255 255 ze  u8 0 ze  u8 1 ze  ret }ASM")
-  code = bytearray([I32,255,255,255,255,ZE, U8,0,ZE, U8,1,ZE, RET])
-  p("warmboot .s                               (  0 -1 0  OK)")
+  print("( opcode coverage: TRUE FALSE ZE                       )")
+  print("(    true dup 0=  false dup 0=     1 DUP 0=            )")
+  print("ASM{ TRUE DUP ZE  FALSE DUP ZE  U8 1 DUP ZE RET }ASM")
+  code = bytearray([TRUE, DUP, ZE, FALSE, DUP, ZE, U8, 1, DUP, ZE, RET])
+  p("warmboot .s                        (  -1 0 0 -1 1 0  OK)")
   v._warm_boot(code, max_cycles=99)
   v._log_ds()
   print("reset  OK")
   v.reset()
   print()
 
-def test_instruction_decode_jump():
+def test_instructions_jump():
   v = VM()
-  print("=== test.vm.test_instruction_decode_jump() ===")
+  print("=== test.vm.test_instructions_jump() ===")
   print("( opcode coverage: JMP                            )")
   print("( assemble tokens to memory starting at address 0 )")
   print("( 0: push 5                                       )")
@@ -637,9 +655,9 @@ def test_instruction_decode_jump():
   v._log_ds()
   print()
 
-def test_instruction_decode_jal_return():
+def test_instructions_jal_return():
   v = VM()
-  print("=== test.vm.test_instruction_decode_jal_return() ===")
+  print("=== test.vm.test_instructions_jal_return() ===")
   print("( opcode coverage: JAL RET                        )")
   print("( assemble tokens to memory starting at address 0 )")
   print("(  0: JAL  7=0x0007, or [ 7, 0] little endian     )")
@@ -657,9 +675,9 @@ def test_instruction_decode_jal_return():
   v._log_ds()
   print()
 
-def test_instruction_decode_jz():
+def test_instructions_jz():
   v = VM()
-  print("=== test.vm.test_instruction_decode_jz() ===")
+  print("=== test.vm.test_instructions_jz() ===")
   print("( opcode coverage: BZ                                     )")
   print("( equivalent to: 0 dup if{ 7 }if 0 0= dup if{ 8 }IF       )")
   print("( addr: 0 1   2  3 4 5  6 7  8 9 10  11 12 13 14 15 16 17 )")
@@ -675,9 +693,9 @@ def test_instruction_decode_jz():
   v._log_ds()
   print()
 
-def test_instruction_decode_drblt_mtr_mrt():
+def test_instructions_drblt_mtr_mrt():
   v = VM()
-  print("=== test.vm.test_instruction_decode_drblt_mtr_mrt() ===")
+  print("=== test.vm.test_instructions_drblt_mtr_mrt() ===")
   print("( opcode coverage: DRBLT MTR MRT                       )")
   print("(    equivalent to: 3 for{ i }for                      )")
   print("( which expands to: 3 >r :FOR r> dup >r jrnz :FOR      )")
@@ -694,7 +712,7 @@ def test_instruction_decode_drblt_mtr_mrt():
   v._log_ds()
   print()
 
-def test_instruction_decode_drop_dup_over_swap():
+def test_instructions_drop_dup_over_swap():
   v = VM()
   print("( opcode coverage: DROP DUP OVER SWAP   )")
   print("( equivalent to: 1 2 over dup drop swap )")
@@ -707,9 +725,9 @@ def test_instruction_decode_drop_dup_over_swap():
   v.reset()
   print()
 
-def test_instruction_decode_u8_sb_lb():
+def test_instructions_u8_sb_lb():
   v = VM()
-  print("== vm.test.test_instruction_decode_u8_sb_lb() ===")
+  print("== vm.test.test_instructions_u8_sb_lb() ===")
   print("( opcode coverage: U16 SB LB             )")
   print("(     512     1    over b! b@            )")
   print("( IR{ 512     1    OVER SB LB }IR        )")
@@ -731,9 +749,9 @@ def test_instruction_decode_u8_sb_lb():
   v.reset()
   print()
 
-def test_instruction_decode_u16_sh_lh():
+def test_instructions_u16_sh_lh():
   v = VM()
-  print("== vm.test.test_instruction_decode_u16_sh_lh() ===")
+  print("== vm.test.test_instructions_u16_sh_lh() ===")
   print("( opcode coverage: U16 SH LH             )")
   print("(     512     1    over h! h@            )")
   print("( IR{ 512     1    OVER SH LH }IR        )")
@@ -755,9 +773,9 @@ def test_instruction_decode_u16_sh_lh():
   v.reset()
   print()
 
-def test_instruction_decode_i32_sw_lw():
+def test_instructions_i32_sw_lw():
   v = VM()
-  print("== vm.test.test_instruction_decode_i32_sw_lw() ===")
+  print("== vm.test.test_instructions_i32_sw_lw() ===")
   print("( opcode coverage: I32 SW LW RESET               )")
   print("(     512     -6                  over w! w@     )")
   print("( IR{ 512     -6                  OVER SW LW }IR )")
@@ -780,9 +798,9 @@ def test_instruction_decode_i32_sw_lw():
   print()
 
 
-def test_instruction_decode_reset_io():
+def test_instructions_reset_io():
   v = VM()
-  print("=== test.vm.test_instruction_decode_reset_io() ===")
+  print("=== test.vm.test_instructions_reset_io() ===")
   print("( opcode coverage: RESET IOD             )")
   print("( ---------------------------------------)")
   print("( IOD -- log data stack decimal          )")
@@ -862,9 +880,9 @@ def test_instruction_decode_reset_io():
   v._ok_or_err()
   print()
 
-def test_instruction_decode_r_pc():
+def test_instructions_r_pc():
   v = VM()
-  print("=== test.vm.test_instruction_decode_r_pc() ===")
+  print("=== test.vm.test_instructions_r_pc() ===")
   print("( opcode coverage: R PC                  )")
   print("( ---------------------------------------)")
   print("( R -- Load R, top of return stack       )")
@@ -883,22 +901,24 @@ def test_instruction_decode_r_pc():
   v._warm_boot(code, max_cycles=99)
   print()
 
-def test_instruction_decode_mta_lbai_ainc_adec_a():
+def test_instructions_mta_lba_lbai_ainc_adec_a():
   v = VM()
-  print("=== test.vm.test_instruction_decode_mta_lbai_ainc_adec_a() ===")
-  print("( ---------------------------------------)")
-  print("( MTA -- Move T to register A            )")
-  print("( LBAI -- Load Byte via A, inc A: @a+    )")
-  print("(         14 >a 6 for{ @a+ emit }for     )")
-  print("( addr: 0  1   2  3 4   5  *6*      7    )")
-  print("ASM{   U8 14 MTA U8 6 MTR LBAI IOEMIT")
-  print("( addr:    8 9 10   11    12  13         )")
-  print("       DRBLT 6 0 RDROP RESET RET")
-  print("( addr: *14*                             )")
-  print("         32 32 72 101 108 108 111 }ASM")
-  code = bytearray([U8, 14, MTA, U8, 6, MTR, LBAI, IOEMIT])
+  print("=== test.vm.test_instructions_mta_lbai_ainc_adec_a() ===")
+  print("( ---------------------------------------------)")
+  print("( MTA -- Move T to register A                  )")
+  print("( LBA -- Load Byte via A                       )")
+  print("( LBAI -- Load Byte via A, inc A: @a+          )")
+  print("(         15  >a  @a+  1- for{  @a   a+   emit )")
+  print("( addr: 0  1   2    3   4    5 *6*    7      8 )")
+  print("ASM{   U8 15 MTA LBAI DEC  MTR LBA AINC IOEMIT")
+  print("(                   }for reset                 )")
+  print("( addr:    9 10 11    12    13  14             )")
+  print("       DRBLT  6  0 RDROP RESET RET")
+  print("( addr: *15*                                   )")
+  print("          7  32 32 72 101 108 108 111 }ASM")
+  code = bytearray([U8, 15, MTA, LBAI, DEC, MTR, LBA, AINC, IOEMIT])
   code.extend([DRBLT, 6, 0, RDROP, RESET, RET])
-  code.extend([32, 32, 72, 101, 108, 108, 111])
+  code.extend([7, 32, 32, 72, 101, 108, 108, 111])
   p("warmboot                                   (  Hello  OK)")
   v._warm_boot(code, max_cycles=99)
   print("  OK")
@@ -919,9 +939,9 @@ def test_instruction_decode_mta_lbai_ainc_adec_a():
   v._warm_boot(code, max_cycles=99)
   print()
 
-def test_instruction_decode_mtb_sbbi_binc_bdec_b():
+def test_instructions_mtb_lbb_lbbi_sbbi_binc_bdec_b():
   v = VM()
-  print("=== test.vm.test_instruction_decode_mtb_sbbi_binc_bdec_b() ===")
+  print("=== test.vm.test_instructions_mtb_lbb_lbbi_sbbi_binc_bdec_b() ===")
   print("( ---------------------------------------)")
   print("( MTB -- Move T to register B            )")
   print("( SBBI -- Store Byte via B, inc B: !b+   )")
@@ -933,7 +953,15 @@ def test_instruction_decode_mtb_sbbi_binc_bdec_b():
   code.extend([U8, 1, MTA, LBAI, LBAI, LBAI, IOD, RESET, RET])
   p("warmboot                                   (  1 2 3  OK)")
   v._warm_boot(code, max_cycles=99)
-  print("  OK")
+  print("( ------------------------------------------)")
+  print("( LBB -- Load Byte via B                    )")
+  print("( LBBI -- Load Byte via B, inc B: @a+       )")
+  print("(         8  >b  @b+  @b  .s reset          )")
+  print("(     0 1   2    3   4   5     6   7 *8*    )")
+  print("ASM{ U8 8 MTB LBBI LBB IOD RESET RET 98 99 }ASM")
+  code = bytearray([U8, 8, MTB, LBBI, LBB, IOD, RESET, RET, 98, 99])
+  p("warmboot                                   (  98 99  OK)")
+  v._warm_boot(code, max_cycles=99)
   print("( ---------------------------------------)")
   print("( BINC -- Add 1 to B                     )")
   print("(       4  >b   b+ b  .s reset           )")
@@ -950,9 +978,9 @@ def test_instruction_decode_mtb_sbbi_binc_bdec_b():
   v._warm_boot(code, max_cycles=99)
   print()
 
-def test_instruction_decode_mtx_x_mty_y():
+def test_instructions_mtx_x_mty_y():
   v = VM()
-  print("=== test.vm.test_instruction_decode_mtx_x_mty_y() ===")
+  print("=== test.vm.test_instructions_mtx_x_mty_y() ===")
   print("( MTX -- Move T to register X            )")
   print("( X -- Push copy of X to the data stack  )")
   print("( MTY -- Move T to register Y            )")
@@ -978,17 +1006,17 @@ test_load_store()
 test_return_stack()
 test_comparisons()
 test_over_swap()
-test_instruction_decode_math_logic()
-test_instruction_decode_jump()
-test_instruction_decode_jal_return()
-test_instruction_decode_jz()
-test_instruction_decode_drblt_mtr_mrt()
-test_instruction_decode_drop_dup_over_swap()
-test_instruction_decode_u8_sb_lb()
-test_instruction_decode_u16_sh_lh()
-test_instruction_decode_i32_sw_lw()
-test_instruction_decode_reset_io()
-test_instruction_decode_r_pc()
-test_instruction_decode_mta_lbai_ainc_adec_a()
-test_instruction_decode_mtb_sbbi_binc_bdec_b()
-test_instruction_decode_mtx_x_mty_y()
+test_instructions_math_logic()
+test_instructions_jump()
+test_instructions_jal_return()
+test_instructions_jz()
+test_instructions_drblt_mtr_mrt()
+test_instructions_drop_dup_over_swap()
+test_instructions_u8_sb_lb()
+test_instructions_u16_sh_lh()
+test_instructions_i32_sw_lw()
+test_instructions_reset_io()
+test_instructions_r_pc()
+test_instructions_mta_lba_lbai_ainc_adec_a()
+test_instructions_mtb_lbb_lbbi_sbbi_binc_bdec_b()
+test_instructions_mtx_x_mty_y()

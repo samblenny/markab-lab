@@ -13,13 +13,14 @@ These are instruction opcode mnemonics used by the Markab assembler to generate
 bytecode for the Markab virtual machine:
 
 ```
-NOP ADD SUB MUL AND INV OR XOR SLL SRL SRA
-EQ GT LT NE ZE JMP JAL RET
+NOP ADD SUB INC DEC MUL AND INV OR XOR
+SLL SRL SRA
+EQ GT LT NE ZE TRUE FALSE JMP JAL RET
 BZ DRBLT MRT MTR RDROP R PC DROP DUP OVER SWAP
 U8 U16 I32 LB SB LH SH LW SW RESET
 IOD IOR IODH IORH IOKEY IOEMIT
-MTA LBAI AI A
-MTB SBBI BI B MTX X MTY Y
+MTA LBA LBAI      AINC ADEC A
+MTB LBB LBBI SBBI BINC BDEC B MTX X MTY Y
 ```
 
 The `U8`, `LB`, `SH`, ... opcodes are for moving different widths of data
@@ -45,13 +46,14 @@ the tradition of Forth. The dictionary of the Markab kernel gets initialized
 with a core vocabulary containing definitions for these core words:
 
 ```
-nop + - * and inv or xor << >> >>>
-= > < != 0=
+nop + - 1+ 1- * and inv or xor
+<< >> >>>
+= > < != 0= true false
 r> >r rdrop r pc drop dup over swap
-@ ! 2@ 2! 4@ 4!
+@ ! h@ h! w@ w!
 iod ior iod iorh key emit
->a a@+ a+ a
->b b!+ b+ b >x x >y y
+>a @a @a+     a+ a- a
+>b @b @b+ !b+ b+ b- b >x x >y y
 : ; var const
 if{ }if for{ break }for ASM{ }ASM
 ```

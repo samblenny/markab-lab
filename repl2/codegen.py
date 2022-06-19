@@ -13,6 +13,8 @@ OPCODES = """
 nop NOP
 + ADD
 - SUB
+1+ INC
+1- DEC
 * MUL
 and AND
 inv INV
@@ -26,6 +28,8 @@ xor XOR
 < LT
 != NE
 0= ZE
+true TRUE
+false FALSE
 <ASM> JMP
 <ASM> JAL
 <ASM> RET
@@ -57,11 +61,14 @@ iorh IORH
 key IOKEY
 emit IOEMIT
 >a MTA
+@a LBA
 @a+ LBAI
 a+ AINC
 a- ADEC
 a A
 >b MTB
+@b LBB
+@b+ LBBI
 !b+ SBBI
 b+ BINC
 b- BDEC

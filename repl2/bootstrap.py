@@ -5,12 +5,13 @@
 # Markab bootstrap compiler
 #
 from mkb_autogen import (
-  NOP, ADD, SUB, MUL, AND, INV, OR, XOR, SLL, SRL, SRA, EQ, GT, LT, NE, ZE,
+  NOP, ADD, SUB, INC, DEC, MUL, AND, INV, OR, XOR, SLL, SRL, SRA,
+  EQ, GT, LT, NE, ZE, TRUE, FALSE,
   JMP, JAL, RET, BZ, DRBLT, MTR, MRT, R, PC, RDROP, DROP, DUP, OVER, SWAP,
   U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET,
   IOD, IOR, IODH, IORH, IOKEY, IOEMIT,
-  MTA, LBAI, AINC, ADEC, A,
-  MTB, SBBI, BINC, BDEC, B, MTX, X, MTY, Y,
+  MTA, LBA, LBAI,       AINC, ADEC, A,
+  MTB, LBB, LBBI, SBBI, BINC, BDEC, B, MTX, X, MTY, Y,
   OPCODES,
 
   Boot, BootMax, Heap, HeapRes, HeapMax, DP,
@@ -23,12 +24,12 @@ from mkb_autogen import (
 ROM_FILE = 'kernel.bin'
 
 KERNEL_ASM = """
-#          13  >a    13 for{  @a+   emit       }for
-# addr:  0  1   2  3  4   5   *6*      7     8 9 10    11  12
-        U8 13 MTA U8 13 MTR  LBAI IOEMIT DRBLT 6  0 RDROP RET
+#          13  >a  a@+  1- for{  @a+   emit       }for
+# addr:  0  1   2    3   4    5  *6*      7     8 9 10    11  12
+        U8 13 MTA LBAI DEC  MTR LBAI IOEMIT DRBLT 6  0 RDROP RET
 # addr: *13*
-#         H   e   l   l   o  , <SP>  w   o   r   l   d  ! <LF> (14 bytes)
-         72 101 108 108 111 44  32 119 111 114 108 100 33 10
+#            H   e   l   l   o  , <SP>  w   o   r   l   d  ! <LF> (14 bytes)
+         14 72 101 108 108 111 44  32 119 111 114 108 100 33 10
 """
 
 def filter(src):
