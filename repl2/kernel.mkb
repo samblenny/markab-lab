@@ -110,7 +110,7 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   }if
   @a+ 1- for{                ( loop over all the bytes)
     @a+ @b+ != if{           (   if bytes do not match)
-      >b >a false ;          (     restore old a & b, then return bool=false)
+      >b >a false rdrop ;    (     restore old a & b, then return bool=false)
     }if
   }for true                  ( return bool=true if all bytes matched)
 ;
