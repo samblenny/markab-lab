@@ -133,7 +133,9 @@ OPCODES = {
 
 # Markab VM memory map
 Boot    = 0x0000
-BootMax = 0x03FF
+BootMax = 0x02FF
+CORE_V  = 0x0300
+FENCE   = 0x0304
 Heap    = 0x0400
 HeapRes = 0xE000
 HeapMax = 0xE0FF
@@ -142,6 +144,9 @@ IN      = 0xE104
 CONTEXT = 0xE108
 CURRENT = 0xE10C
 MODE    = 0xE110
+EXT_V   = 0xE114
+CROSS_B = 0xE11C
+CROSS_V = 0xE118
 IBLen   = 0xE200
 IB      = 0xE201
 PadLen  = 0xE300
@@ -163,7 +168,9 @@ MODE_IMM = 2
 # Markab language core vocabulary
 CORE_VOC = {
     'Boot':     (T_CONST, 0x0000),
-    'BootMax':  (T_CONST, 0x03FF),
+    'BootMax':  (T_CONST, 0x02FF),
+    'CORE_V':   (T_CONST, 0x0300),
+    'FENCE':    (T_CONST, 0x0304),
     'Heap':     (T_CONST, 0x0400),
     'HeapRes':  (T_CONST, 0xE000),
     'HeapMax':  (T_CONST, 0xE0FF),
@@ -172,6 +179,9 @@ CORE_VOC = {
     'CONTEXT':  (T_CONST, 0xE108),
     'CURRENT':  (T_CONST, 0xE10C),
     'MODE':     (T_CONST, 0xE110),
+    'EXT_V':    (T_CONST, 0xE114),
+    'CROSS_B':  (T_CONST, 0xE11C),
+    'CROSS_V':  (T_CONST, 0xE118),
     'IBLen':    (T_CONST, 0xE200),
     'IB':       (T_CONST, 0xE201),
     'PadLen':   (T_CONST, 0xE300),

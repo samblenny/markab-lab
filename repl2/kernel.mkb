@@ -96,7 +96,53 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   dup y !                     ( patch string length with correct count)
 ;
 
-: find ( -- addr bool )
+( --------------------- )
+( String struct format: )
+( Byte range   Field    )
+(      0       .length  )
+(    1:n       .bytes   )
+( --------------------- )
+
+: strcmp ( addr addr -- bool )  ( Compare strings, return match as boolean)
+  a swap >a swap b swap >b      ( exchange old a & b with addresses in S & T)
+  a @ b @ != if{                ( if length bytes do not match)
+    >b >a 0 ;                   (   restore old a & b, then return 0=false)
+  }if
+  @a+ 1 - for{                  ( loop over all the bytes)
+    @a+ b @ b+ != if{           (   if a byte does not match)
+      >b >a 0 ;                 (     restore old a & b, then return 0=false)
+    }if
+  }for -1                       ( return -1=true if all bytes matched)
+;
+
+( ------------------------- )
+( Vocab item struct format: )
+( Byte range   Field        )
+(    0:1       .link        )
+(      2       .name.length )
+(    3:n       .name.bytes  )
+(      n       .type        )
+(  n+1:n+m     .code/.param )
+( ------------------------- )
+
+: v_find ( voc -- [addr] bool)  ( Search for word at DP in vocabulary at T)
+  >x
+  999 for{                 ( loop over up to 999 dictionary entries)
+    x 0= if{               ( if vocab item pointer is null:)
+      rdrop 0 ;            (   return 0=false)
+    }if x 2 +              ( calculate address of vocab item's name field)
+    here strcmp            ( compare vocab item's name with search word)
+    if{                    ( if they match:)
+      x 2 + dup @ +        (   calculate address of vocab item .type field)
+      -1 rdrop ;           (   return: addr=.type -1=true )
+    }if x h@ >x            ( else: follow link)
+  }for
+;
+
+: find ( -- [addr] bool )  ( Search for word at DP in CORE_V and EXT_V)
+  CORE_V h@ v_find if{     ( if word matches name of core vocab item:)          
+    -1 ;                   (   return: addr -1=true)
+  }if EXT_V h@ v_find      ( else: try the extensible vocab)
 ;
 
 : number ( word -- bool )

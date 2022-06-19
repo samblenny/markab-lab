@@ -14,6 +14,7 @@
 1 const MODE_COM
 2 const MODE_IMM
 
+
 ( CPU opcodes)
  0 const NOP
  1 const ADD
@@ -81,7 +82,9 @@
 ( 0100..FFFF belongs to kernel)
 hex
 0000 const Boot
-03FF const BootMax
+02FF const BootMax
+0300 const CORE_V
+0304 const FENCE
 0400 const Heap
 E000 const HeapRes
 E0FF const HeapMax
@@ -90,6 +93,9 @@ E104 const IN
 E108 const CONTEXT
 E10C const CURRENT
 E110 const MODE
+E114 const EXT_V
+E11C const CROSS_B
+E118 const CROSS_V
 E200 const IBLen
 E201 const IB
 E300 const PadLen

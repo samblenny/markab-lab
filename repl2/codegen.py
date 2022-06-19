@@ -73,16 +73,22 @@ y Y
 """
 
 MEMORY_MAP = """
-0000 Boot     # Boot code (PC=0 on reset)       1 KB
-03FF BootMax  # Boot code: last usable byte
-0400 Heap     # Heap (dictionary)               55 KB
-E000 HeapRes  # Heap Reserve buffer for WORD    256 bytes
+0000 Boot     # Boot code (PC=0 on reset)                768 bytes
+02FF BootMax  # Boot code: last usable byte
+0300 CORE_V   # Pointer to head of core vocabulary       2 bytes (align 4)
+0304 FENCE    # Pointer to write protect boundary        2 bytes (align 4)
+#...
+0400 Heap     # Heap (dictionary)                        55 KB
+E000 HeapRes  # Heap Reserve buffer for WORD             256 bytes
 E0FF HeapMax  # Heap: end of reserve buffer
 E100 DP       # Dictionary Pointer                       2 bytes (align 4)
 E104 IN       # INput buffer index                       1 byte  (align 4)
 E108 CONTEXT  # Head of vocabulary for finding words     2 bytes (align 4)
 E10C CURRENT  # Head of vocabulary for new definitions   2 bytes (align 4)
 E110 MODE     # Current interpreting/compiling mode      1 byte  (align 4)
+E114 EXT_V    # Pointer to head of extensible vocab      2 bytes (align 4)
+E11C CROSS_B  # Cross-compile Base address offset        2 bytes (align 4)
+E118 CROSS_V  # Cross-compile pointer to head of Vocab   2 bytes (align 4)
 #...
 E200 IBLen    # Input Buffer Length             1 byte
 E201 IB       # Input Buffer                    255 bytes
@@ -198,6 +204,7 @@ MKB_TEMPLATE = f"""
 
 ( Enum codes)
 {mkb_enum_codes()}
+
 
 ( CPU opcodes)
 {mkb_opcodes()}
