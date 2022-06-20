@@ -54,8 +54,8 @@ r> >r rdrop r pc drop dup over swap
 iod ior iod iorh key emit
 >a @a @a+     a+ a- a
 >b @b @b+ !b+ b+ b- b >x x >y y
-: ; var const
-if{ }if for{ break }for ASM{ }ASM
+: ; var const opcode
+if{ }if for{ break }for
 ```
 
 Most of the core words are simple words that invoke a CPU instruction on one or
@@ -65,7 +65,7 @@ word consists of adding the bytecode for that word's CPU instruction into the
 dictionary entry that is being compiled.
 
 The remaining core words are "immediate" words: `:`, `;`, `var`, `const`,
-`if{`, `}if`, `for{`, `}for`, `ASM{`, and `}ASM`. Immediate words are used for
+`opcode`, `if{`, `}if`, `for{`, and `}for`. Immediate words are used for
 language features that require decisions and calculations at compile time. For
 example, immediate words can do things like adding a dictionary entry or
 calculating addresses for loops and branching.

@@ -14,11 +14,15 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 : compiling? MODE @ MODE_COM = ;
 : immediate? MODE @ MODE_IMM = ;
 
-: allot ( bytes -- ) here + DP h! ;
+: allot ( bytes -- ) DP h@ + DP h! ;
 
 :  , here  ! 1 allot ;   ( store low byte of T at DP)
 : h, here h! 2 allot ;   ( store low halfword of T at DP)
 : w, here w! 4 allot ;   ( store full word T at DP)
+
+: NEST+    ( -- )     NEST dup @ 1+ swap ! ;  ( Increment block nesting level)
+: NEST-    ( -- )     NEST dup @ 1- swap ! ;  ( Decrement block nesting level)
+: NESTED?  ( -- bool) NEST @ 0 > ;            ( Is nesting level > 0?)
 
 : create ( -- lenth-of-name )
   curr here h,  ( store link to current head of dictionary at DP)
@@ -27,42 +31,60 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   @             ( load string length of name from `word`)
 ;
 
-: :
-  here curr                      ( save dictionary state for rollback)
-  create                         ( read name to start dictionary entry)
-  0= if{ Current h! DP h! ; }if  ( empty name --> roll back changes)
+: :                     ( Start defining a new vocabulary word)
+  here curr             ( save dictionary state for rollback)
+  create                ( read name to start dictionary entry)
+  0= if{                ( if length of name was 0:)
+    Current h! DP h! ;  (   roll back changes, return)
+  }if MODE_COM MODE !   ( else: set compile mode)
+;
+
+: update-mode        ( Clear compile mode, but only for final ; of definition)
+  NESTED? 0= if{     ( if block nesting level is 0:)
+    MODE_INT MODE !  (   clear compile mode)
+  }if
 ;
 
 : ;                       ( Return from a word)
   here 3 - LASTCALL h@ =  ( tail call optimizer...)
   = if{                   ( if last compiled call was 3 bytes ago:)
-    JUMP here 3 - ! ;     (   change the CALL to a JUMP and return)
-  }if ASM{ RET }ASM       ( else: compile a RET instruction)
+    JUMP here 3 - !       (   change the CALL to a JUMP)
+    update-mode ;         (   clear compile mode if needed, then return)
+  }if RET ,               ( else: compile a RET instruction)
+  update-mode             ( clear compile mode if needed)
 ;
 
-: var create                 ( Add variable to dictionary)
-  T_VAR ,                    ( append type=var to dictionary)
-  ASM{ U16 }ASM here 3 + h,  ( append code to push parameter address literal)
-  ASM{ RET }ASM              ( append return to end code and begin parameter)
-  0 w,                       ( append I32 parameter, initialized to 0)
+: var                ( Add variable to dictionary)
+  create             ( append name as read from text input stream)
+  T_VAR ,            ( append type=var)
+  U16 , here 3 + h,  ( append code to push parameter address at runtime)
+  RET ,              ( append RET to end code and begin parameter)
+  0 w,               ( append I32 parameter, initialized to 0)
 ;
 
-: const ( i32 -- )                ( Add constant to dictionary)
-  T_CONST ,                       ( append type=const to dictionary)
-  ASM{ I32 }ASM w, ASM{ RET }ASM  ( append code to push I32 literal)
+: const ( i32 -- )  ( Add constant to dictionary)
+  create            ( append name as read from text input stream)
+  T_CONST ,         ( append type=const to dictionary)
+  I32 , w, RET ,    ( append code to push I32 literal)
 ;
 
-: if{ ( -- addr ) ASM{ BZ }ASM here ASM{ 0 0 }ASM ;
-: }if ( addr -- ) here swap h! ;
-: for{ ( -- addr ) ASM{ MTR }ASM here ;
-: }for ( addr -- ) ASM{ DRBLT }ASM h, ASM{ RDROP }ASM ;
+: opcode  ( Add opcode to dictionary)
+  create  ( append name as read from text input stream)
+  T_OP ,  ( append type=opcode)
+  ,       ( append T as the opcode number)
+;
+
+: if{ ( -- addr ) BZ , here 0 , 0 , NEST+ ;   immediate
+: }if ( addr -- ) here swap h! NEST- ;        immediate
+: for{ ( -- addr ) MTR , here NEST+ ;         immediate
+: }for ( addr -- ) DRBLT , h, RDROP , NEST- ; immediate
 
 : hex 16 BASE w! ;
 : decimal 10 BASE w! ;
 : cr 10 emit ;
 : space 32 emit ;
 
-: newline? ( byte -- )      ( test if byte is CR or LF)
+: newline? ( byte -- )  ( test if byte is CR or LF)
   dup 10 = 13 = or
 ;
 
@@ -142,7 +164,7 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 ;
 
 : find ( -- [addr] bool )  ( Search for word at DP in CORE_V and EXT_V)
-  CORE_V h@ v_find if{     ( if word matches name of core vocab item:)          
+  CORE_V h@ v_find if{     ( if word matches name of core vocab item:)
     true ;                 (   return: addr bool=true)
   }if EXT_V h@ v_find      ( else: try the extensible vocab)
 ;
@@ -219,20 +241,23 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 : inner
 ;
 
-: .dp here >a @a+ 1- for{ @a+ emit }for ;  ( print word from DP)
+: .dp          ( print word from DP)
+  a here >a    ( save old a, new a = DP)
+  @a+ 1- for{  ( loop according to length byte of string at DP)
+    @a+ emit   (   emit the next byte)
+  }for >a      ( restore old value of a)
+;
 
 : ."   ( " ( Print a string. The ( " keeps my silly syntax highlighting happy)
-  a b                  ( save old values of a and b)
-  IB IN + >a           ( a = current position in text input buffer )
-  0 >b                 ( b = 0, number of bytes printed)
-  IBLen IN - 1- for{   ( loop over remaining bytes of input line)
-    @a+ dup 34 = if{   (   if byte is ", ASCII 34:)
-      drop             (     drop the copy of the " byte)
-      IN @ b + IN !    (     update IN with number of bytes printed...)
-      >b >a rdrop ;    (     restore old values of a and b, then return)
-    }if emit b+        (   else: print the byte and increment the counter)
-  }for IN @ b + IN !   ( update IN)
-  >b >a                ( restore old values of a and b)
+  a b                 ( save old values of a and b)
+  IN @ >b             ( b = current value of IN)
+  IB b + >a           ( a = current position in text input buffer )
+  IBLen b - 1- for{   ( loop over remaining bytes of input line)
+    @a+ dup 34 = if{  (   if byte is ", ASCII 34:)
+      drop b IN !     (     drop the copy of the " byte, update IN)
+      >b >a rdrop ;   (     restore old values of a and b, then return)
+    }if emit b+       (   else: print the byte and increment copy of IN)
+  }for b IN ! >b >a   ( update IN, restore old values of a and b)
 ;
 
 : dowords
@@ -250,6 +275,7 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   0 IN !
   MODE_INT MODE !
   0 LASTCALL h!
+  0 NEST !
   version
   outer
 ;

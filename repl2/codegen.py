@@ -75,7 +75,7 @@ b- BDEC
 b B
 >x MTX
 x X
->Y MTY
+>y MTY
 y Y
 """
 
@@ -95,6 +95,7 @@ E10C CURRENT  # Head of vocabulary for new definitions   2 bytes (align 4)
 E110 MODE     # Current interpreting/compiling mode      1 byte  (align 4)
 E114 EXT_V    # Pointer to head of extensible vocab      2 bytes (align 4)
 E118 LASTCALL  # Pointer to last compiled call instr.    2 bytes (align 4)
+E11C NEST     # Block Nesting level for if{ and for{     1 byte  (align 4)
 #...
 E200 IBLen    # Input Buffer Length             1 byte
 E201 IB       # Input Buffer                    255 bytes
@@ -137,6 +138,15 @@ def mkb_opcodes():
     (name, opcode) = line.strip().split(" ")
     constants += [f"{i:2} const {opcode}"]
   return "\n".join(constants)
+
+def mkb_core_words():
+  words = []
+  for (i, line) in enumerate(filter(OPCODES)):
+    (name, opcode) = line.strip().split(" ")
+    if name == "<ASM>":
+      continue
+    words += [f"{i:>2} opcode {name}"]
+  return "\n".join(words)
 
 def mkb_memory_map():
   constants = []
@@ -214,6 +224,9 @@ MKB_TEMPLATE = f"""
 
 ( CPU opcodes)
 {mkb_opcodes()}
+
+( Core word definitions)
+{mkb_core_words()}
 
 ( Memory map)
 ( 0000..00FF belongs to VM)

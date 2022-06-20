@@ -1,19 +1,12 @@
 ( This is a sample of Markab source code to demonstrate syntax highlighting)
-
-
 ( parentheses enclose comments)
-( ASM{ and }ASM enclose blocks of assembly language code)
-( : and ; enclose a definition)
-: .s   ASM{ IOD }ASM ;
-: .ret ASM{ IOR }ASM ;
-: key  ASM{ IOKEY }ASM ;
-: emit ASM{ IOEMIT }ASM ;
+( : and ; enclose definitions)
 
 ( `if{` and `}if` enclose a conditional block)
 : if-AB dup 1 = if{ 65 emit }if 2 = if{ 66 emit }if ;
 
 ( `for{` and `}for` enclose a counted loop. `for{` takes its count from T)
-: count '0' 9 for{ dup emit 1+ }for drop ;
+: count a '0' >a 9 for{ a emit a+ }for >a ;
 
 ( These are the Markab language core dictionary words)
 ( Markab is case-sensitive, so uppercase and lowercase are not the same)
@@ -23,8 +16,8 @@ r> >r rdrop r pc drop dup over swap
 @ ! h@ h! w@ w!
 >a @a @a+     a+ a- a
 >b @b @b+ !b+ b+ b- b >x x >y y
-: ; var const
-if{ }if for{ break }for ASM{ }ASM
+: ; var const opcode
+if{ }if for{ break }for
 
 ( These are VM instruction opcodes)
 NOP ADD SUB INC DEC MUL AND INV OR XOR

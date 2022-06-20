@@ -30,8 +30,8 @@
     "iod" "ior" "iodh" "iorh" "key" "emit"
     ">a" "@a" "@a+"       "a+" "a-" "a"
     ">b" "@b" "@b+" "!b+" "b+" "b-" "b" ">x" "x" ">y" "y"
-    ":" ";" "var" "const"
-    "if{" "}if" "for{" "break" "}for" "ASM{" "}ASM"))
+    ":" ";" "var" "const" "opcode"
+    "if{" "}if" "for{" "break" "}for"))
 
 (defconst markab-comments '(("( " . ")")))
 (defconst markab-fontlocks '())

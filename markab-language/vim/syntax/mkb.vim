@@ -26,8 +26,8 @@
 :syntax keyword mkbCoreVocab iod ior iodh iorh key emit
 :syntax keyword mkbCoreVocab >a @a @a+     a+ a- a
 :syntax keyword mkbCoreVocab >b @b @b+ !b+ b+ b- b >x x >y y
-:syntax keyword mkbCoreVocab : ; var const
-:syntax keyword mkbCoreVocab if{ }if for{ break }for ASM{ }ASM
+:syntax keyword mkbCoreVocab : ; var const opcode
+:syntax keyword mkbCoreVocab if{ }if for{ break }for
 
 :highlight link mkbOpcode Constant
 :highlight link mkbComment Comment

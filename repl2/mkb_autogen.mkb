@@ -84,6 +84,66 @@
 65 const MTY
 66 const Y
 
+( Core word definitions)
+ 0 opcode nop
+ 1 opcode +
+ 2 opcode -
+ 3 opcode 1+
+ 4 opcode 1-
+ 5 opcode *
+ 6 opcode and
+ 7 opcode inv
+ 8 opcode or
+ 9 opcode xor
+10 opcode <<
+11 opcode >>
+12 opcode >>>
+13 opcode =
+14 opcode >
+15 opcode <
+16 opcode !=
+17 opcode 0=
+18 opcode true
+19 opcode false
+25 opcode r>
+26 opcode >r
+27 opcode r
+28 opcode pc
+29 opcode rdrop
+30 opcode drop
+31 opcode dup
+32 opcode over
+33 opcode swap
+37 opcode @
+38 opcode !
+39 opcode h@
+40 opcode h!
+41 opcode w@
+42 opcode w!
+44 opcode iod
+45 opcode ior
+46 opcode iodh
+47 opcode iorh
+48 opcode key
+49 opcode emit
+50 opcode >a
+51 opcode @a
+52 opcode @a+
+53 opcode a+
+54 opcode a-
+55 opcode a
+56 opcode >b
+57 opcode @b
+58 opcode @b+
+59 opcode !b+
+60 opcode b+
+61 opcode b-
+62 opcode b
+63 opcode >x
+64 opcode x
+65 opcode >y
+66 opcode y
+
 ( Memory map)
 ( 0000..00FF belongs to VM)
 ( 0100..FFFF belongs to kernel)
@@ -102,6 +162,7 @@ E10C const CURRENT
 E110 const MODE
 E114 const EXT_V
 E118 const LASTCALL
+E11C const NEST
 E200 const IBLen
 E201 const IB
 E300 const PadLen

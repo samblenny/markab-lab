@@ -160,6 +160,7 @@ CURRENT = 0xE10C
 MODE    = 0xE110
 EXT_V   = 0xE114
 LASTCALL = 0xE118
+NEST    = 0xE11C
 IBLen   = 0xE200
 IB      = 0xE201
 PadLen  = 0xE300
@@ -194,6 +195,7 @@ CORE_VOC = {
     'MODE':     (T_CONST, 0xE110),
     'EXT_V':    (T_CONST, 0xE114),
     'LASTCALL': (T_CONST, 0xE118),
+    'NEST':     (T_CONST, 0xE11C),
     'IBLen':    (T_CONST, 0xE200),
     'IB':       (T_CONST, 0xE201),
     'PadLen':   (T_CONST, 0xE300),
@@ -265,6 +267,6 @@ CORE_VOC = {
     'b':        (T_OP,    B),
     '>x':       (T_OP,    MTX),
     'x':        (T_OP,    X),
-    '>Y':       (T_OP,    MTY),
+    '>y':       (T_OP,    MTY),
     'y':        (T_OP,    Y),
 }
