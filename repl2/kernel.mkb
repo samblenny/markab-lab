@@ -33,9 +33,11 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   0= if{ Current h! DP h! ; }if  ( empty name --> roll back changes)
 ;
 
-: ;                          ( Return from a word)
-  ( TODO: tail call optimizer)
-  ASM{ RET }ASM
+: ;                       ( Return from a word)
+  here 3 - LASTCALL h@ =  ( tail call optimizer...)
+  = if{                   ( if last compiled call was 3 bytes ago:)
+    JUMP here 3 - ! ;     (   change the CALL to a JUMP and return)
+  }if ASM{ RET }ASM       ( else: compile a RET instruction)
 ;
 
 : var create                 ( Add variable to dictionary)
@@ -226,3 +228,14 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 ;
 
 : outer readline dowords outer ;
+
+: version ." Markab v0.1.0" ;
+
+: boot    ( Initialize global vars, print version, start outer interpreter)
+  0 DP h!
+  0 IN !
+  MODE_INT MODE !
+  0 LASTCALL h!
+  version
+  outer
+;

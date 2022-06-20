@@ -94,8 +94,7 @@ E108 CONTEXT  # Head of vocabulary for finding words     2 bytes (align 4)
 E10C CURRENT  # Head of vocabulary for new definitions   2 bytes (align 4)
 E110 MODE     # Current interpreting/compiling mode      1 byte  (align 4)
 E114 EXT_V    # Pointer to head of extensible vocab      2 bytes (align 4)
-E11C CROSS_B  # Cross-compile Base address offset        2 bytes (align 4)
-E118 CROSS_V  # Cross-compile pointer to head of Vocab   2 bytes (align 4)
+E118 LASTCALL  # Pointer to last compiled call instr.    2 bytes (align 4)
 #...
 E200 IBLen    # Input Buffer Length             1 byte
 E201 IB       # Input Buffer                    255 bytes

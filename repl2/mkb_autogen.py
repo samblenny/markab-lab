@@ -159,8 +159,7 @@ CONTEXT = 0xE108
 CURRENT = 0xE10C
 MODE    = 0xE110
 EXT_V   = 0xE114
-CROSS_B = 0xE11C
-CROSS_V = 0xE118
+LASTCALL = 0xE118
 IBLen   = 0xE200
 IB      = 0xE201
 PadLen  = 0xE300
@@ -194,8 +193,7 @@ CORE_VOC = {
     'CURRENT':  (T_CONST, 0xE10C),
     'MODE':     (T_CONST, 0xE110),
     'EXT_V':    (T_CONST, 0xE114),
-    'CROSS_B':  (T_CONST, 0xE11C),
-    'CROSS_V':  (T_CONST, 0xE118),
+    'LASTCALL': (T_CONST, 0xE118),
     'IBLen':    (T_CONST, 0xE200),
     'IB':       (T_CONST, 0xE201),
     'PadLen':   (T_CONST, 0xE300),

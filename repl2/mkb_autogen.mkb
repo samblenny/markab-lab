@@ -101,8 +101,7 @@ E108 const CONTEXT
 E10C const CURRENT
 E110 const MODE
 E114 const EXT_V
-E11C const CROSS_B
-E118 const CROSS_V
+E118 const LASTCALL
 E200 const IBLen
 E201 const IB
 E300 const PadLen
