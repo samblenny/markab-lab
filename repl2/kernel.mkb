@@ -221,6 +221,20 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 
 : .dp here >a @a+ 1- for{ @a+ emit }for ;  ( print word from DP)
 
+: ."   ( " ( Print a string. The ( " keeps my silly syntax highlighting happy)
+  a b                  ( save old values of a and b)
+  IB IN + >a           ( a = current position in text input buffer )
+  0 >b                 ( b = 0, number of bytes printed)
+  IBLen IN - 1- for{   ( loop over remaining bytes of input line)
+    @a+ dup 34 = if{   (   if byte is ", ASCII 34:)
+      drop             (     drop the copy of the " byte)
+      IN @ b + IN !    (     update IN with number of bytes printed...)
+      >b >a rdrop ;    (     restore old values of a and b, then return)
+    }if emit b+        (   else: print the byte and increment the counter)
+  }for IN @ b + IN !   ( update IN)
+  >b >a                ( restore old values of a and b)
+;
+
 : dowords
   word 0= if{ ."  OK" cr ; }if
   find if{ inner dowords ; }if
@@ -229,7 +243,7 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 
 : outer readline dowords outer ;
 
-: version ." Markab v0.1.0" ;
+: version ." Markab v0.1.0" cr ;
 
 : boot    ( Initialize global vars, print version, start outer interpreter)
   0 DP h!
