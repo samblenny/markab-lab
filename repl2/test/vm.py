@@ -6,8 +6,8 @@
 from markab_vm import VM
 from mkb_autogen import (
   NOP, ADD, SUB, INC, DEC, MUL, AND, INV, OR, XOR, SLL, SRL, SRA,
-  EQ, GT, LT, NE, ZE, TRUE, FALSE,
-  JMP, JAL, RET, BZ, DRBLT, MTR, MRT, RDROP, R, PC, DROP, DUP, OVER, SWAP,
+  EQ, GT, LT, NE, ZE, TRUE, FALSE, JMP, JAL, CALL, RET,
+  BZ, DRBLT, MTR, MRT, RDROP, R, PC, DROP, DUP, OVER, SWAP,
   U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET,
   IOD, IOR, IODH, IORH, IOKEY, IOEMIT,
   MTA, LBA, LBAI,       AINC, ADEC, A,
@@ -655,7 +655,7 @@ def test_instructions_jump():
   v._log_ds()
   print()
 
-def test_instructions_jal_return():
+def test_instructions_jal_call_return():
   v = VM()
   print("=== test.vm.test_instructions_jal_return() ===")
   print("( opcode coverage: JAL RET                        )")
@@ -666,13 +666,22 @@ def test_instructions_jal_return():
   print("(  7: Subroutine: push 9 to data stack, return    )")
   print("( 10: Subroutine: push 5 to data stack, return    )")
   print("( addr: 0 1 2   3  4 5   6  7 8   9 10 11  12     )")
-  print("ASM{  jal 7 0 jal 10 0 ret U8 9 ret U8  5 ret }ASM")
+  print("ASM{  JAL 7 0 JAL 10 0 RET U8 9 RET U8  5 RET }ASM")
   code = bytearray()
   code.extend([JAL, 7, 0, JAL, 10, 0, RET, U8, 9, RET, U8, 5, RET])
   v._warm_boot(code, max_cycles=99)
   print("warmboot  OK")
   p(".s                                           (  9 5  OK)")
   v._log_ds()
+  print("reset  OK")
+  v.reset()
+  print("( opcode coverage: CALL                           )")
+  print("( addr: 0 1    2  3 4   5   6  *7*  8   9         )")
+  print("ASM{   U8 7 CALL U8 9 IOD RET   U8 25 RET }ASM")
+  code = bytearray()
+  code.extend([U8, 7, CALL, U8, 9, IOD, RET, U8, 25, RET])
+  p("warmboot                                    (  25 9  OK)")
+  v._warm_boot(code, max_cycles=99)
   print()
 
 def test_instructions_jz():
@@ -1008,7 +1017,7 @@ test_comparisons()
 test_over_swap()
 test_instructions_math_logic()
 test_instructions_jump()
-test_instructions_jal_return()
+test_instructions_jal_call_return()
 test_instructions_jz()
 test_instructions_drblt_mtr_mrt()
 test_instructions_drop_dup_over_swap()

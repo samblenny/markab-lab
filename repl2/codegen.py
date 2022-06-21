@@ -32,6 +32,7 @@ true TRUE
 false FALSE
 <ASM> JMP
 <ASM> JAL
+call CALL
 <ASM> RET
 <ASM> BZ
 <ASM> DRBLT

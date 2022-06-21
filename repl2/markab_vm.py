@@ -12,8 +12,8 @@ import os
 
 from mkb_autogen import (
   NOP, ADD, SUB, INC, DEC, MUL, AND, INV, OR, XOR, SLL, SRL, SRA,
-  EQ, GT, LT, NE, ZE, TRUE, FALSE,
-  JMP, JAL, RET, BZ, DRBLT, MTR, MRT, RDROP, R, PC, DROP, DUP, OVER, SWAP,
+  EQ, GT, LT, NE, ZE, TRUE, FALSE, JMP, JAL, CALL, RET,
+  BZ, DRBLT, MTR, MRT, RDROP, R, PC, DROP, DUP, OVER, SWAP,
   U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET,
   IOD, IOR, IODH, IORH, IOKEY, IOEMIT,
   MTA, LBA, LBAI,       AINC, ADEC, A,
@@ -89,7 +89,8 @@ class VM:
     self.jumpTable[TRUE ] = self.true_
     self.jumpTable[FALSE] = self.false_
     self.jumpTable[JMP  ] = self.jump
-    self.jumpTable[JAL  ] = self.jump_and_link           # call subroutine
+    self.jumpTable[JAL  ] = self.jump_and_link
+    self.jumpTable[CALL ] = self.call
     self.jumpTable[RET  ] = self.return_
     self.jumpTable[BZ   ] = self.branch_zero
     self.jumpTable[DRBLT] = self.dec_r_branch_less_than
@@ -291,6 +292,26 @@ class VM:
     x = int.to_bytes((self.S & 0xff), 1, 'little', signed=False)
     self.ram[addr:addr+1] = x
     self.drop()
+    self.drop()
+
+  def call(self):
+    """Call to subroutine at address T, pushing old PC to return stack"""
+    if self.RSDeep > 16:
+      self.reset()
+      self.error = ERR_R_OVER
+      return
+    if self.T > MemMax:
+      self.reset()
+      self.error = ERR_BAD_ADDRESS
+      return
+    # push the current Program Counter (PC) to return stack
+    if self.RSDeep > 0:
+      rSecond = self.RSDeep - 1
+      self.RStack[rSecond] = self.PC
+    self.R = self.PC
+    self.RSDeep += 1
+    # set Program Counter to the new address
+    self.PC = self.T
     self.drop()
 
   def jump_and_link(self):

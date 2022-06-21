@@ -317,9 +317,14 @@ warmboot  OK
 (  7: Subroutine: push 9 to data stack, return    )
 ( 10: Subroutine: push 5 to data stack, return    )
 ( addr: 0 1 2   3  4 5   6  7 8   9 10 11  12     )
-ASM{  jal 7 0 jal 10 0 ret U8 9 ret U8  5 ret }ASM
+ASM{  JAL 7 0 JAL 10 0 RET U8 9 RET U8  5 RET }ASM
 warmboot  OK
 .s                                           (  9 5  OK)  9 5  OK
+reset  OK
+( opcode coverage: CALL                           )
+( addr: 0 1    2  3 4   5   6  *7*  8   9         )
+ASM{   U8 7 CALL U8 9 IOD RET   U8 25 RET }ASM
+warmboot                                    (  25 9  OK)  25 9  OK
 
 === test.vm.test_instructions_jz() ===
 ( opcode coverage: BZ                                     )

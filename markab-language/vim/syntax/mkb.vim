@@ -6,7 +6,7 @@
 :syntax case match
 :syntax keyword mkbOpcode NOP ADD SUB INC DEC MUL AND INV OR XOR
 :syntax keyword mkbOpcode SLL SRL SRA
-:syntax keyword mkbOpcode EQ GT LT NE ZE TRUE FALSE JMP JAL RET
+:syntax keyword mkbOpcode EQ GT LT NE ZE TRUE FALSE JMP JAL CALL RET
 :syntax keyword mkbOpcode BZ DRBLT MRT MTR RDROP R PC DROP DUP OVER SWAP
 :syntax keyword mkbOpcode U8 U16 I32 LB SB LH SH LW SW RESET
 :syntax keyword mkbOpcode IOD IOR IODH IORH IOKEY IOEMIT
@@ -20,7 +20,7 @@
 
 :syntax keyword mkbCoreVocab nop + - 1+ 1- * and inv or xor
 :syntax keyword mkbCoreVocab << >> >>>
-:syntax keyword mkbCoreVocab = > < != 0= true false
+:syntax keyword mkbCoreVocab = > < != 0= true false call
 :syntax keyword mkbCoreVocab r> >r rdrop r pc drop dup over swap
 :syntax keyword mkbCoreVocab @ ! h@ h! w@ w!
 :syntax keyword mkbCoreVocab iod ior iodh iorh key emit

@@ -11,7 +11,7 @@
 ( These are the Markab language core dictionary words)
 ( Markab is case-sensitive, so uppercase and lowercase are not the same)
 nop + - 1+ 1- * and inv or xor << >> >>>
-= > < != 0= true false
+= > < != 0= true false call
 r> >r rdrop r pc drop dup over swap
 @ ! h@ h! w@ w!
 >a @a @a+     a+ a- a
@@ -22,7 +22,7 @@ if{ }if for{ break }for
 ( These are VM instruction opcodes)
 NOP ADD SUB INC DEC MUL AND INV OR XOR
 SLL SRL SRA
-EQ GT LT NE ZE TRUE FALSE JMP JAL RET
+EQ GT LT NE ZE TRUE FALSE JMP JAL CALL RET
 BZ DRBLT MRT MTR RDROP R PC DROP DUP OVER SWAP
 U8 U16 I32 LB SB LH SH LW SW RESET
 IOD IOR IODH IORH IOKEY IOEMIT
