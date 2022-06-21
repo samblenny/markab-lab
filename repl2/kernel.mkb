@@ -29,7 +29,7 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   here          ( remember address where name will begin)
   word          ( copy name from input stream to DP)
   @             ( load string length of name from `word`)
-;
+; immediate
 
 : :                     ( Start defining a new vocabulary word)
   here curr             ( save dictionary state for rollback)
@@ -48,11 +48,11 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 : ;                       ( Return from a word)
   here 3 - LASTCALL h@ =  ( tail call optimizer...)
   = if{                   ( if last compiled call was 3 bytes ago:)
-    JUMP here 3 - !       (   change the CALL to a JUMP)
+    JMP here 3 - !        (   change the CALL to a JUMP)
     update-mode ;         (   clear compile mode if needed, then return)
   }if RET ,               ( else: compile a RET instruction)
   update-mode             ( clear compile mode if needed)
-;
+; immediate
 
 : var                ( Add variable to dictionary)
   create             ( append name as read from text input stream)
@@ -149,18 +149,35 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 (  n+1:n+m     .code/.param )
 ( ------------------------- )
 
+: v.name  ( v -- .name )  ( Compute address of vocab item's .name field)
+  2 +  ( skip 2 bytes to get past the .link field)
+;
+
+: v.type  ( v -- .type )  ( Compute address of vocab item's .type field)
+  2 +      ( skip 2 bytes to get past the .link field)
+  dup @ +  ( skip .name.length bytes to get to the end of the .name.data field)
+  1+       ( adding 1 more gets us the address of the .type field)
+;
+
 : v_find ( voc -- [addr] bool)  ( Search for word at DP in vocabulary at T)
   >x
-  999 for{                 ( loop over up to 999 dictionary entries)
-    x 0= if{               ( if vocab item pointer is null:)
-      false rdrop ;        (   return bool=false)
-    }if x 2 +              ( calculate address of vocab item's name field)
-    here strcmp            ( compare vocab item's name with search word)
-    if{                    ( if they match:)
-      x 2 + dup @ +        (   calculate address of vocab item .type field)
-      true rdrop ;         (   return: addr=.type bool=true )
-    }if x h@ >x            ( else: follow link)
+  999 for{           ( loop over up to 999 dictionary entries)
+    x 0= if{         ( if vocab item pointer is null:)
+      false rdrop ;  (   return bool=false)
+    }if x v.name     ( calculate address of vocab item's .name field)
+    here strcmp      ( compare vocab item's name with search word)
+    if{              ( if they match:)
+      x v.type       (   calculate address of vocab item's .type field)
+      true rdrop ;   (   return: addr=.type bool=true )
+    }if x h@ >x      ( else: follow link)
   }for
+;
+
+: immediate        ( Change type of last word from regular to immediate)
+  curr v.type dup  ( a = address of dictionary_head.type field)
+  @ T_OBJ = if{    ( if .type was regular compiled word:)
+    T_IMM swap !   (   change type to immediate compiled word)
+  }if
 ;
 
 : find ( -- [addr] bool )  ( Search for word at DP in CORE_V and EXT_V)
