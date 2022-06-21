@@ -277,10 +277,10 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   }if number if{      ( else if word is a number:)
     compiling? if{    (   if compile mode is active:)
       compile-number  (     compile the number)
-    }if dowords ;     (     and loop using tail recursion)
+    }if dowords ;     (   loop using tail recursion)
   }if
-  ." ERR not found:"  ( else: print error message and stop looping)
-  .dp reset cr
+  ." ERR not found:"  ( else: print error message)
+  .dp reset cr        ( print the unknown word, clear stacks, stop looping)
 ;
 
 : outer readline dowords outer ;
