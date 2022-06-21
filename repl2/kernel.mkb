@@ -238,6 +238,15 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   }if false               ( else: indicate parse failed by returning false)
 ;
 
+: compile-number ( n -- )  ( Compile number from T into dictionary)
+  x swap >x            ( save old value of x, x = n)
+  x 0 < x 65535 > if{  ( if x < 0 or x > 0xffff:)
+    I32 , x w, >x ;    (   compile as 32-bit signed, restore old x, return)
+  }if x 255 > if{      ( else if x > 0xff:)
+    U16 , x h, >x ;    (   compile as 16-bit unsigned, restore old x, return)
+  }if U8 , x , >x      ( else: compile as 8-bit unsigned, restore old x)
+;
+
 : inner
 ;
 
@@ -264,6 +273,7 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   word 0= if{ ."  OK" cr ; }if
   find if{ inner dowords ; }if
   number 0= if{ ." ERR: word not found:" .dp reset cr ; }if
+  compiling? if{ compile-number }if
 ;
 
 : outer readline dowords outer ;
