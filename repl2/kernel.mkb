@@ -269,11 +269,18 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   }for b IN ! >b >a   ( update IN, restore old values of a and b)
 ;
 
-: dowords
-  word 0= if{ ."  OK" cr ; }if
-  find if{ inner dowords ; }if
-  number 0= if{ ." ERR: word not found:" .dp reset cr ; }if
-  compiling? if{ compile-number }if
+: dowords             ( Interpret words from a line of text input)
+  word 0= if{         ( if there are no more words in this line:)
+   ."  OK" cr ;       (   print prompt, return)
+  }if find if{        ( else if word is in the dictionary:)
+    inner dowords ;   (   interpret the word, loop using tail recursion)
+  }if number if{      ( else if word is a number:)
+    compiling? if{    (   if compile mode is active:)
+      compile-number  (     compile the number)
+    }if dowords ;     (     and loop using tail recursion)
+  }if
+  ." ERR not found:"  ( else: print error message and stop looping)
+  .dp reset cr
 ;
 
 : outer readline dowords outer ;
