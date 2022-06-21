@@ -174,10 +174,11 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 ;
 
 : immediate        ( Change type of last word from regular to immediate)
-  curr v.type dup  ( a = address of dictionary_head.type field)
-  @ T_OBJ = if{    ( if .type was regular compiled word:)
-    T_IMM swap !   (   change type to immediate compiled word)
-  }if
+  a                ( save old value of a)
+  curr v.type >a   ( a = address of dictionary_head.type field)
+  @a T_OBJ = if{   ( if .type was regular compiled word:)
+    T_IMM a !      (   change type to immediate compiled word)
+  }if >a           ( restore old value of a)
 ;
 
 : find ( -- [addr] bool )  ( Search for word at DP in CORE_V and EXT_V)
