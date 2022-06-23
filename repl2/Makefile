@@ -8,14 +8,14 @@ AUTOGEN=opcodes.mkb mem_map.mkb opcodes.py mem_map.py core_voc.py
 TEST_IN=test/read_test_data.txt
 TEST_OUT=test/vm_out.txt
 
-all: kernel.bin
+all: hello.rom
 
-run: $(AUTOGEN)
-	@python3 bootstrap.py
-	@python3 markab_vm.py
+run: hello.rom $(AUTOGEN)
+	@python3 hello_rom.py
+	@python3 markab_vm.py hello.rom
 
-kernel.bin: bootstrap.py $(AUTOGEN)
-	@python3 bootstrap.py
+hello.rom: hello_rom.py $(AUTOGEN)
+	@python3 hello_rom.py
 
 opcodes.mkb: codegen.py
 	@python3 codegen.py
@@ -32,7 +32,7 @@ mem_map.py: codegen.py
 core_voc.py: codegen.py
 	@python3 codegen.py
 
-test: kernel.bin
+test:
 	@cat $(TEST_IN) | PYTHONPATH=. python3 test/vm.py | tee $(TEST_OUT)
 
 clean:

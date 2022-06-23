@@ -22,7 +22,7 @@ from mkb_autogen import (
   Boot, BootMax, MemMax,
 )
 
-ROM_FILE = 'kernel.bin'
+ROM_FILE = 'kernel.rom'
 ERR_D_OVER = 1
 ERR_D_UNDER = 2
 ERR_BAD_ADDRESS = 3
@@ -801,7 +801,17 @@ class VM:
 Load and boot the ROM file when VM is run as a module rather than imported
 """
 if __name__ == '__main__':
-  with open(ROM_FILE, 'rb') as f:
+
+  # Start by assuming we'll use the default rom file
+  rom = ROM_FILE
+
+  # Then check for a command line argument asking for a different rom.
+  # For example: `./markab_vm.py hello.rom`
+  if (len(sys.argv) == 2) and (sys.argv[1].endswith(".rom")):
+    rom = sys.argv[1]
+
+  # Open the rom file and run it
+  with open(rom, 'rb') as f:
     v = VM()
     rom = f.read()
     v._warm_boot(rom, 9999)
