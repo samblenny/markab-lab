@@ -249,6 +249,7 @@ CORE_VOC = {
     'h!':       (T_OP,    SH),
     'w@':       (T_OP,    LW),
     'w!':       (T_OP,    SW),
+    'reset':    (T_OP,    RESET),
     'iod':      (T_OP,    IOD),
     'ior':      (T_OP,    IOR),
     'iodh':     (T_OP,    IODH),

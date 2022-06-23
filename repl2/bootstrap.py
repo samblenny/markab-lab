@@ -15,29 +15,17 @@ from mkb_autogen import (
   OPCODES,
 
   Boot, BootMax, Heap, HeapRes, HeapMax, DP,
-  IN, IBLen, IB, PadLen, Pad, FmtLen, Fmt, MemMax,
+  IN, IBLen, IB, MemMax,
 
   CORE_VOC, T_VAR, T_CONST, T_OP, T_OBJ, T_IMM,
 )
+from markab_vm import VM
+
+from os.path import basename, normpath
 
 
-ROM_FILE = 'kernel.bin'
-
-KERNEL_ASM = """
-#          13  >a  a@+  1- for{  @a+   emit       }for
-# addr:  0  1   2    3   4    5  *6*      7     8 9 10    11  12
-        U8 13 MTA LBAI DEC  MTR LBAI IOEMIT DRBLT 6  0 RDROP RET
-# addr: *13*
-#            H   e   l   l   o  , <SP>  w   o   r   l   d  ! <LF> (14 bytes)
-         14 72 101 108 108 111 44  32 119 111 114 108 100 33 10
-"""
-
-def filter(src):
-  """Filter a comments and blank lines out of heredoc-style source string"""
-  lines = src.strip().split("\n")
-  lines = [L.split("#")[0].strip() for L in lines]    # filter comments
-  lines = [L for L in lines if len(L) > 0]            # filter empty lines
-  return lines
+SRC_IN = 'kernel.mkb'
+ROM_OUT = 'kernel.rom'
 
 def get_opcode(word: str):
   """Attempt to resolve word to an instruction opcode constant"""
@@ -58,28 +46,97 @@ def compile_int(word: str):
   else:
     return bytearray([I32] + int.to_bytes(n, 4, 'little', signed=False))
 
-def compile_kernel():
-  """Compile a kernel image for the Markab VM"""
-  obj = bytearray()
-  for line in filter(KERNEL_ASM):
-    for word in line.strip().split(" "):
-      if word == '':
-        continue
-      if word in CORE_VOC:
-        (type_code, value) = CORE_VOC[word]
-        if type_code == T_OP:
-          obj.extend(op)
-          continue
-        elif type_code == T_CONST:
-          word = f"{value}"
-      elif word in OPCODES:
-        obj.extend(int.to_bytes(OPCODES[word], 1, 'little', signed=False))
-        continue
-      if word.isnumeric():
-        obj.extend(int.to_bytes(int(word), 1, 'little', signed=False))
+def parse_string(pos, src):
+  """Parse string chars, returning (string, pos)"""
+  s = ''
+  count = len(src)
+  for i in range(pos, count):
+    if pos >= count:
+      return (s, pos)
+    c = src[pos]
+    pos += 1
+    if c == '"':       # skip all chars until '"'
+      return (s, pos)
+    s += c
+  return (s, pos)
+
+def skip_comment(pos, src):
+  """Skip comment chars, returning (pos) for start of remaining text"""
+  count = len(src)
+  for i in range(pos, count):
+    if pos >= count:
+      return pos
+    c = src[pos]
+    pos += 1
+    if c == ')':     # skip all chars until ')'
+      return pos
+  return pos
+
+def next_word(pos, src):
+  """Remove the next word from src, returning (word, pos)"""
+  whitespace = [' ', '\t', '\r', '\n']
+  word = ''
+  count = len(src)
+  for i in range(pos, count):
+    if pos >= count:          # stop when src has no chars left
+      return (word, pos)
+    c = src[pos]              # get next char
+    pos += 1
+    if c in whitespace:
+      if len(word) > 0:
+        return (word, pos)    # stop for space after end of word
       else:
-        raise Exception("not an op, not an int", word)
+        continue              # skip space before start of next word
+    word += c                 # append non-space chars to word
+  return (word, pos)
+
+def preprocess_mkb(src):
+  """Preprocess Markab source code (comments, loads), return array of words"""
+  obj = bytearray()
+  pos = 0
+  words = []
+  count = len(src)
+  for i in range(count):
+    if pos >= count:
+      break
+    (word, pos) = next_word(pos, src)
+    if word == '':
+      continue
+    if word == '(':
+      pos = skip_comment(pos, src)
+      continue
+    if word == 'load"':
+      # Parse string for a filename to load (CAUTION!)
+      (filename, pos) = parse_string(pos, src)
+      # Normalize filename and strip directory prefix to enforce that the load
+      # file must be in the current working directory. This is a lazy way to
+      # guard against security issues related to arbitrary filesystem access.
+      norm_name = basename(normpath(filename))
+      with open(filename) as f:
+        words += preprocess_mkb(f.read())
+    else:
+      words.append(word)
+  return words
+
+def compile_mkb(src):
+  """Compile Markab source code and return bytearray for a Markab VM rom"""
+  obj = bytearray()
+  words = preprocess_mkb(src)
+  for i in range(len(words)):
+    if words[i] == ':':
+      if i>1 and words[i-1] == ':':
+        pass
+      else:
+        print()
+    if i>1 and words[i-2] in ['var', 'const', 'opcode']:
+      if i>2 and words[i-3] == ':':
+        pass
+      else:
+        print()
+    print(words[i], end=' ')
+  print()
   return obj
 
-with open(ROM_FILE, 'w') as f:
-  f.buffer.write(compile_kernel())
+with open(ROM_OUT, 'w') as rom:
+  with open(SRC_IN, 'r') as src:
+    rom.buffer.write(compile_mkb(src.read()))

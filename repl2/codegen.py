@@ -54,7 +54,7 @@ h@ LH
 h! SH
 w@ LW
 w! SW
-<ASM> RESET
+reset RESET
 iod IOD
 ior IOR
 iodh IODH
@@ -137,6 +137,8 @@ def mkb_opcodes():
   constants = []
   for (i, line) in enumerate(filter(OPCODES)):
     (name, opcode) = line.strip().split(" ")
+    if name != '<ASM>':
+      continue          # skip opcodes that have a core word equivalent
     constants += [f"{i:2} const {opcode}"]
   return "\n".join(constants)
 

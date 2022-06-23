@@ -16,74 +16,14 @@
 
 
 ( CPU opcodes)
- 0 const NOP
- 1 const ADD
- 2 const SUB
- 3 const INC
- 4 const DEC
- 5 const MUL
- 6 const AND
- 7 const INV
- 8 const OR
- 9 const XOR
-10 const SLL
-11 const SRL
-12 const SRA
-13 const EQ
-14 const GT
-15 const LT
-16 const NE
-17 const ZE
-18 const TRUE
-19 const FALSE
 20 const JMP
 21 const JAL
-22 const CALL
 23 const RET
 24 const BZ
 25 const DRBLT
-26 const MRT
-27 const MTR
-28 const R
-29 const PC
-30 const RDROP
-31 const DROP
-32 const DUP
-33 const OVER
-34 const SWAP
 35 const U8
 36 const U16
 37 const I32
-38 const LB
-39 const SB
-40 const LH
-41 const SH
-42 const LW
-43 const SW
-44 const RESET
-45 const IOD
-46 const IOR
-47 const IODH
-48 const IORH
-49 const IOKEY
-50 const IOEMIT
-51 const MTA
-52 const LBA
-53 const LBAI
-54 const AINC
-55 const ADEC
-56 const A
-57 const MTB
-58 const LBB
-59 const LBBI
-60 const SBBI
-61 const BINC
-62 const BDEC
-63 const B
-64 const MTX
-65 const X
-66 const MTY
-67 const Y
 
 ( Core word definitions)
  0 opcode nop
@@ -122,6 +62,7 @@
 41 opcode h!
 42 opcode w@
 43 opcode w!
+44 opcode reset
 45 opcode iod
 46 opcode ior
 47 opcode iodh

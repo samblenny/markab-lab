@@ -10,7 +10,10 @@ TEST_OUT=test/vm_out.txt
 
 all: hello.rom
 
-run: hello.rom $(AUTOGEN)
+run: $(AUTOGEN)
+	@python3 bootstrap.py
+
+hello: hello.rom $(AUTOGEN)
 	@python3 hello_rom.py
 	@python3 markab_vm.py hello.rom
 
