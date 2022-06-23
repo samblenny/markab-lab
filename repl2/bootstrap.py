@@ -90,8 +90,10 @@ def next_word(pos, src):
     word += c                 # append non-space chars to word
   return (word, pos)
 
-def preprocess_mkb(src):
+def preprocess_mkb(depth, src):
   """Preprocess Markab source code (comments, loads), return array of words"""
+  if depth < 1:
+    raise Exception('Preprocessor: too much recursion (maybe a `load"` loop?)')
   obj = bytearray()
   pos = 0
   words = []
@@ -113,7 +115,7 @@ def preprocess_mkb(src):
       # guard against security issues related to arbitrary filesystem access.
       norm_name = basename(normpath(filename))
       with open(filename) as f:
-        words += preprocess_mkb(f.read())
+        words += preprocess_mkb(depth-1, f.read())
     else:
       words.append(word)
   return words
@@ -121,7 +123,8 @@ def preprocess_mkb(src):
 def compile_mkb(src):
   """Compile Markab source code and return bytearray for a Markab VM rom"""
   obj = bytearray()
-  words = preprocess_mkb(src)
+  depth = 5
+  words = preprocess_mkb(depth, src)
   for i in range(len(words)):
     if words[i] == ':':
       if i>1 and words[i-1] == ':':
