@@ -97,6 +97,7 @@ E110 MODE     # Current interpreting/compiling mode      1 byte  (align 4)
 E114 EXT_V    # Pointer to head of extensible vocab      2 bytes (align 4)
 E118 LASTCALL  # Pointer to last compiled call instr.    2 bytes (align 4)
 E11C NEST     # Block Nesting level for if{ and for{     1 byte  (align 4)
+E120 BASE     # Number base                              1 byte  (align 4)
 #...
 E200 IBLen    # Input Buffer Length             1 byte
 E201 IB       # Input Buffer                    255 bytes
@@ -137,7 +138,7 @@ def mkb_opcodes():
   constants = []
   for (i, line) in enumerate(filter(OPCODES)):
     (name, opcode) = line.strip().split(" ")
-    if name != '<ASM>':
+    if (name != '<ASM>') and (not opcode in ['MTR', 'RDROP']):
       continue          # skip opcodes that have a core word equivalent
     constants += [f"{i:2} const {opcode}"]
   return "\n".join(constants)

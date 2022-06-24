@@ -21,6 +21,8 @@
 23 const RET
 24 const BZ
 25 const DRBLT
+27 const MTR
+30 const RDROP
 35 const U8
 36 const U16
 37 const I32
@@ -106,6 +108,7 @@ E110 const MODE
 E114 const EXT_V
 E118 const LASTCALL
 E11C const NEST
+E120 const BASE
 E200 const IBLen
 E201 const IB
 E300 const PadLen

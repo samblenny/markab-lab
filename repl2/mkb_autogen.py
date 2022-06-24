@@ -163,6 +163,7 @@ MODE    = 0xE110
 EXT_V   = 0xE114
 LASTCALL = 0xE118
 NEST    = 0xE11C
+BASE    = 0xE120
 IBLen   = 0xE200
 IB      = 0xE201
 PadLen  = 0xE300
@@ -198,6 +199,7 @@ CORE_VOC = {
     'EXT_V':    (T_CONST, 0xE114),
     'LASTCALL': (T_CONST, 0xE118),
     'NEST':     (T_CONST, 0xE11C),
+    'BASE':     (T_CONST, 0xE120),
     'IBLen':    (T_CONST, 0xE200),
     'IB':       (T_CONST, 0xE201),
     'PadLen':   (T_CONST, 0xE300),

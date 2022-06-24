@@ -19,7 +19,7 @@ from mkb_autogen import (
   MTA, LBA, LBAI,       AINC, ADEC, A,
   MTB, LBB, LBBI, SBBI, BINC, BDEC, B, MTX, X, MTY, Y,
 
-  Boot, BootMax, MemMax,
+  Boot, HeapMax, MemMax,
 )
 
 ROM_FILE = 'kernel.rom'
@@ -148,12 +148,14 @@ class VM:
     """Load an instruction from location pointed to by Program Counter (PC)"""
     pc = self.PC
     self._set_pc(pc+1)
-    return self.ram[pc]
+    op = self.ram[pc]
+    print(f"<<{pc:04x}:{op}>>")
+    return op
 
-  def _load_boot(self, code):
-    """Load byte array of machine code instructions into the Boot memory"""
+  def _load_rom(self, code):
+    """Load byte array of rom image into memory"""
     n = len(code)
-    if n > (BootMax+1)-Boot:
+    if n > (HeapMax+1)-Boot:
       self.error = ERR_BOOT_OVERFLOW
       return
     self.ram[Boot:Boot+n] = code[0:]
@@ -161,7 +163,7 @@ class VM:
   def _warm_boot(self, code, max_cycles=1):
     """Load a byte array of machine code into Boot memory, then run it."""
     self.error = 0
-    self._load_boot(code)
+    self._load_rom(code)
     self._set_pc(Boot)
     self._step(max_cycles)
     if self.error != 0:
@@ -286,7 +288,7 @@ class VM:
       self.error = ERR_D_UNDER
       return
     addr = self.T
-    if (addr < 0) or (addr > MemMax) or (addr <= self.Fence):
+    if (addr < 0) or (addr > MemMax) or (addr < self.Fence):
       self.error = ERR_BAD_ADDRESS
       return
     x = int.to_bytes((self.S & 0xff), 1, 'little', signed=False)
@@ -567,7 +569,7 @@ class VM:
       self.error = ERR_D_UNDER
       return
     addr = self.T
-    if (addr < 0) or (addr > MemMax-3) or (addr <= self.Fence):
+    if (addr < 0) or (addr > MemMax-3) or (addr < self.Fence):
       self.error = ERR_BAD_ADDRESS
       return
     x = int.to_bytes(c_int32(self.S).value, 4, 'little', signed=True)
@@ -654,7 +656,7 @@ class VM:
       self.error = ERR_D_UNDER
       return
     addr = self.T
-    if (addr < 0) or (addr > MemMax-1) or (addr <= self.Fence):
+    if (addr < 0) or (addr > MemMax-1) or (addr < self.Fence):
       self.error = ERR_BAD_ADDRESS
       return
     x = int.to_bytes((self.S & 0xffff), 2, 'little', signed=False)

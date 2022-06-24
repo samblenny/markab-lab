@@ -24,18 +24,48 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 : NEST-    ( -- )     NEST dup @ 1- swap ! ;  ( Decrement block nesting level)
 : NESTED?  ( -- bool) NEST @ 0 > ;            ( Is nesting level > 0?)
 
+: newline? ( byte -- )  ( test if byte is CR or LF)
+  dup 10 = 13 = or
+;
+
+: whitespace? ( byte -- )
+  dup 10 = over 13 = or     ( check for CR or LF)
+  over 32 = or swap 9 = or  ( check for space or tab)
+;
+
+: word ( -- length-of-word )  ( Copy word from input stream to dictionary)
+  IN @ >x IB x + >a x >b      ( source: TIB+IN, b: IN+count)
+  255 x - for{                ( loop to skip over leading whitespace)
+    @a+ b+ 32 !=              ( read byte, increment count)
+    if{ b- rdrop 0 >r ( ) 65 emit ( ) }if     ( stop at first non-whitespace byte)
+  }for b IN !                 ( IN = first non-whitespace byte)
+  42 emit
+  IN @ >x here >y             ( x = IN, y = address of length byte)
+  0 ,                         ( store string_length=0 to dictionary)
+  x 254 > if{ drop ( ) 66 emit ( ) ; }if      ( stop now if TIB is empty)
+  IB x + >a here >b           ( source: TIB+IN, dest: dictionary)
+  255 x - for{                ( loop to copy non-whitespace bytes)
+    @a+ dup 32 =              ( read a byte)
+    if{ drop rdrop 0 >r }if   ( stop for whitespace)
+    !b+                       ( otherwise, copy it to dictionary)
+    ( ) 67 emit ( )
+  }for here y -               ( calculate string length)
+  ( ) 68 emit ( )
+  dup y !                     ( patch string length with correct count)
+;
+
 : create ( -- lenth-of-name )
   curr here h,  ( store link to current head of dictionary at DP)
   here          ( remember address where name will begin)
   word          ( copy name from input stream to DP)
   @             ( load string length of name from `word`)
-; immediate
+;
 
 : :                     ( Start defining a new vocabulary word)
   here curr             ( save dictionary state for rollback)
   create                ( read name to start dictionary entry)
   0= if{                ( if length of name was 0:)
-    Current h! DP h! ;  (   roll back changes, return)
+    CURRENT h! DP h! ;  (   roll back changes, return)
   }if MODE_COM MODE !   ( else: set compile mode)
 ;
 
@@ -76,46 +106,19 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 : }if ( addr -- ) here swap h! NEST- ;        immediate
 : for{ ( -- addr ) MTR , here NEST+ ;         immediate
 : }for ( addr -- ) DRBLT , h, RDROP , NEST- ; immediate
+: hex 16 BASE w! ; immediate
+: decimal 10 BASE w! ; immediate
 
-: hex 16 BASE w! ;
-: decimal 10 BASE w! ;
 : cr 10 emit ;
 : space 32 emit ;
 
-: newline? ( byte -- )  ( test if byte is CR or LF)
-  dup 10 = 13 = or
-;
-
-: whitespace? ( byte -- )
-  dup newline?              ( check for CR or LF)
-  over 32 = or swap 9 = or  ( check for space or tab)
-;
-
 : readline
-  0 >a TIB >b 255 for{           ( loop for maximum of 255 bytes)
+  0 >a IB >b 255 for{            ( loop for maximum of 255 bytes)
     key dup !b+                  ( read stdin byte and store to TIB)
     a+                           ( update count of bytes read)
     newline? if{ rdrop 0 >r }if  ( stop for newline)
-  }for a TIBLen !                ( store count of bytes read)
+  }for a IBLen !                 ( store count of bytes read)
   0 IN !                         ( reset IN)
-;
-
-: word ( -- length-of-word )  ( Copy word from input stream to dictionary)
-  IN @ >x TIB x + >a x >b     ( source: TIB+IN, b: IN+count)
-  255 x - for{                ( loop to skip over leading whitespace)
-    @a+ b+ dup whitespace?    ( read byte, increment count)
-    0= if{ b- rdrop 0 >r }if  ( stop at first non-whitespace byte)
-  }for b IN !                 ( IN = first non-whitespace byte)
-  IN @ >x here >y             ( x = IN, y = address of length byte)
-  0 ,                         ( store string_length=0 to dictionary)
-  x 255 >= if{ drop ; }if     ( stop now if TIB is empty)
-  TIB x + >a here >b          ( source: TIB+IN, dest: dictionary)
-  255 x - for{                ( loop to copy non-whitespace bytes)
-    @a+ dup whitespace?       ( read a byte)
-    if{ drop rdrop 0 >r }if   ( stop for whitespace)
-    !b+                       ( otherwise, copy it to dictionary)
-  }for here y -               ( calculate string length)
-  dup y !                     ( patch string length with correct count)
 ;
 
 ( --------------------- )
@@ -171,10 +174,8 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   }for
 ;
 
-: find ( -- [addr] bool )  ( Search for word at DP in CORE_V and EXT_V)
-  CORE_V h@ v_find if{     ( if word matches name of core vocab item:)
-    true ;                 (   return: addr bool=true)
-  }if EXT_V h@ v_find      ( else: try the extensible vocab)
+: find ( -- [addr] bool )  ( Search for word in the dictionary)
+  ctxt v_find
 ;
 
 : immediate        ( Change type of last word from regular to immediate)
@@ -313,7 +314,7 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 
 : dowords               ( Interpret words from a line of text input)
   word 0= if{           ( if there are no more words in this line:)
-   ."  OK" cr ;         (   print prompt, return)
+   ( ."  OK") 36 emit cr ;         (   print prompt, return)
   }if find if{          ( else if word is in the dictionary:)
     compiling? if{      (   if compile mode is active:)
       inner-compile     (     compile this word)
@@ -324,7 +325,7 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
       compile-number    (     compile the number)
     }if dowords ;       (   loop using tail recursion)
   }if
-  ." ERR not found:"    ( else: print error message)
+  ( ." ERR not found:") cr    ( else: print error message)
   .dp reset cr          ( print the unknown word, clear stacks, stop looping)
 ;
 
@@ -335,19 +336,15 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 ;
 
 : version               ( Print the version string)
-  ." Markab v0.1.0" cr
+  ( ." Markab v0.1.0") cr
 ;
 
 : boot    ( Initialize global vars, print version, start outer interpreter)
   0 >x              ( x = 0)
-  x DP w!           ( 2 bytes, aligned 4, so zero all 4)
   x IN w!           ( 1 byte,  aligned 4, so zero all 4)
   MODE_INT MODE w!  ( 1 byte,  aligned 4, so zero all 4)
   x LASTCALL w!     ( 2 bytes, aligned 4, so zero all 4)
   x NEST w!         ( 1 byte,  aligned 4, so zero all 4)
-  x EXT_V w!        ( 2 bytes, aligned 4, so zero all 4)
-  0 Heap w!         ( 55 KB for dictionary: zero .link and .name of head)
-  Heap EXT_V h!     ( start head of extensible dictionary at start of heap)
   version           ( print the version string)
   outer             ( start the outer interpreter)
 ;
