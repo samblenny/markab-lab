@@ -841,12 +841,15 @@ if __name__ == '__main__':
   sym_file = rom[:-4] + ".symbols"
   v.sym_addrs = []
   v.sym_names = []
-  with open(sym_file, 'r') as f:
-    lines = f.read().strip().split("\n")
-    lines = [L.split() for L in lines]
-    lines.reverse()
-    for (addr, name) in lines:
-      v.dbg_add_symbol(addr, name)
+  try:
+    with open(sym_file, 'r') as f:
+      lines = f.read().strip().split("\n")
+      lines = [L.split() for L in lines]
+      lines.reverse()
+      for (addr, name) in lines:
+        v.dbg_add_symbol(addr, name)
+  except:
+    pass
 
   # Open the rom file and run it
   with open(rom, 'rb') as f:
