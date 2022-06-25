@@ -308,8 +308,7 @@ class Compiler:
         self.vm.load_word()
         value = self.vm.T
         self.vm.drop()
-        self.append_byte(I32)           #   compile param value as literal
-        self.append_word(value)
+        self.compile_literal(value)     #   compile param value as literal
         return pos + 1
       if type_ == T_OP:                 # opcode -> append the opcode byte
         self.push(param)
