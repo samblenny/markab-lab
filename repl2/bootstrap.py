@@ -26,6 +26,7 @@ from os.path import basename, normpath
 
 SRC_IN = 'kernel.mkb'
 ROM_OUT = 'kernel.rom'
+SYM_OUT = 'kernel.symbols'
 MODE_INT = 0
 MODE_COM = 1
 
@@ -466,6 +467,11 @@ def compile_mkb(src):
       pos = compiler.compile_word(i, words)  # compile and update position
   print()
   compiler.patch_context_current_dp()
+  with open(SYM_OUT, 'w') as sym:
+    # save debug symbols for disassembler
+    syms = sorted(compiler.link_set.items())
+    syms = [f"{addr} {name}" for (addr, name) in syms]
+    sym.write("\n".join(syms)+"\n")
   return compiler.vm.ram[Boot:compiler.DP]
 
 with open(ROM_OUT, 'w') as rom:

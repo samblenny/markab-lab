@@ -20,6 +20,7 @@ from mkb_autogen import (
   MTB, LBB, LBBI, SBBI, BINC, BDEC, B, MTX, X, MTY, Y,
 
   Boot, HeapMax, MemMax,
+  OPCODES,
 )
 
 ROM_FILE = 'kernel.rom'
@@ -65,6 +66,9 @@ class VM:
     self.RStack = [0] * 16          # Return Stack
     self.ram = bytearray(MemMax+1)  # Random Access Memory
     self.inbuf = ''                 # Input buffer
+    # Debug symbols
+    self.dbg_addrs = []
+    self.dbg_names = []
     #
     # Jump Table for instruction decoder
     self.jumpTable: Dict[int, Callable] = {}
@@ -137,6 +141,18 @@ class VM:
     self.jumpTable[MTY  ] = self.move_t_to_y
     self.jumpTable[Y    ] = self.y_
 
+  def dbg_add_symbol(self, addr, name):
+    """Add a debug symbol entry to the symbol table"""
+    self.dbg_addrs.append(int(addr))
+    self.dbg_names.append(name)
+
+  def dbg_name_for(self, addr):
+    """Given an address, return the name of the symbol it belongs to"""
+    for (i, s_addr) in enumerate(self.dbg_addrs):
+      if addr >= s_addr:
+        return self.dbg_names[i]
+    return '<???>'
+
   def _set_pc(self, addr):
     """Set Program Counter with range check"""
     if (addr > MemMax) or (addr > 0xffff):
@@ -149,7 +165,12 @@ class VM:
     pc = self.PC
     self._set_pc(pc+1)
     op = self.ram[pc]
-    print(f"<<{pc:04x}:{op}>>")
+    DEBUG = False #True
+    if DEBUG:
+      name = [k for (k,v) in OPCODES.items() if v == op][0]
+      print(f"<<{pc:04x}:{op:2}: {self.dbg_name_for(pc):9}:{name:6}", end='')
+      self._log_ds(prompt=False)
+      print(">>")
     return op
 
   def _load_rom(self, code):
@@ -329,7 +350,7 @@ class VM:
     # push the current Program Counter (PC) to return stack
     if self.RSDeep > 0:
       rSecond = self.RSDeep - 1
-      self.RStack[rSecond] = self.PC
+      self.RStack[rSecond] = self.R
     self.R = self.PC
     self.RSDeep += 1
     # set Program Counter to the new address
@@ -680,7 +701,7 @@ class VM:
     """Push 0 (false) to data stack"""
     self._push(0)
 
-  def _log_ds(self, base=10):
+  def _log_ds(self, base=10, prompt=True):
     """Log (debug print) the data stack in the manner of .S"""
     print(" ", end='')
     deep = self.DSDeep
@@ -703,7 +724,8 @@ class VM:
         print(f" {self.T}", end='')
     else:
       print(" Stack is empty", end='')
-    self._ok_or_err()
+    if prompt:
+      self._ok_or_err()
 
   def _log_rs(self, base=10):
     """Log (debug print) the return stack in the manner of .S"""
@@ -812,8 +834,21 @@ if __name__ == '__main__':
   if (len(sys.argv) == 2) and (sys.argv[1].endswith(".rom")):
     rom = sys.argv[1]
 
+  # Make a VM instance
+  v = VM()
+
+  # Attempt to load debug symbols (e.g. for kernel.rom, check kernel.symbols)
+  sym_file = rom[:-4] + ".symbols"
+  v.sym_addrs = []
+  v.sym_names = []
+  with open(sym_file, 'r') as f:
+    lines = f.read().strip().split("\n")
+    lines = [L.split() for L in lines]
+    lines.reverse()
+    for (addr, name) in lines:
+      v.dbg_add_symbol(addr, name)
+
   # Open the rom file and run it
   with open(rom, 'rb') as f:
-    v = VM()
     rom = f.read()
-    v._warm_boot(rom, 9999)
+    v._warm_boot(rom, 65535)

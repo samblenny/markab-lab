@@ -10,12 +10,14 @@ TEST_OUT=test/vm_out.txt
 
 all: hello.rom
 
-run: $(AUTOGEN)
-	@python3 bootstrap.py
+run: kernel.rom $(AUTOGEN)
+	@python3 markab_vm.py kernel.rom
 
 hello: hello.rom $(AUTOGEN)
-	@python3 hello_rom.py
 	@python3 markab_vm.py hello.rom
+
+kernel.rom: bootstrap.py $(AUTOGEN)
+	@python3 bootstrap.py
 
 hello.rom: hello_rom.py $(AUTOGEN)
 	@python3 hello_rom.py

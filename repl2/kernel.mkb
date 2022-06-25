@@ -24,41 +24,67 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 : NEST-    ( -- )     NEST dup @ 1- swap ! ;  ( Decrement block nesting level)
 : NESTED?  ( -- bool) NEST @ 0 > ;            ( Is nesting level > 0?)
 
-: newline? ( byte -- )  ( test if byte is CR or LF)
-  dup 10 = 13 = or
-;
-
 : whitespace? ( byte -- )
   dup 10 = over 13 = or     ( check for CR or LF)
   over 32 = or swap 9 = or  ( check for space or tab)
 ;
 
+: a=IB+IN  ( -- old-a )  ( Save old a, set new a = IB+IN)
+  a IB IN @ + >a
+;
+
+: IN=a-IB  ( old-a -- )  ( Update IN from a, restore old a)
+  a IB - IN ! >a
+;
+
+: IBLen-IN  ( -- n )  ( Calculate unread bytes left in IB)
+  IBLen @ IN @ -
+;
+
+: w-skip            ( Advance IN to skip spaces at front of Input Buffer)
+  a=IB+IN           ( save old a, new a = IB+IN)
+  IBLen-IN for{     ( loop for a in IB+IN..IB+IBLen-IN)
+    @a+ 32 != if{   (   if byte at a is not a space:)
+      rdrop         (     drop loop counter to prepare for return)
+      a- IN=a-IB ;  (     update IN to the byte before a, restore a, return)
+    }if             (   else: keep skipping spaces)
+  }for
+  IN=a-IB           ( update IN and restore old value of a)
+;
+
+: w-bpatch  ( old-b addr -- )  ( Patch length byte of string for w-copy)
+  b- b over -  ( calculate length using pointer to length byte)
+  swap !       ( patch length byte with actual length of word)
+  >b           ( restore old value of b)
+;
+
+: w-copy           ( Copy bytes from Input Buffer at IN to dictionary)
+  a=IB+IN          ( save old a, new a = IB+IN)
+  b here >b        ( save old b, new b = DP)
+  b 0 !b+          ( save pointer to length, store initial length = 0)
+  IBLen-IN for{    ( loop for a in IB+IN..IB+IBLen-IN)
+    @a+ dup !b+    (   copy byte, space is okay because of the if{ b-)
+    32 = if{       (   if byte was a space:)
+      rdrop        (     drop loop counter to prepare for return)
+      b- w-bpatch  (     calculate length, patch length byte, restore b)
+      IN=a-IB ;    (     update IN, restore a, return)
+    }if            (   else: keep looping)
+  }for w-bpatch    ( patch length byte, restore b)
+  IN=a-IB          ( update IN, restore a)
+;
+
 : word ( -- length-of-word )  ( Copy word from input stream to dictionary)
-  IN @ >x IB x + >a x >b      ( source: TIB+IN, b: IN+count)
-  255 x - for{                ( loop to skip over leading whitespace)
-    @a+ b+ 32 !=              ( read byte, increment count)
-    if{ b- rdrop 0 >r ( ) 65 emit ( ) }if     ( stop at first non-whitespace byte)
-  }for b IN !                 ( IN = first non-whitespace byte)
-  42 emit
-  IN @ >x here >y             ( x = IN, y = address of length byte)
-  0 ,                         ( store string_length=0 to dictionary)
-  x 254 > if{ drop ( ) 66 emit ( ) ; }if      ( stop now if TIB is empty)
-  IB x + >a here >b           ( source: TIB+IN, dest: dictionary)
-  255 x - for{                ( loop to copy non-whitespace bytes)
-    @a+ dup 32 =              ( read a byte)
-    if{ drop rdrop 0 >r }if   ( stop for whitespace)
-    !b+                       ( otherwise, copy it to dictionary)
-    ( ) 67 emit ( )
-  }for here y -               ( calculate string length)
-  ( ) 68 emit ( )
-  dup y !                     ( patch string length with correct count)
+  w-skip       ( skip leading spaces, if present)
+  here         ( push address of length byte in dictionary)
+  w-copy       ( copy a word)
+  dup DP h! @  ( put DP back where it was, leave length of word on stack)
 ;
 
 : create ( -- lenth-of-name )
   curr here h,  ( store link to current head of dictionary at DP)
   here          ( remember address where name will begin)
   word          ( copy name from input stream to DP)
-  @             ( load string length of name from `word`)
+  allot         ( allot bytes for the name)
 ;
 
 : :                     ( Start defining a new vocabulary word)
@@ -109,16 +135,38 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 : hex 16 BASE w! ; immediate
 : decimal 10 BASE w! ; immediate
 
-: cr 10 emit ;
-: space 32 emit ;
+: cr     10 emit ;  ( Emit newline, but call it by the traditional CR name)
+: quote  34 emit ;  ( Emit quote character: " )
+: space  32 emit ;  ( Emit 1 space character)
+: spaces  ( n -- )  for{ 32 emit }for ;  ( Emit n space characters)
+
+: bye    ( Exit process by emptying the return stack, then returning)
+  reset  ( empty stacks, but particularly the return stack)
+;
+
+: newline? ( byte -- bool )  ( test if byte is CR or LF)
+  dup 10 = swap 13 = or
+;
+
+: IBLen=b-IB  ( old-b -- )  ( Calculate and store IBLen, restore b, reset IN)
+  b- b IB - IBLen ! >b
+  0 IN !
+;
 
 : readline
-  0 >a IB >b 255 for{            ( loop for maximum of 255 bytes)
-    key dup !b+                  ( read stdin byte and store to TIB)
-    a+                           ( update count of bytes read)
-    newline? if{ rdrop 0 >r }if  ( stop for newline)
-  }for a IBLen !                 ( store count of bytes read)
-  0 IN !                         ( reset IN)
+  b IB >b             ( save old b, new b = pointer to Input Buffer)
+  255 for{            ( loop for up to IB capacity of 255 bytes)
+    key               (   read byte from standard input, copy it to IB)
+    0= if{            (   if end of stream:)
+      IBLen=b-IB      (     update IBLen, reset IN)
+      rdrop ;         (     end the loop and return; TODO: something better)
+    }if dup !b+       (   else: copy the byte to IB)
+    newline? if{      (   if byte is a LF or CR:)
+      b-              (     adjust the byte count to ignore newline)
+      IBLen=b-IB      (     update IBLen with byte count, restore b, reset IN)
+      rdrop ;         (     drop loop counter and return)
+    }if               (   else: keep looping)
+  }for IBLen=b-IB     ( update IBLen with byte count, restore b, reset IN)
 ;
 
 ( --------------------- )
@@ -130,14 +178,14 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 
 : strcmp ( addr addr -- bool )  ( Compare strings, return match as boolean)
   a swap >a swap b swap >b   ( exchange old a & b with addresses in S & T)
-  @a @b != if{               ( if length bytes do not match)
+  @a @b+ != if{              ( if length bytes do not match)
     >b >a false ;            (   restore old a & b, then return bool=false)
   }if
   @a+ 1- for{                ( loop over all the bytes)
     @a+ @b+ != if{           (   if bytes do not match)
       >b >a false rdrop ;    (     restore old a & b, then return bool=false)
     }if
-  }for true                  ( return bool=true if all bytes matched)
+  }for >b >a true            ( all bytes match: restore a and b, return true)
 ;
 
 ( ------------------------- )
@@ -170,8 +218,8 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
     if{              ( if they match:)
       x v.type       (   calculate address of vocab item's .type field)
       true rdrop ;   (   return: addr=.type bool=true )
-    }if x h@ >x      ( else: follow link)
-  }for
+    }if x h@ >x      ( else: follow link and keep looping)
+  }for false         ( end of loop without match: return false)
 ;
 
 : find ( -- [addr] bool )  ( Search for word in the dictionary)
@@ -300,33 +348,30 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   }for >a      ( restore old value of a)
 ;
 
-: ."   ( " ( Print a string. The ( " keeps my silly syntax highlighting happy)
-  a b                 ( save old values of a and b)
-  IN @ >b             ( b = current value of IN)
-  IB b + >a           ( a = current position in text input buffer )
-  IBLen b - 1- for{   ( loop over remaining bytes of input line)
-    @a+ dup 34 = if{  (   if byte is ", ASCII 34:)
-      drop b IN !     (     drop the copy of the " byte, update IN)
-      >b >a rdrop ;   (     restore old values of a and b, then return)
-    }if emit b+       (   else: print the byte and increment copy of IN)
-  }for b IN ! >b >a   ( update IN, restore old values of a and b)
-;
-
 : dowords               ( Interpret words from a line of text input)
   word 0= if{           ( if there are no more words in this line:)
-   ( ."  OK") 36 emit cr ;         (   print prompt, return)
-  }if find if{          ( else if word is in the dictionary:)
+    2 spaces 79 emit    ( print "  OK\n" prompt, return)
+    75 emit cr ;
+  }if
+  find                  ( else: search dictionary for maching word)
+  if{                   ( if word is in the dictionary:)
     compiling? if{      (   if compile mode is active:)
       inner-compile     (     compile this word)
       dowords ;         (     loop using tail recursion)
-    }if inner dowords ; (   else: interpret word, loop using tail recursion)
-  }if number if{        ( else if word is a number:)
+    }if
+    inner               (   interpret word)
+    dowords ;           (   loop using tail recursion)
+  }if
+  number                ( else: try parsing word as number)
+  if{                   ( if word is a number:)
     compiling? if{      (   if compile mode is active:)
       compile-number    (     compile the number)
-    }if dowords ;       (   loop using tail recursion)
+    }if
+    dowords ;           (   loop using tail recursion)
   }if
-  ( ." ERR not found:") cr    ( else: print error message)
-  .dp reset cr          ( print the unknown word, clear stacks, stop looping)
+  2 spaces 63 emit      ( else: print error message '  ? ')
+  space
+  quote .dp quote cr    ( print the unknown word in quotes)
 ;
 
 : outer     ( Outer interpreter)
