@@ -8,7 +8,7 @@ AUTOGEN=opcodes.mkb mem_map.mkb opcodes.py mem_map.py core_voc.py
 TEST_IN=test/read_test_data.txt
 TEST_OUT=test/vm_out.txt
 
-all: hello.rom
+all: hello.rom kernel.rom
 
 run: kernel.rom $(AUTOGEN)
 	@python3 markab_vm.py kernel.rom

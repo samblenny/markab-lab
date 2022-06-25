@@ -123,7 +123,8 @@ class Compiler:
   def create(self, name):
     """Start a named dictionary entry in the target rom"""
     offset = self.DP & 0xf
-    if offset != 0:
+    ALIGN16 = False  #True
+    if ALIGN16 and offset != 0:
       self.DP += 16 - offset       # align 16 for nicer hexdumps
     starting_dp = self.DP
     self.append_halfword(self.link)
@@ -330,8 +331,8 @@ class Compiler:
       else:
         self.push(n)
       return pos + 1
-    except ValueError:
-      raise Exception("compile_word: word not found", w)
+    except ValueError as e:
+      raise Exception("word not in dictionary and not a number:", w) from None
 
 
 def compile_int(word: str):
@@ -433,39 +434,46 @@ def preprocess_mkb(depth, src):
       words.append(word)
   return words
 
-def compile_mkb(src):
-  """Compile Markab source code and return bytearray for a Markab VM rom"""
-  depth = 5
-  words = preprocess_mkb(depth, src)
-  compiler = Compiler()
+def compile_words(compiler, words, log):
   linelen = 0                  # loop over words, compiling into dictionary
   pos = 0
   for i in range(len(words)):
-    # pretty print each word (some get linefeeds before or after)
     if words[i] == ':':
       if i>1 and words[i-1] == ':':
         pass
       else:
-        print()
+        log[0] += "\n"
         linelen = 0
     if i>1 and words[i-2] in ['var', 'const', 'opcode']:
       if i>2 and words[i-3] == ':':
         pass
       else:
-        print()
+        log[0] += "\n"
         linelen = 0
     w = words[i]
     if linelen + len(w) > 78:
-      print(f"\n  {w}", end=' ')
+      log[0] += f"\n  {w} "
       linelen = 2 + len(w) + 1
     else:
-      print(w, end=' ')
+      log[0] += f"{w} "
       linelen += len(w) + 1
     if pos > i:             # compiling a defining word or string can consume
       pass                  # more than one word, so skip words if needed
     else:
       pos = compiler.compile_word(i, words)  # compile and update position
-  print()
+
+def compile_mkb(src):
+  """Compile Markab source code and return bytearray for a Markab VM rom"""
+  depth = 5
+  words = preprocess_mkb(depth, src)
+  compiler = Compiler()
+  log = ['']
+  try:
+    compile_words(compiler, words, log)
+  except Exception as e:
+    # only print the source code trace in case of an error
+    print(log[0])
+    raise e
   compiler.patch_context_current_dp()
   with open(SYM_OUT, 'w') as sym:
     # save debug symbols for disassembler
