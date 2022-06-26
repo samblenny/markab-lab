@@ -10,8 +10,8 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 : curr CURRENT h@ ;  ( address for head of new definitions vocabulary)
 : ctxt CONTEXT h@ ;  ( address for head of word searching vocabulary)
 
-: hex 16 BASE w! ; immediate
-: decimal 10 BASE w! ; immediate
+: hex 16 BASE w! ;
+: decimal 10 BASE w! ;
 
 : cr     10 emit ;  ( Emit newline, but call it by the traditional CR name)
 : quote  34 emit ;  ( Emit quote: " )
@@ -168,7 +168,7 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   }for IN.aup        ( update IN and restore old value of a)
 ;
 
-: w-bpatch  ( old-b addr -- )  ( Patch length byte of string for w-copy)
+: w.bpatch  ( old-b addr -- )  ( Patch length byte of string for w-copy)
   b- b over -  ( calculate length using pointer to length byte)
   swap !       ( patch length byte with actual length of word)
   >b           ( restore old value of b)
@@ -185,21 +185,21 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
     @a+ dup !b+      (   copy byte, space is okay because of the if{ b-)
     whitespace? if{  (   if byte was whitespace:)
       rdrop          (     drop loop counter to prepare for return)
-      b- w-bpatch    (     calculate length, patch length byte, restore b)
+      b- w.bpatch    (     calculate length, patch length byte, restore b)
       IN.aup ;       (     update IN, restore a, return)
     }if              (   else: keep looping)
-  }for w-bpatch      ( patch length byte, restore b)
+  }for w.bpatch      ( patch length byte, restore b)
   IN.aup             ( update IN, restore a)
 ;
 
-: digit0-9?  ( n -- [n] bool )  ( Try to convert T from ASCII decimal digit)
+: 0-9?  ( n -- [n] bool )  ( Try to convert T from ASCII decimal digit)
   48 - dup             ( calculate n = n-'0' = n-48)
   0 < over 9 > or if{  ( if n-'0'<0 or 9<n-'0':)
     drop false ;       (   return {bool=false}, n is not a decimal digit)
   }if true             ( else: return {n bool=true}, n is a decimal digit)
 ;
 
-: digitA-F?  ( n -- [n] bool )  ( Try to convert T from uppercase hex digit)
+: A-F?  ( n -- [n] bool )  ( Try to convert T from uppercase hex digit)
   65 - dup             ( calculate n = n-'A' = n-65)
   0 < over 5 > or if{  ( if n-'A'<0 or 5<n-'A':)
     drop false ;       (   return {bool=false}, n is not uppercase hex digit)
@@ -207,7 +207,7 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   true                 ( return {n bool=true}, n is uppercase hex digit)
 ;
 
-: digit_a-f?  ( n -- [n] bool )  ( Try to convert T from lowercase hex digit)
+: a-f?  ( n -- [n] bool )  ( Try to convert T from lowercase hex digit)
   97 - dup             ( calculate n = n-'a' = n-97)
   0 < over 5 > or if{  ( if n-'a'<0 or 5<n-'a':)
     drop false ;       (   return {bool=false}, n is not lowercase hex digit)
@@ -215,7 +215,7 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   true                 ( return {n bool=true}, n is lowercase hex digit)
 ;
 
-: number_10  ( -- [n] bool)  ( Try to parse word at DP as decimal number)
+: num10  ( -- [n] bool)  ( Try to parse word at DP as decimal number)
   DP.len 1 < if{      ( if length word is empty:)
     false ;           (   return {bool=false})
   }if
@@ -231,7 +231,7 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   ( intentionally skipping second length check here: just "-" would match SUB)
   1- for{             ( loop over each byte of word at DP)
     10 *              (   scale n up by base)
-    @a+ digit0-9?     (   load next byte, try to convert decimal digit)
+    @a+ 0-9?          (   load next byte, try to convert decimal digit)
     0= if{            (   if byte was not a decimal digit:)
       drop >b >a      (     drop n, restore old values of a and b)
       false rdrop ;   (     return {bool=false}, word is not a number)
@@ -242,35 +242,35 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   true                ( return {n bool=true})
 ;
 
-: number_16  ( -- [n] bool)  ( Try to parse word at DP as decimal number)
-  DP.len 1 < if{            ( if length word is empty:)
-    false ;                 (   return {bool=false})
+: num16  ( -- [n] bool)  ( Try to parse word at DP as decimal number)
+  DP.len 1 < if{      ( if length word is empty:)
+    false ;           (   return {bool=false})
   }if
-  a 0                       ( save old value of a, start number at n=0)
-  DP.data >a                ( a = address of first string data byte)
-  DP.len 1- for{            ( loop over each byte of word at DP)
-    16 *                    (   scale n up by base)
-    @a digit0-9?            (   try to convert next byte as '0'..'9')
-    dup 0= if{              (   if conversion fails:)
-      drop @a digitA-F?     (     try to convert as 'A'..'F')
-      dup 0= if{            (     if it fails:)
-        drop @a digit_a-f?  (       try to convert as 'a'..'f')
+  a 0                 ( save old value of a, start number at n=0)
+  DP.data >a          ( a = address of first string data byte)
+  DP.len 1- for{      ( loop over each byte of word at DP)
+    16 *              (   scale n up by base)
+    @a 0-9?           (   try to convert next byte as '0'..'9')
+    dup 0= if{        (   if conversion fails:)
+      drop @a A-F?    (     try to convert as 'A'..'F')
+      dup 0= if{      (     if it fails:)
+        drop @a a-f?  (       try to convert as 'a'..'f')
       }if
-    }if a+                  (   now increment a, stack is {... [n] bool})
-    0= if{                  (   if byte was not a hexadecimal digit:)
-      drop >a               (     drop n, restore old value of a)
-      false rdrop ;         (     return {bool=false}, word is not a number)
-    }if +                   (   else: add this digit to n)
+    }if a+            (   now increment a, stack is {... [n] bool})
+    0= if{            (   if byte was not a hexadecimal digit:)
+      drop >a         (     drop n, restore old value of a)
+      false rdrop ;   (     return {bool=false}, word is not a number)
+    }if +             (   else: add this digit to n)
   }for
-  swap >a true              ( restore old value of a, return {n bool=true})
+  swap >a true        ( restore old value of a, return {n bool=true})
 ;
 
 : number ( -- [n] bool )  ( Try to parse word at DP as number in current base)
-  BASE @ dup 10 = if{     ( if base is 10:)
-    drop number_10 ;      (   attempt to parse decimal number)
-  }if 16 = if{            ( else if base is 16:)
-    number_16 ;           (   attempt to parse hex number)
-  }if false               ( else: indicate parse failed by returning false)
+  BASE @ dup 10 = if{  ( if base is 10:)
+    drop num10 ;       (   attempt to parse decimal number)
+  }if 16 = if{         ( else if base is 16:)
+    num16 ;            (   attempt to parse hex number)
+  }if false            ( else: indicate parse failed by returning false)
 ;
 
 : dowords             ( Interpret words from a line of text input)
