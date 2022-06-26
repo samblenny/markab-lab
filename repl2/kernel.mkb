@@ -10,171 +10,72 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 : curr CURRENT h@ ;  ( address for head of new definitions vocabulary)
 : ctxt CONTEXT h@ ;  ( address for head of word searching vocabulary)
 
-: interpret? MODE @ MODE_INT = ;
-: compiling? MODE @ MODE_COM = ;
-: immediate? MODE @ MODE_IMM = ;
-
-: allot ( bytes -- ) DP h@ + DP h! ;
-
-:  , here  ! 1 allot ;   ( store low byte of T at DP)
-: h, here h! 2 allot ;   ( store low halfword of T at DP)
-: w, here w! 4 allot ;   ( store full word T at DP)
-
-: NEST+    ( -- )     NEST dup @ 1+ swap ! ;  ( Increment block nesting level)
-: NEST-    ( -- )     NEST dup @ 1- swap ! ;  ( Decrement block nesting level)
-: NESTED?  ( -- bool) NEST @ 0 > ;            ( Is nesting level > 0?)
-
-: whitespace? ( byte -- )
-  dup 10 = over 13 = or     ( check for CR or LF)
-  over 32 = or swap 9 = or  ( check for space or tab)
-;
-
-: a=IB+IN  ( -- old-a )  ( Save old a, set new a = IB+IN)
-  a IB IN @ + >a
-;
-
-: IN=a-IB  ( old-a -- )  ( Update IN from a, restore old a)
-  a IB - IN ! >a
-;
-
-: IBLen-IN  ( -- n )  ( Calculate unread bytes left in IB)
-  IBLen @ IN @ -
-;
-
-: w-skip            ( Advance IN to skip spaces at front of Input Buffer)
-  a=IB+IN           ( save old a, new a = IB+IN)
-  IBLen-IN for{     ( loop for a in IB+IN..IB+IBLen-IN)
-    @a+ 32 != if{   (   if byte at a is not a space:)
-      rdrop         (     drop loop counter to prepare for return)
-      a- IN=a-IB ;  (     update IN to the byte before a, restore a, return)
-    }if             (   else: keep skipping spaces)
-  }for
-  IN=a-IB           ( update IN and restore old value of a)
-;
-
-: w-bpatch  ( old-b addr -- )  ( Patch length byte of string for w-copy)
-  b- b over -  ( calculate length using pointer to length byte)
-  swap !       ( patch length byte with actual length of word)
-  >b           ( restore old value of b)
-;
-
-: w-copy           ( Copy bytes from Input Buffer at IN to dictionary)
-  a=IB+IN          ( save old a, new a = IB+IN)
-  b here >b        ( save old b, new b = DP)
-  b 0 !b+          ( save pointer to length, store initial length = 0)
-  IBLen-IN for{    ( loop for a in IB+IN..IB+IBLen-IN)
-    @a+ dup !b+    (   copy byte, space is okay because of the if{ b-)
-    32 = if{       (   if byte was a space:)
-      rdrop        (     drop loop counter to prepare for return)
-      b- w-bpatch  (     calculate length, patch length byte, restore b)
-      IN=a-IB ;    (     update IN, restore a, return)
-    }if            (   else: keep looping)
-  }for w-bpatch    ( patch length byte, restore b)
-  IN=a-IB          ( update IN, restore a)
-;
-
-: word ( -- length-of-word )  ( Copy word from input stream to dictionary)
-  w-skip       ( skip leading spaces, if present)
-  here         ( push address of length byte in dictionary)
-  w-copy       ( copy a word)
-  dup DP h! @  ( put DP back where it was, leave length of word on stack)
-;
-
-: create ( -- lenth-of-name )
-  curr here h,  ( store link to current head of dictionary at DP)
-  here          ( remember address where name will begin)
-  word          ( copy name from input stream to DP)
-  allot         ( allot bytes for the name)
-;
-
-: :                     ( Start defining a new vocabulary word)
-  here curr             ( save dictionary state for rollback)
-  create                ( read name to start dictionary entry)
-  0= if{                ( if length of name was 0:)
-    CURRENT h! DP h! ;  (   roll back changes, return)
-  }if MODE_COM MODE !   ( else: set compile mode)
-;
-
-: update-mode        ( Clear compile mode, but only for final ; of definition)
-  NESTED? 0= if{     ( if block nesting level is 0:)
-    MODE_INT MODE !  (   clear compile mode)
-  }if
-;
-
-: ;                       ( Return from a word)
-  here 3 - LASTCALL h@ =  ( tail call optimizer...)
-  = if{                   ( if last compiled subroutine call was 3 bytes ago:)
-    JMP here 3 - !        (   change the JAL to a JMP)
-    update-mode ;         (   clear compile mode if needed, then return)
-  }if RET ,               ( else: compile a RET instruction)
-  update-mode             ( clear compile mode if needed)
-; immediate
-
-: var                ( Add variable to dictionary)
-  create             ( append name as read from text input stream)
-  T_VAR ,            ( append .type=var)
-  0 w,               ( append .param = I32 initialized to 0)
-;
-
-: const ( i32 -- )  ( Add constant to dictionary)
-  create            ( append name as read from text input stream)
-  T_CONST ,         ( append .type=const to dictionary)
-  w,                ( append .param = T as I32 literal)
-;
-
-: opcode  ( Add opcode to dictionary)
-  create   ( append name as read from text input stream)
-  T_OP ,   ( append type=opcode)
-  , RET ,  ( append .param = opcode from T, then RET)
-;
-
-: if{ ( -- addr ) BZ , here 0 , 0 , NEST+ ;   immediate
-: }if ( addr -- ) here swap h! NEST- ;        immediate
-: for{ ( -- addr ) MTR , here NEST+ ;         immediate
-: }for ( addr -- ) DRBLT , h, RDROP , NEST- ; immediate
 : hex 16 BASE w! ; immediate
 : decimal 10 BASE w! ; immediate
 
 : cr     10 emit ;  ( Emit newline, but call it by the traditional CR name)
-: quote  34 emit ;  ( Emit quote character: " )
-: space  32 emit ;  ( Emit 1 space character)
-: spaces  ( n -- )  for{ 32 emit }for ;  ( Emit n space characters)
+: quote  34 emit ;  ( Emit quote: " )
+: star   42 emit ;  ( Emit asterisk: * )
+: space  32 emit ;  ( Emit one space)
+: spaces  ( n -- )  1- for{ 32 emit }for ;  ( Emit n spaces)
 
 : bye    ( Exit process by emptying the return stack, then returning)
   reset  ( empty stacks, but particularly the return stack)
 ;
 
-: newline? ( byte -- bool )  ( test if byte is CR or LF)
-  dup 10 = swap 13 = or
+( ----------------------------- )
+( String struct format:         )
+( Byte range   Field            )
+(      0       .length: max 255 )
+(    1:n       .data            )
+( ----------------------------- )
+
+: print ( addr -- )  ( Print string from address in T, first byte is length)
+  a swap >a    ( save old a, new a = address of buffer from T)
+  @a 1 < if{   ( if string is empty)
+    >a ;       (   restore a, return)
+  }if          ( else:)
+  @a+ 1- for{  ( loop over string's data bytes)
+    @a+ emit   (   emit next byte)
+  }for >a      ( restore old value of a)
 ;
 
-: IBLen=b-IB  ( old-b -- )  ( Calculate and store IBLen, restore b, reset IN)
-  b- b IB - IBLen ! >b
-  0 IN !
+: DP.len   ( -- len  )  DP @ ;   ( Get lenght of string data available at DP)
+: IB.len   ( -- len  )  IB @ ;   ( Get length of data available in IB)
+: IB.data  ( -- addr )  IB 1+ ;  ( Get address of IB's data field)
+
+: DP.print  here print ;  ( Print string from DP)
+: IB.print  IB print ;    ( Print input buffer)
+
+: newline? ( byte -- bool )  ( Test if byte is CR or LF)
+  dup 13 = swap 10 = or
+;
+
+: whitespace? ( byte -- bool )  ( Test if byte is space, tab, CR, or LF)
+  dup 32 =  over 9 = or  over 13 = or  swap 10 = or
+;
+
+: IB.len=b-IB  ( old-b -- )  ( Calculate and store IBLen, restore b, reset IN)
+  b- b IB -  ( calculate length of bytes copied into IB through b)
+  IB ! >b    ( update length byte of IB, restore b)
+  0 IN !     ( reset IN)
 ;
 
 : readline
-  b IB >b             ( save old b, new b = pointer to Input Buffer)
+  b IB.data >b        ( save old b, new b = pointer to Input Buffer)
   255 for{            ( loop for up to IB capacity of 255 bytes)
     key               (   read byte from standard input, copy it to IB)
     0= if{            (   if end of stream:)
-      IBLen=b-IB      (     update IBLen, reset IN)
-      rdrop ;         (     end the loop and return; TODO: something better)
+      0 IB ! 0 IN !   (     zero IB length and IN)
+      >b rdrop ;      (     restore old b, end loop, return)
     }if dup !b+       (   else: copy the byte to IB)
     newline? if{      (   if byte is a LF or CR:)
       b-              (     adjust the byte count to ignore newline)
-      IBLen=b-IB      (     update IBLen with byte count, restore b, reset IN)
+      IB.len=b-IB     (     update IBLen with byte count, restore b, reset IN)
       rdrop ;         (     drop loop counter and return)
     }if               (   else: keep looping)
-  }for IBLen=b-IB     ( update IBLen with byte count, restore b, reset IN)
+  }for IB.len=b-IB    ( update IBLen with byte count, restore b, reset IN)
 ;
-
-( --------------------- )
-( String struct format: )
-( Byte range   Field    )
-(      0       .length  )
-(    1:n       .bytes   )
-( --------------------- )
 
 : strcmp ( addr addr -- bool )  ( Compare strings, return match as boolean)
   a swap >a swap b swap >b   ( exchange old a & b with addresses in S & T)
@@ -208,8 +109,8 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   1+       ( adding 1 more gets us the address of the .type field)
 ;
 
-: v_find ( voc -- [addr] bool)  ( Search for word at DP in vocabulary at T)
-  >x
+: find ( voc -- [addr] bool)  ( Search for word at DP in dictionary)
+  ctxt >x
   999 for{           ( loop over up to 999 dictionary entries)
     x 0= if{         ( if vocab item pointer is null:)
       false rdrop ;  (   return bool=false)
@@ -220,114 +121,6 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
       true rdrop ;   (   return: addr=.type bool=true )
     }if x h@ >x      ( else: follow link and keep looping)
   }for false         ( end of loop without match: return false)
-;
-
-: find ( -- [addr] bool )  ( Search for word in the dictionary)
-  ctxt v_find
-;
-
-: immediate        ( Change type of last word from regular to immediate)
-  a                ( save old value of a)
-  curr v.type >a   ( a = address of dictionary_head.type field)
-  @a T_OBJ = if{   ( if .type was regular compiled word:)
-    T_IMM a !      (   change type to immediate compiled word)
-  }if >a           ( restore old value of a)
-;
-
-: digit0-9? ( n -- [n] bool )  ( Try to convert T from ASCII decimal digit)
-  48 - dup             ( calculate n = n-'0' = n-48)
-  0 < swap 9 > or if{  ( if n-'0'<0 or 9<n-'0':)
-    drop false ;       (   return {bool=false}, n is not a decimal digit)
-  }if true             ( else: return {n bool=true}, n is a decimal digit)
-;
-
-: digitA-F? ( n -- [n] bool )  ( Try to convert T from uppercase hex digit)
-  65 - dup             ( calculate n = n-'A' = n-65)
-  0 < swap 5 > or if{  ( if n-'A'<0 or 5<n-'A':)
-    drop false ;       (   return {bool=false}, n is not uppercase hex digit)
-  }if 10 +             ( else: calculate n = n+10 as low digit is '0', not 'A')
-  true                 ( return {n bool=true}, n is uppercase hex digit)
-;
-
-: digit_a-f? ( n -- [n] bool )  ( Try to convert T from lowercase hex digit)
-  97 - dup             ( calculate n = n-'a' = n-97)
-  0 < swap 5 > or if{  ( if n-'a'<0 or 5<n-'a':)
-    drop false ;       (   return {bool=false}, n is not lowercase hex digit)
-  }if 10 +             ( else: calculate n = n+10 as low digit is '0', not 'a')
-  true                 ( return {n bool=true}, n is lowercase hex digit)
-;
-
-: number_10 ( -- [n] bool)  ( Try to parse word at DP as decimal number)
-  a x 0                     ( save old values of a and x, start number at n=0)
-  here >a                   ( a = pointer to word, which is at DP)
-  false >x                  ( x = false, meaning assume number is positive)
-  @a 1 > a 1+ @ 45 = and    ( calculate if first byte of word byte is '-')
-  if{                       ( if first byte is '-':)
-    true >x                 (   x = true, means number is negative)
-  }if @a+ 1-                ( load string length and prepare loop counter)
-  x if{ 1- a+ }if           ( if negative: adjust a and counter to skip '-')
-  for{                      ( loop over each byte of word at DP)
-    10 *                    (   scale n up by base)
-    @a+ digit0-9?           (   load next byte, try to convert decimal digit)
-    0= if{                  (   if byte was not a decimal digit:)
-      drop >x >a            (     drop n, restore old values of a and x)
-      false rdrop ;         (     return {bool=false}, word is not a number)
-    }if +                   (   else: add this digit to n)
-  }for x if{ inv 1+ }if     ( if x was set for a leading '-': negate n)
-  swap >x swap >a           ( restore old values of a and x)
-  true                      ( return {n bool=true}, word was a decimal number)
-;
-
-: number_16 ( -- [n] bool)  ( Try to parse word at DP as hex number)
-  a 0                       ( save old value of a, start number at n=0)
-  here >a @a+ 1- for{       ( loop over each byte of word at DP)
-    16 *                    (   scale n up by base)
-    @a+ dup digit0-9?       (   load next byte, try to convert as ASCII 0-9)
-    0= if{                  (   if not decimal digit:)
-      dup digitA-F?         (     try to convert as uppercase hex)
-      0= if{                (     if not uppercase hex:)
-        digit_a-f?          (       try to convert as lowercase hex)
-        0= if{              (       if all the digit->int conversions failed:)
-          drop >a           (         drop n, restore old value of a)
-          false rdrop ;     (         return {bool=false}, not a hex number)
-    }if +                   (   else: add this digit to n)
-  }for swap >a              ( restore old value of a)
-  true                      ( return {n bool=true}, word was a hex number)
-;
-
-: number ( -- [n] bool )  ( Try to parse word at DP as number in current base)
-  BASE @ dup 10 = if{     ( if base is 10:)
-    drop number_10 ;      (   attempt to parse decimal number)
-  }if 16 = if{            ( else if base is 16:)
-    number_16 ;           (   attempt to parse hex number)
-  }if false               ( else: indicate parse failed by returning false)
-;
-
-: compile-number ( n -- )  ( Compile number from T into dictionary)
-  x swap >x            ( save old value of x, x = n)
-  x 0 < x 65535 > if{  ( if x < 0 or x > 0xffff:)
-    I32 , x w, >x ;    (   compile as 32-bit signed, restore old x, return)
-  }if x 255 > if{      ( else if x > 0xff:)
-    U16 , x h, >x ;    (   compile as 16-bit unsigned, restore old x, return)
-  }if U8 , x , >x      ( else: compile as 8-bit unsigned, restore old x)
-;
-
-: inner-compile  ( v.type -- )  ( Inner interpreter: compile code for one word)
-  dup @ swap 1+ swap     ( S: address of .type + 1, T: value of .type field)
-  dup T_VAR = if{        ( if type is variable:)
-    drop                 (   drop copy of .type value)
-    U16 , h, ;           (   compile T into a U16 literal, return)
-  }if dup T_CONST = if{  ( else if type is constant:)
-    drop                 (   drop copy of .type value)
-    w@ I32 , w, ;        (   compile value from .param as I32 literal, return)
-  }if dup T_OP = if{     ( else if type is constant:)
-    drop                 (   drop copy of .type value)
-    @ , ;                (   compile opcode from .param[0], return)
-  }if T_OBJ = if{        ( else if type is regular compiled word:)
-    here LASTCALL h!     (   save address of JAL for tail call optimizer)
-    JAL , h, ;           (   compile JumpAndLink to address of .param, return)
-  }if                    ( else type should be immediate compiled word:)
-  call                   (   call into .param *which had better return!*)
 ;
 
 : inner  ( v.type -- ??? )  ( Inner interpreter: run code for one word)
@@ -341,37 +134,78 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   call                (   call into .param *which had better return!*)
 ;
 
-: .dp          ( print word from DP)
-  a here >a    ( save old a, new a = DP)
-  @a+ 1- for{  ( loop according to length byte of string at DP)
-    @a+ emit   (   emit the next byte)
-  }for >a      ( restore old value of a)
+: a=IB.next  ( -- old-a )  ( Save old a, set new a = IB+1+IN)
+  a        ( save old a)
+  IB.data  ( get address of IB, add 1 to skip length byte)
+  IN @ +   ( add value of IN, yielding address of next unread byte)
+  >a       ( move address to a)
 ;
 
-: dowords               ( Interpret words from a line of text input)
-  word 0= if{           ( if there are no more words in this line:)
-    2 spaces 79 emit    ( print "  OK\n" prompt, return)
+: IB.limit  ( -- n )  ( Calculate unread bytes left in IB to use as loop limit)
+  IB.len  ( get length data in IB)
+  IN @ -  ( subtract IN, giving number of unread bytes remaining in IB)
+  1-      ( subtract 1 more to prepare for use as `for{` loop limit)
+;
+
+: IB.done?  ( -- bool )  ( Return true if IB has no more bytes to read)
+  IN @ IB.len < 0=
+;
+
+: IN.aup  ( old-a -- )  ( Update IN from a, restore old a)
+  a IB 1+ -  ( calculate a - IB + 1, yielding new value of IN) 
+  IN ! >a    ( update IN, restore old value a)
+;
+
+: skip_ws            ( Advance IN past leading spaces in IB's available bytes)
+  a=IB.next          ( save old a, new a = addres of next unread byte of IB)
+  IB.limit for{      ( loop over the unread bytes of IB)
+    @a+ whitespace?  (   get a byte)
+    0= if{           (   if byte was not whitespace:)
+      rdrop          (     drop loop counter to prepare for return)
+      a- IN.aup ;    (     update IN to the byte before a, restore a, return)
+    }if              (   else: keep skipping whitespace)
+  }for IN.aup        ( update IN and restore old value of a)
+;
+
+: w-bpatch  ( old-b addr -- )  ( Patch length byte of string for w-copy)
+  b- b over -  ( calculate length using pointer to length byte)
+  swap !       ( patch length byte with actual length of word)
+  >b           ( restore old value of b)
+;
+
+: word               ( Copy a word from IB to dictionary at DP)
+  IB.done? if{       ( if IB has no more bytes to read:)
+    0 here ! ;       (   set string length at DP to 0, return)
+  }if
+  a=IB.next          ( save old a, new a = IB+IN)
+  b here >b          ( save old b, new b = DP)
+  b 0 !b+            ( save pointer to length, store initial length = 0)
+  IB.limit for{      ( loop over unread bytes from IB)
+    @a+ dup !b+      (   copy byte, space is okay because of the if{ b-)
+    whitespace? if{  (   if byte was whitespace:)
+      rdrop          (     drop loop counter to prepare for return)
+      b- w-bpatch    (     calculate length, patch length byte, restore b)
+      IN.aup ;       (     update IN, restore a, return)
+    }if              (   else: keep looping)
+  }for w-bpatch      ( patch length byte, restore b)
+  IN.aup             ( update IN, restore a)
+;
+
+: dowords             ( Interpret words from a line of text input)
+  skip_ws             ( skip whitespace at start of unread bytes in IB)
+  IB.done? if{        ( if IB is empty:)
+    2 spaces 79 emit  ( print "  OK\n" prompt, return to end loop)
     75 emit cr ;
   }if
-  find                  ( else: search dictionary for maching word)
-  if{                   ( if word is in the dictionary:)
-    compiling? if{      (   if compile mode is active:)
-      inner-compile     (     compile this word)
-      dowords ;         (     loop using tail recursion)
-    }if
-    inner               (   interpret word)
-    dowords ;           (   loop using tail recursion)
+  here                ( save DP since next call will change it)
+  word                ( try to copy a word from IB to DP)
+  DP h!               ( put DP back where it was)
+  find if{            ( if word is in the dictionary:)
+    inner             (   interpret word)
+    dowords ;         (   loop using tail recursion)
   }if
-  number                ( else: try parsing word as number)
-  if{                   ( if word is a number:)
-    compiling? if{      (   if compile mode is active:)
-      compile-number    (     compile the number)
-    }if
-    dowords ;           (   loop using tail recursion)
-  }if
-  2 spaces 63 emit      ( else: print error message '  ? ')
-  space
-  quote .dp quote cr    ( print the unknown word in quotes)
+  2 spaces 63 emit    ( else: print error message '  ? ')
+  space DP.print cr   ( print the unknown word in quotes)
 ;
 
 : outer     ( Outer interpreter)
@@ -380,16 +214,8 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   outer     ( use tail recursion to keep getting more lines indefinitely)
 ;
 
-: version               ( Print the version string)
-  ( ." Markab v0.1.0") cr
-;
-
 : boot    ( Initialize global vars, print version, start outer interpreter)
-  0 >x              ( x = 0)
-  x IN w!           ( 1 byte,  aligned 4, so zero all 4)
-  MODE_INT MODE w!  ( 1 byte,  aligned 4, so zero all 4)
-  x LASTCALL w!     ( 2 bytes, aligned 4, so zero all 4)
-  x NEST w!         ( 1 byte,  aligned 4, so zero all 4)
-  version           ( print the version string)
-  outer             ( start the outer interpreter)
+  0 IN w!        ( 1 byte,  aligned 4, so zero all 4)
+  0 LASTCALL w!  ( 2 bytes, aligned 4, so zero all 4)
+  outer          ( start the outer interpreter)
 ;

@@ -81,33 +81,22 @@ y Y
 """
 
 MEMORY_MAP = """
-0000 Boot     # Boot code (PC=0 on reset)                768 bytes
-02FF BootMax  # Boot code: last usable byte
-0300 CORE_V   # Pointer to head of core vocabulary       2 bytes (align 4)
-0304 FENCE    # Pointer to write protect boundary        2 bytes (align 4)
-#...
-0400 Heap     # Heap (dictionary)                        55 KB
-E000 HeapRes  # Heap Reserve buffer for WORD             256 bytes
+0000 Heap     # Heap (dictionary)                        56 KB
+E000 HeapRes  # Heap Reserve buffer                      256 bytes
 E0FF HeapMax  # Heap: end of reserve buffer
 E100 DP       # Dictionary Pointer                       2 bytes (align 4)
 E104 IN       # INput buffer index                       1 byte  (align 4)
 E108 CONTEXT  # Head of vocabulary for finding words     2 bytes (align 4)
 E10C CURRENT  # Head of vocabulary for new definitions   2 bytes (align 4)
 E110 MODE     # Current interpreting/compiling mode      1 byte  (align 4)
-E114 EXT_V    # Pointer to head of extensible vocab      2 bytes (align 4)
 E118 LASTCALL  # Pointer to last compiled call instr.    2 bytes (align 4)
 E11C NEST     # Block Nesting level for if{ and for{     1 byte  (align 4)
 E120 BASE     # Number base                              1 byte  (align 4)
 #...
-E200 IBLen    # Input Buffer Length             1 byte
-E201 IB       # Input Buffer                    255 bytes
-#E2FF            end of input buffer
-E300 PadLen   # Pad buffer Length               1 byte
-E301 Pad      # Pad buffer                      255 bytes
-#E3FF            end of pad buffer
-E400 FmtLen   # Fmt buffer Length               1 byte
-E401 Fmt      # Format buffer                   255 bytes
-#E4FF            end of fmt buffer
+E200 IB       # Input Buffer       256 bytes
+E300 Pad      # Pad buffer         256 bytes
+E400 Fmt      # Fmt buffer         256 bytes
+#E4FF           end of fmt buffer
 #...
 FFFF MemMax
 """

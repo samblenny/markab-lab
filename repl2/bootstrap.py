@@ -14,8 +14,8 @@ from mkb_autogen import (
   MTB, LBB, LBBI, SBBI, BINC, BDEC, B, MTX, X, MTY, Y,
   OPCODES,
 
-  Boot, HeapMax, CONTEXT, CURRENT, DP,
-  IN, IBLen, IB, MemMax,
+  Heap, HeapMax, CONTEXT, CURRENT, DP,
+  IN, IB, MemMax,
 
   CORE_VOC, T_VAR, T_CONST, T_OP, T_OBJ, T_IMM,
 )
@@ -35,7 +35,7 @@ class Compiler:
   def __init__(self):
     """Initialize an Markab VM ROM instance for compiling into"""
     self.vm = VM()   # make a VM instance to use for compiling
-    self.DP = Boot
+    self.DP = Heap
     self.link = 0
     self.base = 10
     self.mode = MODE_INT
@@ -268,6 +268,7 @@ class Compiler:
       self.vm.swap()
       self.store_halfword()
       self.nested -= 1
+      self.last_call = 0                #   prevent glitch with: ` ... }if ;`
       return pos + 1
     if w == 'for{':                     # for{
       self.append_byte(MTR)
@@ -281,6 +282,7 @@ class Compiler:
       self.append_halfword(addr)
       self.append_byte(RDROP)
       self.nested -= 1
+      self.last_call = 0                #   prevent glitch with: ` ... }for ;`
       return pos + 1
     if w == '."':                       # ."
       # This depends on weird parsing:
@@ -479,7 +481,7 @@ def compile_mkb(src):
     syms = sorted(compiler.link_set.items())
     syms = [f"{addr} {name}" for (addr, name) in syms]
     sym.write("\n".join(syms)+"\n")
-  return compiler.vm.ram[Boot:compiler.DP]
+  return compiler.vm.ram[Heap:compiler.DP]
 
 with open(ROM_OUT, 'w') as rom:
   with open(SRC_IN, 'r') as src:

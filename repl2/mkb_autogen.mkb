@@ -93,11 +93,7 @@
 ( 0000..00FF belongs to VM)
 ( 0100..FFFF belongs to kernel)
 hex
-0000 const Boot
-02FF const BootMax
-0300 const CORE_V
-0304 const FENCE
-0400 const Heap
+0000 const Heap
 E000 const HeapRes
 E0FF const HeapMax
 E100 const DP
@@ -105,15 +101,11 @@ E104 const IN
 E108 const CONTEXT
 E10C const CURRENT
 E110 const MODE
-E114 const EXT_V
 E118 const LASTCALL
 E11C const NEST
 E120 const BASE
-E200 const IBLen
-E201 const IB
-E300 const PadLen
-E301 const Pad
-E400 const FmtLen
-E401 const Fmt
+E200 const IB
+E300 const Pad
+E400 const Fmt
 FFFF const MemMax
 decimal

@@ -19,9 +19,11 @@ from mkb_autogen import (
   MTA, LBA, LBAI,       AINC, ADEC, A,
   MTB, LBB, LBBI, SBBI, BINC, BDEC, B, MTX, X, MTY, Y,
 
-  Boot, HeapMax, MemMax,
+  Heap, HeapRes, HeapMax, MemMax,
   OPCODES,
 )
+
+DEBUG = False #True
 
 ROM_FILE = 'kernel.rom'
 ERR_D_OVER = 1
@@ -58,7 +60,7 @@ class VM:
     self.T = 0                      # Top of data stack
     self.S = 0                      # Second on data stack
     self.R = 0                      # top of Return stack
-    self.PC = Boot                  # Program Counter
+    self.PC = Heap                  # Program Counter
     self.Fence = 0                  # Fence between read-only and read/write
     self.DSDeep = 0                 # Data Stack Depth (count include T and S)
     self.RSDeep = 0                 # Return Stack Depth (count inlcudes R)
@@ -165,9 +167,12 @@ class VM:
     pc = self.PC
     self._set_pc(pc+1)
     op = self.ram[pc]
-    DEBUG = False #True
     if DEBUG:
-      name = [k for (k,v) in OPCODES.items() if v == op][0]
+      name = [k for (k,v) in OPCODES.items() if v == op]
+      if len(name) == 1:
+        name = name[0]
+      else:
+        name = f"{name}"
       print(f"<<{pc:04x}:{op:2}: {self.dbg_name_for(pc):9}:{name:6}", end='')
       self._log_ds(prompt=False)
       print(">>")
@@ -176,16 +181,16 @@ class VM:
   def _load_rom(self, code):
     """Load byte array of rom image into memory"""
     n = len(code)
-    if n > (HeapMax+1)-Boot:
+    if n > (HeapRes-Heap):
       self.error = ERR_BOOT_OVERFLOW
       return
-    self.ram[Boot:Boot+n] = code[0:]
+    self.ram[Heap:Heap+n] = code[0:]
 
   def _warm_boot(self, code, max_cycles=1):
-    """Load a byte array of machine code into Boot memory, then run it."""
+    """Load a byte array of machine code into memory, then run it."""
     self.error = 0
     self._load_rom(code)
-    self._set_pc(Boot)
+    self._set_pc(Heap)      # hardcode boot vector to start of heap (for now)
     self._step(max_cycles)
     if self.error != 0:
       print(f"  ERR{self.error}")
@@ -330,7 +335,7 @@ class VM:
     # push the current Program Counter (PC) to return stack
     if self.RSDeep > 0:
       rSecond = self.RSDeep - 1
-      self.RStack[rSecond] = self.PC
+      self.RStack[rSecond] = self.R
     self.R = self.PC
     self.RSDeep += 1
     # set Program Counter to the new address
