@@ -128,9 +128,8 @@
 1752 0-9?
 1780 A-F?
 1811 a-f?
-1842 num10
-1904 num16
-1967 number
-2003 dowords
-2085 outer
-2103 boot
+1842 @a_atoi?
+1889 number
+1954 dowords
+2032 outer
+2050 boot
