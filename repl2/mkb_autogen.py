@@ -51,29 +51,30 @@ SH     = 41
 LW     = 42
 SW     = 43
 RESET  = 44
-IOD    = 45
-IOR    = 46
-IODH   = 47
-IORH   = 48
-IOKEY  = 49
-IOEMIT = 50
-MTA    = 51
-LBA    = 52
-LBAI   = 53
-AINC   = 54
-ADEC   = 55
-A      = 56
-MTB    = 57
-LBB    = 58
-LBBI   = 59
-SBBI   = 60
-BINC   = 61
-BDEC   = 62
-B      = 63
-MTX    = 64
-X      = 65
-MTY    = 66
-Y      = 67
+FENCE  = 45
+IOD    = 46
+IOR    = 47
+IODH   = 48
+IORH   = 49
+IOKEY  = 50
+IOEMIT = 51
+MTA    = 52
+LBA    = 53
+LBAI   = 54
+AINC   = 55
+ADEC   = 56
+A      = 57
+MTB    = 58
+LBB    = 59
+LBBI   = 60
+SBBI   = 61
+BINC   = 62
+BDEC   = 63
+B      = 64
+MTX    = 65
+X      = 66
+MTY    = 67
+Y      = 68
 
 # Markab VM opcode dictionary
 OPCODES = {
@@ -122,29 +123,30 @@ OPCODES = {
     'LW':     42,
     'SW':     43,
     'RESET':  44,
-    'IOD':    45,
-    'IOR':    46,
-    'IODH':   47,
-    'IORH':   48,
-    'IOKEY':  49,
-    'IOEMIT': 50,
-    'MTA':    51,
-    'LBA':    52,
-    'LBAI':   53,
-    'AINC':   54,
-    'ADEC':   55,
-    'A':      56,
-    'MTB':    57,
-    'LBB':    58,
-    'LBBI':   59,
-    'SBBI':   60,
-    'BINC':   61,
-    'BDEC':   62,
-    'B':      63,
-    'MTX':    64,
-    'X':      65,
-    'MTY':    66,
-    'Y':      67,
+    'FENCE':  45,
+    'IOD':    46,
+    'IOR':    47,
+    'IODH':   48,
+    'IORH':   49,
+    'IOKEY':  50,
+    'IOEMIT': 51,
+    'MTA':    52,
+    'LBA':    53,
+    'LBAI':   54,
+    'AINC':   55,
+    'ADEC':   56,
+    'A':      57,
+    'MTB':    58,
+    'LBB':    59,
+    'LBBI':   60,
+    'SBBI':   61,
+    'BINC':   62,
+    'BDEC':   63,
+    'B':      64,
+    'MTX':    65,
+    'X':      66,
+    'MTY':    67,
+    'Y':      68,
 }
 
 # Markab VM memory map
@@ -236,6 +238,7 @@ CORE_VOC = {
     'w@':       (T_OP,    LW),
     'w!':       (T_OP,    SW),
     'reset':    (T_OP,    RESET),
+    'fence':    (T_OP,    FENCE),
     'iod':      (T_OP,    IOD),
     'ior':      (T_OP,    IOR),
     'iodh':     (T_OP,    IODH),

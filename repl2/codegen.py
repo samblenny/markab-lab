@@ -55,6 +55,7 @@ h! SH
 w@ LW
 w! SW
 reset RESET
+fence FENCE
 iod IOD
 ior IOR
 iodh IODH

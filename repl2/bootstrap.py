@@ -24,6 +24,9 @@ from markab_vm import VM
 from os.path import basename, normpath
 
 
+# This controls 16-byte alignment of dictionary entries: false is smaller
+ALIGN16 = False  #True
+
 SRC_IN = 'kernel.mkb'
 ROM_OUT = 'kernel.rom'
 SYM_OUT = 'kernel.symbols'
@@ -40,7 +43,8 @@ class Compiler:
     self.base = 10
     self.mode = MODE_INT
     self.last_call = 0
-    self.nested = 0
+    self.nest_if = 0
+    self.nest_for = 0
     self.name_set = {}
     self.link_set = {}
     self.append_byte(U16)       # compile initializer for CONTEXT
@@ -123,7 +127,6 @@ class Compiler:
   def create(self, name):
     """Start a named dictionary entry in the target rom"""
     offset = self.DP & 0xf
-    ALIGN16 = False  #True
     if ALIGN16 and offset != 0:
       self.DP += 16 - offset       # align 16 for nicer hexdumps
     starting_dp = self.DP
@@ -200,7 +203,7 @@ class Compiler:
 
   def update_mode(self):
     """Clear compile mode, but only for final ; of definition"""
-    if self.nested == 0:
+    if self.nest_if == 0 and self.nest_for == 0:
       self.mode = MODE_INT
 
   def compile_literal(self, n):
@@ -245,10 +248,12 @@ class Compiler:
     if w == ';':                        # ;
       maybe_call = self.DP - 3
       if (maybe_call == self.last_call):
+        # Do tail call optimization
         self.push(JMP)
         self.push(maybe_call)
         self.store_byte()
       else:
+        # Do a normal return
         self.append_byte(RET)
       self.update_mode()
       return pos + 1
@@ -261,19 +266,21 @@ class Compiler:
       self.append_byte(BZ)
       self.push(self.DP)
       self.append_halfword(0)
-      self.nested += 1
+      self.nest_if += 1
       return pos + 1
     if w == '}if':                      # }if
       self.push(self.DP)
       self.vm.swap()
       self.store_halfword()
-      self.nested -= 1
+      self.nest_if -= 1
+      if self.nest_if < 0:
+        raise Exception("`}if` without matching `if{`")
       self.last_call = 0                #   prevent glitch with: ` ... }if ;`
       return pos + 1
     if w == 'for{':                     # for{
       self.append_byte(MTR)
       self.push(self.DP)
-      self.nested += 1
+      self.nest_for += 1
       return pos + 1
     if w == '}for':                     # }for
       self.append_byte(DRBLT)
@@ -281,7 +288,9 @@ class Compiler:
       self.vm.drop()
       self.append_halfword(addr)
       self.append_byte(RDROP)
-      self.nested -= 1
+      self.nest_for -= 1
+      if self.nest_for < 0:
+        raise Exception("`}for` without matching `for{`")
       self.last_call = 0                #   prevent glitch with: ` ... }for ;`
       return pos + 1
     if w == '."':                       # ."

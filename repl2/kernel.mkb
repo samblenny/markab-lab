@@ -216,13 +216,12 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 ;
 
 : @a_atoi?  ( ascii -- [n] bool )  ( Try to convert ascii digit to integer)
-  @a 0-9?               ( try simple decimal conversion first)
-  BASE @ 16 = if{       ( if base is 16:)
-    dup 0= if{          (   if decimal conversion fails:)
-      drop @a a-f?      (     try to convert as lowercase hex digit)
-        dup 0= if{      (     if that also fails:)
-          drop @a A-F?  (       try to convert as uppercase hex digit)
-        }if
+  @a 0-9?             ( try simple decimal conversion first)
+  BASE @ 16 = if{     ( if base is 16:)
+    dup 0= if{        (   if decimal conversion fails:)
+      drop @a a-f?    (     try to convert as lowercase hex digit)
+      dup 0= if{      (     if that also fails:)
+        drop @a A-F?  (       try to convert as uppercase hex digit)
       }if
     }if
   }if
@@ -253,30 +252,25 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   true               ( return {n bool=true})
 ;
 
-: ok  ( Print the '  OK' prompt)
-  2 spaces 79 emit  (     print "  OK\n" prompt)
-  75 emit cr
-;
-
-: err  ( Print '  ? ' then the string from DP as an error messge)
+: dowords             ( Interpret words from a line of text input)
+  skip_ws             ( skip whitespace at start of unread bytes in IB)
+  IB.done? if{        ( if IB is empty:)
+    2 spaces 79 emit  ( print "  OK\n" prompt, return to end loop)
+    75 emit cr ;
+  }if
+  here                ( save DP since next call will change it)
+  word                ( try to copy a word from IB to DP)
+  DP h!               ( put DP back where it was)
+  find if{            ( if word is in the dictionary:)
+    inner             (   interpret word)
+    dowords ;         (   loop using tail recursion)
+  }if
+  number              ( else: try to parse and push word as a number)
+  if{                 ( if word is a number:)
+    dowords ;         (   loop using tail recursion)
+  }if
   2 spaces 63 emit    ( else: print error message '  ? ')
   space DP.print cr   ( print the unknown word in quotes)
-;
-
-: dowords  ( Interpret words from a line of text input in IB)
-  skip_ws         ( skip whitespace at start of unread bytes in IB)
-  IB.done? if{    ( if IB is empty:)
-    ok ;          ( print "  OK\n" prompt, return to end loop)
-  }if
-  here            ( save DP since next call will change it)
-  word            ( try to copy a word from IB to DP)
-  DP h!           ( put DP back where it was)
-  find if{        ( if word is in the dictionary:)
-    inner         (   interpret word)
-    dowords ;     (   loop using tail recursion)
-  }if number if{  ( else: try to parse and push word as a number)
-    dowords ;     (   if it worked, loop using tail recursion)
-  }if err         ( else: print error message '  ? ' with string from DP)
 ;
 
 : outer     ( Outer interpreter)
@@ -289,5 +283,6 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   0 IN w!        ( 1 byte,  aligned 4, so zero all 4)
   0 LASTCALL w!  ( 2 bytes, aligned 4, so zero all 4)
   10 BASE w!     ( set number base to decimal)
+  curr 1- fence  ( write protect dictionary up to and including this word)
   outer          ( start the outer interpreter)
 ;

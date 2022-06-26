@@ -14,7 +14,7 @@ from mkb_autogen import (
   NOP, ADD, SUB, INC, DEC, MUL, AND, INV, OR, XOR, SLL, SRL, SRA,
   EQ, GT, LT, NE, ZE, TRUE, FALSE, JMP, JAL, CALL, RET,
   BZ, DRBLT, MTR, MRT, RDROP, R, PC, DROP, DUP, OVER, SWAP,
-  U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET,
+  U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET, FENCE,
   IOD, IOR, IODH, IORH, IOKEY, IOEMIT,
   MTA, LBA, LBAI,       AINC, ADEC, A,
   MTB, LBB, LBBI, SBBI, BINC, BDEC, B, MTX, X, MTY, Y,
@@ -23,6 +23,8 @@ from mkb_autogen import (
   OPCODES,
 )
 
+
+# This controls debug tracing and dissasembly
 DEBUG = False #True
 
 ROM_FILE = 'kernel.rom'
@@ -119,6 +121,7 @@ class VM:
     self.jumpTable[LW   ] = self.load_word
     self.jumpTable[SW   ] = self.store_word
     self.jumpTable[RESET] = self.reset
+    self.jumpTable[FENCE] = self.set_fence
     self.jumpTable[IOD  ] = self.io_data_stack
     self.jumpTable[IOR  ] = self.io_return_stack
     self.jumpTable[IODH ] = self.io_data_stack_hex
@@ -147,6 +150,13 @@ class VM:
     """Add a debug symbol entry to the symbol table"""
     self.dbg_addrs.append(int(addr))
     self.dbg_names.append(name)
+
+  def dbg_addr_for(self, addr):
+    """Given a name, return the address of the symbol it belongs to"""
+    for (i, s_name) in enumerate(self.dbg_names):
+      if name == s_name:
+        return self.dbg_addr[i]
+    return 0
 
   def dbg_name_for(self, addr):
     """Given an address, return the name of the symbol it belongs to"""
@@ -300,7 +310,7 @@ class VM:
   def store_byte_b_increment(self):
     """Store low byte of T byte to address in register B, then increment B"""
     addr = self.B
-    if (addr < 0) or (addr > MemMax):
+    if (addr < 0) or (addr > MemMax) or (addr < self.Fence):
       self.error = ERR_BAD_ADDRESS
       return
     x = int.to_bytes((self.T & 0xff), 1, 'little', signed=False)
@@ -521,6 +531,15 @@ class VM:
     self.DSDeep = 0
     self.RSDeep = 0
     self.error = 0
+
+  def set_fence(self):
+    """Set the write protect fence to T, if T is greater than old fence"""
+    if self.DSDeep < 1:
+      self.error = ERR_D_UNDER
+      return
+    if self.T > self.Fence:
+      self.Fence = self.T
+    self.drop()
 
   def return_(self):
     """Return from subroutine, taking address from return stack"""
@@ -810,10 +829,9 @@ class VM:
     prototypes, where simplicity of the code is more important than its
     efficiency. Using this method to print long strings would be inefficient.
     """
-    print('', end='')
+    sys.stdout.flush()
     sys.stdout.buffer.write(int.to_bytes(self.T & 0xff, 1, 'little'))
     sys.stdout.flush()
-    print('', end='')
     self.drop()
 
   def _ok_or_err(self):
