@@ -130,6 +130,8 @@
 1811 a-f?
 1842 @a_atoi?
 1889 number
-1954 dowords
-2032 outer
-2050 boot
+1954 ok
+1974 err
+1998 dowords
+2055 outer
+2073 boot

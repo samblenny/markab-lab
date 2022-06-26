@@ -253,25 +253,30 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   true               ( return {n bool=true})
 ;
 
-: dowords             ( Interpret words from a line of text input)
-  skip_ws             ( skip whitespace at start of unread bytes in IB)
-  IB.done? if{        ( if IB is empty:)
-    2 spaces 79 emit  ( print "  OK\n" prompt, return to end loop)
-    75 emit cr ;
-  }if
-  here                ( save DP since next call will change it)
-  word                ( try to copy a word from IB to DP)
-  DP h!               ( put DP back where it was)
-  find if{            ( if word is in the dictionary:)
-    inner             (   interpret word)
-    dowords ;         (   loop using tail recursion)
-  }if
-  number              ( else: try to parse and push word as a number)
-  if{                 ( if word is a number:)
-    dowords ;         (   loop using tail recursion)
-  }if
+: ok  ( Print the '  OK' prompt)
+  2 spaces 79 emit  (     print "  OK\n" prompt)
+  75 emit cr
+;
+
+: err  ( Print '  ? ' then the string from DP as an error messge)
   2 spaces 63 emit    ( else: print error message '  ? ')
   space DP.print cr   ( print the unknown word in quotes)
+;
+
+: dowords  ( Interpret words from a line of text input in IB)
+  skip_ws         ( skip whitespace at start of unread bytes in IB)
+  IB.done? if{    ( if IB is empty:)
+    ok ;          ( print "  OK\n" prompt, return to end loop)
+  }if
+  here            ( save DP since next call will change it)
+  word            ( try to copy a word from IB to DP)
+  DP h!           ( put DP back where it was)
+  find if{        ( if word is in the dictionary:)
+    inner         (   interpret word)
+    dowords ;     (   loop using tail recursion)
+  }if number if{  ( else: try to parse and push word as a number)
+    dowords ;     (   if it worked, loop using tail recursion)
+  }if err         ( else: print error message '  ? ' with string from DP)
 ;
 
 : outer     ( Outer interpreter)

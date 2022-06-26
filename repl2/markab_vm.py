@@ -810,9 +810,10 @@ class VM:
     prototypes, where simplicity of the code is more important than its
     efficiency. Using this method to print long strings would be inefficient.
     """
-    sys.stdout.flush()
+    print('', end='')
     sys.stdout.buffer.write(int.to_bytes(self.T & 0xff, 1, 'little'))
     sys.stdout.flush()
+    print('', end='')
     self.drop()
 
   def _ok_or_err(self):
