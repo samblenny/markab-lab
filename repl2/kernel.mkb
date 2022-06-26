@@ -216,10 +216,7 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 ;
 
 : num10  ( -- [n] bool)  ( Try to parse word at DP as decimal number)
-  DP.len 1 < if{      ( if length word is empty:)
-    false ;           (   return {bool=false})
-  }if
-  a b 0               ( save old values of a and b, start number at n=0)
+  0                   ( start number at n=0)
   false >b            ( b = false, meaning assume number is positive)
   DP.data >a          ( a = address of first string data byte)
   DP.len              ( push length of string for use as loop limit)
@@ -228,25 +225,20 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
     a+                (   advance a to point at byte after '-')
     1-                (   decrement string length to skip '-')
   }if
-  ( intentionally skipping second length check here: just "-" would match SUB)
   1- for{             ( loop over each byte of word at DP)
     10 *              (   scale n up by base)
     @a+ 0-9?          (   load next byte, try to convert decimal digit)
     0= if{            (   if byte was not a decimal digit:)
-      drop >b >a      (     drop n, restore old values of a and b)
+      drop            (     drop n)
       false rdrop ;   (     return {bool=false}, word is not a number)
     }if +             (   else: add this digit to n)
   }for
   b if{ inv 1+ }if    ( if b was set for a leading '-': negate n)
-  swap >b swap >a     ( restore old values of a and b)
   true                ( return {n bool=true})
 ;
 
 : num16  ( -- [n] bool)  ( Try to parse word at DP as decimal number)
-  DP.len 1 < if{      ( if length word is empty:)
-    false ;           (   return {bool=false})
-  }if
-  a 0                 ( save old value of a, start number at n=0)
+  0                   ( start number at n=0)
   DP.data >a          ( a = address of first string data byte)
   DP.len 1- for{      ( loop over each byte of word at DP)
     16 *              (   scale n up by base)
@@ -258,11 +250,10 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
       }if
     }if a+            (   now increment a, stack is {... [n] bool})
     0= if{            (   if byte was not a hexadecimal digit:)
-      drop >a         (     drop n, restore old value of a)
+      drop            (     drop n)
       false rdrop ;   (     return {bool=false}, word is not a number)
     }if +             (   else: add this digit to n)
-  }for
-  swap >a true        ( restore old value of a, return {n bool=true})
+  }for true           ( return {n bool=true})
 ;
 
 : number ( -- [n] bool )  ( Try to parse word at DP as number in current base)
