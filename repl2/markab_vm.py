@@ -706,7 +706,7 @@ class VM:
     """Push 0 (false) to data stack"""
     self._push(0)
 
-  def _log_ds(self, base=10, prompt=True):
+  def _log_ds(self, base=10):
     """Log (debug print) the data stack in the manner of .S"""
     print(" ", end='')
     deep = self.DSDeep
@@ -729,8 +729,6 @@ class VM:
         print(f" {self.T}", end='')
     else:
       print(" Stack is empty", end='')
-    if prompt:
-      self._ok_or_err()
 
   def _log_rs(self, base=10):
     """Log (debug print) the return stack in the manner of .S"""
@@ -750,7 +748,6 @@ class VM:
         print(f" {self.R}", end='')
     else:
       print(" R-Stack is empty", end='')
-    self._ok_or_err()
 
   def _clear_error(self):
     """Clear VM error status code"""
