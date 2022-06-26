@@ -325,6 +325,17 @@ reset  OK
 ( addr: 0 1    2  3 4   5   6  *7*  8   9         )
 ASM{   U8 7 CALL U8 9 IOD RET   U8 25 RET }ASM
 warmboot                                    (  25 9  OK)  25 9  OK
+reset  OK
+( test JAL pushes return address properly         )
+( addr: 0 1   2   3 4 5     6   7 *8*             )
+ASM{   U8 3 MTR JAL 8 0 RDROP RET IOR RET }ASM
+warmboot                                     (  3 6  OK)  3 6  OK
+reset  OK
+( test CALL pushes return address properly        )
+( addr: 0 1   2  3 4    5     6   7 *8*           )
+ASM{   U8 3 MTR U8 8 CALL RDROP RET IOR RET }ASM
+warmboot                                     (  3 6  OK)  3 6  OK
+reset  OK
 
 === test.vm.test_instructions_jz() ===
 ( opcode coverage: BZ                                     )
