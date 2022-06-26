@@ -174,7 +174,7 @@ class VM:
       else:
         name = f"{name}"
       print(f"<<{pc:04x}:{op:2}: {self.dbg_name_for(pc):9}:{name:6}", end='')
-      self._log_ds(prompt=False)
+      self._log_ds()
       print(">>")
     return op
 

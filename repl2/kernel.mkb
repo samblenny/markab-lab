@@ -40,9 +40,10 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   }for >a      ( restore old value of a)
 ;
 
-: DP.len   ( -- len  )  DP @ ;   ( Get lenght of string data available at DP)
-: IB.len   ( -- len  )  IB @ ;   ( Get length of data available in IB)
-: IB.data  ( -- addr )  IB 1+ ;  ( Get address of IB's data field)
+: DP.len   ( -- len  )  here @ ;   ( Get value of DP string length field)
+: DP.data  ( -- addr )  here 1+ ;  ( Get address of DP string data field)
+: IB.len   ( -- len  )  IB @ ;     ( Get value of IP string length field)
+: IB.data  ( -- addr )  IB 1+ ;    ( Get address of IB string data field)
 
 : DP.print  here print ;  ( Print string from DP)
 : IB.print  IB print ;    ( Print input buffer)
@@ -191,6 +192,87 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   IN.aup             ( update IN, restore a)
 ;
 
+: digit0-9?  ( n -- [n] bool )  ( Try to convert T from ASCII decimal digit)
+  48 - dup             ( calculate n = n-'0' = n-48)
+  0 < over 9 > or if{  ( if n-'0'<0 or 9<n-'0':)
+    drop false ;       (   return {bool=false}, n is not a decimal digit)
+  }if true             ( else: return {n bool=true}, n is a decimal digit)
+;
+
+: digitA-F?  ( n -- [n] bool )  ( Try to convert T from uppercase hex digit)
+  65 - dup             ( calculate n = n-'A' = n-65)
+  0 < over 5 > or if{  ( if n-'A'<0 or 5<n-'A':)
+    drop false ;       (   return {bool=false}, n is not uppercase hex digit)
+  }if 10 +             ( else: calculate n = n+10 as low digit is '0', not 'A')
+  true                 ( return {n bool=true}, n is uppercase hex digit)
+;
+
+: digit_a-f?  ( n -- [n] bool )  ( Try to convert T from lowercase hex digit)
+  97 - dup             ( calculate n = n-'a' = n-97)
+  0 < over 5 > or if{  ( if n-'a'<0 or 5<n-'a':)
+    drop false ;       (   return {bool=false}, n is not lowercase hex digit)
+  }if 10 +             ( else: calculate n = n+10 as low digit is '0', not 'a')
+  true                 ( return {n bool=true}, n is lowercase hex digit)
+;
+
+: number_10  ( -- [n] bool)  ( Try to parse word at DP as decimal number)
+  DP.len 1 < if{      ( if length word is empty:)
+    false ;           (   return {bool=false})
+  }if
+  a b 0               ( save old values of a and b, start number at n=0)
+  false >b            ( b = false, meaning assume number is positive)
+  DP.data >a          ( a = address of first string data byte)
+  DP.len              ( push length of string for use as loop limit)
+  a @ 45 = if{        ( if first byte of string in DP is '-':)
+    true >b           (   b = true, meaning number is negative)
+    a+                (   advance a to point at byte after '-')
+    1-                (   decrement string length to skip '-')
+  }if
+  ( intentionally skipping second length check here: just "-" would match SUB)
+  1- for{             ( loop over each byte of word at DP)
+    10 *              (   scale n up by base)
+    @a+ digit0-9?     (   load next byte, try to convert decimal digit)
+    0= if{            (   if byte was not a decimal digit:)
+      drop >b >a      (     drop n, restore old values of a and b)
+      false rdrop ;   (     return {bool=false}, word is not a number)
+    }if +             (   else: add this digit to n)
+  }for
+  b if{ inv 1+ }if    ( if b was set for a leading '-': negate n)
+  swap >b swap >a     ( restore old values of a and b)
+  true                ( return {n bool=true})
+;
+
+: number_16  ( -- [n] bool)  ( Try to parse word at DP as decimal number)
+  DP.len 1 < if{            ( if length word is empty:)
+    false ;                 (   return {bool=false})
+  }if
+  a 0                       ( save old value of a, start number at n=0)
+  DP.data >a                ( a = address of first string data byte)
+  DP.len 1- for{            ( loop over each byte of word at DP)
+    16 *                    (   scale n up by base)
+    @a digit0-9?            (   try to convert next byte as '0'..'9')
+    dup 0= if{              (   if conversion fails:)
+      drop @a digitA-F?     (     try to convert as 'A'..'F')
+      dup 0= if{            (     if it fails:)
+        drop @a digit_a-f?  (       try to convert as 'a'..'f')
+      }if
+    }if a+                  (   now increment a, stack is {... [n] bool})
+    0= if{                  (   if byte was not a hexadecimal digit:)
+      drop >a               (     drop n, restore old value of a)
+      false rdrop ;         (     return {bool=false}, word is not a number)
+    }if +                   (   else: add this digit to n)
+  }for
+  swap >a true              ( restore old value of a, return {n bool=true})
+;
+
+: number ( -- [n] bool )  ( Try to parse word at DP as number in current base)
+  BASE @ dup 10 = if{     ( if base is 10:)
+    drop number_10 ;      (   attempt to parse decimal number)
+  }if 16 = if{            ( else if base is 16:)
+    number_16 ;           (   attempt to parse hex number)
+  }if false               ( else: indicate parse failed by returning false)
+;
+
 : dowords             ( Interpret words from a line of text input)
   skip_ws             ( skip whitespace at start of unread bytes in IB)
   IB.done? if{        ( if IB is empty:)
@@ -202,6 +284,10 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   DP h!               ( put DP back where it was)
   find if{            ( if word is in the dictionary:)
     inner             (   interpret word)
+    dowords ;         (   loop using tail recursion)
+  }if
+  number              ( else: try to parse and push word as a number)
+  if{                 ( if word is a number:)
     dowords ;         (   loop using tail recursion)
   }if
   2 spaces 63 emit    ( else: print error message '  ? ')
@@ -217,5 +303,6 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 : boot    ( Initialize global vars, print version, start outer interpreter)
   0 IN w!        ( 1 byte,  aligned 4, so zero all 4)
   0 LASTCALL w!  ( 2 bytes, aligned 4, so zero all 4)
+  10 BASE w!     ( set number base to decimal)
   outer          ( start the outer interpreter)
 ;
