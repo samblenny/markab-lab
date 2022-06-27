@@ -40,6 +40,7 @@ r> MRT
 >r MTR
 r R
 pc PC
+err ERR
 rdrop RDROP
 drop DROP
 dup DUP
@@ -56,6 +57,7 @@ w@ LW
 w! SW
 reset RESET
 fence FENCE
+clerr CLERR
 iod IOD
 ior IOR
 iodh IODH

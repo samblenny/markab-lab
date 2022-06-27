@@ -16,8 +16,8 @@ bytecode for the Markab virtual machine:
 NOP ADD SUB INC DEC MUL AND INV OR XOR
 SLL SRL SRA
 EQ GT LT NE ZE TRUE FALSE JMP JAL CALL RET
-BZ DRBLT MRT MTR RDROP R PC DROP DUP OVER SWAP
-U8 U16 I32 LB SB LH SH LW SW RESET
+BZ DRBLT MRT MTR RDROP R PC ERR DROP DUP OVER SWAP
+U8 U16 I32 LB SB LH SH LW SW RESET FENCE CLERR
 IOD IOR IODH IORH IOKEY IOEMIT
 MTA LBA LBAI      AINC ADEC A
 MTB LBB LBBI SBBI BINC BDEC B MTX X MTY Y
@@ -49,8 +49,8 @@ with a core vocabulary containing definitions for these core words:
 nop + - 1+ 1- * and inv or xor
 << >> >>>
 = > < != 0= true false call
-r> >r rdrop r pc drop dup over swap
-@ ! h@ h! w@ w!
+r> >r rdrop r pc err drop dup over swap
+@ ! h@ h! w@ w! reset fence clerr
 iod ior iod iorh key emit
 >a @a @a+     a+ a- a
 >b @b @b+ !b+ b+ b- b >x x >y y

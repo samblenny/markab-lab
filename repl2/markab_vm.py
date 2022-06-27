@@ -13,8 +13,8 @@ import os
 from mkb_autogen import (
   NOP, ADD, SUB, INC, DEC, MUL, AND, INV, OR, XOR, SLL, SRL, SRA,
   EQ, GT, LT, NE, ZE, TRUE, FALSE, JMP, JAL, CALL, RET,
-  BZ, DRBLT, MTR, MRT, RDROP, R, PC, DROP, DUP, OVER, SWAP,
-  U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET, FENCE,
+  BZ, DRBLT, MTR, MRT, RDROP, R, PC, ERR, DROP, DUP, OVER, SWAP,
+  U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET, FENCE, CLERR,
   IOD, IOR, IODH, IORH, IOKEY, IOEMIT,
   MTA, LBA, LBAI,       AINC, ADEC, A,
   MTB, LBB, LBBI, SBBI, BINC, BDEC, B, MTX, X, MTY, Y,
@@ -53,7 +53,7 @@ class VM:
 
   def __init__(self):
     """Initialize virtual CPU, RAM, and peripherals"""
-    self.error = 0                  # Error code register
+    self.ERR = 0                    # Error code register
     self.base = 10                  # number Base for debug printing
     self.A = 0                      # register for source address or scratch
     self.B = 0                      # register for destination addr or scratch
@@ -107,6 +107,7 @@ class VM:
     self.jumpTable[RDROP] = self.r_drop
     self.jumpTable[R    ] = self.r_
     self.jumpTable[PC   ] = self.pc_
+    self.jumpTable[ERR  ] = self.err_
     self.jumpTable[DROP ] = self.drop
     self.jumpTable[DUP  ] = self.dup
     self.jumpTable[OVER ] = self.over
@@ -122,6 +123,7 @@ class VM:
     self.jumpTable[SW   ] = self.store_word
     self.jumpTable[RESET] = self.reset
     self.jumpTable[FENCE] = self.set_fence
+    self.jumpTable[CLERR] = self.clear_error
     self.jumpTable[IOD  ] = self.io_data_stack
     self.jumpTable[IOR  ] = self.io_return_stack
     self.jumpTable[IODH ] = self.io_data_stack_hex
@@ -168,7 +170,7 @@ class VM:
   def _set_pc(self, addr):
     """Set Program Counter with range check"""
     if (addr > MemMax) or (addr > 0xffff):
-      self.error = ERR_BAD_ADDRESS
+      self.ERR = ERR_BAD_ADDRESS
       return
     self.PC = addr
 
@@ -192,39 +194,34 @@ class VM:
     """Load byte array of rom image into memory"""
     n = len(code)
     if n > (HeapRes-Heap):
-      self.error = ERR_BOOT_OVERFLOW
+      self.ERR = ERR_BOOT_OVERFLOW
       return
     self.ram[Heap:Heap+n] = code[0:]
 
   def _warm_boot(self, code, max_cycles=1):
     """Load a byte array of machine code into memory, then run it."""
-    self.error = 0
+    self.ERR = 0
     self._load_rom(code)
     self._set_pc(Heap)      # hardcode boot vector to start of heap (for now)
     self._step(max_cycles)
-    if self.error != 0:
-      print(f"  ERR{self.error}")
 
   def _step(self, max_cycles):
     """Step the virtual CPU clock to run up to max_cycles instructions"""
     for i in range(max_cycles):
-      if self.error != 0:
-        print(f"<<ERR:{self.error}>>", end='')
-        return
       t = self._next_instruction()
       if self.RSDeep == 0 and t == RET:
         return
       if t in self.jumpTable:
         (self.jumpTable[t])()
       else:
-        self.error = ERR_BAD_INSTRUCTION
+        self.ERR = ERR_BAD_INSTRUCTION
         return
-    self.error = ERR_MAX_CYCLES
+    self.ERR = ERR_MAX_CYCLES
 
   def _op_st(self, fn):
     """Apply operation λ(S,T), storing the result in S and dropping T"""
     if self.DSDeep < 2:
-      self.error = ERR_D_UNDER
+      self.ERR = ERR_D_UNDER
       return
     self.S = c_int32(fn(self.S, self.T)).value
     self.drop()
@@ -232,7 +229,7 @@ class VM:
   def _op_t(self, fn):
     """Apply operation λ(T), storing the result in T"""
     if self.DSDeep < 1:
-      self.error = ERR_D_UNDER
+      self.ERR = ERR_D_UNDER
       return
     self.T = c_int32(fn(self.T)).value
 
@@ -241,7 +238,7 @@ class VM:
     deep = self.DSDeep
     if deep > 17:
       self.reset()             # Clear data and return stacks
-      self.error = ERR_D_OVER  # Set error code
+      self.ERR = ERR_D_OVER    # Set error code
       return
     if deep > 1:
       third = deep-2
@@ -261,19 +258,19 @@ class VM:
   def load_byte(self):
     """Load a uint8 (1 byte) from memory address T, saving result in T"""
     if self.DSDeep < 1:
-      self.error = ERR_D_UNDER
+      self.ERR = ERR_D_UNDER
       return
     addr = self.T
     if (addr < 0) or (addr > MemMax):
-      self.error = ERR_BAD_ADDRESS
-      return
-    self.T = int.from_bytes(self.ram[addr:addr+1], 'little', signed=False)
+      self.ERR = ERR_BAD_ADDRESS
+    else:
+      self.T = int.from_bytes(self.ram[addr:addr+1], 'little', signed=False)
 
   def load_byte_a(self):
     """Load byte from memory using address in register A"""
     addr = self.A
     if (addr < 0) or (addr > MemMax):
-      self.error = ERR_BAD_ADDRESS
+      self.ERR = ERR_BAD_ADDRESS
       return
     x = int.from_bytes(self.ram[addr:addr+1], 'little', signed=False)
     self._push(x)
@@ -282,7 +279,7 @@ class VM:
     """Load byte from memory using address in register B"""
     addr = self.B
     if (addr < 0) or (addr > MemMax):
-      self.error = ERR_BAD_ADDRESS
+      self.ERR = ERR_BAD_ADDRESS
       return
     x = int.from_bytes(self.ram[addr:addr+1], 'little', signed=False)
     self._push(x)
@@ -291,7 +288,7 @@ class VM:
     """Load byte from memory using address in register A, then increment A"""
     addr = self.A
     if (addr < 0) or (addr > MemMax):
-      self.error = ERR_BAD_ADDRESS
+      self.ERR = ERR_BAD_ADDRESS
       return
     x = int.from_bytes(self.ram[addr:addr+1], 'little', signed=False)
     self.A += 1
@@ -301,7 +298,7 @@ class VM:
     """Load byte from memory using address in register B, then increment B"""
     addr = self.B
     if (addr < 0) or (addr > MemMax):
-      self.error = ERR_BAD_ADDRESS
+      self.ERR = ERR_BAD_ADDRESS
       return
     x = int.from_bytes(self.ram[addr:addr+1], 'little', signed=False)
     self.B += 1
@@ -310,25 +307,25 @@ class VM:
   def store_byte_b_increment(self):
     """Store low byte of T byte to address in register B, then increment B"""
     addr = self.B
-    if (addr < 0) or (addr > MemMax) or (addr < self.Fence):
-      self.error = ERR_BAD_ADDRESS
-      return
     x = int.to_bytes((self.T & 0xff), 1, 'little', signed=False)
     self.B += 1
-    self.ram[addr:addr+1] = x
+    if (addr < 0) or (addr > MemMax) or (addr < self.Fence):
+      self.ERR = ERR_BAD_ADDRESS
+    else:
+      self.ram[addr:addr+1] = x
     self.drop()
 
   def store_byte(self):
     """Store low byte of S (uint8) at memory address T"""
     if self.DSDeep < 2:
-      self.error = ERR_D_UNDER
-      return
-    addr = self.T
-    if (addr < 0) or (addr > MemMax) or (addr < self.Fence):
-      self.error = ERR_BAD_ADDRESS
+      self.ERR = ERR_D_UNDER
       return
     x = int.to_bytes((self.S & 0xff), 1, 'little', signed=False)
-    self.ram[addr:addr+1] = x
+    addr = self.T
+    if (addr < 0) or (addr > MemMax) or (addr < self.Fence):
+      self.ERR = ERR_BAD_ADDRESS
+    else:
+      self.ram[addr:addr+1] = x
     self.drop()
     self.drop()
 
@@ -336,11 +333,11 @@ class VM:
     """Call to subroutine at address T, pushing old PC to return stack"""
     if self.RSDeep > 16:
       self.reset()
-      self.error = ERR_R_OVER
+      self.ERR = ERR_R_OVER
       return
     if self.T > MemMax:
       self.reset()
-      self.error = ERR_BAD_ADDRESS
+      self.ERR = ERR_BAD_ADDRESS
       return
     # push the current Program Counter (PC) to return stack
     if self.RSDeep > 0:
@@ -356,7 +353,7 @@ class VM:
     """Jump to subroutine after pushing old value of PC to return stack"""
     if self.RSDeep > 16:
       self.reset()
-      self.error = ERR_R_OVER
+      self.ERR = ERR_R_OVER
       return
     # read a 16-bit address from the instruction stream
     pc = self.PC
@@ -375,7 +372,7 @@ class VM:
     """Drop T, the top item of the data stack"""
     deep = self.DSDeep
     if deep < 1:
-      self.error = ERR_D_UNDER
+      self.ERR = ERR_D_UNDER
       return
     self.T = self.S
     if deep > 2:
@@ -394,11 +391,11 @@ class VM:
   def load_word(self):
     """Load a signed int32 (word = 4 bytes) from memory address T, into T"""
     if self.DSDeep < 1:
-      self.error = ERR_D_UNDER
+      self.ERR = ERR_D_UNDER
       return
     addr = self.T
     if (addr < 0) or (addr > MemMax-3):
-      self.error = ERR_BAD_ADDRESS
+      self.ERR = ERR_BAD_ADDRESS
       return
     self.T = int.from_bytes(self.ram[addr:addr+4], 'little', signed=True)
 
@@ -422,7 +419,7 @@ class VM:
   def branch_zero(self):
     """Branch to address read from instruction stream if T == 0, drop T"""
     if self.DSDeep < 1:
-      self.error = ERR_D_UNDER
+      self.ERR = ERR_D_UNDER
       return
     pc = self.PC
     if self.T == 0:
@@ -437,7 +434,7 @@ class VM:
   def dec_r_branch_less_than(self):
     """Decrement R and Branch to address if R is Less Than 0"""
     if self.RSDeep < 1:
-      self.error = ERR_R_UNDER
+      self.ERR = ERR_R_UNDER
       return
     self.R -= 1
     pc = self.PC
@@ -498,7 +495,7 @@ class VM:
   def over(self):
     """Push a copy of S"""
     if self.DSDeep < 1:
-      self.error = ERR_D_UNDER
+      self.ERR = ERR_D_UNDER
       return
     self._push(self.S)
 
@@ -530,22 +527,26 @@ class VM:
     """Reset the data stack, return stack and error code"""
     self.DSDeep = 0
     self.RSDeep = 0
-    self.error = 0
+    self.ERR = 0
 
   def set_fence(self):
     """Set the write protect fence to T, if T is greater than old fence"""
     if self.DSDeep < 1:
-      self.error = ERR_D_UNDER
+      self.ERR = ERR_D_UNDER
       return
     if self.T > self.Fence:
       self.Fence = self.T
     self.drop()
 
+  def clear_err(self):
+    """Clear the VM's error register (ERR)"""
+    self.ERR = 0
+
   def return_(self):
     """Return from subroutine, taking address from return stack"""
     if self.RSDeep < 1:
       self.reset()
-      self.error = ERR_R_UNDER
+      self.ERR = ERR_R_UNDER
       return
     # Set program counter from top of return stack
     self.PC = self.R
@@ -571,11 +572,11 @@ class VM:
     """Move top of return stack (R) to top of data stack (T)"""
     if self.RSDeep < 1:
       self.reset()
-      self.error = ERR_R_UNDER
+      self.ERR = ERR_R_UNDER
       return
     if self.DSDeep > 17:
       self.reset()
-      self.error = ERR_D_OVER
+      self.ERR = ERR_D_OVER
       return
     self._push(self.R)
     if self.RSDeep > 1:
@@ -587,7 +588,7 @@ class VM:
     """Drop R in the manner needed when exiting from a counted loop"""
     if self.RSDeep < 1:
       self.reset()
-      self.error = ERR_R_UNDER
+      self.ERR = ERR_R_UNDER
       return
     if self.RSDeep > 1:
       rSecond = self.RSDeep - 2
@@ -611,21 +612,21 @@ class VM:
   def store_word(self):
     """Store word (4 bytes) from S as signed int32 at memory address T"""
     if self.DSDeep < 2:
-      self.error = ERR_D_UNDER
+      self.ERR = ERR_D_UNDER
       return
     addr = self.T
-    if (addr < 0) or (addr > MemMax-3) or (addr < self.Fence):
-      self.error = ERR_BAD_ADDRESS
-      return
     x = int.to_bytes(c_int32(self.S).value, 4, 'little', signed=True)
-    self.ram[addr:addr+4] = x
+    if (addr < 0) or (addr > MemMax-3) or (addr < self.Fence):
+      self.ERR = ERR_BAD_ADDRESS
+    else:
+      self.ram[addr:addr+4] = x
     self.drop()
     self.drop()
 
   def swap(self):
     """Swap S with T"""
     if self.DSDeep < 2:
-      self.error = ERR_D_UNDER
+      self.ERR = ERR_D_UNDER
       return
     tmp = self.T
     self.T = self.S
@@ -635,11 +636,11 @@ class VM:
     """Move top of data stack (T) to top of return stack (R)"""
     if self.RSDeep > 16:
       self.reset()
-      self.error = ERR_R_OVER
+      self.ERR = ERR_R_OVER
       return
     if self.DSDeep < 1:
       self.reset()
-      self.error = ERR_D_UNDER
+      self.ERR = ERR_D_UNDER
       return
     if self.RSDeep > 0:
       rSecond = self.RSDeep - 1
@@ -652,7 +653,7 @@ class VM:
     """Move top of data stack (T) to register A"""
     if self.DSDeep < 1:
       self.reset()
-      self.error = ERR_D_UNDER
+      self.ERR = ERR_D_UNDER
       return
     self.A = self.T
     self.drop()
@@ -661,7 +662,7 @@ class VM:
     """Move top of data stack (T) to register B"""
     if self.DSDeep < 1:
       self.reset()
-      self.error = ERR_D_UNDER
+      self.ERR = ERR_D_UNDER
       return
     self.B = self.T
     self.drop()
@@ -670,7 +671,7 @@ class VM:
     """Move top of data stack (T) to register X"""
     if self.DSDeep < 1:
       self.reset()
-      self.error = ERR_D_UNDER
+      self.ERR = ERR_D_UNDER
       return
     self.X = self.T
     self.drop()
@@ -679,7 +680,7 @@ class VM:
     """Move top of data stack (T) to register Y"""
     if self.DSDeep < 1:
       self.reset()
-      self.error = ERR_D_UNDER
+      self.ERR = ERR_D_UNDER
       return
     self.Y = self.T
     self.drop()
@@ -687,25 +688,25 @@ class VM:
   def load_halfword(self):
     """Load halfword (2 bytes, zero-extended) from memory address T, into T"""
     if self.DSDeep < 1:
-      self.error = ERR_D_UNDER
+      self.ERR = ERR_D_UNDER
       return
     addr = self.T
     if (addr < 0) or (addr > MemMax-1):
-      self.error = ERR_BAD_ADDRESS
+      self.ERR = ERR_BAD_ADDRESS
       return
     self.T = int.from_bytes(self.ram[addr:addr+2], 'little', signed=False)
 
   def store_halfword(self):
     """Store low 2 bytes from S (uint16) at memory address T"""
     if self.DSDeep < 2:
-      self.error = ERR_D_UNDER
-      return
-    addr = self.T
-    if (addr < 0) or (addr > MemMax-1) or (addr < self.Fence):
-      self.error = ERR_BAD_ADDRESS
+      self.ERR = ERR_D_UNDER
       return
     x = int.to_bytes((self.S & 0xffff), 2, 'little', signed=False)
-    self.ram[addr:addr+2] = x
+    addr = self.T
+    if (addr < 0) or (addr > MemMax-1) or (addr < self.Fence):
+      self.ERR = ERR_BAD_ADDRESS
+    else:
+      self.ram[addr:addr+2] = x
     self.drop()
     self.drop()
 
@@ -768,9 +769,9 @@ class VM:
     else:
       print(" R-Stack is empty", end='')
 
-  def _clear_error(self):
+  def clear_error(self):
     """Clear VM error status code"""
-    self.error = 0
+    self.ERR = 0
 
   def r_(self):
     """Push a copy of top of Return stack (R) to the data stack"""
@@ -779,6 +780,10 @@ class VM:
   def pc_(self):
     """Push a copy of the Program Counter (PC) to the data stack"""
     self._push(self.PC)
+
+  def err_(self):
+    """Push a copy of the Error register (ERR) to the data stack"""
+    self._push(self.ERR)
 
   def a_(self):
     """Push a copy of register A to the data stack"""
@@ -836,9 +841,9 @@ class VM:
 
   def _ok_or_err(self):
     """Print the OK or ERR line-end status message and clear any errors"""
-    if self.error != 0:
-      print(f"  ERR{self.error}")
-      self.error = 0
+    if self.ERR != 0:
+      print(f"  ERR{self.ERR}")
+      self.ERR = 0
     else:
       print("  OK")
 
