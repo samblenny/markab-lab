@@ -14,9 +14,6 @@ from mkb_autogen import (
   MTB, LBB, LBBI, SBBI, BINC, BDEC, B, MTX, X, MTY, Y,
   OPCODES,
 
-  Boot, BootMax, Heap, HeapRes, HeapMax, DP,
-  IN, IBLen, IB, PadLen, Pad, FmtLen, Fmt, MemMax,
-
   CORE_VOC, T_VAR, T_CONST, T_OP, T_OBJ, T_IMM,
 )
 
