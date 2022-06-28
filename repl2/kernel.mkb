@@ -23,6 +23,10 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   reset  ( empty stacks, but particularly the return stack)
 ;
 
+: compiling?  ( -- bool )  ( Check if compile mode active)
+  MODE @ MODE_COM =
+;
+
 ( ----------------------------- )
 ( String struct format:         )
 ( Byte range   Field            )
@@ -62,7 +66,7 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   0 IN !     ( reset IN)
 ;
 
-: readline
+: readline            ( Read a line of text from standard input)
   b IB.data >b        ( save old b, new b = pointer to Input Buffer)
   255 for{            ( loop for up to IB capacity of 255 bytes)
     key               (   read byte from standard input, copy it to IB)
@@ -174,7 +178,7 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   >b           ( restore old value of b)
 ;
 
-: word               ( Copy a word from IB to dictionary at DP)
+: word  ( -- )       ( Copy a word from IB to dictionary at DP)
   IB.done? if{       ( if IB has no more bytes to read:)
     0 here ! ;       (   set string length at DP to 0, return)
   }if
@@ -252,6 +256,151 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   true               ( return {n bool=true})
 ;
 
+( --------------------------------------------------------------------)
+( --- Begin Compiler -------------------------------------------------)
+( --------------------------------------------------------------------)
+
+: immediate        ( Change type of last word from regular to immediate)
+  a                ( save old value of a)
+  curr v.type >a   ( a = address of dictionary_head.type field)
+  @a T_OBJ = if{   ( if .type was regular compiled word:)
+    T_IMM a !      (   change type to immediate compiled word)
+  }if >a           ( restore old value of a)
+;
+
+: allot ( bytes -- ) DP h@ + DP h! ;  ( Allocate dictionary space)
+
+:  , here  ! 1 allot ;   ( store low byte of T at DP)
+: h, here h! 2 allot ;   ( store low halfword of T at DP)
+: w, here w! 4 allot ;   ( store full word T at DP)
+
+: NEST+  ( -- )  ( Increment block nesting level)
+  NEST dup @ 1+ swap !
+;
+
+: NEST-  ( -- )  ( Decrement block nesting level)
+  a NEST >a    ( save old a, a = NEST: address of nesting level variable)
+  @a 1-        ( load value of nesting level and decrement it)
+  dup 0 < if{  ( if result is < 0)
+    dup xor    (   replace the result with 0)
+    ( TODO: deal with error: source code has unbalanced }if or }for)
+  }if a ! >a   ( store the new nesting level, restore old a)
+;
+
+: NESTED?  ( -- bool)  ( Is nesting level > 0, because of if{ or for{ block?)
+  NEST @ 0 >
+;
+
+: create ( -- lenth-of-name )
+  curr h,         ( store link to current head of dictionary at DP)
+  word            ( copy name from input stream to DP)
+  here @ 1+       ( calculate size of name struct: string bytes + length byte)
+  allot           ( allocate dictionary space for the name)
+;
+
+: extend  ( addr -- )  ( Extend the dictionary with a new head item)
+  dup CONTEXT h!  ( update context to include new name in searching)
+  CURRENT h!      ( update current to so next new entry will point to this one)
+;
+
+: :                ( Start defining a new vocabulary word)
+  here             ( push link address for updating dictionary pointers later)
+  create           ( read name to start dictionary entry)
+  T_OBJ ,          ( append type field: object code)
+  MODE_COM MODE !  ( set compile mode)
+  extend           ( update the dictionary pointers to include this word)
+;
+
+: update-mode        ( Clear compile mode, but only for final ; of definition)
+  NESTED? 0= if{     ( if block nesting level is 0:)
+    MODE_INT MODE !  (   clear compile mode)
+  }if
+;
+
+: ;                     ( Return from a word)
+  here 3 - LASTCALL h@  ( tail call optimizer...)
+  = if{                 ( if last compiled subroutine call was 3 bytes ago:)
+    JMP here 3 - !      (   change the JAL to a JMP)
+    update-mode ;       (   clear compile mode if needed, then return)
+  }if RET ,             ( else: compile a RET instruction)
+  update-mode           ( clear compile mode if needed)
+; immediate
+
+: compile-number ( n -- )  ( Compile number from T into dictionary)
+  x swap >x            ( save old value of x, x = n)
+  x 0 < x 65535 > if{  ( if x < 0 or x > 0xffff:)
+    I32 , x w, >x ;    (   compile as 32-bit signed, restore old x, return)
+  }if x 255 > if{      ( else if x > 0xff:)
+    U16 , x h, >x ;    (   compile as 16-bit unsigned, restore old x, return)
+  }if U8 , x , >x      ( else: compile as 8-bit unsigned, restore old x)
+;
+
+: var  ( -- )  ( Add variable to dictionary)
+  here     ( save link location for updating dictionary pointers)
+  create   ( append name as read from text input stream)
+  T_VAR ,  ( append .type=var)
+  0 w,     ( append .param = I32 initialized to 0)
+  extend   ( update the dictionary pointers)
+;
+
+: const  ( n -- )  ( Add constant to dictionary)
+  here swap  ( save link location for updating dictionary pointers)
+  create     ( append name as read from text input stream)
+  T_CONST ,  ( append .type=const to dictionary)
+  w,         ( append .param = T as I32 literal)
+  extend     ( update the dictionary pointers)
+;
+
+: opcode  ( n -- )  ( Add opcode to dictionary)
+  here swap  ( save link location for updating dictionary pointers)
+  create     ( append name as read from text input stream)
+  T_OP ,     ( append type=opcode)
+  , RET ,    ( append .param = opcode from T, then RET)
+  extend     ( update the dictionary pointers)
+;
+
+: if{ ( -- addr )  ( Start of if block)
+  BZ , here 0 , 0 , NEST+
+; immediate
+
+: }if ( addr -- )  ( End of if block)
+  here swap h!   ( patch the jump target address at start of the if block)
+  NEST-          ( update block nesting level)
+  0 LASTCALL h!  ( prevent tail call optimizer from peeking across block edge)
+; immediate
+
+: for{ ( -- addr )  ( Start of for-loop block)
+  MTR , here NEST+
+; immediate
+
+: }for ( addr -- )  ( End of for-loop block)
+  DRBLT , h,     ( compile conditional branch back to start of loop)
+  RDROP , NEST-  ( compile end-of-loop cleanup, update nesting level)
+  0 LASTCALL h!  ( prevent tail call optimizer from peeking across block edge)
+; immediate
+
+: inner-compile  ( v.type -- )  ( Inner interpreter: compile code for one word)
+  dup @ swap 1+ swap     ( S: address of .type + 1, T: value of .type field)
+  dup T_VAR = if{        ( if type is variable:)
+    drop                 (   drop copy of .type value)
+    U16 , h, ;           (   compile T into a U16 literal, return)
+  }if dup T_CONST = if{  ( else if type is constant:)
+    drop                 (   drop copy of .type value)
+    w@ I32 , w, ;        (   compile value from .param as I32 literal, return)
+  }if dup T_OP = if{     ( else if type is constant:)
+    drop                 (   drop copy of .type value)
+    @ , ;                (   compile opcode from .param[0], return)
+  }if T_OBJ = if{        ( else if type is regular compiled word:)
+    here LASTCALL h!     (   save address of JAL for tail call optimizer)
+    JAL , h, ;           (   compile JumpAndLink to address of .param, return)
+  }if                    ( else type should be immediate compiled word:)
+  call                   (   call into .param *which had better return!*)
+;
+
+( --------------------------------------------------------------------)
+( --- End Compiler ---------------------------------------------------)
+( --------------------------------------------------------------------)
+
 : dowords             ( Interpret words from a line of text input)
   skip_ws             ( skip whitespace at start of unread bytes in IB)
   IB.done? if{        ( if IB is empty:)
@@ -262,11 +411,18 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   word                ( try to copy a word from IB to DP)
   DP h!               ( put DP back where it was)
   find if{            ( if word is in the dictionary:)
+    compiling? if{    (   if compile mode is active:)
+      inner-compile   (     compile this word)
+      dowords ;       (     loop using tail recursion)
+    }if
     inner             (   interpret word)
     dowords ;         (   loop using tail recursion)
   }if
   number              ( else: try to parse and push word as a number)
   if{                 ( if word is a number:)
+    compiling? if{    (   if compile mode is active:)
+      compile-number  (     compile the number)
+    }if
     dowords ;         (   loop using tail recursion)
   }if
   2 spaces 63 emit    ( else: print error message '  ? ')
@@ -283,6 +439,6 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   0 IN w!        ( 1 byte,  aligned 4, so zero all 4)
   0 LASTCALL w!  ( 2 bytes, aligned 4, so zero all 4)
   10 BASE w!     ( set number base to decimal)
-  curr 1- fence  ( write protect dictionary up to and including this word)
+  here fence     ( write protect dictionary up to and including this word)
   outer          ( start the outer interpreter)
 ;
