@@ -7,9 +7,9 @@
 from mkb_autogen import (
   NOP, ADD, SUB, INC, DEC, MUL, AND, INV, OR, XOR, SLL, SRL, SRA,
   EQ, GT, LT, NE, ZE, TRUE, FALSE, JMP, JAL, CALL, RET,
-  BZ, DRBLT, MTR, MRT, R, PC, RDROP, DROP, DUP, OVER, SWAP,
+  BZ, BFOR, MTR, MRT, R, PC, RDROP, DROP, DUP, OVER, SWAP,
   U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET,
-  IOD, IOR, IODH, IORH, IOKEY, IOEMIT,
+  IOD, IOR, IODH, IORH, IOKEY, IOEMIT, TRON, TROFF,
   MTA, LBA, LBAI,       AINC, ADEC, A,
   MTB, LBB, LBBI, SBBI, BINC, BDEC, B, MTX, X, MTY, Y,
   OPCODES,
@@ -283,30 +283,15 @@ class Compiler:
       self.nest_for += 1
       return pos + 1
     if w == '}for':                     # }for
-      self.append_byte(DRBLT)
+      self.append_byte(BFOR)
       addr = self.vm.T
       self.vm.drop()
       self.append_halfword(addr)
-      self.append_byte(RDROP)
       self.nest_for -= 1
       if self.nest_for < 0:
         raise Exception("`}for` without matching `for{`")
       self.last_call = 0                #   prevent glitch with: ` ... }for ;`
       return pos + 1
-    if w == '."':                       # ."
-      # This depends on weird parsing:
-      s = words[pos+1].encode('utf8')   #   take next word as string (CAUTION!)
-      self.append_byte(JMP)             #   compile jump to after the string
-      after = self.DP + 2 + 1 + len(s)
-      self.append_halfword(after)
-      start = self.DP                   #   save start address of string
-      self.append_byte(len(s))          #   compile the string inline with code
-      for x in s:
-        self.append_byte(x)
-      self.append_byte(U16)             #   compile literal for start address
-      self.append_halfword(start)
-      # TODO: make this actually work (fix kernel.mkb)
-      return pos + 2
     if w in self.name_set:              # look for word in target's dictionary
       (type_, link) = self.name_set[w]
       param = link + 2 + 1 + len(w) + 1
@@ -403,34 +388,28 @@ def preprocess_mkb(depth, src):
   """Preprocess Markab source code (comments, loads), return array of words"""
   if depth < 1:
     raise Exception('Preprocessor: too much recursion (maybe a `load"` loop?)')
-  obj = bytearray()
   pos = 0
   words = []
   count = len(src)
+  expecting_name = False
   for i in range(count):
     if pos >= count:
       break
     (word, pos) = next_word(pos, src)
     if word == '':
       continue
+    if expecting_name:
+      # this allows capturing of `: : ... ;` and `: ( ... ;` without problems
+      words.append(word)
+      expecting_name = False
+      continue
+    if word == ':' and not expecting_name:
+      expecting_name = True
+      words.append(word)
+      continue
     if word == '(':
       pos = skip_comment(pos, src)
       continue
-    if word == '."':
-      if words[-1] == ':':  # handle definition of ." specially
-        words.append(word)
-        continue
-      # This is an expedient compromise between an easy preprocessing algorithm
-      # to load files and not-quite-right input buffer parsing to handle
-      # strings. I am not satisfied with this, but I don't think it's worth the
-      # time now to build something better. Perhaps later.
-      #
-      # TODO: consider overhauling the whole preprocessor mechanism
-      #
-      (s, pos) = parse_string(pos, src)  # capture whitespace as part of word
-      if len(s) > 255:
-        raise Exception('.": string is too long', len(s), f"'{s}'")
-      words.extend([word, s])
     if word == 'load"':
       # Parse string for a filename to load (CAUTION!)
       (filename, pos) = parse_string(pos, src)

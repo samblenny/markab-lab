@@ -13,9 +13,9 @@ import os
 from mkb_autogen import (
   NOP, ADD, SUB, INC, DEC, MUL, AND, INV, OR, XOR, SLL, SRL, SRA,
   EQ, GT, LT, NE, ZE, TRUE, FALSE, JMP, JAL, CALL, RET,
-  BZ, DRBLT, MTR, MRT, RDROP, R, PC, ERR, DROP, DUP, OVER, SWAP,
+  BZ, BFOR, MTR, MRT, RDROP, R, PC, ERR, DROP, DUP, OVER, SWAP,
   U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET, FENCE, CLERR,
-  IOD, IOR, IODH, IORH, IOKEY, IOEMIT,
+  IOD, IOR, IODH, IORH, IOKEY, IOEMIT, IODOT, IODUMP, TRON, TROFF,
   MTA, LBA, LBAI,       AINC, ADEC, A,
   MTB, LBB, LBBI, SBBI, BINC, BDEC, B, MTX, X, MTY, Y,
 
@@ -24,8 +24,13 @@ from mkb_autogen import (
 )
 
 
-# This controls debug tracing and dissasembly
-DEBUG = False #True
+# This controls debug tracing and dissasembly. DEBUG is a global enable for
+# tracing, but it won't do anything unless the code uses a TRON instruction to
+# turn tracing on (TROFF turns it back off). Intended usage is that you bracket
+# a specific area of code to be traced with TRON/TROFF. Otherwise, the huge
+# amount of trace data from dictionary lookups will be too noisy to follow.
+#
+DEBUG = True #False
 
 ROM_FILE = 'kernel.rom'
 ERR_D_OVER = 1
@@ -51,7 +56,7 @@ class VM:
   Emulate CPU, RAM, and peripherals for a Markab virtual machine instance.
   """
 
-  def __init__(self):
+  def __init__(self, echo=False):
     """Initialize virtual CPU, RAM, and peripherals"""
     self.ERR = 0                    # Error code register
     self.base = 10                  # number Base for debug printing
@@ -70,6 +75,9 @@ class VM:
     self.RStack = [0] * 16          # Return Stack
     self.ram = bytearray(MemMax+1)  # Random Access Memory
     self.inbuf = ''                 # Input buffer
+    self.echo = echo                # Echo depends on tty vs pip, etc.
+    # Debug tracing on/off
+    self.dbg_trace_enable = False   # Debug trace is noisy, so default=off
     # Debug symbols
     self.dbg_addrs = []
     self.dbg_names = []
@@ -101,7 +109,7 @@ class VM:
     self.jumpTable[CALL ] = self.call
     self.jumpTable[RET  ] = self.return_
     self.jumpTable[BZ   ] = self.branch_zero
-    self.jumpTable[DRBLT] = self.dec_r_branch_less_than
+    self.jumpTable[BFOR ] = self.branch_for_loop
     self.jumpTable[MTR  ] = self.move_t_to_r
     self.jumpTable[MRT  ] = self.move_r_to_t
     self.jumpTable[RDROP] = self.r_drop
@@ -130,6 +138,10 @@ class VM:
     self.jumpTable[IORH ] = self.io_return_stack_hex
     self.jumpTable[IOKEY] = self.io_key
     self.jumpTable[IOEMIT] = self.io_emit
+    self.jumpTable[IODOT] = self.io_dot
+    self.jumpTable[IODUMP] = self.io_dump
+    self.jumpTable[TRON ] = self.trace_on
+    self.jumpTable[TROFF] = self.trace_off
     self.jumpTable[MTA  ] = self.move_t_to_a
     self.jumpTable[LBA  ] = self.load_byte_a
     self.jumpTable[LBAI ] = self.load_byte_a_increment
@@ -179,7 +191,7 @@ class VM:
     pc = self.PC
     self._set_pc(pc+1)
     op = self.ram[pc]
-    if DEBUG:
+    if DEBUG and self.dbg_trace_enable:
       name = [k for (k,v) in OPCODES.items() if v == op]
       if len(name) == 1:
         name = name[0]
@@ -431,8 +443,8 @@ class VM:
       self._set_pc(pc+2)
     self.drop()
 
-  def dec_r_branch_less_than(self):
-    """Decrement R and Branch to address if R is Less Than 0"""
+  def branch_for_loop(self):
+    """Decrement R and branch to start of for-loop if R >= 0"""
     if self.RSDeep < 1:
       self.ERR = ERR_R_UNDER
       return
@@ -443,8 +455,9 @@ class VM:
       n = int.from_bytes(self.ram[pc:pc+2], 'little', signed=False)
       self.PC = n
     else:
-      # End of loop: Advance PC past address literal
+      # End of loop: Advance PC past address literal, drop R
       self._set_pc(pc+2)
+      self.r_drop()
 
   def less_than(self):
     """Evaluate S < T (true:-1, false:0), store result in S, drop T"""
@@ -815,7 +828,12 @@ class VM:
     """
     if len(self.inbuf) < 1:
       try:
-          self.inbuf = input().encode('utf-8')+b'\x0a'
+        self.inbuf = input().encode('utf-8')+b'\x0a'
+        if self.echo:
+          # When stdin is coming from a pipe, echo input to stdout
+          sys.stdout.flush()
+          print(self.inbuf.decode('utf8')[:-1], end='')
+          sys.stdout.flush()
       except EOFError:
         self.inbuf = b''
     if len(self.inbuf) > 0:
@@ -839,6 +857,62 @@ class VM:
     sys.stdout.flush()
     self.drop()
 
+  def io_dot(self):
+    """Print T to standard output, then drop T"""
+    if self.DSDeep < 1:
+      self.ERR = ERR_D_UNDER
+      return
+    sys.stdout.flush()
+    print(f" {self.T}", end='')
+    sys.stdout.flush()
+    self.drop()
+
+  def io_dump(self):
+    """Hexdump S bytes of memory starting from address T, then drop S and T"""
+    if self.DSDeep < 2:
+      self.ERR = ERR_D_UNDER
+      return
+    if self.T > MemMax or self.T + self.S > MemMax:
+      self.ERR = ERR_BAD_ADDRESS
+      return
+    col = 0
+    start = self.T
+    end = self.T + self.S
+    self.drop()
+    self.drop()
+    left = ""
+    right = ""
+    dirty = 0
+    for (i, n) in enumerate(self.ram[start:end]):
+      dirty = True
+      if col == 0:                  # leftmost column is address
+        left = f"{start+i:04x} "
+        right = ""
+      if col == 8:                  # extra space before 8th byte of a row
+        left += " "
+        right += " "
+      left += f" {n:02x}"           # accumulate hex digits
+      if n >= 32 and n <127:        # accumulate ASCII characters
+        right += chr(n)
+      else:
+        right += '.'
+      if col == 15:                 # print digits and chars at end of row
+        print(f"{left}  {right}")
+        dirty = False
+      col = (col + 1) & 15
+    if dirty:
+      # if number of bytes requested was not an even multiple of 16, then
+      # print what's left of the last row
+      print(f"{left}  {right}")
+
+  def trace_on(self):
+    """Enable debug tracing (also see DEBUG global var)"""
+    self.dbg_trace_enable = True
+
+  def trace_off(self):
+    """Disable debug tracing (also see DEBUG global var)"""
+    self.dbg_trace_enable = False
+
   def _ok_or_err(self):
     """Print the OK or ERR line-end status message and clear any errors"""
     if self.ERR != 0:
@@ -861,7 +935,7 @@ if __name__ == '__main__':
     rom = sys.argv[1]
 
   # Make a VM instance
-  v = VM()
+  v = VM(echo=(not sys.stdin.isatty()))
 
   # Attempt to load debug symbols (e.g. for kernel.rom, check kernel.symbols)
   sym_file = rom[:-4] + ".symbols"
@@ -881,3 +955,7 @@ if __name__ == '__main__':
   with open(rom, 'rb') as f:
     rom = f.read()
     v._warm_boot(rom, 65535)
+
+  if v.echo:
+    # add a final newline if input is coming from pipe
+    print()

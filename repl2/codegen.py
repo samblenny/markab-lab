@@ -30,12 +30,7 @@ xor XOR
 0= ZE
 true TRUE
 false FALSE
-<ASM> JMP
-<ASM> JAL
 call CALL
-<ASM> RET
-<ASM> BZ
-<ASM> DRBLT
 r> MRT
 >r MTR
 r R
@@ -46,9 +41,6 @@ drop DROP
 dup DUP
 over OVER
 swap SWAP
-<ASM> U8
-<ASM> U16
-<ASM> I32
 @ LB
 ! SB
 h@ LH
@@ -64,6 +56,10 @@ iodh IODH
 iorh IORH
 key IOKEY
 emit IOEMIT
+. IODOT
+dump IODUMP
+tron TRON
+troff TROFF
 >a MTA
 @a LBA
 @a+ LBAI
@@ -81,6 +77,14 @@ b B
 x X
 >y MTY
 y Y
+<ASM> JMP
+<ASM> JAL
+<ASM> RET
+<ASM> BZ
+<ASM> BFOR
+<ASM> U8
+<ASM> U16
+<ASM> I32
 """
 
 MEMORY_MAP = """
@@ -95,6 +99,7 @@ E110 MODE     # Current interpreting/compiling mode      1 byte  (align 4)
 E118 LASTCALL  # Pointer to last compiled call instr.    2 bytes (align 4)
 E11C NEST     # Block Nesting level for if{ and for{     1 byte  (align 4)
 E120 BASE     # Number base                              1 byte  (align 4)
+E124 EOF      # Flag to indicate end of input            1 byte  (align 4)
 #...
 E200 IB       # Input Buffer       256 bytes
 E300 Pad      # Pad buffer         256 bytes
@@ -132,7 +137,7 @@ def mkb_opcodes():
     (name, opcode) = line.strip().split(" ")
     if (name != '<ASM>') and (not opcode in ['MTR', 'RDROP']):
       continue          # skip opcodes that have a core word equivalent
-    constants += [f"{i:2} const {opcode}"]
+    constants += [f"{i:02x} const {opcode}"]
   return "\n".join(constants)
 
 def mkb_core_words():
@@ -141,7 +146,7 @@ def mkb_core_words():
     (name, opcode) = line.strip().split(" ")
     if name == "<ASM>":
       continue
-    words += [f"{i:>2} opcode {name}"]
+    words += [f"{i:02x} opcode {name}"]
   return "\n".join(words)
 
 def mkb_memory_map():
@@ -155,7 +160,7 @@ def mkb_enum_codes():
   constants = []
   for line in filter(ENUM_CODES):
     (name, code) = line.split(" ")
-    constants += [f"{code} const {name}"]
+    constants += [f"{int(code):02x} const {name}"]
   return "\n".join(constants)
 
 def py_addresses():
@@ -214,6 +219,8 @@ MKB_TEMPLATE = f"""
 ( ===        DO NOT MAKE EDITS HERE        ===)
 ( ===      See codegen.py for details      ===)
 
+hex
+
 ( Enum codes)
 {mkb_enum_codes()}
 
@@ -227,8 +234,8 @@ MKB_TEMPLATE = f"""
 ( Memory map)
 ( 0000..00FF belongs to VM)
 ( 0100..FFFF belongs to kernel)
-hex
 {mkb_memory_map()}
+
 decimal
 """.strip()
 

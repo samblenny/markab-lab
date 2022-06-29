@@ -19,8 +19,8 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 : space  32 emit ;  ( Emit one space)
 : spaces  ( n -- )  1- for{ 32 emit }for ;  ( Emit n spaces)
 
-: bye    ( Exit process by emptying the return stack, then returning)
-  reset  ( empty stacks, but particularly the return stack)
+: bye  ( Exit process by emptying the return stack, then returning)
+  true EOF !  ( set the end of input flag)
 ;
 
 : compiling?  ( -- bool )  ( Check if compile mode active)
@@ -72,7 +72,8 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
     key               (   read byte from standard input, copy it to IB)
     0= if{            (   if end of stream:)
       0 IB ! 0 IN !   (     zero IB length and IN)
-      >b rdrop ;      (     restore old b, end loop, return)
+      >b true EOF !   (     restore old b, set end of input flag)
+      rdrop ;         (     end loop, return)
     }if dup !b+       (   else: copy the byte to IB)
     newline? if{      (   if byte is a LF or CR:)
       b-              (     adjust the byte count to ignore newline)
@@ -196,6 +197,19 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   IN.aup             ( update IN, restore a)
 ;
 
+: (  ( Parse a comment from the input stream )
+  IB.done? if{       ( if IB has no more bytes to read:)
+    0 here ! ;       (   set string length at DP to 0, return)
+  }if
+  a=IB.next          ( save old a, new a = IB+IN)
+  IB.limit for{      ( loop over unread bytes from IB)
+    @a+ 41 = if{     (   if byte was a closing parenthesis)
+      rdrop          (     drop loop counter to prepare for return)
+      IN.aup ;       (     update IN, restore a, return)
+    }if              (   else: keep looping)
+  }for IN.aup        ( update IN, restore a)
+; immediate
+
 : 0-9?  ( n -- [n] bool )  ( Try to convert T from ASCII decimal digit)
   48 - dup             ( calculate n = n-'0' = n-48)
   0 < over 9 > or if{  ( if n-'0'<0 or 9<n-'0':)
@@ -279,12 +293,11 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 ;
 
 : NEST-  ( -- )  ( Decrement block nesting level)
-  a NEST >a    ( save old a, a = NEST: address of nesting level variable)
-  @a 1-        ( load value of nesting level and decrement it)
+  NEST @ 1-    ( load value of nesting level and decrement it)
   dup 0 < if{  ( if result is < 0)
     dup xor    (   replace the result with 0)
     ( TODO: deal with error: source code has unbalanced }if or }for)
-  }if a ! >a   ( store the new nesting level, restore old a)
+  }if NEST !   ( store the new nesting level)
 ;
 
 : NESTED?  ( -- bool)  ( Is nesting level > 0, because of if{ or for{ block?)
@@ -326,13 +339,12 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   update-mode           ( clear compile mode if needed)
 ; immediate
 
-: compile-number ( n -- )  ( Compile number from T into dictionary)
-  x swap >x            ( save old value of x, x = n)
-  x 0 < x 65535 > if{  ( if x < 0 or x > 0xffff:)
-    I32 , x w, >x ;    (   compile as 32-bit signed, restore old x, return)
-  }if x 255 > if{      ( else if x > 0xff:)
-    U16 , x h, >x ;    (   compile as 16-bit unsigned, restore old x, return)
-  }if U8 , x , >x      ( else: compile as 8-bit unsigned, restore old x)
+: c-number ( n -- )  ( Compile number from T into dictionary)
+  dup 0 < over 65535 > or if{  ( if n < 0 or n > 0xffff:)
+    I32 , w, ;                 (   compile as 32-bit signed, return)
+  }if dup 255 > if{            ( else if n > 0xff:)
+    U16 , h, ;                 (   compile as 16-bit unsigned, return)
+  }if U8 , ,                   ( else: compile as 8-bit unsigned)
 ;
 
 : var  ( -- )  ( Add variable to dictionary)
@@ -374,25 +386,29 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 ; immediate
 
 : }for ( addr -- )  ( End of for-loop block)
-  DRBLT , h,     ( compile conditional branch back to start of loop)
-  RDROP , NEST-  ( compile end-of-loop cleanup, update nesting level)
+  BFOR ,         ( compile Branch to FOR: dec r, conditional branch, etc.)
+  h,             ( compile the address for BFOR)
+  NEST-          ( update nesting level)
   0 LASTCALL h!  ( prevent tail call optimizer from peeking across block edge)
 ; immediate
 
-: inner-compile  ( v.type -- )  ( Inner interpreter: compile code for one word)
+: inner-c  ( v.type -- )  ( Inner interpreter: compile code for one word)
   dup @ swap 1+ swap     ( S: address of .type + 1, T: value of .type field)
   dup T_VAR = if{        ( if type is variable:)
     drop                 (   drop copy of .type value)
-    U16 , h, ;           (   compile T into a U16 literal, return)
+    U16 , h,             (   compile T into a U16 literal)
+    ;                    (   return)
   }if dup T_CONST = if{  ( else if type is constant:)
     drop                 (   drop copy of .type value)
     w@ I32 , w, ;        (   compile value from .param as I32 literal, return)
   }if dup T_OP = if{     ( else if type is constant:)
     drop                 (   drop copy of .type value)
-    @ , ;                (   compile opcode from .param[0], return)
+    @ ,                  (   compile opcode from .param[0])
+    ;                    (   return)
   }if T_OBJ = if{        ( else if type is regular compiled word:)
     here LASTCALL h!     (   save address of JAL for tail call optimizer)
-    JAL , h, ;           (   compile JumpAndLink to address of .param, return)
+    JAL , h,             (   compile JumpAndLink to address of .param)
+    ;
   }if                    ( else type should be immediate compiled word:)
   call                   (   call into .param *which had better return!*)
 ;
@@ -412,7 +428,7 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   DP h!               ( put DP back where it was)
   find if{            ( if word is in the dictionary:)
     compiling? if{    (   if compile mode is active:)
-      inner-compile   (     compile this word)
+      inner-c         (     compile this word)
       dowords ;       (     loop using tail recursion)
     }if
     inner             (   interpret word)
@@ -421,7 +437,7 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   number              ( else: try to parse and push word as a number)
   if{                 ( if word is a number:)
     compiling? if{    (   if compile mode is active:)
-      compile-number  (     compile the number)
+      c-number        (     compile the number)
     }if
     dowords ;         (   loop using tail recursion)
   }if
@@ -429,16 +445,19 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   space DP.print cr   ( print the unknown word in quotes)
 ;
 
-: outer     ( Outer interpreter)
-  readline  ( get a line of text from stdin)
-  dowords   ( loop over all the words of the line)
-  outer     ( use tail recursion to keep getting more lines indefinitely)
+: outer         ( Outer interpreter)
+  readline      ( get a line of text from stdin)
+  dowords       ( loop over all the words of the line)
+  EOF @ 0= if{  ( if the end of input flag is clear:)
+    outer ;     (   use tail recursion to keep getting more lines)
+  }if
 ;
 
 : boot    ( Initialize global vars, print version, start outer interpreter)
   0 IN w!        ( 1 byte,  aligned 4, so zero all 4)
   0 LASTCALL w!  ( 2 bytes, aligned 4, so zero all 4)
   10 BASE w!     ( set number base to decimal)
+  false EOF w!   ( clear the end of input flag)
   here fence     ( write protect dictionary up to and including this word)
   outer          ( start the outer interpreter)
 ;

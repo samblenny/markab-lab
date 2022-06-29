@@ -1,0 +1,4 @@
+( Copyright © 2022 Sam Blenny)
+( SPDX-License-Identifier: MIT)
+
+: t01 3 for{ r 1 and }for iod ;      t01  (  1 0 1 0  OK)

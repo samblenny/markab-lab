@@ -350,17 +350,18 @@ ASM{   U8 0 DUP BZ 8 0 U8 7 U8 0 ZE DUP BZ 17  0 U8  8 RET }ASM
 warmboot  OK
 .s                                        (  0 -1 8  OK)  0 -1 8  OK
 
-=== test.vm.test_instructions_drblt_mtr_mrt() ===
-( opcode coverage: DRBLT MTR MRT                       )
-(    equivalent to: 3 for{ i }for                      )
-( which expands to: 3 >r :FOR r> dup >r jrnz :FOR      )
-( and assembled at address 0, looks like...            )
-( addr: 0 1   2      3   4   5     6 7  8   9   10  11 )
-ASM{   U8 3 MTR    MRT DUP MTR DRBLT 3  0 RTT DROP RET }ASM
-(         3 for{             i  }FOR                   )
-(           >r :FOR r> dup  >r drblt :FOR  >r drop     )
+=== test.vm.test_instructions_bfor_mtr_mrt() ===
+( opcode coverage: BFOR MTR MRT               )
+(         3 for{   r> dup  >r     }for        )
+( addr: 0 1    2    3   4   5    6 7 8   9    )
+ASM{   U8 3  MTR  MRT DUP MTR BFOR 3 0 RET }ASM
 warmboot  OK
 .s                                       (  3 2 1 0  OK)  3 2 1 0  OK
+reset  OK
+(       3 for{ r    1 and    42 emit }for     )
+(addr:  1   2 *3*                             )
+ASM{ U8 3 MTR  R U8 1 AND U8 42 IOEMIT BFOR 4 0 }ASM
+.s                                   (****  1 0 1 0  OK)****  1 0 1 0  OK
 
 ( opcode coverage: DROP DUP OVER SWAP   )
 ( equivalent to: 1 2 over dup drop swap )
@@ -443,7 +444,7 @@ ASM{   U8 99 MTR IOKEY
         ZE BZ 10 0 RDROP RET DUP  U8 10
 ( addr: 13 14 15 16   17  18   *19*      )
         EQ BZ 19 0 RDROP RET IOEMIT
-        DRBLT 3 0 RDROP               }ASM
+        BFOR 3 0                      }ASM
 warmboot                                       ( test1  OK)test1  OK
 ( ---------------------------------------)
 ( IOEMIT -- write to STDOUT              )
@@ -478,13 +479,13 @@ warmboot                                       (  3  OK)  3  OK
 ( MTA -- Move T to register A                  )
 ( LBA -- Load Byte via A                       )
 ( LBAI -- Load Byte via A, inc A: @a+          )
-(         15  >a  @a+  1- for{  @a   a+   emit )
+(         14  >a  @a+  1- for{  @a   a+   emit )
 ( addr: 0  1   2    3   4    5 *6*    7      8 )
-ASM{   U8 15 MTA LBAI DEC  MTR LBA AINC IOEMIT
+ASM{   U8 14 MTA LBAI DEC  MTR LBA AINC IOEMIT
 (                   }for reset                 )
-( addr:    9 10 11    12    13  14             )
-       DRBLT  6  0 RDROP RESET RET
-( addr: *15*                                   )
+( addr:    9 10 11    12  13                   )
+        BFOR  6  0 RESET RET
+( addr: *14*                                   )
           7  32 32 72 101 108 108 111 }ASM
 warmboot                                   (  Hello  OK)  Hello  OK
 ( ---------------------------------------)
@@ -534,8 +535,8 @@ warmboot                                       (  7  OK)  7  OK
 (         1  >x x  >y    5 for{ x x y y  )
 ( addr: 0 1   2 3   4  5 6   7 *8*       )
 ASM{   U8 1 MTX X MTY U8 5 MTR  X X Y Y
-(     >x    +  >y            }for  .s    )
-      MTX ADD MTY DRBLT 8 0 RDROP IOD }ASM
+(     >x    +  >y     }for  .s           )
+      MTX ADD MTY BFOR 8 0 IOD }ASM
 warmboot                             (  1 1 2 3 5 8  OK)  1 1 2 3 5 8  OK
 
 === test.vm.test_instructions_fence_err_clerr() ===

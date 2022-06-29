@@ -7,9 +7,9 @@
 from mkb_autogen import (
   NOP, ADD, SUB, INC, DEC, MUL, AND, INV, OR, XOR, SLL, SRL, SRA,
   EQ, GT, LT, NE, ZE, TRUE, FALSE, JMP, JAL, CALL, RET,
-  BZ, DRBLT, MTR, MRT, R, PC, RDROP, DROP, DUP, OVER, SWAP,
+  BZ, BFOR, MTR, MRT, R, PC, RDROP, DROP, DUP, OVER, SWAP,
   U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET,
-  IOD, IOR, IODH, IORH, IOKEY, IOEMIT,
+  IOD, IOR, IODH, IORH, IOKEY, IOEMIT, TRON, TROFF,
   MTA, LBA, LBAI,       AINC, ADEC, A,
   MTB, LBB, LBBI, SBBI, BINC, BDEC, B, MTX, X, MTY, Y,
   OPCODES,
@@ -21,10 +21,10 @@ from mkb_autogen import (
 ROM_FILE = 'hello.rom'
 
 KERNEL_ASM = """
-#          13  >a  a@+  1- for{  @a+   emit       }for
-# addr:  0  1   2    3   4    5  *6*      7     8 9 10    11  12
-        U8 13 MTA LBAI DEC  MTR LBAI IOEMIT DRBLT 6  0 RDROP RET
-# addr: *13*
+#          12  >a  a@+  1- for{  @a+   emit      }for
+# addr:  0  1   2    3   4    5  *6*      7    8 9 10  11
+        U8 12 MTA LBAI DEC  MTR LBAI IOEMIT BFOR 6  0 RET
+# addr: *12*
 #            H   e   l   l   o  , <SP>  w   o   r   l   d  ! <LF> (14 bytes)
          14 72 101 108 108 111 44  32 119 111 114 108 100 33 10
 """

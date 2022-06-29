@@ -15,9 +15,9 @@
     "NOP" "ADD" "SUB" "INC" "DEC" "MUL" "AND" "INV" "OR" "XOR"
     "SLL" "SRL" "SRA"
     "EQ" "GT" "LT" "NE" "ZE" "TRUE" "FALSE" "JMP" "JAL" "CALL" "RET"
-    "BZ" "DRBLT" "MRT" "MTR" "RDROP" "R" "PC" "ERR" "DROP" "DUP" "OVER" "SWAP"
+    "BZ" "BFOR" "MRT" "MTR" "RDROP" "R" "PC" "ERR" "DROP" "DUP" "OVER" "SWAP"
     "U8" "U16" "I32" "LB" "SB" "LH" "SH" "LW" "SW" "RESET" "FENCE" "CLERR"
-    "IOD" "IOR" "IODH" "IORH" "IOKEY" "IOEMIT"
+    "IOD" "IOR" "IODH" "IORH" "IOKEY" "IOEMIT" "IODOT" "IODUMP" "TRON" "TROFF"
     "MTA" "LBA" "LBAI"        "AINC" "ADEC" "A"
     "MTB" "LBB" "LBBI" "SBBI" "BINC" "BDEC" "B" "MTX" "X" "MTY" "Y"
 
@@ -27,7 +27,7 @@
     "=" ">" "<" "!=" "0=" "true" "false" "call"
     "r>" ">r" "rdrop" "drop" "r" "pc" "err" "dup" "over" "swap"
     "@" "!" "h@" "h!" "w@" "w!" "reset" "fence" "clerr"
-    "iod" "ior" "iodh" "iorh" "key" "emit"
+    "iod" "ior" "iodh" "iorh" "key" "emit" "." "dump" "tron" "troff"
     ">a" "@a" "@a+"       "a+" "a-" "a"
     ">b" "@b" "@b+" "!b+" "b+" "b-" "b" ">x" "x" ">y" "y"
     ":" ";" "var" "const" "opcode"
@@ -40,6 +40,7 @@
 
 ;; Put these characters in "word constituents" class to enable use in keywords
 (modify-syntax-entry ?! "\w")
+(modify-syntax-entry ?. "\w")
 (modify-syntax-entry ?: "\w")
 (modify-syntax-entry ?; "\w")
 (modify-syntax-entry ?@ "\w")

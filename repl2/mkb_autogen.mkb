@@ -4,98 +4,103 @@
 ( ===        DO NOT MAKE EDITS HERE        ===)
 ( ===      See codegen.py for details      ===)
 
+hex
+
 ( Enum codes)
-0 const T_VAR
-1 const T_CONST
-2 const T_OP
-3 const T_OBJ
-4 const T_IMM
-0 const MODE_INT
-1 const MODE_COM
-2 const MODE_IMM
+00 const T_VAR
+01 const T_CONST
+02 const T_OP
+03 const T_OBJ
+04 const T_IMM
+00 const MODE_INT
+01 const MODE_COM
+02 const MODE_IMM
 
 
 ( CPU opcodes)
-20 const JMP
-21 const JAL
-23 const RET
-24 const BZ
-25 const DRBLT
-27 const MTR
-31 const RDROP
-36 const U8
-37 const U16
-38 const I32
+16 const MTR
+1a const RDROP
+43 const JMP
+44 const JAL
+45 const RET
+46 const BZ
+47 const BFOR
+48 const U8
+49 const U16
+4a const I32
 
 ( Core word definitions)
- 0 opcode nop
- 1 opcode +
- 2 opcode -
- 3 opcode 1+
- 4 opcode 1-
- 5 opcode *
- 6 opcode and
- 7 opcode inv
- 8 opcode or
- 9 opcode xor
-10 opcode <<
-11 opcode >>
-12 opcode >>>
-13 opcode =
-14 opcode >
-15 opcode <
-16 opcode !=
-17 opcode 0=
-18 opcode true
-19 opcode false
-22 opcode call
-26 opcode r>
-27 opcode >r
-28 opcode r
-29 opcode pc
-30 opcode err
-31 opcode rdrop
-32 opcode drop
-33 opcode dup
-34 opcode over
-35 opcode swap
-39 opcode @
-40 opcode !
-41 opcode h@
-42 opcode h!
-43 opcode w@
-44 opcode w!
-45 opcode reset
-46 opcode fence
-47 opcode clerr
-48 opcode iod
-49 opcode ior
-50 opcode iodh
-51 opcode iorh
-52 opcode key
-53 opcode emit
-54 opcode >a
-55 opcode @a
-56 opcode @a+
-57 opcode a+
-58 opcode a-
-59 opcode a
-60 opcode >b
-61 opcode @b
-62 opcode @b+
-63 opcode !b+
-64 opcode b+
-65 opcode b-
-66 opcode b
-67 opcode >x
-68 opcode x
-69 opcode >y
-70 opcode y
+00 opcode nop
+01 opcode +
+02 opcode -
+03 opcode 1+
+04 opcode 1-
+05 opcode *
+06 opcode and
+07 opcode inv
+08 opcode or
+09 opcode xor
+0a opcode <<
+0b opcode >>
+0c opcode >>>
+0d opcode =
+0e opcode >
+0f opcode <
+10 opcode !=
+11 opcode 0=
+12 opcode true
+13 opcode false
+14 opcode call
+15 opcode r>
+16 opcode >r
+17 opcode r
+18 opcode pc
+19 opcode err
+1a opcode rdrop
+1b opcode drop
+1c opcode dup
+1d opcode over
+1e opcode swap
+1f opcode @
+20 opcode !
+21 opcode h@
+22 opcode h!
+23 opcode w@
+24 opcode w!
+25 opcode reset
+26 opcode fence
+27 opcode clerr
+28 opcode iod
+29 opcode ior
+2a opcode iodh
+2b opcode iorh
+2c opcode key
+2d opcode emit
+2e opcode .
+2f opcode dump
+30 opcode tron
+31 opcode troff
+32 opcode >a
+33 opcode @a
+34 opcode @a+
+35 opcode a+
+36 opcode a-
+37 opcode a
+38 opcode >b
+39 opcode @b
+3a opcode @b+
+3b opcode !b+
+3c opcode b+
+3d opcode b-
+3e opcode b
+3f opcode >x
+40 opcode x
+41 opcode >y
+42 opcode y
 
 ( Memory map)
 ( 0000..00FF belongs to VM)
 ( 0100..FFFF belongs to kernel)
-hex
 0000 const Heap
 E000 const HeapRes
 E0FF const HeapMax
@@ -107,8 +112,10 @@ E110 const MODE
 E118 const LASTCALL
 E11C const NEST
 E120 const BASE
+E124 const EOF
 E200 const IB
 E300 const Pad
 E400 const Fmt
 FFFF const MemMax
+
 decimal
