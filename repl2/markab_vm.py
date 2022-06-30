@@ -707,19 +707,19 @@ class VM:
     if (addr < 0) or (addr > MemMax-1):
       self.error(ERR_BAD_ADDRESS)
       return
-    self.T = int.from_bytes(self.ram[addr:addr+2], 'little', signed=False)
+    self.T = (self.ram[addr+1] << 8) | self.ram[addr]  # LE halfword
 
   def store_halfword(self):
     """Store low 2 bytes from S (uint16) at memory address T"""
     if self.DSDeep < 2:
       self.error(ERR_D_UNDER)
       return
-    x = int.to_bytes((self.S & 0xffff), 2, 'little', signed=False)
     addr = self.T
     if (addr < 0) or (addr > MemMax-1) or (addr < self.Fence):
       self.error(ERR_BAD_ADDRESS)
     else:
-      self.ram[addr:addr+2] = x
+      self.ram[addr] = self.S & 0xff           # LE halfword low byte
+      self.ram[addr+1] = (self.S >> 8) & 0xff  # LE halfword high byte
     self.drop()
     self.drop()
 
