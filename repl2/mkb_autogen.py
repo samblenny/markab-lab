@@ -7,158 +7,150 @@
 
 # Markab VM opcode constants
 NOP    =  0
-ADD    =  1
-SUB    =  2
-INC    =  3
-DEC    =  4
-MUL    =  5
-AND    =  6
-INV    =  7
-OR     =  8
-XOR    =  9
-SLL    = 10
-SRL    = 11
-SRA    = 12
-EQ     = 13
-GT     = 14
-LT     = 15
-NE     = 16
-ZE     = 17
-TRUE   = 18
-FALSE  = 19
-CALL   = 20
-MRT    = 21
-MTR    = 22
-R      = 23
-PC     = 24
-ERR    = 25
-RDROP  = 26
-DROP   = 27
-DUP    = 28
-OVER   = 29
-SWAP   = 30
-LB     = 31
-SB     = 32
-LH     = 33
-SH     = 34
-LW     = 35
-SW     = 36
-RESET  = 37
-FENCE  = 38
-CLERR  = 39
-IOD    = 40
-IOR    = 41
-IODH   = 42
-IORH   = 43
-IOKEY  = 44
-IOEMIT = 45
-IODOT  = 46
-IODUMP = 47
-TRON   = 48
-TROFF  = 49
-MTA    = 50
-LBA    = 51
-LBAI   = 52
-AINC   = 53
-ADEC   = 54
-A      = 55
-MTB    = 56
-LBB    = 57
-LBBI   = 58
-SBBI   = 59
-BINC   = 60
-BDEC   = 61
-B      = 62
-MTX    = 63
-X      = 64
-MTY    = 65
-Y      = 66
-JMP    = 67
-JAL    = 68
-RET    = 69
-BZ     = 70
-BFOR   = 71
-U8     = 72
-U16    = 73
-I32    = 74
+RESET  =  1
+FENCE  =  2
+CLERR  =  3
+JMP    =  4
+JAL    =  5
+RET    =  6
+BZ     =  7
+BFOR   =  8
+U8     =  9
+U16    = 10
+I32    = 11
+TRON   = 12
+TROFF  = 13
+IODUMP = 14
+IOKEY  = 15
+IORH   = 16
+IOR    = 17
+MRT    = 18
+MTR    = 19
+R      = 20
+CALL   = 21
+PC     = 22
+ERR    = 23
+LB     = 24
+SB     = 25
+LH     = 26
+SH     = 27
+LW     = 28
+SW     = 29
+ADD    = 30
+SUB    = 31
+MUL    = 32
+SLL    = 33
+SRL    = 34
+SRA    = 35
+INV    = 36
+XOR    = 37
+OR     = 38
+AND    = 39
+GT     = 40
+LT     = 41
+EQ     = 42
+NE     = 43
+ZE     = 44
+INC    = 45
+DEC    = 46
+IOEMIT = 47
+IODOT  = 48
+IODH   = 49
+IOD    = 50
+RDROP  = 51
+DROP   = 52
+DUP    = 53
+OVER   = 54
+SWAP   = 55
+MTA    = 56
+LBA    = 57
+LBAI   = 58
+AINC   = 59
+ADEC   = 60
+A      = 61
+MTB    = 62
+LBB    = 63
+LBBI   = 64
+SBBI   = 65
+BINC   = 66
+BDEC   = 67
+B      = 68
+TRUE   = 69
+FALSE  = 70
 
 # Markab VM opcode dictionary
 OPCODES = {
     'NOP':     0,
-    'ADD':     1,
-    'SUB':     2,
-    'INC':     3,
-    'DEC':     4,
-    'MUL':     5,
-    'AND':     6,
-    'INV':     7,
-    'OR':      8,
-    'XOR':     9,
-    'SLL':    10,
-    'SRL':    11,
-    'SRA':    12,
-    'EQ':     13,
-    'GT':     14,
-    'LT':     15,
-    'NE':     16,
-    'ZE':     17,
-    'TRUE':   18,
-    'FALSE':  19,
-    'CALL':   20,
-    'MRT':    21,
-    'MTR':    22,
-    'R':      23,
-    'PC':     24,
-    'ERR':    25,
-    'RDROP':  26,
-    'DROP':   27,
-    'DUP':    28,
-    'OVER':   29,
-    'SWAP':   30,
-    'LB':     31,
-    'SB':     32,
-    'LH':     33,
-    'SH':     34,
-    'LW':     35,
-    'SW':     36,
-    'RESET':  37,
-    'FENCE':  38,
-    'CLERR':  39,
-    'IOD':    40,
-    'IOR':    41,
-    'IODH':   42,
-    'IORH':   43,
-    'IOKEY':  44,
-    'IOEMIT': 45,
-    'IODOT':  46,
-    'IODUMP': 47,
-    'TRON':   48,
-    'TROFF':  49,
-    'MTA':    50,
-    'LBA':    51,
-    'LBAI':   52,
-    'AINC':   53,
-    'ADEC':   54,
-    'A':      55,
-    'MTB':    56,
-    'LBB':    57,
-    'LBBI':   58,
-    'SBBI':   59,
-    'BINC':   60,
-    'BDEC':   61,
-    'B':      62,
-    'MTX':    63,
-    'X':      64,
-    'MTY':    65,
-    'Y':      66,
-    'JMP':    67,
-    'JAL':    68,
-    'RET':    69,
-    'BZ':     70,
-    'BFOR':   71,
-    'U8':     72,
-    'U16':    73,
-    'I32':    74,
+    'RESET':   1,
+    'FENCE':   2,
+    'CLERR':   3,
+    'JMP':     4,
+    'JAL':     5,
+    'RET':     6,
+    'BZ':      7,
+    'BFOR':    8,
+    'U8':      9,
+    'U16':    10,
+    'I32':    11,
+    'TRON':   12,
+    'TROFF':  13,
+    'IODUMP': 14,
+    'IOKEY':  15,
+    'IORH':   16,
+    'IOR':    17,
+    'MRT':    18,
+    'MTR':    19,
+    'R':      20,
+    'CALL':   21,
+    'PC':     22,
+    'ERR':    23,
+    'LB':     24,
+    'SB':     25,
+    'LH':     26,
+    'SH':     27,
+    'LW':     28,
+    'SW':     29,
+    'ADD':    30,
+    'SUB':    31,
+    'MUL':    32,
+    'SLL':    33,
+    'SRL':    34,
+    'SRA':    35,
+    'INV':    36,
+    'XOR':    37,
+    'OR':     38,
+    'AND':    39,
+    'GT':     40,
+    'LT':     41,
+    'EQ':     42,
+    'NE':     43,
+    'ZE':     44,
+    'INC':    45,
+    'DEC':    46,
+    'IOEMIT': 47,
+    'IODOT':  48,
+    'IODH':   49,
+    'IOD':    50,
+    'RDROP':  51,
+    'DROP':   52,
+    'DUP':    53,
+    'OVER':   54,
+    'SWAP':   55,
+    'MTA':    56,
+    'LBA':    57,
+    'LBAI':   58,
+    'AINC':   59,
+    'ADEC':   60,
+    'A':      61,
+    'MTB':    62,
+    'LBB':    63,
+    'LBBI':   64,
+    'SBBI':   65,
+    'BINC':   66,
+    'BDEC':   67,
+    'B':      68,
+    'TRUE':   69,
+    'FALSE':  70,
 }
 
 # Markab VM memory map
@@ -216,55 +208,53 @@ CORE_VOC = {
     'MODE_COM': (T_CONST, 1),
     'MODE_IMM': (T_CONST, 2),
     'nop':      (T_OP,    NOP),
-    '+':        (T_OP,    ADD),
-    '-':        (T_OP,    SUB),
-    '1+':       (T_OP,    INC),
-    '1-':       (T_OP,    DEC),
-    '*':        (T_OP,    MUL),
-    'and':      (T_OP,    AND),
-    'inv':      (T_OP,    INV),
-    'or':       (T_OP,    OR),
-    'xor':      (T_OP,    XOR),
-    '<<':       (T_OP,    SLL),
-    '>>':       (T_OP,    SRL),
-    '>>>':      (T_OP,    SRA),
-    '=':        (T_OP,    EQ),
-    '>':        (T_OP,    GT),
-    '<':        (T_OP,    LT),
-    '!=':       (T_OP,    NE),
-    '0=':       (T_OP,    ZE),
-    'true':     (T_OP,    TRUE),
-    'false':    (T_OP,    FALSE),
-    'call':     (T_OP,    CALL),
+    'reset':    (T_OP,    RESET),
+    'fence':    (T_OP,    FENCE),
+    'clerr':    (T_OP,    CLERR),
+    'tron':     (T_OP,    TRON),
+    'troff':    (T_OP,    TROFF),
+    'dump':     (T_OP,    IODUMP),
+    'key':      (T_OP,    IOKEY),
+    'iorh':     (T_OP,    IORH),
+    'ior':      (T_OP,    IOR),
     'r>':       (T_OP,    MRT),
     '>r':       (T_OP,    MTR),
     'r':        (T_OP,    R),
+    'call':     (T_OP,    CALL),
     'pc':       (T_OP,    PC),
     'err':      (T_OP,    ERR),
-    'rdrop':    (T_OP,    RDROP),
-    'drop':     (T_OP,    DROP),
-    'dup':      (T_OP,    DUP),
-    'over':     (T_OP,    OVER),
-    'swap':     (T_OP,    SWAP),
     '@':        (T_OP,    LB),
     '!':        (T_OP,    SB),
     'h@':       (T_OP,    LH),
     'h!':       (T_OP,    SH),
     'w@':       (T_OP,    LW),
     'w!':       (T_OP,    SW),
-    'reset':    (T_OP,    RESET),
-    'fence':    (T_OP,    FENCE),
-    'clerr':    (T_OP,    CLERR),
-    'iod':      (T_OP,    IOD),
-    'ior':      (T_OP,    IOR),
-    'iodh':     (T_OP,    IODH),
-    'iorh':     (T_OP,    IORH),
-    'key':      (T_OP,    IOKEY),
+    '+':        (T_OP,    ADD),
+    '-':        (T_OP,    SUB),
+    '*':        (T_OP,    MUL),
+    '<<':       (T_OP,    SLL),
+    '>>':       (T_OP,    SRL),
+    '>>>':      (T_OP,    SRA),
+    'inv':      (T_OP,    INV),
+    'xor':      (T_OP,    XOR),
+    'or':       (T_OP,    OR),
+    'and':      (T_OP,    AND),
+    '>':        (T_OP,    GT),
+    '<':        (T_OP,    LT),
+    '=':        (T_OP,    EQ),
+    '!=':       (T_OP,    NE),
+    '0=':       (T_OP,    ZE),
+    '1+':       (T_OP,    INC),
+    '1-':       (T_OP,    DEC),
     'emit':     (T_OP,    IOEMIT),
     '.':        (T_OP,    IODOT),
-    'dump':     (T_OP,    IODUMP),
-    'tron':     (T_OP,    TRON),
-    'troff':    (T_OP,    TROFF),
+    'iodh':     (T_OP,    IODH),
+    'iod':      (T_OP,    IOD),
+    'rdrop':    (T_OP,    RDROP),
+    'drop':     (T_OP,    DROP),
+    'dup':      (T_OP,    DUP),
+    'over':     (T_OP,    OVER),
+    'swap':     (T_OP,    SWAP),
     '>a':       (T_OP,    MTA),
     '@a':       (T_OP,    LBA),
     '@a+':      (T_OP,    LBAI),
@@ -278,8 +268,6 @@ CORE_VOC = {
     'b+':       (T_OP,    BINC),
     'b-':       (T_OP,    BDEC),
     'b':        (T_OP,    B),
-    '>x':       (T_OP,    MTX),
-    'x':        (T_OP,    X),
-    '>y':       (T_OP,    MTY),
-    'y':        (T_OP,    Y),
+    'true':     (T_OP,    TRUE),
+    'false':    (T_OP,    FALSE),
 }

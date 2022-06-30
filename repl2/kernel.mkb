@@ -84,15 +84,15 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 ;
 
 : strcmp ( addr addr -- bool )  ( Compare strings, return match as boolean)
-  a swap >a swap b swap >b   ( exchange old a & b with addresses in S & T)
-  @a @b+ != if{              ( if length bytes do not match)
-    >b >a false ;            (   restore old a & b, then return bool=false)
+  >a >b                ( replace a and b: a = T, b = S)
+  @a @b+ != if{        ( if length bytes do not match)
+    false ;            (   return bool=false)
   }if
-  @a+ 1- for{                ( loop over all the bytes)
-    @a+ @b+ != if{           (   if bytes do not match)
-      >b >a false rdrop ;    (     restore old a & b, then return bool=false)
+  @a+ 1- for{          ( loop over all the bytes)
+    @a+ @b+ != if{     (   if bytes do not match)
+      false rdrop ;    (     then return bool=false)
     }if
-  }for >b >a true            ( all bytes match: restore a and b, return true)
+  }for true            ( all bytes match: return true)
 ;
 
 ( ------------------------- )
@@ -116,17 +116,18 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 ;
 
 : find ( voc -- [addr] bool)  ( Search for word at DP in dictionary)
-  ctxt >x
+  ctxt               ( put address of head of list in T)
   999 for{           ( loop over up to 999 dictionary entries)
-    x 0= if{         ( if vocab item pointer is null:)
+    dup 0= if{       ( if vocab item pointer is null:)
+      drop           (   drop link pointer)
       false rdrop ;  (   return bool=false)
-    }if x v.name     ( calculate address of vocab item's .name field)
-    here strcmp      ( compare vocab item's name with search word)
+    }if dup v.name   ( calculate address of vocab item's .name field)
+    DP h@ strcmp     ( compare vocab item's name with search word)
     if{              ( if they match:)
-      x v.type       (   calculate address of vocab item's .type field)
+      v.type         (   calculate address of vocab item's .type field)
       true rdrop ;   (   return: addr=.type bool=true )
-    }if x h@ >x      ( else: follow link and keep looping)
-  }for false         ( end of loop without match: return false)
+    }if h@           ( else: follow link and keep looping)
+  }for drop false    ( end of loop without match: return false)
 ;
 
 : inner  ( v.type -- ??? )  ( Inner interpreter: run code for one word)

@@ -11,7 +11,7 @@
 :syntax keyword mkbOpcode U8 U16 I32 LB SB LH SH LW SW RESET FENCE CLERR
 :syntax keyword mkbOpcode IOD IOR IODH IORH IOKEY IOEMIT IODOT IODUMP TRON TROFF
 :syntax keyword mkbOpcode MTA LBA LBAI      AINC ADEC A
-:syntax keyword mkbOpcode MTB LBB LBBI SBBI BINC BDEC B MTX X MTY Y
+:syntax keyword mkbOpcode MTB LBB LBBI SBBI BINC BDEC B
 :syntax match mkbComment /( [^)]*)/
 
 " Extend the characters that vim considers acceptable for keywords.
@@ -27,7 +27,7 @@
 :syntax keyword mkbCoreVocab >a @a @a+     a+ a- a
 :syntax keyword mkbCoreVocab >b @b @b+ !b+ b+ b- b >x x >y y
 :syntax keyword mkbCoreVocab : ; var const opcode
-:syntax keyword mkbCoreVocab if{ }if for{ break }for
+:syntax keyword mkbCoreVocab if{ }if for{ }for
 
 :highlight link mkbOpcode Constant
 :highlight link mkbComment Comment

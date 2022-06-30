@@ -11,7 +11,7 @@ from mkb_autogen import (
   U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET, FENCE, CLERR,
   IOD, IOR, IODH, IORH, IOKEY, IOEMIT, IODOT, IODUMP, TRON, TROFF,
   MTA, LBA, LBAI,       AINC, ADEC, A,
-  MTB, LBB, LBBI, SBBI, BINC, BDEC, B, MTX, X, MTY, Y,
+  MTB, LBB, LBBI, SBBI, BINC, BDEC, B,
 )
 
 def p(s):
@@ -1159,25 +1159,6 @@ def test_instructions_mtb_lbb_lbbi_sbbi_binc_bdec_b():
   v._ok_or_err()
   print()
 
-def test_instructions_mtx_x_mty_y():
-  v = VM()
-  print("=== test.vm.test_instructions_mtx_x_mty_y() ===")
-  print("( MTX -- Move T to register X            )")
-  print("( X -- Push copy of X to the data stack  )")
-  print("( MTY -- Move T to register Y            )")
-  print("( Y -- Push copy of Y to the data stack  )")
-  print("(         1  >x x  >y    5 for{ x x y y  )")
-  print("( addr: 0 1   2 3   4  5 6   7 *8*       )")
-  print("ASM{   U8 1 MTX X MTY U8 5 MTR  X X Y Y")
-  print("(     >x    +  >y     }for  .s           )")
-  print("      MTX ADD MTY BFOR 8 0 IOD }ASM")
-  code = bytearray([U8, 1, MTX, X, MTY, U8, 5, MTR, X, X, Y, Y])
-  code.extend([MTX, ADD, MTY, BFOR, 8, 0, IOD, RET])
-  p("warmboot                             (  1 1 2 3 5 8  OK)")
-  v._warm_boot(code, max_cycles=99)
-  v._ok_or_err()
-  print()
-
 def test_instructions_fence_err_clerr():
   v = VM()
   print("=== test.vm.test_instructions_fence_err_clerr() ===")
@@ -1331,6 +1312,5 @@ test_instructions_reset_io()
 test_instructions_r_pc()
 test_instructions_mta_lba_lbai_ainc_adec_a()
 test_instructions_mtb_lbb_lbbi_sbbi_binc_bdec_b()
-test_instructions_mtx_x_mty_y()
 test_instructions_fence_err_clerr()
 test_fence_err_clerr()

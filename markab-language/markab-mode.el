@@ -19,7 +19,7 @@
     "U8" "U16" "I32" "LB" "SB" "LH" "SH" "LW" "SW" "RESET" "FENCE" "CLERR"
     "IOD" "IOR" "IODH" "IORH" "IOKEY" "IOEMIT" "IODOT" "IODUMP" "TRON" "TROFF"
     "MTA" "LBA" "LBAI"        "AINC" "ADEC" "A"
-    "MTB" "LBB" "LBBI" "SBBI" "BINC" "BDEC" "B" "MTX" "X" "MTY" "Y"
+    "MTB" "LBB" "LBBI" "SBBI" "BINC" "BDEC" "B"
 
     ;; Core Words
     "nop" "+" "-" "1+" "1-" "*" "and" "inv" "or" "xor"
@@ -29,9 +29,9 @@
     "@" "!" "h@" "h!" "w@" "w!" "reset" "fence" "clerr"
     "iod" "ior" "iodh" "iorh" "key" "emit" "." "dump" "tron" "troff"
     ">a" "@a" "@a+"       "a+" "a-" "a"
-    ">b" "@b" "@b+" "!b+" "b+" "b-" "b" ">x" "x" ">y" "y"
+    ">b" "@b" "@b+" "!b+" "b+" "b-" "b"
     ":" ";" "var" "const" "opcode"
-    "if{" "}if" "for{" "break" "}for"))
+    "if{" "}if" "for{" "}for"))
 
 (defconst markab-comments '(("( " . ")")))
 (defconst markab-fontlocks '())

@@ -20,7 +20,7 @@ BZ BFOR MRT MTR RDROP R PC ERR DROP DUP OVER SWAP
 U8 U16 I32 LB SB LH SH LW SW RESET FENCE CLERR
 IOD IOR IODH IORH IOKEY IOEMIT IODOT IODUMP TRON TROFF
 MTA LBA LBAI      AINC ADEC A
-MTB LBB LBBI SBBI BINC BDEC B MTX X MTY Y
+MTB LBB LBBI SBBI BINC BDEC B
 ```
 
 The `U8`, `LB`, `SH`, ... opcodes are for moving different widths of data
@@ -53,9 +53,9 @@ r> >r rdrop r pc err drop dup over swap
 @ ! h@ h! w@ w! reset fence clerr
 iod ior iod iorh key emit . dump tron troff
 >a @a @a+     a+ a- a
->b @b @b+ !b+ b+ b- b >x x >y y
+>b @b @b+ !b+ b+ b- b
 : ; var const opcode
-if{ }if for{ break }for
+if{ }if for{ }for
 ```
 
 Most of the core words are simple words that invoke a CPU instruction on one or

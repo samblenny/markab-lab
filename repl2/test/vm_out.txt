@@ -527,18 +527,6 @@ warmboot                                       (  9  OK)  9  OK
 ASM{ U8 8 MTB BDEC B IOD RESET }ASM
 warmboot                                       (  7  OK)  7  OK
 
-=== test.vm.test_instructions_mtx_x_mty_y() ===
-( MTX -- Move T to register X            )
-( X -- Push copy of X to the data stack  )
-( MTY -- Move T to register Y            )
-( Y -- Push copy of Y to the data stack  )
-(         1  >x x  >y    5 for{ x x y y  )
-( addr: 0 1   2 3   4  5 6   7 *8*       )
-ASM{   U8 1 MTX X MTY U8 5 MTR  X X Y Y
-(     >x    +  >y     }for  .s           )
-      MTX ADD MTY BFOR 8 0 IOD }ASM
-warmboot                             (  1 1 2 3 5 8  OK)  1 1 2 3 5 8  OK
-
 === test.vm.test_instructions_fence_err_clerr() ===
 ( opcode coverage: FENCE ERR CLERR       )
 (       50 fence     49  >b              )

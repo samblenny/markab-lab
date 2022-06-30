@@ -18,7 +18,7 @@ from mkb_autogen import (
   U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET, FENCE, CLERR,
   IOD, IOR, IODH, IORH, IOKEY, IOEMIT, IODOT, IODUMP, TRON, TROFF,
   MTA, LBA, LBAI,       AINC, ADEC, A,
-  MTB, LBB, LBBI, SBBI, BINC, BDEC, B, MTX, X, MTY, Y,
+  MTB, LBB, LBBI, SBBI, BINC, BDEC, B,
 
   Heap, HeapRes, HeapMax, MemMax,
   OPCODES,
@@ -161,10 +161,6 @@ class VM:
     self.jumpTable[BINC ] = self.b_increment
     self.jumpTable[BDEC ] = self.b_decrement
     self.jumpTable[B    ] = self.b_
-    self.jumpTable[MTX  ] = self.move_t_to_x
-    self.jumpTable[X    ] = self.x_
-    self.jumpTable[MTY  ] = self.move_t_to_y
-    self.jumpTable[Y    ] = self.y_
 
   def dbg_add_symbol(self, addr, name):
     """Add a debug symbol entry to the symbol table"""
