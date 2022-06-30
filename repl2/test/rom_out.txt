@@ -1,6 +1,13 @@
 ( Copyright © 2022 Sam Blenny)  OK
 ( SPDX-License-Identifier: MIT)  OK
   OK
+: 2d drop drop ;  OK
+: 4d 2d 2d ;  OK
 : t01 3 for{ r 1 and }for iod ;      t01  (  1 0 1 0  OK)  1 0 1 0  OK
+4d  OK
+: t02 true  if{ 4 iod ; }if 5 iod ;   t02       (  4  OK)  4  OK
+drop  OK
+: t03 false if{ 4 iod ; }if 5 iod ;   t03       (  5  OK)  5  OK
+drop  OK
   OK
 

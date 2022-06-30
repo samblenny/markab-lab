@@ -158,10 +158,10 @@
 2482 const
 2509 opcode
 2542 if{
-2570 }if
-2592 for{
-2611 }for
-2637 inner-c
-2721 dowords
-2824 outer
-2851 boot
+2565 }if
+2587 for{
+2606 }for
+2632 inner-c
+2716 dowords
+2819 outer
+2846 boot

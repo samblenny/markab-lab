@@ -4,6 +4,7 @@
 #
 # Markab VM emulator
 #
+import cProfile
 from ctypes import c_int32
 from typing import Callable, Dict
 import readline
@@ -30,7 +31,11 @@ from mkb_autogen import (
 # a specific area of code to be traced with TRON/TROFF. Otherwise, the huge
 # amount of trace data from dictionary lookups will be too noisy to follow.
 #
-DEBUG = True #False
+DEBUG = False #True
+
+# Set this to True if you want a profile report from cProfile
+#  (see https://docs.python.org/3/library/profile.html)
+PROFILE = False #True
 
 ROM_FILE = 'kernel.rom'
 ERR_D_OVER = 1
@@ -76,6 +81,7 @@ class VM:
     self.ram = bytearray(MemMax+1)  # Random Access Memory
     self.inbuf = ''                 # Input buffer
     self.echo = echo                # Echo depends on tty vs pip, etc.
+    self.cycle_count = 65535        # Counter to break infinite loops
     # Debug tracing on/off
     self.dbg_trace_enable = False   # Debug trace is noisy, so default=off
     # Debug symbols
@@ -179,34 +185,17 @@ class VM:
         return self.dbg_names[i]
     return '<???>'
 
-  def _set_pc(self, addr):
-    """Set Program Counter with range check"""
-    if (addr > MemMax) or (addr > 0xffff):
-      self.ERR = ERR_BAD_ADDRESS
-      return
-    self.PC = addr
-
-  def _next_instruction(self):
-    """Load an instruction from location pointed to by Program Counter (PC)"""
-    pc = self.PC
-    self._set_pc(pc+1)
-    op = self.ram[pc]
-    if DEBUG and self.dbg_trace_enable:
-      name = [k for (k,v) in OPCODES.items() if v == op]
-      if len(name) == 1:
-        name = name[0]
-      else:
-        name = f"{name}"
-      print(f"<<{pc:04x}:{op:2}: {self.dbg_name_for(pc):9}:{name:6}", end='')
-      self._log_ds()
-      print(">>")
-    return op
+  def error(self, code):
+    """Set the ERR register with an error code"""
+    if DEBUG:
+      print(f"<<ERR{code}>>", end='')
+    self.ERR = code
 
   def _load_rom(self, code):
     """Load byte array of rom image into memory"""
     n = len(code)
     if n > (HeapRes-Heap):
-      self.ERR = ERR_BOOT_OVERFLOW
+      self.error(ERR_BOOT_OVERFLOW)
       return
     self.ram[Heap:Heap+n] = code[0:]
 
@@ -214,49 +203,64 @@ class VM:
     """Load a byte array of machine code into memory, then run it."""
     self.ERR = 0
     self._load_rom(code)
-    self._set_pc(Heap)      # hardcode boot vector to start of heap (for now)
+    self.PC = Heap          # hardcode boot vector to start of heap (for now)
     self._step(max_cycles)
 
   def _step(self, max_cycles):
     """Step the virtual CPU clock to run up to max_cycles instructions"""
-    for i in range(max_cycles):
-      t = self._next_instruction()
-      if self.RSDeep == 0 and t == RET:
+    self.cycle_count = max_cycles
+    while self.cycle_count > 0:
+      self.cycle_count -= 1
+      pc = self.PC
+      self.PC += 1
+      op = self.ram[pc]
+      if DEBUG and self.dbg_trace_enable:
+        name = [k for (k,v) in OPCODES.items() if v == op]
+        if len(name) == 1:
+          name = name[0]
+        else:
+          name = f"{name}"
+        print(f"<<{pc:04x}:{op:2}: {self.dbg_name_for(pc):9}:{name:6}", end='')
+        self._log_ds()
+        print(">>")
+      if self.RSDeep == 0 and op == RET:
         return
-      if t in self.jumpTable:
-        (self.jumpTable[t])()
+      if op in self.jumpTable:
+        (self.jumpTable[op])()
       else:
-        self.ERR = ERR_BAD_INSTRUCTION
+        self(ERR_BAD_INSTRUCTION)
         return
-    self.ERR = ERR_MAX_CYCLES
+    self.error(ERR_MAX_CYCLES)
 
   def _op_st(self, fn):
     """Apply operation λ(S,T), storing the result in S and dropping T"""
     if self.DSDeep < 2:
-      self.ERR = ERR_D_UNDER
+      self.error(ERR_D_UNDER)
       return
-    self.S = c_int32(fn(self.S, self.T)).value
+    n = fn(self.S, self.T) & 0xffffffff
+    self.S = (n & 0x7fffffff) - (n & 0x80000000)  # sign extend i32->whatever
     self.drop()
 
   def _op_t(self, fn):
     """Apply operation λ(T), storing the result in T"""
     if self.DSDeep < 1:
-      self.ERR = ERR_D_UNDER
+      self.error(ERR_D_UNDER)
       return
-    self.T = c_int32(fn(self.T)).value
+    n = fn(self.T) & 0xffffffff
+    self.T = (n & 0x7fffffff) - (n & 0x80000000)  # sign extend i32->whatever
 
   def _push(self, n):
     """Push n onto the data stack as a 32-bit signed integer"""
     deep = self.DSDeep
     if deep > 17:
       self.reset()             # Clear data and return stacks
-      self.ERR = ERR_D_OVER    # Set error code
+      self.error(ERR_D_OVER)   # Set error code
       return
     if deep > 1:
       third = deep-2
       self.DStack[third] = self.S
     self.S = self.T
-    self.T = c_int32(n).value
+    self.T = n
     self.DSDeep += 1
 
   def nop(self):
@@ -270,11 +274,11 @@ class VM:
   def load_byte(self):
     """Load a uint8 (1 byte) from memory address T, saving result in T"""
     if self.DSDeep < 1:
-      self.ERR = ERR_D_UNDER
+      self.error(ERR_D_UNDER)
       return
     addr = self.T
     if (addr < 0) or (addr > MemMax):
-      self.ERR = ERR_BAD_ADDRESS
+      self.error(ERR_BAD_ADDRESS)
     else:
       self.T = int.from_bytes(self.ram[addr:addr+1], 'little', signed=False)
 
@@ -282,7 +286,7 @@ class VM:
     """Load byte from memory using address in register A"""
     addr = self.A
     if (addr < 0) or (addr > MemMax):
-      self.ERR = ERR_BAD_ADDRESS
+      self.error(ERR_BAD_ADDRESS)
       return
     x = int.from_bytes(self.ram[addr:addr+1], 'little', signed=False)
     self._push(x)
@@ -291,7 +295,7 @@ class VM:
     """Load byte from memory using address in register B"""
     addr = self.B
     if (addr < 0) or (addr > MemMax):
-      self.ERR = ERR_BAD_ADDRESS
+      self.error(ERR_BAD_ADDRESS)
       return
     x = int.from_bytes(self.ram[addr:addr+1], 'little', signed=False)
     self._push(x)
@@ -300,7 +304,7 @@ class VM:
     """Load byte from memory using address in register A, then increment A"""
     addr = self.A
     if (addr < 0) or (addr > MemMax):
-      self.ERR = ERR_BAD_ADDRESS
+      self.error(ERR_BAD_ADDRESS)
       return
     x = int.from_bytes(self.ram[addr:addr+1], 'little', signed=False)
     self.A += 1
@@ -310,7 +314,7 @@ class VM:
     """Load byte from memory using address in register B, then increment B"""
     addr = self.B
     if (addr < 0) or (addr > MemMax):
-      self.ERR = ERR_BAD_ADDRESS
+      self.error(ERR_BAD_ADDRESS)
       return
     x = int.from_bytes(self.ram[addr:addr+1], 'little', signed=False)
     self.B += 1
@@ -322,7 +326,7 @@ class VM:
     x = int.to_bytes((self.T & 0xff), 1, 'little', signed=False)
     self.B += 1
     if (addr < 0) or (addr > MemMax) or (addr < self.Fence):
-      self.ERR = ERR_BAD_ADDRESS
+      self.error(ERR_BAD_ADDRESS)
     else:
       self.ram[addr:addr+1] = x
     self.drop()
@@ -330,12 +334,12 @@ class VM:
   def store_byte(self):
     """Store low byte of S (uint8) at memory address T"""
     if self.DSDeep < 2:
-      self.ERR = ERR_D_UNDER
+      self.error(ERR_D_UNDER)
       return
     x = int.to_bytes((self.S & 0xff), 1, 'little', signed=False)
     addr = self.T
     if (addr < 0) or (addr > MemMax) or (addr < self.Fence):
-      self.ERR = ERR_BAD_ADDRESS
+      self.error(ERR_BAD_ADDRESS)
     else:
       self.ram[addr:addr+1] = x
     self.drop()
@@ -345,11 +349,11 @@ class VM:
     """Call to subroutine at address T, pushing old PC to return stack"""
     if self.RSDeep > 16:
       self.reset()
-      self.ERR = ERR_R_OVER
+      self.error(ERR_R_OVER)
       return
     if self.T > MemMax:
       self.reset()
-      self.ERR = ERR_BAD_ADDRESS
+      self.error(ERR_BAD_ADDRESS)
       return
     # push the current Program Counter (PC) to return stack
     if self.RSDeep > 0:
@@ -365,17 +369,16 @@ class VM:
     """Jump to subroutine after pushing old value of PC to return stack"""
     if self.RSDeep > 16:
       self.reset()
-      self.ERR = ERR_R_OVER
+      self.error(ERR_R_OVER)
       return
     # read a 16-bit address from the instruction stream
     pc = self.PC
-    n = int.from_bytes(self.ram[pc:pc+2], 'little', signed=False)
-    self._set_pc(pc+2)
+    n = (self.ram[pc+1] << 8) + self.ram[pc]  # decode little-endian halfword
     # push the current Program Counter (PC) to return stack
     if self.RSDeep > 0:
       rSecond = self.RSDeep - 1
       self.RStack[rSecond] = self.R
-    self.R = self.PC
+    self.R = pc + 2
     self.RSDeep += 1
     # set Program Counter to the new address
     self.PC = n
@@ -384,7 +387,7 @@ class VM:
     """Drop T, the top item of the data stack"""
     deep = self.DSDeep
     if deep < 1:
-      self.ERR = ERR_D_UNDER
+      self.error(ERR_D_UNDER)
       return
     self.T = self.S
     if deep > 2:
@@ -403,11 +406,11 @@ class VM:
   def load_word(self):
     """Load a signed int32 (word = 4 bytes) from memory address T, into T"""
     if self.DSDeep < 1:
-      self.ERR = ERR_D_UNDER
+      self.error(ERR_D_UNDER)
       return
     addr = self.T
     if (addr < 0) or (addr > MemMax-3):
-      self.ERR = ERR_BAD_ADDRESS
+      self.error(ERR_BAD_ADDRESS)
       return
     self.T = int.from_bytes(self.ram[addr:addr+4], 'little', signed=True)
 
@@ -424,29 +427,28 @@ class VM:
     # read a 16-bit address from the instruction stream
     pc = self.PC
     n = int.from_bytes(self.ram[pc:pc+2], 'little', signed=False)
-    self._set_pc(pc+2)
     # set program counter to the new address
     self.PC = n
 
   def branch_zero(self):
     """Branch to address read from instruction stream if T == 0, drop T"""
     if self.DSDeep < 1:
-      self.ERR = ERR_D_UNDER
+      self.error(ERR_D_UNDER)
       return
     pc = self.PC
     if self.T == 0:
       # Branch past conditional block: Set PC to address literal
-      n = int.from_bytes(self.ram[pc:pc+2], 'little', signed=False)
+      n = (self.ram[pc+1] << 8) + self.ram[pc]  # decode little-endian halfword
       self.PC = n
     else:
       # Enter conditional block: Advance PC past address literal
-      self._set_pc(pc+2)
+      self.PC += 2
     self.drop()
 
   def branch_for_loop(self):
     """Decrement R and branch to start of for-loop if R >= 0"""
     if self.RSDeep < 1:
-      self.ERR = ERR_R_UNDER
+      self.error(ERR_R_UNDER)
       return
     self.R -= 1
     pc = self.PC
@@ -456,7 +458,7 @@ class VM:
       self.PC = n
     else:
       # End of loop: Advance PC past address literal, drop R
-      self._set_pc(pc+2)
+      self.PC += 2
       self.r_drop()
 
   def less_than(self):
@@ -467,21 +469,21 @@ class VM:
     """Read uint16 halfword (2 bytes) literal, zero-extend it, push as T"""
     pc = self.PC
     n = int.from_bytes(self.ram[pc:pc+2], 'little', signed=False)
-    self._set_pc(pc+2)
+    self.PC += 2
     self._push(n)
 
   def i32_literal(self):
     """Read int32 word (4 bytes) signed literal, push as T"""
     pc = self.PC
     n = int.from_bytes(self.ram[pc:pc+4], 'little', signed=True)
-    self._set_pc(pc+4)
+    self.PC += 4
     self._push(n)
 
   def u8_literal(self):
     """Read uint8 byte literal, zero-extend it, push as T"""
     pc = self.PC
     n = int.from_bytes(self.ram[pc:pc+1], 'little', signed=False)
-    self._set_pc(pc+1)
+    self.PC += 1
     self._push(n)
 
   def subtract(self):
@@ -508,7 +510,7 @@ class VM:
   def over(self):
     """Push a copy of S"""
     if self.DSDeep < 1:
-      self.ERR = ERR_D_UNDER
+      self.error(ERR_D_UNDER)
       return
     self._push(self.S)
 
@@ -545,7 +547,7 @@ class VM:
   def set_fence(self):
     """Set the write protect fence to T, if T is greater than old fence"""
     if self.DSDeep < 1:
-      self.ERR = ERR_D_UNDER
+      self.error(ERR_D_UNDER)
       return
     if self.T > self.Fence:
       self.Fence = self.T
@@ -559,7 +561,7 @@ class VM:
     """Return from subroutine, taking address from return stack"""
     if self.RSDeep < 1:
       self.reset()
-      self.ERR = ERR_R_UNDER
+      self.error(ERR_R_UNDER)
       return
     # Set program counter from top of return stack
     self.PC = self.R
@@ -585,11 +587,11 @@ class VM:
     """Move top of return stack (R) to top of data stack (T)"""
     if self.RSDeep < 1:
       self.reset()
-      self.ERR = ERR_R_UNDER
+      self.error(ERR_R_UNDER)
       return
     if self.DSDeep > 17:
       self.reset()
-      self.ERR = ERR_D_OVER
+      self.error(ERR_D_OVER)
       return
     self._push(self.R)
     if self.RSDeep > 1:
@@ -601,7 +603,7 @@ class VM:
     """Drop R in the manner needed when exiting from a counted loop"""
     if self.RSDeep < 1:
       self.reset()
-      self.ERR = ERR_R_UNDER
+      self.error(ERR_R_UNDER)
       return
     if self.RSDeep > 1:
       rSecond = self.RSDeep - 2
@@ -625,12 +627,12 @@ class VM:
   def store_word(self):
     """Store word (4 bytes) from S as signed int32 at memory address T"""
     if self.DSDeep < 2:
-      self.ERR = ERR_D_UNDER
+      self.error(ERR_D_UNDER)
       return
     addr = self.T
     x = int.to_bytes(c_int32(self.S).value, 4, 'little', signed=True)
     if (addr < 0) or (addr > MemMax-3) or (addr < self.Fence):
-      self.ERR = ERR_BAD_ADDRESS
+      self.error(ERR_BAD_ADDRESS)
     else:
       self.ram[addr:addr+4] = x
     self.drop()
@@ -639,7 +641,7 @@ class VM:
   def swap(self):
     """Swap S with T"""
     if self.DSDeep < 2:
-      self.ERR = ERR_D_UNDER
+      self.error(ERR_D_UNDER)
       return
     tmp = self.T
     self.T = self.S
@@ -649,11 +651,11 @@ class VM:
     """Move top of data stack (T) to top of return stack (R)"""
     if self.RSDeep > 16:
       self.reset()
-      self.ERR = ERR_R_OVER
+      self.error(ERR_R_OVER)
       return
     if self.DSDeep < 1:
       self.reset()
-      self.ERR = ERR_D_UNDER
+      self.error(ERR_D_UNDER)
       return
     if self.RSDeep > 0:
       rSecond = self.RSDeep - 1
@@ -666,7 +668,7 @@ class VM:
     """Move top of data stack (T) to register A"""
     if self.DSDeep < 1:
       self.reset()
-      self.ERR = ERR_D_UNDER
+      self.error(ERR_D_UNDER)
       return
     self.A = self.T
     self.drop()
@@ -675,7 +677,7 @@ class VM:
     """Move top of data stack (T) to register B"""
     if self.DSDeep < 1:
       self.reset()
-      self.ERR = ERR_D_UNDER
+      self.error(ERR_D_UNDER)
       return
     self.B = self.T
     self.drop()
@@ -684,7 +686,7 @@ class VM:
     """Move top of data stack (T) to register X"""
     if self.DSDeep < 1:
       self.reset()
-      self.ERR = ERR_D_UNDER
+      self.error(ERR_D_UNDER)
       return
     self.X = self.T
     self.drop()
@@ -693,7 +695,7 @@ class VM:
     """Move top of data stack (T) to register Y"""
     if self.DSDeep < 1:
       self.reset()
-      self.ERR = ERR_D_UNDER
+      self.error(ERR_D_UNDER)
       return
     self.Y = self.T
     self.drop()
@@ -701,23 +703,23 @@ class VM:
   def load_halfword(self):
     """Load halfword (2 bytes, zero-extended) from memory address T, into T"""
     if self.DSDeep < 1:
-      self.ERR = ERR_D_UNDER
+      self.error(ERR_D_UNDER)
       return
     addr = self.T
     if (addr < 0) or (addr > MemMax-1):
-      self.ERR = ERR_BAD_ADDRESS
+      self.error(ERR_BAD_ADDRESS)
       return
     self.T = int.from_bytes(self.ram[addr:addr+2], 'little', signed=False)
 
   def store_halfword(self):
     """Store low 2 bytes from S (uint16) at memory address T"""
     if self.DSDeep < 2:
-      self.ERR = ERR_D_UNDER
+      self.error(ERR_D_UNDER)
       return
     x = int.to_bytes((self.S & 0xffff), 2, 'little', signed=False)
     addr = self.T
     if (addr < 0) or (addr > MemMax-1) or (addr < self.Fence):
-      self.ERR = ERR_BAD_ADDRESS
+      self.error(ERR_BAD_ADDRESS)
     else:
       self.ram[addr:addr+2] = x
     self.drop()
@@ -826,6 +828,7 @@ class VM:
     - Got an input byte, push 2 items: {S: byte, T: -1 (true)}
     - End of file, push 1 item:           {T: 0 (false)}
     """
+    self.cycle_count = 65535  # reset the infinite loop detection count
     if len(self.inbuf) < 1:
       try:
         self.inbuf = input().encode('utf-8')+b'\x0a'
@@ -852,6 +855,7 @@ class VM:
     prototypes, where simplicity of the code is more important than its
     efficiency. Using this method to print long strings would be inefficient.
     """
+    self.cycle_count = 65535  # reset the infinite loop detection count
     sys.stdout.flush()
     sys.stdout.buffer.write(int.to_bytes(self.T & 0xff, 1, 'little'))
     sys.stdout.flush()
@@ -859,8 +863,9 @@ class VM:
 
   def io_dot(self):
     """Print T to standard output, then drop T"""
+    self.cycle_count = 65535  # reset the infinite loop detection count
     if self.DSDeep < 1:
-      self.ERR = ERR_D_UNDER
+      self.error(ERR_D_UNDER)
       return
     sys.stdout.flush()
     print(f" {self.T}", end='')
@@ -869,11 +874,12 @@ class VM:
 
   def io_dump(self):
     """Hexdump S bytes of memory starting from address T, then drop S and T"""
+    self.cycle_count = 65535  # reset the infinite loop detection count
     if self.DSDeep < 2:
-      self.ERR = ERR_D_UNDER
+      self.error(ERR_D_UNDER)
       return
     if self.T > MemMax or self.T + self.S > MemMax:
-      self.ERR = ERR_BAD_ADDRESS
+      self.error(ERR_BAD_ADDRESS)
       return
     col = 0
     start = self.T
@@ -954,7 +960,11 @@ if __name__ == '__main__':
   # Open the rom file and run it
   with open(rom, 'rb') as f:
     rom = f.read()
-    v._warm_boot(rom, 65535)
+    if PROFILE:
+      # This will print a chart of function call counts and timings
+      cProfile.run('v._warm_boot(rom, 65535)', sort='cumulative')
+    else:
+      v._warm_boot(rom, 65535)
 
   if v.echo:
     # add a final newline if input is coming from pipe

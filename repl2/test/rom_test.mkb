@@ -1,4 +1,11 @@
 ( Copyright © 2022 Sam Blenny)
 ( SPDX-License-Identifier: MIT)
 
+: 2d drop drop ;
+: 4d 2d 2d ;
 : t01 3 for{ r 1 and }for iod ;      t01  (  1 0 1 0  OK)
+4d
+: t02 true  if{ 4 iod ; }if 5 iod ;   t02       (  4  OK)
+drop
+: t03 false if{ 4 iod ; }if 5 iod ;   t03       (  5  OK)
+drop

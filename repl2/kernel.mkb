@@ -372,7 +372,7 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 ;
 
 : if{ ( -- addr )  ( Start of if block)
-  BZ , here 0 , 0 , NEST+
+  BZ , here 0 h, NEST+
 ; immediate
 
 : }if ( addr -- )  ( End of if block)

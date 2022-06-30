@@ -45,5 +45,8 @@ test: hello.rom kernel.rom $(AUTOGEN)
 	@echo "=== rom tests: ==="
 	@cat $(TEST_IN2) | python3 markab_vm.py kernel.rom | tee $(TEST_OUT2)
 
+romtest: kernel.rom $(AUTOGEN)
+	@cat $(TEST_IN2) | python3 markab_vm.py kernel.rom | tee $(TEST_OUT2)
+
 clean:
 	@rm -rf __pycache__
