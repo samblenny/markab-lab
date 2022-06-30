@@ -280,7 +280,7 @@ class VM:
     if (addr < 0) or (addr > MemMax):
       self.error(ERR_BAD_ADDRESS)
     else:
-      self.T = int.from_bytes(self.ram[addr:addr+1], 'little', signed=False)
+      self.T = self.ram[addr]
 
   def load_byte_a(self):
     """Load byte from memory using address in register A"""
@@ -288,7 +288,7 @@ class VM:
     if (addr < 0) or (addr > MemMax):
       self.error(ERR_BAD_ADDRESS)
       return
-    x = int.from_bytes(self.ram[addr:addr+1], 'little', signed=False)
+    x = self.ram[addr]
     self._push(x)
 
   def load_byte_b(self):
@@ -297,7 +297,7 @@ class VM:
     if (addr < 0) or (addr > MemMax):
       self.error(ERR_BAD_ADDRESS)
       return
-    x = int.from_bytes(self.ram[addr:addr+1], 'little', signed=False)
+    x = self.ram[addr]
     self._push(x)
 
   def load_byte_a_increment(self):
@@ -306,7 +306,7 @@ class VM:
     if (addr < 0) or (addr > MemMax):
       self.error(ERR_BAD_ADDRESS)
       return
-    x = int.from_bytes(self.ram[addr:addr+1], 'little', signed=False)
+    x = self.ram[addr]
     self.A += 1
     self._push(x)
 
@@ -316,19 +316,18 @@ class VM:
     if (addr < 0) or (addr > MemMax):
       self.error(ERR_BAD_ADDRESS)
       return
-    x = int.from_bytes(self.ram[addr:addr+1], 'little', signed=False)
+    x = self.ram[addr]
     self.B += 1
     self._push(x)
 
   def store_byte_b_increment(self):
     """Store low byte of T byte to address in register B, then increment B"""
     addr = self.B
-    x = int.to_bytes((self.T & 0xff), 1, 'little', signed=False)
     self.B += 1
     if (addr < 0) or (addr > MemMax) or (addr < self.Fence):
       self.error(ERR_BAD_ADDRESS)
     else:
-      self.ram[addr:addr+1] = x
+      self.ram[addr] = self.T & 0xff
     self.drop()
 
   def store_byte(self):
@@ -336,12 +335,11 @@ class VM:
     if self.DSDeep < 2:
       self.error(ERR_D_UNDER)
       return
-    x = int.to_bytes((self.S & 0xff), 1, 'little', signed=False)
     addr = self.T
     if (addr < 0) or (addr > MemMax) or (addr < self.Fence):
       self.error(ERR_BAD_ADDRESS)
     else:
-      self.ram[addr:addr+1] = x
+      self.ram[addr] = self.S & 0xff
     self.drop()
     self.drop()
 
@@ -426,7 +424,7 @@ class VM:
     """Jump to subroutine at address read from instruction stream"""
     # read a 16-bit address from the instruction stream
     pc = self.PC
-    n = int.from_bytes(self.ram[pc:pc+2], 'little', signed=False)
+    n = (self.ram[pc+1] << 8 ) | self.ram[pc]  # LE halfword
     # set program counter to the new address
     self.PC = n
 
@@ -454,7 +452,7 @@ class VM:
     pc = self.PC
     if self.R >= 0:
       # Keep looping: Set PC to address literal
-      n = int.from_bytes(self.ram[pc:pc+2], 'little', signed=False)
+      n = (self.ram[pc+1] << 8) | self.ram[pc]  # LE halfword
       self.PC = n
     else:
       # End of loop: Advance PC past address literal, drop R
@@ -468,7 +466,7 @@ class VM:
   def u16_literal(self):
     """Read uint16 halfword (2 bytes) literal, zero-extend it, push as T"""
     pc = self.PC
-    n = int.from_bytes(self.ram[pc:pc+2], 'little', signed=False)
+    n = (self.ram[pc+1] << 8) | self.ram[pc]  # LE halfword
     self.PC += 2
     self._push(n)
 
@@ -482,8 +480,8 @@ class VM:
   def u8_literal(self):
     """Read uint8 byte literal, zero-extend it, push as T"""
     pc = self.PC
-    n = int.from_bytes(self.ram[pc:pc+1], 'little', signed=False)
-    self.PC += 1
+    n = self.ram[pc]
+    self.PC = pc + 1
     self._push(n)
 
   def subtract(self):
