@@ -4,23 +4,12 @@
 #
 # Markab hello world rom compiler
 #
-from mkb_autogen import (
-  NOP, ADD, SUB, INC, DEC, MUL, AND, INV, OR, XOR, SLL, SRL, SRA,
-  EQ, GT, LT, NE, ZE, TRUE, FALSE, JMP, JAL, CALL, RET,
-  BZ, BFOR, MTR, MRT, R, PC, RDROP, DROP, DUP, OVER, SWAP,
-  U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET,
-  IOD, IOR, IODH, IORH, IOKEY, IOEMIT, TRON, TROFF,
-  MTA, LBA, LBAI,       AINC, ADEC, A,
-  MTB, LBB, LBBI, SBBI, BINC, BDEC, B,
-  OPCODES,
-
-  CORE_VOC, T_VAR, T_CONST, T_OP, T_OBJ, T_IMM,
-)
+from mkb_autogen import OPCODES, CORE_VOC
 
 
 ROM_FILE = 'hello.rom'
 
-KERNEL_ASM = """
+HELLO_ASM = """
 #          12  >a  a@+  1- for{  @a+   emit      }for
 # addr:  0  1   2    3   4    5  *6*      7    8 9 10  11
         U8 12 MTA LBAI DEC  MTR LBAI IOEMIT BFOR 6  0 RET
@@ -45,20 +34,10 @@ def get_opcode(word: str):
     return None
   return value
 
-def compile_int(word: str):
-  """Compile an integer literal"""
-  n = int(word) & 0xffffffff
-  if n <= 0xff:
-    return bytearray([U8, n])
-  elif n <= 0xffff:
-    return bytearray([U16] + int.to_bytes(n, 2, 'little', signed=False))
-  else:
-    return bytearray([I32] + int.to_bytes(n, 4, 'little', signed=False))
-
-def compile_kernel():
-  """Compile a kernel image for the Markab VM"""
+def compile_rom():
+  """Compile a rom image for the Markab VM"""
   obj = bytearray()
-  for line in filter(KERNEL_ASM):
+  for line in filter(HELLO_ASM):
     for word in line.strip().split(" "):
       if word == '':
         continue
@@ -79,4 +58,4 @@ def compile_kernel():
   return obj
 
 with open(ROM_FILE, 'w') as f:
-  f.buffer.write(compile_kernel())
+  f.buffer.write(compile_rom())

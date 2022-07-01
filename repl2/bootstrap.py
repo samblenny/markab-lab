@@ -5,19 +5,10 @@
 # Markab bootstrap compiler
 #
 from mkb_autogen import (
-  NOP, ADD, SUB, INC, DEC, MUL, AND, INV, OR, XOR, SLL, SRL, SRA,
-  EQ, GT, LT, NE, ZE, TRUE, FALSE, JMP, JAL, CALL, RET,
-  BZ, BFOR, MTR, MRT, R, PC, RDROP, DROP, DUP, OVER, SWAP,
-  U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET,
-  IOD, IOR, IODH, IORH, IOKEY, IOEMIT, TRON, TROFF,
-  MTA, LBA, LBAI,       AINC, ADEC, A,
-  MTB, LBB, LBBI, SBBI, BINC, BDEC, B,
-  OPCODES,
-
+  JMP, JAL, RET, BZ, BFOR, MTR, U8, U16, I32, SH,
+  T_VAR, T_CONST, T_OP, T_OBJ, T_IMM,
   Heap, HeapMax, CONTEXT, CURRENT, DP,
-  IN, IB, MemMax,
-
-  CORE_VOC, T_VAR, T_CONST, T_OP, T_OBJ, T_IMM,
+  OPCODES,
 )
 from markab_vm import VM
 
@@ -52,7 +43,7 @@ class Compiler:
     self.append_halfword(0)
     self.append_byte(U16)
     self.append_halfword(CONTEXT)
-    self.append_byte(SH)    
+    self.append_byte(SH)
     self.append_byte(U16)       # compile initializer for CURRENT
     self.init_current = self.DP
     self.append_halfword(0)
@@ -299,7 +290,7 @@ class Compiler:
         self.append_byte(U16)
         self.append_halfword(param)
         return pos + 1
-      if type_ == T_CONST:              # const -> compile param value as I32
+      if type_ == T_CONST:              # const -> compile code to push literal
         self.push(param)                #   load param.value
         self.vm.load_word()
         value = self.vm.T
