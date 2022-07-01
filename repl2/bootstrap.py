@@ -256,13 +256,17 @@ class Compiler:
     if w == 'if{':                      # if{
       self.append_byte(BZ)
       self.push(self.DP)
-      self.append_halfword(0)
+      self.append_byte(0)
       self.nest_if += 1
       return pos + 1
     if w == '}if':                      # }if
-      self.push(self.DP)
+      self.push(self.DP)                #  calculate relative jump distance
+      self.vm.over()
+      self.vm.subtract()
+      if self.vm.T > 255:
+        raise Exception("`if{` to `}if` distance is > 255")
       self.vm.swap()
-      self.store_halfword()
+      self.store_byte()
       self.nest_if -= 1
       if self.nest_if < 0:
         raise Exception("`}if` without matching `if{`")

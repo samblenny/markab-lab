@@ -425,18 +425,18 @@ class VM:
     self.PC = n
 
   def branch_zero(self):
-    """Branch to address read from instruction stream if T == 0, drop T"""
+    """Branch to relative address if T == 0, drop T"""
     if self.DSDeep < 1:
       self.error(ERR_D_UNDER)
       return
     pc = self.PC
     if self.T == 0:
-      # Branch past conditional block: Set PC to address literal
-      n = (self.ram[pc+1] << 8) + self.ram[pc]  # decode little-endian halfword
-      self.PC = n
+      # Branch past conditional block: Add address literal from instruction
+      # stream to PC. Maximum offset size is 255
+      self.PC += self.ram[pc]
     else:
       # Enter conditional block: Advance PC past address literal
-      self.PC += 2
+      self.PC += 1
     self.drop()
 
   def branch_for_loop(self):

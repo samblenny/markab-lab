@@ -343,8 +343,8 @@ reset  OK
 === test.vm.test_instructions_jz() ===
 ( opcode coverage: BZ                                     )
 ( equivalent to: 0 dup if{ 7 }if 0 0= dup if{ 8 }IF       )
-( addr: 0 1   2  3 4 5  6 7  8 9 10  11 12 13 14 15 16 17 )
-ASM{   U8 0 DUP BZ 8 0 U8 7 U8 0 ZE DUP BZ 17  0 U8  8 RET }ASM
+( addr: 0 1   2  3 4  5 6  7 8  9  10 11 12 13 14  15     )
+ASM{   U8 0 DUP BZ 3 U8 7 U8 0 ZE DUP BZ  3 U8  8 RET }ASM
 (         0 dup if{       7 }if                           )
 (                              0 0= dup if{          8 }if)
 warmboot  OK
@@ -440,10 +440,10 @@ warmboot                                      (  21  OK)  21  OK
 (     }for                               )
 ( addr: 0  1   2 *3*                     )
 ASM{   U8 99 MTR IOKEY
-( addr:  4  5  6 7     8   9 *10* 11 12  )
-        ZE BZ 10 0 RDROP RET DUP  U8 10
-( addr: 13 14 15 16   17  18   *19*      )
-        EQ BZ 19 0 RDROP RET IOEMIT
+( addr:  4  5  6     7   8 *9*  10 11    )
+        ZE BZ  4 RDROP RET DUP  U8 10
+( addr: 12 13 14    15  16   *17*        )
+        EQ BZ  4 RDROP RET IOEMIT
         BFOR 3 0                      }ASM
 warmboot                                       ( test1  OK)test1  OK
 ( ---------------------------------------)

@@ -373,11 +373,13 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 ;
 
 : if{ ( -- addr )  ( Start of if block)
-  BZ , here 0 h, NEST+
+  BZ , here 0 , NEST+
 ; immediate
 
 : }if ( addr -- )  ( End of if block)
-  here swap h!   ( patch the jump target address at start of the if block)
+  here over -    ( calculate offset for relative jump)
+  ( TODO: handle error condition of offset > 255)
+  swap !         ( patch the jump target address at start of the if block)
   NEST-          ( update block nesting level)
   0 LASTCALL h!  ( prevent tail call optimizer from peeking across block edge)
 ; immediate
