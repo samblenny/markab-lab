@@ -377,7 +377,7 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 ; immediate
 
 : }if ( addr -- )  ( End of if block)
-  here over -    ( calculate offset for relative jump)
+  here over -    ( calculate offset for forwards relative jump)
   ( TODO: handle error condition of offset > 255)
   swap !         ( patch the jump target address at start of the if block)
   NEST-          ( update block nesting level)
@@ -390,7 +390,8 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 
 : }for ( addr -- )  ( End of for-loop block)
   BFOR ,         ( compile Branch to FOR: dec r, conditional branch, etc.)
-  h,             ( compile the address for BFOR)
+  here swap -    ( calculate distance for backwards relative jump)
+  ,              ( compile the address for BFOR)
   NEST-          ( update nesting level)
   0 LASTCALL h!  ( prevent tail call optimizer from peeking across block edge)
 ; immediate

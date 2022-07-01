@@ -431,8 +431,8 @@ class VM:
       return
     pc = self.PC
     if self.T == 0:
-      # Branch past conditional block: Add address literal from instruction
-      # stream to PC. Maximum offset size is 255
+      # Branch forward past conditional block: Add address literal from
+      # instruction stream to PC. Maximum branch distance is +255.
       self.PC += self.ram[pc]
     else:
       # Enter conditional block: Advance PC past address literal
@@ -447,12 +447,12 @@ class VM:
     self.R -= 1
     pc = self.PC
     if self.R >= 0:
-      # Keep looping: Set PC to address literal
-      n = (self.ram[pc+1] << 8) | self.ram[pc]  # LE halfword
-      self.PC = n
+      # Keep looping: Branch backwards by subtracting byte literal from PC
+      # Maximum branch distance is -255
+      self.PC -= self.ram[pc]
     else:
       # End of loop: Advance PC past address literal, drop R
-      self.PC += 2
+      self.PC += 1
       self.r_drop()
 
   def less_than(self):

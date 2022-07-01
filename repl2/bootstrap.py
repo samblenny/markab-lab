@@ -279,9 +279,11 @@ class Compiler:
       return pos + 1
     if w == '}for':                     # }for
       self.append_byte(BFOR)
-      addr = self.vm.T
+      offset = self.DP - self.vm.T
+      if offset > 255:
+        raise Exception("`for{` to `}for` distance is > 255")
       self.vm.drop()
-      self.append_halfword(addr)
+      self.append_byte(offset)
       self.nest_for -= 1
       if self.nest_for < 0:
         raise Exception("`}for` without matching `for{`")

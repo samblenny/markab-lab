@@ -10,10 +10,10 @@ from mkb_autogen import OPCODES, CORE_VOC
 ROM_FILE = 'hello.rom'
 
 HELLO_ASM = """
-#          12  >a  a@+  1- for{  @a+   emit      }for
-# addr:  0  1   2    3   4    5  *6*      7    8 9 10  11
-        U8 12 MTA LBAI DEC  MTR LBAI IOEMIT BFOR 6  0 RET
-# addr: *12*
+#          12  >a  a@+  1- for{  @a+   emit   }for
+# addr:  0  1   2    3   4    5  *6*      7    8 9  10
+        U8 11 MTA LBAI DEC  MTR LBAI IOEMIT BFOR 3 RET
+# addr: *11*
 #            H   e   l   l   o  , <SP>  w   o   r   l   d  ! <LF> (14 bytes)
          14 72 101 108 108 111 44  32 119 111 114 108 100 33 10
 """
