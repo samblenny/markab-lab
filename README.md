@@ -1,90 +1,64 @@
 # markab-lab
 
-I'm using this repo as a laboratory for experimenting with techniques to build
-a new VM-based, Forth-like, multi-media programming environment.
+You are looking at a code repository that I use for process documentation as
+part of an art practice. The code here is either experimental work in progress
+or completed experiments that I keep around for future reference.
 
-The point of all this is to have a simple, stable system for working on
-long-term small-scale projects in areas like illustration, music, writing, game
-dev, language learning, and perhaps embedded devices. The primary emphasis is
-on "simple" and "stable" because those qualities are important for working on
-long-term projects without having to waste a lot of time on fixing things that
-break and decay.
+Markab is the working name for a suite of simple, focused software tools I'm
+building to explore ideas in illustration and music. The point of building my
+own tools is to work on long-term projects with less distraction due to buggy,
+bloated, rapidly evolving software.
 
-Similar to how acid-free paper is good for making books that last for a long
-time, and climate controlled vaults are good for storing originals of film or
-tape recordings, I want a software system for making multi-media projects that,
-once finished, can be used, or archived, for many years without decay. This
-problem has been solved, mostly, with POSIX and C for text-based programs. But,
-making long-term stable programs with graphics and sound is still difficult.
-These ideas are not new -- many others are working in similar directions.
+I am particularly interested in tools and techniques that are suitable for
+creating archivable digital works using power-efficient computing equipment
+running software designed for offline-first usage. If you don't see why those
+goals might be appealing, I invite you to forget you ever saw this and go on
+with your life. On the other hand, if you're curious, read on.
 
 
 ## Markab Is Part of an Art Practice
 
-What I'm doing here is publishing documentation of an art practice as part of a
-larger conversation around art and languages in the context of archival
-computing, permacomputing, and low-power computing. My intent is that Markab
-will inspire people to seek out the experience of working with software tools
-that are simple, efficient, and durable.
+What I'm doing here is documenting one aspect of an art practice.
 
-Markab is not an "Open Source project", and I am not seeking "contributions". I
-use an open license because my goals for an archival grade programming
-environment require reference implementations that others are free to adapt and
-modify.
+Markab is not an "Open Source project". I am not seeking "contributions". I use
+an open license on this code because it is a good fit for my goals around
+archivable digital works.
 
-For now, follows are appreciated (Hi!), and forks are fine. Eventually, I hope
-Markab will evolve into more of a community oriented thing, in some form. But,
-I need to write a lot of code and documentation before that would be
-reasonable.
+By "archivable", I mean capable of being stored, retrieved, viewed, and
+interacted with long into the future with a reasonable level of care and
+effort. By "reasonable level", I mean that things are arranged to minimize the
+time and expense needed to keep software tools working today as well as they
+worked last month, last year, or ten years ago.
 
+Modern software tools tend to embrace the culture and mindset popularized by
+VC-funded software startups. In that value system, buggy software with rapid
+upgrade cycles and dependencies on chaotic online package management systems is
+considered normal. This approach leads to many things rapidly breaking
+(bitrot), either due to planned obsolescence or incidental side effects.
 
-## Unpacking the Tagline
+With popular modern software development frameworks, code from perhaps as
+little as one year ago will commonly not build and run without modifications to
+compensate for recent platform changes. In many cases, that process will
+require purchase of new hardware in order to run the latest developer tools.
+Developers commonly complain about their old projects no longer working.
 
-"VM-based, Forth-like, multi-media programming environment" means:
-
-1. **VM-Based**: The system architecture starts with a portable virtual
-   machine (VM) emulator that includes a virtual stack-based CPU and virtual
-   peripherals. The point of virtualization is to make it easy to port the
-   whole programming environment to new hardware or software platforms by
-   implementing a new VM emulator. The point of easy portability is minimizing
-   time wasted when computer companies impose incompatible changes to the
-   software interfaces required for using their graphics and sound hardware.
-
-2. **Forth-Like**: Forth is hard to define. But, if you go by the measures of
-   complying with official Forth standards, or using traditional Forth naming
-   schemes, what I'm doing here is not Forth. On the other hand, for the VM,
-   I am using a stack CPU with data and return stacks. For the kernel, I am
-   using a dictionary linked list, inner and outer interpreters, stack based
-   argument passing, and Reverse Polish Notation (RPN) for math operations.
-   Those qualities are very much Forth-like.
-
-3. **Multi-Media**: Multi-media refers to programs that can interface with the
-   outside world using graphics and sound, in addition to plain text. This also
-   includes the idea of working with writing systems that use ideograms or other
-   non-latin glyphs. Imagine a language tutor game where you match illustrations
-   or sound clips with Kanji ideograms -- that would be a multi-media program.
-
-4. **Programming Environment**: A programming environment is an ecosystem of
-   tools and documentation for making programs. For text, you need a text
-   editor, compiler or interpreter, and a runtime environment (VM). For sound,
-   you also need tools for working with audio samples and maybe MIDI notes,
-   effects, filters, or synthesizer parameters. For 2D graphics you might need
-   editors for sprites, color themes, font glyphs, vector images, or raster
-   images.
+For an individual working on small projects, keeping up with the churn in
+modern software tools becomes prohibitively distracting and expensive. Markab
+is about opting out of that chaotic software culture and, instead, using tools
+designed for long-term stability and low-intensity resource use. My goal is to
+have tools that work reliably so I can focus on using them to make stuff.
 
 
 ## Source Code Contents
 
-1. [repl2/](repl2): Work in progress on a VM emulator in Python with a
-   stack-based kernel, interpreters, assembler, and compiler running on top
-   of the VM.
+1. [repl2/](repl2): Work in progress on Markab VM emulator, Markab kernel rom,
+   and Markab compilers.
 
-2. [markab-language/](markab-language): Work in progress on language spec and
-   text editor syntax highlighting plugins for the Markab programming language.
+2. [markab-language/](markab-language): Work in progress on Markab language
+   spec and text editor syntax highlighting plugins.
 
-3. [repl/](repl): A simple plain-text Forth system with interpreters and
-   compiler running on top of a kernel written in amd64 assembly language for
-   linux.
+3. [repl/](repl): Experimental Forth system with interpreters and compiler
+   running on top of a kernel written in amd64 assembly language for linux.
 
 4. [asm/amd64/](asm/amd64): Several C and amd64 assembly language experiments
    written to prepare for making the prototype Forth system in [repl/](repl).
