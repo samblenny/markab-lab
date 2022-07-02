@@ -7,7 +7,7 @@ from markab_vm import VM
 from mkb_autogen import (
   NOP, ADD, SUB, INC, DEC, MUL, AND, INV, OR, XOR, SLL, SRL, SRA,
   EQ, GT, LT, NE, ZE, TRUE, FALSE, JMP, JAL, CALL, RET,
-  BZ, BFOR, MTR, MRT, RDROP, R, PC, ERR, DROP, DUP, OVER, SWAP,
+  BZ, BFOR, MTR, RDROP, R, PC, ERR, DROP, DUP, OVER, SWAP,
   U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET, FENCE, CLERR,
   IOD, IOR, IODH, IORH, IOKEY, IOEMIT, IODOT, IODUMP, TRON, TROFF,
   MTA, LBA, LBAI,       AINC, ADEC, A,
@@ -513,10 +513,10 @@ def test_return_stack():
   p(".s            (  Stack is empty  OK)")
   v._log_ds()
   v._ok_or_err()
-  p("r> r> r> .s            (  1 2 3  OK)")
-  v.move_r_to_t()
-  v.move_r_to_t()
-  v.move_r_to_t()
+  p("rdrop rdrop rdrop .s          (  OK)")
+  v.r_drop()
+  v.r_drop()
+  v.r_drop()
   v._log_ds()
   v._ok_or_err()
   p(".ret        (  R-Stack is empty  OK)")
@@ -556,18 +556,18 @@ def test_return_stack():
     v._log_rs()
     v._ok_or_err()
   for i in range(17):
-    p(f"r> .ret")
-    v.move_r_to_t()
+    p(f"rdrop .ret")
+    v.r_drop()
     v._log_rs()
     v._ok_or_err()
-  p(".s             (  99 16 ... 1 0  OK)")
+  p(".s                           (  99  OK)")
   v._log_ds()
   v._ok_or_err()
-  p("r> .ret   (  R-Stack is empty  ERR7)")
-  v.move_r_to_t()
+  p("rdrop .ret   (  R-Stack is empty  ERR7)")
+  v.r_drop()
   v._log_rs()
   v._ok_or_err()
-  p(".s            (  Stack is empty  OK)")
+  p(".s               (  Stack is empty  OK)")
   v._log_ds()
   v._ok_or_err()
   print()
@@ -853,15 +853,15 @@ def test_instructions_jz():
   v._ok_or_err()
   print()
 
-def test_instructions_bfor_mtr_mrt():
+def test_instructions_bfor_mtr_r():
   v = VM()
-  print("=== test.vm.test_instructions_bfor_mtr_mrt() ===")
-  print("( opcode coverage: BFOR MTR MRT               )")
-  print("(         3 for{   r> dup  >r     }for        )")
-  print("( addr: 0 1    2  *3*   4   5    6 7   8      )")
-  print("ASM{   U8 3  MTR  MRT DUP MTR BFOR 4 RET }ASM")
-  print("(                                 ^^^ 7-3=4   )")
-  code = bytearray([U8, 3, MTR, MRT, DUP, MTR, BFOR, 4, RET])
+  print("=== test.vm.test_instructions_bfor_mtr_r() ===")
+  print("( opcode coverage: BFOR MTR R      )")
+  print("(         3 for{  R  }for          )")
+  print("( addr: 0 1    2 *3*    4 5   6    )")
+  print("ASM{   U8 3  MTR  R  BFOR 2 RET }ASM")
+  print("(                        ^^^ 5-3=2 )")
+  code = bytearray([U8, 3, MTR, R, BFOR, 2, RET])
   print("warmboot  OK")
   p(".s                                       (  3 2 1 0  OK)")
   v._warm_boot(code, max_cycles=99)
@@ -1312,7 +1312,7 @@ test_instructions_math_logic()
 test_instructions_jump()
 test_instructions_jal_call_return()
 test_instructions_jz()
-test_instructions_bfor_mtr_mrt()
+test_instructions_bfor_mtr_r()
 test_instructions_drop_dup_over_swap()
 test_instructions_u8_sb_lb()
 test_instructions_u16_sh_lh()

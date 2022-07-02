@@ -174,7 +174,7 @@ reset  OK
  1 2 3 .s              (  1 2 3  OK)  1 2 3  OK
 >r >r >r .ret          (  3 2 1  OK)  3 2 1  OK
 .s            (  Stack is empty  OK)  Stack is empty  OK
-r> r> r> .s            (  1 2 3  OK)  1 2 3  OK
+rdrop rdrop rdrop .s          (  OK)  Stack is empty  OK
 .ret        (  R-Stack is empty  OK)  R-Stack is empty  OK
 ( attempt to overflow return stack)
 ( note: overflow auto-resets both stacks)
@@ -218,26 +218,26 @@ reset 99 .s               (  99  OK)  99  OK
 14 >r .ret  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14  OK
 15 >r .ret  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15  OK
 16 >r .ret  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16  OK
-r> .ret  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15  OK
-r> .ret  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14  OK
-r> .ret  0 1 2 3 4 5 6 7 8 9 10 11 12 13  OK
-r> .ret  0 1 2 3 4 5 6 7 8 9 10 11 12  OK
-r> .ret  0 1 2 3 4 5 6 7 8 9 10 11  OK
-r> .ret  0 1 2 3 4 5 6 7 8 9 10  OK
-r> .ret  0 1 2 3 4 5 6 7 8 9  OK
-r> .ret  0 1 2 3 4 5 6 7 8  OK
-r> .ret  0 1 2 3 4 5 6 7  OK
-r> .ret  0 1 2 3 4 5 6  OK
-r> .ret  0 1 2 3 4 5  OK
-r> .ret  0 1 2 3 4  OK
-r> .ret  0 1 2 3  OK
-r> .ret  0 1 2  OK
-r> .ret  0 1  OK
-r> .ret  0  OK
-r> .ret  R-Stack is empty  OK
-.s             (  99 16 ... 1 0  OK)  99 16 15 14 13 12 11 10 9 8 7 6 5 4 3 2 1 0  OK
-r> .ret   (  R-Stack is empty  ERR7)  R-Stack is empty  ERR7
-.s            (  Stack is empty  OK)  Stack is empty  OK
+rdrop .ret  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15  OK
+rdrop .ret  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14  OK
+rdrop .ret  0 1 2 3 4 5 6 7 8 9 10 11 12 13  OK
+rdrop .ret  0 1 2 3 4 5 6 7 8 9 10 11 12  OK
+rdrop .ret  0 1 2 3 4 5 6 7 8 9 10 11  OK
+rdrop .ret  0 1 2 3 4 5 6 7 8 9 10  OK
+rdrop .ret  0 1 2 3 4 5 6 7 8 9  OK
+rdrop .ret  0 1 2 3 4 5 6 7 8  OK
+rdrop .ret  0 1 2 3 4 5 6 7  OK
+rdrop .ret  0 1 2 3 4 5 6  OK
+rdrop .ret  0 1 2 3 4 5  OK
+rdrop .ret  0 1 2 3 4  OK
+rdrop .ret  0 1 2 3  OK
+rdrop .ret  0 1 2  OK
+rdrop .ret  0 1  OK
+rdrop .ret  0  OK
+rdrop .ret  R-Stack is empty  OK
+.s                           (  99  OK)  99  OK
+rdrop .ret   (  R-Stack is empty  ERR7)  R-Stack is empty  ERR7
+.s               (  Stack is empty  OK)  Stack is empty  OK
 
 === test.vm.test_comparisons() ===
 reset 1 2 =   2 2 =   2 1 =   .s   (  0 -1 0  OK)  0 -1 0  OK
@@ -355,12 +355,12 @@ ASM{   U8 0 DUP BZ 3 U8 7 U8 0 ZE DUP BZ  3 U8  8 RET }ASM
 warmboot  OK
 .s                                        (  0 -1 8  OK)  0 -1 8  OK
 
-=== test.vm.test_instructions_bfor_mtr_mrt() ===
-( opcode coverage: BFOR MTR MRT               )
-(         3 for{   r> dup  >r     }for        )
-( addr: 0 1    2  *3*   4   5    6 7   8      )
-ASM{   U8 3  MTR  MRT DUP MTR BFOR 4 RET }ASM
-(                                 ^^^ 7-3=4   )
+=== test.vm.test_instructions_bfor_mtr_r() ===
+( opcode coverage: BFOR MTR R      )
+(         3 for{  R  }for          )
+( addr: 0 1    2 *3*    4 5   6    )
+ASM{   U8 3  MTR  R  BFOR 2 RET }ASM
+(                        ^^^ 5-3=2 )
 warmboot  OK
 .s                                       (  3 2 1 0  OK)  3 2 1 0  OK
 reset  OK

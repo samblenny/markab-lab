@@ -14,7 +14,7 @@ import os
 from mkb_autogen import (
   NOP, ADD, SUB, INC, DEC, MUL, AND, INV, OR, XOR, SLL, SRL, SRA,
   EQ, GT, LT, NE, ZE, TRUE, FALSE, JMP, JAL, CALL, RET,
-  BZ, BFOR, MTR, MRT, RDROP, R, PC, ERR, DROP, DUP, OVER, SWAP,
+  BZ, BFOR, MTR, RDROP, R, PC, ERR, DROP, DUP, OVER, SWAP,
   U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET, FENCE, CLERR,
   IOD, IOR, IODH, IORH, IOKEY, IOEMIT, IODOT, IODUMP, TRON, TROFF,
   MTA, LBA, LBAI,       AINC, ADEC, A,
@@ -117,7 +117,6 @@ class VM:
     self.jumpTable[BZ   ] = self.branch_zero
     self.jumpTable[BFOR ] = self.branch_for_loop
     self.jumpTable[MTR  ] = self.move_t_to_r
-    self.jumpTable[MRT  ] = self.move_r_to_t
     self.jumpTable[RDROP] = self.r_drop
     self.jumpTable[R    ] = self.r_
     self.jumpTable[PC   ] = self.pc_
@@ -590,22 +589,6 @@ class VM:
 
   def io_return_stack_hex(self):
     self._log_rs(base=16)
-
-  def move_r_to_t(self):
-    """Move top of return stack (R) to top of data stack (T)"""
-    if self.RSDeep < 1:
-      self.reset()
-      self.error(ERR_R_UNDER)
-      return
-    if self.DSDeep > 17:
-      self.reset()
-      self.error(ERR_D_OVER)
-      return
-    self._push(self.R)
-    if self.RSDeep > 1:
-      rSecond = self.RSDeep - 2
-      self.R = self.RStack[rSecond]
-    self.RSDeep -= 1
 
   def r_drop(self):
     """Drop R in the manner needed when exiting from a counted loop"""

@@ -28,7 +28,6 @@ dump IODUMP
 key IOKEY
 iorh IORH
 ior IOR
-r> MRT
 >r MTR
 r R
 call CALL
@@ -116,7 +115,6 @@ T_IMM    4   # Object code for immediate compiled word
 # Codes for interpreter Modes
 MODE_INT  0   # Interpret mode
 MODE_COM  1   # Compiling mode
-MODE_IMM  2   # Immediate compiling mode
 """
 
 def filter(src):

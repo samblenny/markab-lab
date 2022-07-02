@@ -33,7 +33,7 @@ These are instruction opcode mnemonics for the Markab VM (virtual machine):
 NOP ADD SUB INC DEC MUL AND INV OR XOR
 SLL SRL SRA
 EQ GT LT NE ZE TRUE FALSE JMP JAL CALL RET
-BZ BFOR MRT MTR RDROP R PC ERR DROP DUP OVER SWAP
+BZ BFOR MTR RDROP R PC ERR DROP DUP OVER SWAP
 U8 U16 I32 LB SB LH SH LW SW RESET FENCE CLERR
 IOD IOR IODH IORH IOKEY IOEMIT IODOT IODUMP TRON TROFF
 MTA LBA LBAI      AINC ADEC A
@@ -46,7 +46,7 @@ These are keywords of the Markab programming language core vocabulary:
 nop + - 1+ 1- * and inv or xor
 << >> >>>
 = > < != 0= true false call
-r> >r rdrop r pc err drop dup over swap
+>r rdrop r pc err drop dup over swap
 @ ! h@ h! w@ w! reset fence clerr
 iod ior iod iorh key emit . dump tron troff
 >a @a @a+     a+ a- a
