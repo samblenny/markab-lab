@@ -7,10 +7,27 @@ This page documents the Markab programming language. Or, more accurately,
 that's the plan, which is still in the early stages of implementation.
 
 
-## CPU opcodes, ECALL constants, and core words
+## Language Specification
 
-These are instruction opcode mnemonics used by the Markab assembler to generate
-bytecode for the Markab virtual machine:
+The Markab programming language is stack oriented, uses Reverse Polish Notation
+(RPN), and has minimal syntax. Markab is Forth-like in its implementation, but
+Markab is not a Forth.
+
+Similarities between Markab and Forth include:
+- Two stacks: data stack for arguments and return stack for subroutine calls
+- Extensible dictionary for defining a vocabulary of words (subroutines)
+- Words for math and stack operations (+, -, dup, over, swap, ...)
+- Words for some text IO operations (key, emit, ...)
+- `: ... ;` colon definitions
+- `( ...)` comments
+- Compiler uses regular and immediate words and data stack for jump addresses
+- Outer interpreter to parse input and look up words in dictionary
+- Inner interpreter to run words as direct-threaded object code
+
+Aside from those things, Markab is generally not like Forth, and it does not
+comply with any of the Forth standards.
+
+These are instruction opcode mnemonics for the Markab VM (virtual machine):
 
 ```
 NOP ADD SUB INC DEC MUL AND INV OR XOR
@@ -23,27 +40,7 @@ MTA LBA LBAI      AINC ADEC A
 MTB LBB LBBI SBBI BINC BDEC B
 ```
 
-The `U8`, `LB`, `SH`, ... opcodes are for moving different widths of data
-between registers and memory. The numbers 8, 16, and 32 refer to 8 bits (1
-byte), 16 bits (2 bytes), or 32 bits (4 bytes). `L` stands for load, and `S`
-stands for store. `B` stands for byte (8 bits), `H` stands for halfword (16
-bits), and `W` stands for word (32-bits). Byte order is little-endian.
-
-The `IO..` opcodes do terminal input/output (IO) operations like debug printing
-stack contents to the terminal, getting a byte of keyboard input, or emitting a
-byte of output.
-
-The `MTA` (Move T to A) and `LBAI` (Load Byte from A with Increment) opcodes
-are for loading a byte from an address stored in the VM's `A` register with an
-automatically incrementing address. `MTB` and `SBBI` are similar for storing a
-byte to the address in `B`. These are intended for loops that copy, move, or
-process strings of bytes. `A` and `B` can also be used as local variables,
-along with `X` and `Y`.
-
-Markab is a Forth-like stack language. The usage of "words", "vocabulary",
-"dictionary", and "immediate words" here borrow the meanings of those terms from
-the tradition of Forth. The dictionary of the Markab kernel gets initialized
-with a core vocabulary containing definitions for these core words:
+These are keywords of the Markab programming language core vocabulary:
 
 ```
 nop + - 1+ 1- * and inv or xor
@@ -58,17 +55,12 @@ iod ior iod iorh key emit . dump tron troff
 if{ }if for{ }for
 ```
 
-Most of the core words are simple words that invoke a CPU instruction on one or
-two arguments from the data or return stacks. The simple words do not run any
-code when they are being compiled into a dictionary entry. "Compiling" a simple
-word consists of adding the bytecode for that word's CPU instruction into the
-dictionary entry that is being compiled.
-
-The remaining core words are "immediate" words: `:`, `;`, `var`, `const`,
-`opcode`, `if{`, `}if`, `for{`, and `}for`. Immediate words are used for
-language features that require decisions and calculations at compile time. For
-example, immediate words can do things like adding a dictionary entry or
-calculating addresses for loops and branching.
+The keywords and opcodes are still in a stage of evolving changes as I work to
+implement and debug the VM and compiler. I plan to document this better once
+things have stabilized. For now, the authoritative references are the VM source
+code and the tests:
+- [../repl2/markab_vm.py](../repl2/markab_vm.py)
+- [../repl2/test](../repl2/test)
 
 
 ## Markab file extension
