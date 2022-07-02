@@ -78,7 +78,10 @@ class Compiler:
 
   def patch_boot_addr(self, addr):
     """Patch the target address for the boot jump at start of rom"""
-    self.push(addr)
+    # CAUTION! This math might have weird edge cases. Needs validation.
+    # compute signed 16-bit jump offset with wrap-around for full range
+    offset = (addr - self.boot_vector) & 0xffff
+    self.push(offset)
     self.push(self.boot_vector)
     self.store_halfword()
 
@@ -313,7 +316,10 @@ class Compiler:
       if type_ == T_OBJ:                # code -> compile JAL (call) to param
         self.last_call = self.DP
         self.append_byte(JAL)
-        self.append_halfword(param)
+        # CAUTION! This math might have weird edge cases. Needs validation.
+        # compute signed 16-bit jump offset with wrap-around for full range
+        offset = (param - self.DP) & 0xffff
+        self.append_halfword(offset)
         return pos + 1
       raise Exception("compile_word: find", w, type_, link)
     try:                                # attempt to parse word as number

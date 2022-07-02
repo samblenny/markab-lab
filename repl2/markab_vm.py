@@ -360,22 +360,27 @@ class VM:
     self.drop()
 
   def jump_and_link(self):
-    """Jump to subroutine after pushing old value of PC to return stack"""
+    """Jump to subroutine after pushing old value of PC to return stack.
+    The jump address is PC-relative to allow for relocatable object code.
+    """
     if self.RSDeep > 16:
       self.reset()
       self.error(ERR_R_OVER)
       return
-    # read a 16-bit address from the instruction stream
+    # read a 16-bit signed offset (relative to PC) from instruction stream
     pc = self.PC
     n = (self.ram[pc+1] << 8) + self.ram[pc]  # decode little-endian halfword
+    n = (n & 0x7fff) - (n & 0x8000)           # sign extend it
     # push the current Program Counter (PC) to return stack
     if self.RSDeep > 0:
       rSecond = self.RSDeep - 1
       self.RStack[rSecond] = self.R
     self.R = pc + 2
     self.RSDeep += 1
-    # set Program Counter to the new address
-    self.PC = n
+    # add offset to program counter to compute destination address.
+    # the 0xffff mask lets you do stuff like (5-100) & 0xffff = 65441 so a
+    # a signed 16-bit pc-relative offset can address the full memory range
+    self.PC = (self.PC + n) & 0xffff
 
   def drop(self):
     """Drop T, the top item of the data stack"""
@@ -417,15 +422,22 @@ class VM:
     self._op_t(lambda t: ~ t)
 
   def jump(self):
-    """Jump to subroutine at address read from instruction stream"""
-    # read a 16-bit address from the instruction stream
+    """Jump to subroutine at address read from instruction stream.
+    The jump address is PC-relative to allow for relocatable object code.
+    """
+    # read a 16-bit PC-relative address offset from the instruction stream
     pc = self.PC
     n = (self.ram[pc+1] << 8 ) | self.ram[pc]  # LE halfword
-    # set program counter to the new address
-    self.PC = n
+    n = (n & 0x7fff) - (n & 0x8000)           # sign extend it
+    # add offset to program counter to compute destination address.
+    # the 0xffff mask lets you do stuff like (5-100) & 0xffff = 65441 so a
+    # a signed 16-bit pc-relative offset can address the full memory range
+    self.PC = (self.PC + n) & 0xffff
 
   def branch_zero(self):
-    """Branch to relative address if T == 0, drop T"""
+    """Branch to PC-relative address if T == 0, drop T.
+    The branch address is PC-relative to allow for relocatable object code.
+    """
     if self.DSDeep < 1:
       self.error(ERR_D_UNDER)
       return
@@ -440,7 +452,9 @@ class VM:
     self.drop()
 
   def branch_for_loop(self):
-    """Decrement R and branch to start of for-loop if R >= 0"""
+    """Decrement R and branch to start of for-loop if R >= 0.
+    The branch address is PC-relative to allow for relocatable object code.
+    """
     if self.RSDeep < 1:
       self.error(ERR_R_UNDER)
       return

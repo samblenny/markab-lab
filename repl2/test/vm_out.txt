@@ -307,7 +307,9 @@ reset  OK
 ( 5: push 6, return                               )
 ( 8: push 7, jump to 5                            )
 ( addr: 0 1   2 3 4  5 6   7  8 9  10 11 12       )
-ASM{   U8 5 JMP 8 0 U8 6 RET U8 7 JMP  5  0 }ASM
+(               3------------>8-3=5               )
+(                    5-11=-6<---------11          )
+ASM{   U8 5 JMP 5 0 U8 6 RET U8 7 JMP 250 255 }ASM
 warmboot  OK
 .s                                         (  5 7 6  OK)  5 7 6  OK
 
@@ -319,8 +321,10 @@ warmboot  OK
 (  6: Return                                      )
 (  7: Subroutine: push 9 to data stack, return    )
 ( 10: Subroutine: push 5 to data stack, return    )
-( addr: 0 1 2   3  4 5   6  7 8   9 10 11  12     )
-ASM{  JAL 7 0 JAL 10 0 RET U8 9 RET U8  5 RET }ASM
+( addr: 0 1 2   3 4 5   6  7 8   9 10 11  12      )
+(         1--------------->7-1=6                  )
+(                 4--------------->10-4=6         )
+ASM{  JAL 6 0 JAL 6 0 RET U8 9 RET U8  5 RET }ASM
 warmboot  OK
 .s                                           (  9 5  OK)  9 5  OK
 reset  OK
@@ -331,7 +335,8 @@ warmboot                                    (  25 9  OK)  25 9  OK
 reset  OK
 ( test JAL pushes return address properly         )
 ( addr: 0 1   2   3 4 5     6   7 *8*             )
-ASM{   U8 3 MTR JAL 8 0 RDROP RET IOR RET }ASM
+(                   4------------->8-4=4          )
+ASM{   U8 3 MTR JAL 4 0 RDROP RET IOR RET }ASM
 warmboot                                     (  3 6  OK)  3 6  OK
 reset  OK
 ( test CALL pushes return address properly        )
