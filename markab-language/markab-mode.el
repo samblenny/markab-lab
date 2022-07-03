@@ -38,22 +38,27 @@
 (defconst markab-auto-modes '("\\.mkb\\'"))
 (defconst markab-functions '())
 
-;; Put these characters in "word constituents" class to enable use in keywords
-(modify-syntax-entry ?! "\w")
-(modify-syntax-entry ?. "\w")
-(modify-syntax-entry ?: "\w")
-(modify-syntax-entry ?; "\w")
-(modify-syntax-entry ?@ "\w")
-(modify-syntax-entry ?{ "\w")
-(modify-syntax-entry ?} "\w")
-(modify-syntax-entry ?+ "\w")
-(modify-syntax-entry ?- "\w")
-(modify-syntax-entry ?* "\w")
-(modify-syntax-entry ?/ "\w")
-(modify-syntax-entry ?< "\w")
-(modify-syntax-entry ?> "\w")
-(modify-syntax-entry ?= "\w")
-(modify-syntax-entry ?' "\w")
+;; Put these characters in "word constituents" class to enable use in keywords.
+;; But, do it in a function with a markab-mode hook to avoid messing up syntax
+;; tables for other modes.
+(defun markab-modify-syntax ()
+  (modify-syntax-entry ?! "\w")
+  (modify-syntax-entry ?. "\w")
+  (modify-syntax-entry ?: "\w")
+  (modify-syntax-entry ?\; "\w")
+  (modify-syntax-entry ?@ "\w")
+  (modify-syntax-entry ?{ "\w")
+  (modify-syntax-entry ?} "\w")
+  (modify-syntax-entry ?+ "\w")
+  (modify-syntax-entry ?- "\w")
+  (modify-syntax-entry ?* "\w")
+  (modify-syntax-entry ?/ "\w")
+  (modify-syntax-entry ?< "\w")
+  (modify-syntax-entry ?> "\w")
+  (modify-syntax-entry ?= "\w")
+  (modify-syntax-entry ?' "\w"))
+
+(add-hook 'markab-mode-hook 'markab-modify-syntax)
 
 ;;;###autoload
 (define-generic-mode 'markab-mode markab-comments markab-keywords
