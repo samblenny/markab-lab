@@ -48,5 +48,8 @@ test: hello.rom kernel.rom $(AUTOGEN)
 romtest: kernel.rom $(AUTOGEN)
 	@cat $(TEST_IN2) | python3 markab_vm.py kernel.rom | tee $(TEST_OUT2)
 
+poly_hash: poly_hash.c
+	$(CC) -std=c99 -Wall -O3 -o $@ $<
+
 clean:
-	@rm -rf __pycache__
+	@rm -rf __pycache__ poly_hash
