@@ -12,6 +12,13 @@ WORDS = []
 WORDS_LEN = 0
 LIMIT = 3
 
+# These values came from an exhaustive search by poly_hash.c, which takes
+# a few minutes to run. These are from the highest ranking results.
+A = [82, 87, 108, 109, 129, 135, 165, 186, 203, 232, 254]
+B = [1, 2, 4, 11, 14, 18, 19, 22, 27]
+C = [1, 38, 57, 62, 76, 99, 149, 151, 160, 205]
+BINS = [95, 96, 97, 98]
+
 def load_words():
   """Load list of words from kernel symbols file"""
   global WORDS
@@ -41,14 +48,12 @@ def gen_stats():
   """Generate stats for combinations of polynomial hash parameters"""
   stats = []
   limit = 4
-  for a in [4,14,21,35,82,87,135,163,176,183,216,218,232,250]:
-    for b in [1,4,5,6,14,18,19,20,23,27,28,30]:
-      # print(".", end='')
-      # sys.stdout.flush()
-      for c in [38,46,59,61,99,104,114,122,130,160,205,213,219]:
+  for a in A:
+    for b in B:
+      for c in C:
         hash_fn = lambda w: poly_hash(a, b, c, w)
         hashes = [hash_fn(w) for w in WORDS]
-        for bin_count in [94,95,96,97,98,99]:
+        for bin_count in BINS:
           # calculate histogram
           bins = histogram(hashes, bin_count)
           # calculate median (actually a little over to get better spread)
@@ -97,119 +102,120 @@ go()
 # cProfile.run("go()", sort='cumulative')
 
 
-# worst:  3  80_%tile: 2  bins: 94  poly(183,20,130)
-# worst:  3  80_%tile: 2  bins: 95  poly(218,23, 46)
+# worst:  3  80_%tile: 2  bins: 95  poly(109,14, 62)
 # worst:  3  80_%tile: 2  bins: 96  poly(87,14, 99)
-# worst:  3  80_%tile: 2  bins: 97  poly(14,28,122)
-# worst:  3  80_%tile: 2  bins: 97  poly(21, 4,114)
-# worst:  3  80_%tile: 2  bins: 97  poly(163, 5,104)
+# worst:  3  80_%tile: 2  bins: 96  poly(254, 4, 76)
+# worst:  3  80_%tile: 2  bins: 97  poly(82,11,205)
+# worst:  3  80_%tile: 2  bins: 97  poly(165, 2, 57)
+# worst:  3  80_%tile: 2  bins: 98  poly(108,22,  1)
+# worst:  3  80_%tile: 2  bins: 98  poly(129,18,160)
 # worst:  3  80_%tile: 2  bins: 98  poly(135, 1, 38)
+# worst:  3  80_%tile: 2  bins: 98  poly(186,22,151)
+# worst:  3  80_%tile: 2  bins: 98  poly(203,19,149)
 # worst:  3  80_%tile: 2  bins: 98  poly(232,27,160)
-# worst:  3  80_%tile: 2  bins: 99  poly( 4,19,219)
-# worst:  3  80_%tile: 2  bins: 99  poly(35,30,213)
-# worst:  3  80_%tile: 2  bins: 99  poly(176,23, 59)
-# worst:  3  80_%tile: 2  bins: 99  poly(216, 6,205)
-# worst:  3  80_%tile: 2  bins: 99  poly(250,18, 61)
-# worst:  4  80_%tile: 2  bins: 95  poly(82, 1,213)
-# worst:  4  80_%tile: 2  bins: 95  poly(218,23,114)
-# worst:  4  80_%tile: 2  bins: 95  poly(218,27,213)
-# worst:  4  80_%tile: 2  bins: 95  poly(218,30,122)
-# worst:  4  80_%tile: 2  bins: 95  poly(232,28,122)
-# worst:  4  80_%tile: 2  bins: 96  poly(21, 1,122)
-# worst:  4  80_%tile: 2  bins: 96  poly(21, 5,219)
+# worst:  4  80_%tile: 2  bins: 96  poly(87,19, 62)
+# worst:  4  80_%tile: 2  bins: 96  poly(108,19,151)
+# worst:  4  80_%tile: 2  bins: 96  poly(135, 4, 38)
+# worst:  4  80_%tile: 2  bins: 96  poly(165, 1, 57)
+# worst:  4  80_%tile: 2  bins: 96  poly(165, 4, 99)
+# worst:  4  80_%tile: 2  bins: 96  poly(203,11,205)
+# worst:  4  80_%tile: 2  bins: 97  poly(82,11,151)
+# worst:  4  80_%tile: 2  bins: 97  poly(108, 1,160)
+# worst:  4  80_%tile: 2  bins: 97  poly(109, 2,160)
 #
-# worst:  3  80_%tile: 2  bins: 94  poly(183,20,130)
-#   0 ***
+# worst:  3  80_%tile: 2  bins: 95  poly(109,14, 62)
+#   0 **
 #   1 **
-#   2 **
-#   3 **
+#   2 *
+#   3 ***
 #   4 **
-#   5
+#   5 **
 #   6 *
-#   7 **
-#   8
+#   7 
+#   8 *
 #   9 **
-#  10 **
-#  11 *
-#  12 **
-#  13 **
-#  14 **
-#  15 *
-#  16
-#  17 ***
-#  18 **
-#  19 ***
-#  20 ***
-#  21 *
+#  10 ***
+#  11 **
+#  12 *
+#  13 ***
+#  14 *
+#  15 **
+#  16 ***
+#  17 *
+#  18 ***
+#  19 *
+#  20 
+#  21 **
 #  22 **
-#  23 *
+#  23 **
 #  24 **
-#  25
+#  25 *
 #  26 ***
 #  27 *
 #  28 **
-#  29
+#  29 **
 #  30 **
-#  31 ***
-#  32 *
-#  33 *
-#  34 **
-#  35 *
-#  36 *
-#  37 **
+#  31 **
+#  32 **
+#  33 
+#  34 *
+#  35 
+#  36 
+#  37 ***
 #  38 **
-#  39
-#  40 *
-#  41 *
-#  42 *
+#  39 **
+#  40 
+#  41 **
+#  42 **
 #  43 **
-#  44 *
+#  44 ***
 #  45 **
-#  46 *
-#  47 **
-#  48
-#  49 *
-#  50 *
+#  46 **
+#  47 
+#  48 **
+#  49 **
+#  50 ***
 #  51 ***
-#  52 *
-#  53 **
-#  54 ***
-#  55 **
-#  56 **
-#  57 ***
-#  58 ***
+#  52 
+#  53 ***
+#  54 
+#  55 ***
+#  56 *
+#  57 **
+#  58 **
 #  59 *
-#  60 **
-#  61 **
+#  60 *
+#  61 
 #  62 **
-#  63 **
-#  64 **
+#  63 *
+#  64 *
 #  65 **
-#  66
+#  66 **
 #  67 ***
 #  68 **
 #  69 *
-#  70 ***
+#  70 **
 #  71 **
-#  72 **
-#  73 ***
-#  74 ***
-#  75 ***
-#  76 **
-#  77 *
-#  78 **
-#  79 **
+#  72 *
+#  73 **
+#  74 
+#  75 **
+#  76 *
+#  77 **
+#  78 ***
+#  79 *
 #  80 *
-#  81 ***
-#  82 ***
-#  83 **
-#  84 *
-#  85 *
-#  86 *
+#  81 **
+#  82 **
+#  83 *
+#  84 ***
+#  85 
+#  86 ***
 #  87 **
-#  88 *
-#  89 *
-#  90
-#  91 **
-#  92 **
-#  93 ***
+#  88 ***
+#  89 **
+#  90 **
+#  91 ***
+#  92 
+#  93 **
+#  94 **
