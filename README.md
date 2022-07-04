@@ -13,7 +13,7 @@ I am particularly interested in tools and techniques that are suitable for
 creating archivable digital works using power-efficient computing equipment
 running software designed for offline-first usage. If you don't see why those
 goals might be appealing, I invite you to forget you ever saw this and go on
-with your life. On the other hand, if you're curious, read on.
+with your life.
 
 
 ## Markab Is Part of an Art Practice
@@ -31,22 +31,18 @@ time and expense needed to keep software tools working today as well as they
 worked last month, last year, or ten years ago.
 
 Modern software tools tend to embrace the culture and mindset popularized by
-VC-funded software startups. In that value system, buggy software with rapid
-upgrade cycles and dependencies on chaotic online package management systems is
-considered normal. This approach leads to many things rapidly breaking
-(bitrot), either due to planned obsolescence or incidental side effects.
-
-With popular modern software development frameworks, code from perhaps as
-little as one year ago will commonly not build and run without modifications to
-compensate for recent platform changes. In many cases, that process will
-require purchase of new hardware in order to run the latest developer tools.
-Developers commonly complain about their old projects no longer working.
+VC-funded software startups. Buggy software with rapid upgrade cycles and
+dependencies on chaotic online package management systems is considered normal.
+This culture of software development tends to produce things that break rapidly,
+and its tools are not suitable for building work that you want to last.
 
 For an individual working on small projects, keeping up with the churn in
-modern software tools becomes prohibitively distracting and expensive. Markab
-is about opting out of that chaotic software culture and, instead, using tools
-designed for long-term stability and low-intensity resource use. My goal is to
-have tools that work reliably so I can focus on using them to make stuff.
+modern software tools becomes prohibitively distracting and expensive.
+
+Markab is part of a practice that seeks to bypass chaotic, unsustainable
+methods and instead arrange a convivial and resource-efficient workflow. The
+idea is to have reliable tools, which are easy to maintain, so I can focus on
+using the tools to make stuff.
 
 
 ## Source Code Contents
