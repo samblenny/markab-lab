@@ -12,7 +12,6 @@ PY_OUTFILE = "mkb_autogen.py"
 OPCODES = """
 nop NOP
 reset RESET
-fence FENCE
 clerr CLERR
 <ASM> JMP
 <ASM> JAL
@@ -27,7 +26,6 @@ troff TROFF
 dump IODUMP
 key IOKEY
 iorh IORH
-ior IOR
 >r MTR
 r R
 call CALL
@@ -42,6 +40,8 @@ w! SW
 + ADD
 - SUB
 * MUL
+/ DIV
+% MOD
 << SLL
 >> SRL
 >>> SRA

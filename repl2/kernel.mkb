@@ -463,6 +463,5 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   0 LASTCALL w!  ( 2 bytes, aligned 4, so zero all 4)
   10 BASE w!     ( set number base to decimal)
   false EOF w!   ( clear the end of input flag)
-  here fence     ( write protect dictionary up to and including this word)
   outer          ( start the outer interpreter)
 ;

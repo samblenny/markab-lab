@@ -12,11 +12,11 @@ import sys
 import os
 
 from mkb_autogen import (
-  NOP, ADD, SUB, INC, DEC, MUL, AND, INV, OR, XOR, SLL, SRL, SRA,
+  NOP, ADD, SUB, INC, DEC, MUL, DIV, MOD, AND, INV, OR, XOR, SLL, SRL, SRA,
   EQ, GT, LT, NE, ZE, TRUE, FALSE, JMP, JAL, CALL, RET,
   BZ, BFOR, MTR, RDROP, R, PC, ERR, DROP, DUP, OVER, SWAP,
-  U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET, FENCE, CLERR,
-  IOD, IOR, IODH, IORH, IOKEY, IOEMIT, IODOT, IODUMP, TRON, TROFF,
+  U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET, CLERR,
+  IOD, IODH, IORH, IOKEY, IOEMIT, IODOT, IODUMP, TRON, TROFF,
   MTA, LBA, LBAI,       AINC, ADEC, A,
   MTB, LBB, LBBI, SBBI, BINC, BDEC, B,
 
@@ -73,7 +73,6 @@ class VM:
     self.S = 0                      # Second on data stack
     self.R = 0                      # top of Return stack
     self.PC = Heap                  # Program Counter
-    self.Fence = 0                  # Fence between read-only and read/write
     self.DSDeep = 0                 # Data Stack Depth (count include T and S)
     self.RSDeep = 0                 # Return Stack Depth (count inlcudes R)
     self.DStack = [0] * 16          # Data Stack
@@ -96,6 +95,8 @@ class VM:
     self.jumpTable[INC  ] = self.increment
     self.jumpTable[DEC  ] = self.decrement
     self.jumpTable[MUL  ] = self.multiply
+    self.jumpTable[DIV  ] = self.divide
+    self.jumpTable[MOD  ] = self.modulo
     self.jumpTable[AND  ] = self.and_
     self.jumpTable[INV  ] = self.invert
     self.jumpTable[OR   ] = self.or_
@@ -135,10 +136,8 @@ class VM:
     self.jumpTable[LW   ] = self.load_word
     self.jumpTable[SW   ] = self.store_word
     self.jumpTable[RESET] = self.reset
-    self.jumpTable[FENCE] = self.set_fence
     self.jumpTable[CLERR] = self.clear_error
     self.jumpTable[IOD  ] = self.io_data_stack
-    self.jumpTable[IOR  ] = self.io_return_stack
     self.jumpTable[IODH ] = self.io_data_stack_hex
     self.jumpTable[IORH ] = self.io_return_stack_hex
     self.jumpTable[IOKEY] = self.io_key
@@ -271,58 +270,40 @@ class VM:
     if self.DSDeep < 1:
       self.error(ERR_D_UNDER)
       return
-    addr = self.T
-    if (addr < 0) or (addr > MemMax):
-      self.error(ERR_BAD_ADDRESS)
-    else:
-      self.T = self.ram[addr]
+    addr = self.T & 0xffff
+    self.T = self.ram[addr]
 
   def load_byte_a(self):
     """Load byte from memory using address in register A"""
-    addr = self.A
-    if (addr < 0) or (addr > MemMax):
-      self.error(ERR_BAD_ADDRESS)
-      return
+    addr = self.A & 0xffff
     x = self.ram[addr]
     self._push(x)
 
   def load_byte_b(self):
     """Load byte from memory using address in register B"""
-    addr = self.B
-    if (addr < 0) or (addr > MemMax):
-      self.error(ERR_BAD_ADDRESS)
-      return
+    addr = self.B & 0xffff
     x = self.ram[addr]
     self._push(x)
 
   def load_byte_a_increment(self):
     """Load byte from memory using address in register A, then increment A"""
-    addr = self.A
-    if (addr < 0) or (addr > MemMax):
-      self.error(ERR_BAD_ADDRESS)
-      return
+    addr = self.A & 0xffff
     x = self.ram[addr]
     self.A += 1
     self._push(x)
 
   def load_byte_b_increment(self):
     """Load byte from memory using address in register B, then increment B"""
-    addr = self.B
-    if (addr < 0) or (addr > MemMax):
-      self.error(ERR_BAD_ADDRESS)
-      return
+    addr = self.B & 0xffff
     x = self.ram[addr]
     self.B += 1
     self._push(x)
 
   def store_byte_b_increment(self):
     """Store low byte of T byte to address in register B, then increment B"""
-    addr = self.B
+    addr = self.B & 0xffff
     self.B += 1
-    if (addr < 0) or (addr > MemMax) or (addr < self.Fence):
-      self.error(ERR_BAD_ADDRESS)
-    else:
-      self.ram[addr] = self.T & 0xff
+    self.ram[addr] = self.T & 0xff
     self.drop()
 
   def store_byte(self):
@@ -330,11 +311,8 @@ class VM:
     if self.DSDeep < 2:
       self.error(ERR_D_UNDER)
       return
-    addr = self.T
-    if (addr < 0) or (addr > MemMax) or (addr < self.Fence):
-      self.error(ERR_BAD_ADDRESS)
-    else:
-      self.ram[addr] = self.S & 0xff
+    addr = self.T & 0xffff
+    self.ram[addr] = self.S & 0xff
     self.drop()
     self.drop()
 
@@ -344,10 +322,6 @@ class VM:
       self.reset()
       self.error(ERR_R_OVER)
       return
-    if self.T > MemMax:
-      self.reset()
-      self.error(ERR_BAD_ADDRESS)
-      return
     # push the current Program Counter (PC) to return stack
     if self.RSDeep > 0:
       rSecond = self.RSDeep - 1
@@ -355,7 +329,7 @@ class VM:
     self.R = self.PC
     self.RSDeep += 1
     # set Program Counter to the new address
-    self.PC = self.T
+    self.PC = self.T & 0xffff
     self.drop()
 
   def jump_and_link(self):
@@ -406,8 +380,8 @@ class VM:
     if self.DSDeep < 1:
       self.error(ERR_D_UNDER)
       return
-    addr = self.T
-    if (addr < 0) or (addr > MemMax-3):
+    addr = self.T & 0xffff
+    if addr > MemMax-3:
       self.error(ERR_BAD_ADDRESS)
       return
     self.T = int.from_bytes(self.ram[addr:addr+4], 'little', signed=True)
@@ -505,6 +479,14 @@ class VM:
     """Multiply S by T, store result in S, drop T"""
     self._op_st(lambda s, t: s * t)
 
+  def divide(self):
+    """Divide S by T (integer division), store quotient in S, drop T"""
+    self._op_st(lambda s, t: s // t)
+
+  def modulo(self):
+    """Divide S by T (integer division), store remainder in S, drop T"""
+    self._op_st(lambda s, t: s % t)
+
   def not_equal(self):
     """Evaluate S != T (true:-1, false:0), store result in S, drop T"""
     self._op_st(lambda s, t: -1 if s != t else 0)
@@ -551,15 +533,6 @@ class VM:
     self.RSDeep = 0
     self.ERR = 0
 
-  def set_fence(self):
-    """Set the write protect fence to T, if T is greater than old fence"""
-    if self.DSDeep < 1:
-      self.error(ERR_D_UNDER)
-      return
-    if self.T > self.Fence:
-      self.Fence = self.T
-    self.drop()
-
   def clear_err(self):
     """Clear the VM's error register (ERR)"""
     self.ERR = 0
@@ -580,9 +553,6 @@ class VM:
 
   def io_data_stack(self):
     self._log_ds(base=10)
-
-  def io_return_stack(self):
-    self._log_rs(base=10)
 
   def io_data_stack_hex(self):
     self._log_ds(base=16)
@@ -620,9 +590,9 @@ class VM:
     if self.DSDeep < 2:
       self.error(ERR_D_UNDER)
       return
-    addr = self.T
+    addr = self.T & 0xffff
     x = int.to_bytes(c_int32(self.S).value, 4, 'little', signed=True)
-    if (addr < 0) or (addr > MemMax-3) or (addr < self.Fence):
+    if addr > MemMax-3:
       self.error(ERR_BAD_ADDRESS)
     else:
       self.ram[addr:addr+4] = x
@@ -696,8 +666,8 @@ class VM:
     if self.DSDeep < 1:
       self.error(ERR_D_UNDER)
       return
-    addr = self.T
-    if (addr < 0) or (addr > MemMax-1):
+    addr = self.T & 0xffff
+    if addr > MemMax-1:
       self.error(ERR_BAD_ADDRESS)
       return
     self.T = (self.ram[addr+1] << 8) | self.ram[addr]  # LE halfword
@@ -707,8 +677,8 @@ class VM:
     if self.DSDeep < 2:
       self.error(ERR_D_UNDER)
       return
-    addr = self.T
-    if (addr < 0) or (addr > MemMax-1) or (addr < self.Fence):
+    addr = self.T & 0xffff
+    if addr > MemMax-1:
       self.error(ERR_BAD_ADDRESS)
     else:
       self.ram[addr] = self.S & 0xff           # LE halfword low byte
