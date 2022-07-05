@@ -1,7 +1,6 @@
 # Copyright (c) 2022 Sam Blenny
 # SPDX-License-Identifier: MIT
 #
-.POSIX:
 .SUFFIXES:
 .PHONY: all run test clean
 AUTOGEN=opcodes.mkb mem_map.mkb opcodes.py mem_map.py core_voc.py
@@ -48,8 +47,14 @@ test: hello.rom kernel.rom $(AUTOGEN)
 romtest: kernel.rom $(AUTOGEN)
 	@cat $(TEST_IN2) | python3 markab_vm.py kernel.rom | tee $(TEST_OUT2)
 
+# The -fopenmp enables OpenMP parallelization, but it does not work with clang
+# on macOS (uname -> "Darwin"). So, use a gnu-make conditional to make it work
 poly_hash: poly_hash.c
+ifeq ($(shell uname),Darwin)
 	$(CC) -std=c99 -Wall -O3 -o $@ $<
+else
+	@OMP_NUM_THREADS=4 $(CC) -fopenmp -std=c99 -Wall -O3 -o $@ $<
+endif
 
 clean:
 	@rm -rf __pycache__ poly_hash

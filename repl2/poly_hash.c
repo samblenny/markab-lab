@@ -6,6 +6,11 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#ifdef __GNUC__
+  #ifndef __clang__
+    #include <omp.h>
+  #endif
+#endif
 
 #define SYM_IN "kernel.symbols"
 #define MAX_WORDS 300
@@ -25,8 +30,12 @@
 
 #define PERCENTILE 80
 
-// This holds the stats for every combination of parameters and bin size
-#define STATS_LEN ((A_HI-A_LO+1)*(B_HI-B_LO+1)*(C_HI-C_LO+1)*(BIN_HI-BIN_LO+1))
+// The stats array holds stats for all combinations of parameters and bin size
+#define A_SIZE (A_HI-A_LO+1)
+#define B_SIZE (B_HI-B_LO+1)
+#define C_SIZE (C_HI-C_LO+1)
+#define BIN_SIZE (BIN_HI-BIN_LO+1)
+#define STATS_LEN (A_SIZE*B_SIZE*C_SIZE*BIN_SIZE)
 
 #define u8 uint8_t
 #define u16 uint16_t
@@ -40,18 +49,22 @@ typedef struct {
     u8 a;      // poly-hash coefficient a
     u8 b;      // poly-hash coefficient b
     u8 c;      // poly-hash coefficient c
-} param_stats;
+} stats_t;
+
+typedef struct {
+    u32 table[MAX_HASHES];
+    int count;
+} hashes_t;
+
+typedef struct {
+    u16 bins[MAX_BINS];
+    int count;
+} histogram_t;
+
+stats_t STATS[STATS_LEN];
 
 u8 WORDS[MAX_WORDS*C_PER_WORD];
 int WORD_COUNT = 0;
-
-u16 BINS[MAX_BINS];
-int BIN_COUNT = 0;
-
-u32 HASHES[MAX_HASHES];
-int HASH_COUNT = 0;
-
-param_stats STATS[STATS_LEN];
 
 void reset_words() {
     for(int i=0; i<MAX_WORDS*C_PER_WORD; i++) {
@@ -108,17 +121,17 @@ void load_words() {
     }
 }
 
-void reset_bins(int count) {
-    BIN_COUNT = count < MAX_BINS ? count : MAX_BINS;
+void reset_bins(histogram_t *histo, int count) {
+    histo->count = count < MAX_BINS ? count : MAX_BINS;
     for(int i=0; i<MAX_BINS; i++) {
-        BINS[i] = 0;
+        histo->bins[i] = 0;
     }
 }
 
-void reset_hashes(int count) {
-    HASH_COUNT = count < MAX_HASHES ? count : MAX_HASHES;
+void reset_hashes(hashes_t *hashes, int count) {
+    hashes->count = count < MAX_HASHES ? count : MAX_HASHES;
     for(int i=0; i<MAX_HASHES; i++) {
-        HASHES[i] = 0;
+        hashes->table[i] = 0;
     }
 }
 
@@ -132,18 +145,18 @@ u32 poly_hash(u32 a, u32 b, u32 c, int word) {
     return k ^ (k >> b);
 }
 
-void calc_hashes(u32 a, u32 b, u32 c) {
-    reset_hashes(WORD_COUNT);
+void calc_hashes(hashes_t *hashes, u32 a, u32 b, u32 c) {
+    reset_hashes(hashes, WORD_COUNT);
     for(int i=0; i<WORD_COUNT; i++) {
-        HASHES[i] = poly_hash(a, b, c, i);
+        hashes->table[i] = poly_hash(a, b, c, i);
     }
 }
 
-void calc_histogram(u32 bin_count) {
-    reset_bins(bin_count);
-    for(int i=0; i<HASH_COUNT; i++) {
-        int k = HASHES[i] % bin_count;
-        BINS[k] += 1;
+void calc_histogram(hashes_t *hashes, histogram_t *histo, u32 bin_count) {
+    reset_bins(histo, bin_count);
+    for(int i=0; i<(hashes->count); i++) {
+        int k = hashes->table[i] % bin_count;
+        histo->bins[k] += 1;
     }
 }
 
@@ -158,31 +171,31 @@ int compare_bins(const void *a_, const void *b_) {
     return 1;
 }
 
-void calc_stats(u32 a, u32 b, u32 c, param_stats *ps) {
+void calc_stats(histogram_t *histo, u32 a, u32 b, u32 c, stats_t *ps) {
     // Find the highest number of items (hash collisions) in a bin
     u8 worst = 0;
-    for(int i=0; i<BIN_COUNT; i++) {
-        int count = BINS[i];
+    for(int i=0; i<(histo->count); i++) {
+        int count = histo->bins[i];
         if(count > worst) {
             worst = count;
         }
     }
     // Calculate median collision frequency (actually this is a bit above the
     // median to get more of a spread, since the medians are mostly 1)
-    qsort(BINS, BIN_COUNT, sizeof(u16), compare_bins);
-    u8 over_median = BINS[(BIN_COUNT * PERCENTILE) / 100];
+    qsort(histo->bins, histo->count, sizeof(u16), compare_bins);
+    u8 over_median = histo->bins[(histo->count * PERCENTILE) / 100];
     // Update the stats struct
     ps->worst = worst;
     ps->med = over_median;
-    ps->bins = BIN_COUNT;
+    ps->bins = histo->count;
     ps->a = a;
     ps->b = b;
     ps->c = c;
 }
 
 int compare_ps(const void *a_, const void *b_) {
-    param_stats a = *(const param_stats *) a_;
-    param_stats b = *(const param_stats *) b_;
+    stats_t a = *(const stats_t *) a_;
+    stats_t b = *(const stats_t *) b_;
     if(a.med == b.med) {
         if(a.worst == b.worst) {
             if(a.bins == b.bins) {
@@ -217,10 +230,10 @@ int compare_ps(const void *a_, const void *b_) {
 }
 
 void summarize_stats() {
-    qsort(STATS, STATS_LEN, sizeof(param_stats), compare_ps);
+    qsort(STATS, STATS_LEN, sizeof(stats_t), compare_ps);
     int top_n = 20;
     int limit = STATS_LEN < top_n ? STATS_LEN : top_n;
-    param_stats p;
+    stats_t p;
     for(int i=0; i<limit; i++) {
         p = STATS[i];
         printf("worst: %2d  ", p.worst);
@@ -229,22 +242,34 @@ void summarize_stats() {
     }
 }
 
+void analyze_hash_params(u32 a, u32 b, u32 c) {
+    hashes_t hashes;
+    histogram_t histo;
+    int base = (a-A_LO) * (B_SIZE * C_SIZE * BIN_SIZE);
+    base += (b-B_LO) * (C_SIZE * BIN_SIZE);
+    base += (c-C_LO) * BIN_SIZE;
+    calc_hashes(&hashes, a, b, c);
+    for(u32 bin_count=BIN_LO; bin_count<=BIN_HI; bin_count++) {
+        calc_histogram(&hashes, &histo, bin_count);
+        calc_stats(&histo, a, b, c, &STATS[base+(bin_count-BIN_LO)]);
+    }
+}
+
 int main() {
     load_words();
     printf("words: %d\n", WORD_COUNT);
     // Calculate stats for all combinations of hash parameters and bin sizes
-    int s = 0;
+#ifdef __GNUC__
+  #ifndef __clang__
+    #pragma omp parallel for schedule(dynamic)
+  #endif
+#endif
     for(u32 a=A_LO; a<=A_HI; a++) {
+        printf(".");
+        fflush(stdout);
         for(u32 b=B_LO; b<=B_HI; b++) {
-            printf(".");
-            fflush(stdout);
             for(u32 c=C_LO; c<=C_HI; c++) {
-                calc_hashes(a, b, c);
-                for(u32 bin_count=BIN_LO; bin_count<=BIN_HI; bin_count++) {
-                    calc_histogram(bin_count);
-                    calc_stats(a, b, c, &STATS[s]);
-                    s++;
-                }
+                analyze_hash_params(a, b, c);
             }
         }
     }
