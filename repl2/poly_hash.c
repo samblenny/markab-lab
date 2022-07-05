@@ -25,10 +25,8 @@
 #define B_HI 31
 #define C_LO 0
 #define C_HI 255
-#define BIN_LO 94
-#define BIN_HI 99
-
-#define PERCENTILE 80
+#define BIN_LO 107
+#define BIN_HI 112
 
 // The stats array holds stats for all combinations of parameters and bin size
 #define A_SIZE (A_HI-A_LO+1)
@@ -180,10 +178,17 @@ void calc_stats(histogram_t *histo, u32 a, u32 b, u32 c, stats_t *ps) {
             worst = count;
         }
     }
-    // Calculate median collision frequency (actually this is a bit above the
-    // median to get more of a spread, since the medians are mostly 1)
+    // Count the number of bins with a frequency greater than the median
+    // frequency equal to the median frequency. This is a convenient proxy for
+    // smoothness and flatness of the distribution. Smaller is better.
     qsort(histo->bins, histo->count, sizeof(u16), compare_bins);
-    u8 over_median = histo->bins[(histo->count * PERCENTILE) / 100];
+    u8 median = histo->bins[histo->count >> 1];
+    int over_median = 0;
+    for(int i=(histo->count >> 1); i<(histo->count); i++) {
+        if(histo->bins[i] > median) {
+            over_median++;
+        }
+    }
     // Update the stats struct
     ps->worst = worst;
     ps->med = over_median;
@@ -196,8 +201,8 @@ void calc_stats(histogram_t *histo, u32 a, u32 b, u32 c, stats_t *ps) {
 int compare_ps(const void *a_, const void *b_) {
     stats_t a = *(const stats_t *) a_;
     stats_t b = *(const stats_t *) b_;
-    if(a.med == b.med) {
-        if(a.worst == b.worst) {
+    if(a.worst == b.worst) {
+        if(a.med == b.med) {
             if(a.bins == b.bins) {
                 if(a.a == b.a) {
                     if(a.b == b.b) {
@@ -219,11 +224,11 @@ int compare_ps(const void *a_, const void *b_) {
                 return -1;
             }
             return 1;
-        } else if(a.worst < b.worst) {
+        } else if(a.med < b.med) {
             return -1;
         }
         return 1;
-    } else if(a.med < b.med) {
+    } else if(a.worst < b.worst) {
         return -1;
     }
     return 1;
@@ -231,13 +236,13 @@ int compare_ps(const void *a_, const void *b_) {
 
 void summarize_stats() {
     qsort(STATS, STATS_LEN, sizeof(stats_t), compare_ps);
-    int top_n = 20;
+    int top_n = 10;
     int limit = STATS_LEN < top_n ? STATS_LEN : top_n;
     stats_t p;
     for(int i=0; i<limit; i++) {
         p = STATS[i];
         printf("worst: %2d  ", p.worst);
-        printf("%d_%%tile: %2d  bins: %3d  ", PERCENTILE, p.med, p.bins);
+        printf("over_med: %2d  bins: %3d  ", p.med, p.bins);
         printf("poly(%2d,%2d,%3d)\n", p.a, p.b, p.c);
     }
 }
@@ -282,43 +287,33 @@ int main() {
 
 
 /*
-// These are the top 20 sorted by 80th percentile bin size
-worst:  3  80_%tile:  2  bins:  95  poly(109,14, 62)
-worst:  3  80_%tile:  2  bins:  96  poly(87,14, 99)
-worst:  3  80_%tile:  2  bins:  96  poly(254, 4, 76)
-worst:  3  80_%tile:  2  bins:  97  poly(82,11,205)
-worst:  3  80_%tile:  2  bins:  97  poly(165, 2, 57)
-worst:  3  80_%tile:  2  bins:  98  poly(108,22,  1)
-worst:  3  80_%tile:  2  bins:  98  poly(129,18,160)
-worst:  3  80_%tile:  2  bins:  98  poly(135, 1, 38)
-worst:  3  80_%tile:  2  bins:  98  poly(186,22,151)
-worst:  3  80_%tile:  2  bins:  98  poly(203,19,149)
-worst:  3  80_%tile:  2  bins:  98  poly(232,27,160)
-worst:  3  80_%tile:  2  bins:  99  poly( 4,19,219)
-worst:  3  80_%tile:  2  bins:  99  poly(35,30,213)
-worst:  3  80_%tile:  2  bins:  99  poly(104,20,148)
-worst:  3  80_%tile:  2  bins:  99  poly(197,17,180)
-worst:  3  80_%tile:  2  bins:  99  poly(199,23,235)
-worst:  4  80_%tile:  2  bins:  94  poly( 2, 3,162)
-worst:  4  80_%tile:  2  bins:  94  poly( 2, 6,240)
-worst:  4  80_%tile:  2  bins:  94  poly( 3, 3, 47)
-worst:  4  80_%tile:  2  bins:  94  poly( 3, 5,132)
-
+// Top 20 sorted by worst-case bin frequency then count of bins with frequency
+// higher than the median frequency. The count of bins over median measures how
+// smooth and flat the distribution of hash keys is. Lower is better.
+worst:  3  over_med:  8  bins: 112  poly(123, 8, 15)
+worst:  3  over_med: 11  bins: 110  poly(245,31,240)
+worst:  3  over_med: 11  bins: 111  poly(211, 6,240)
+worst:  3  over_med: 11  bins: 112  poly(189, 2,  7)
+worst:  3  over_med: 12  bins: 107  poly(79,31,150)
+worst:  3  over_med: 12  bins: 107  poly(130,29,133)
+worst:  3  over_med: 12  bins: 109  poly(52, 6,154)
+worst:  3  over_med: 12  bins: 109  poly(165,25, 26)
+worst:  3  over_med: 12  bins: 112  poly(75,13,126)
+worst:  3  over_med: 13  bins: 108  poly(56,16,165)
 
 // Python code to extract lists of a, b, c, and bins parameters:
 # bins a b c
 params = """
-95 109 14 62
-96 87 14 99
-96 254 4 76
-97 82 11 205
-97 165 2 57
-98 108 22 1
-98 129 18 160
-98 135 1 38
-98 186 22 151
-98 203 19 149
-98 232 27 160
+112 123 8 15
+110 245 31 240
+111 211 6 240
+112 189 2 7
+107 79 31 150
+107 130 29 133
+109 52 6 154
+109 165 25 26
+112 75 13 126
+108 56 16 165
 """
 lines = [L.split(" ") for L in params.strip().split("\n")]
 (A, B, C, BINS) = ([], [], [], [])
@@ -329,8 +324,8 @@ for (bins, a, b, c) in lines:
   BINS += [int(bins)]
 print(f"A = {sorted(set(A))}\nB = {sorted(set(B))}")
 print(f"C = {sorted(set(C))}\nBINS = {sorted(set(BINS))}")
-# A = [82, 87, 108, 109, 129, 135, 165, 186, 203, 232, 254]
-# B = [1, 2, 4, 11, 14, 18, 19, 22, 27]
-# C = [1, 38, 57, 62, 76, 99, 149, 151, 160, 205]
-# BINS = [95, 96, 97, 98]
+# A = [52, 56, 75, 79, 123, 130, 165, 189, 211, 245]
+# B = [2, 6, 8, 13, 16, 25, 29, 31]
+# C = [7, 15, 26, 126, 133, 150, 154, 165, 240]
+# BINS = [107, 108, 109, 110, 111, 112]
 */
