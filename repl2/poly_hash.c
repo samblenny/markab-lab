@@ -20,13 +20,13 @@
 
 // These control the search limits for the hash parameters and bin size
 #define A_LO 1
-#define A_HI 16
+#define A_HI 8
 #define B_LO 1
-#define B_HI 31
+#define B_HI 8
 #define C_LO 0
-#define C_HI 255
+#define C_HI 999
 #define BIN_LO 5
-#define BIN_HI 6
+#define BIN_HI 7
 
 // The stats array holds stats for all combinations of parameters and bin size
 #define A_SIZE (A_HI-A_LO+1)
@@ -41,12 +41,12 @@
 #define u64 uint64_t
 
 typedef struct {
-    u8 worst;  // worst-case collisions (highest count out of all the bins)
-    u8 med;    // median number of collisions
-    u8 bins;   // number of bins
-    u8 a;      // poly-hash coefficient a
-    u8 b;      // poly-hash coefficient b
-    u8 c;      // poly-hash coefficient c
+    u8 worst;     // worst-case collisions (highest count out of all the bins)
+    u8 med;       // count of bins with over the median number of collisions
+    u8 bin_bits;  // number of bin bits; number of bins = (1 << bin_bits)
+    u8 a;         // poly-hash coefficient a
+    u8 b;         // poly-hash coefficient b
+    u16 c;        // poly-hash coefficient c
 } stats_t;
 
 typedef struct {
@@ -57,6 +57,7 @@ typedef struct {
 typedef struct {
     u16 bins[MAX_BINS];
     int count;
+    int bin_bits;
 } histogram_t;
 
 stats_t STATS[STATS_LEN];
@@ -119,8 +120,9 @@ void load_words() {
     }
 }
 
-void reset_bins(histogram_t *histo, int count) {
-    histo->count = count < MAX_BINS ? count : MAX_BINS;
+void reset_bins(histogram_t *histo, int bin_bits) {
+    histo->bin_bits = bin_bits;
+    histo->count = 1 << bin_bits;
     for(int i=0; i<MAX_BINS; i++) {
         histo->bins[i] = 0;
     }
@@ -153,7 +155,7 @@ void calc_hashes(hashes_t *hashes, u32 a, u32 b, u32 c) {
 void calc_histogram(hashes_t *hashes, histogram_t *histo, u32 bin_bits) {
     u32 bin_count = 1 << bin_bits;
     u32 mask = bin_count -1;
-    reset_bins(histo, bin_count);
+    reset_bins(histo, bin_bits);
     for(int i=0; i<(hashes->count); i++) {
         int k = hashes->table[i] & mask;
         histo->bins[k] += 1;
@@ -194,7 +196,7 @@ void calc_stats(histogram_t *histo, u32 a, u32 b, u32 c, stats_t *ps) {
     // Update the stats struct
     ps->worst = worst;
     ps->med = over_median;
-    ps->bins = histo->count;
+    ps->bin_bits = histo->bin_bits;
     ps->a = a;
     ps->b = b;
     ps->c = c;
@@ -205,7 +207,7 @@ int compare_ps(const void *a_, const void *b_) {
     stats_t b = *(const stats_t *) b_;
     if(a.worst == b.worst) {
         if(a.med == b.med) {
-            if(a.bins == b.bins) {
+            if(a.bin_bits == b.bin_bits) {
                 if(a.a == b.a) {
                     if(a.b == b.b) {
                         if(a.c == b.c) {
@@ -222,7 +224,7 @@ int compare_ps(const void *a_, const void *b_) {
                     return -1;
                 }
                 return 1;
-            } else if(a.bins < b.bins) {
+            } else if(a.bin_bits < b.bin_bits) {
                 return -1;
             }
             return 1;
@@ -236,98 +238,148 @@ int compare_ps(const void *a_, const void *b_) {
     return 1;
 }
 
+// Print the histogram as sparkline charts with up to 64 bins per line.
+// This uses Unicode characters in the U+2580..U+259F "Block Elements" range.
+void print_histogram(stats_t stats) {
+    hashes_t hashes;
+    histogram_t histo;
+    calc_hashes(&hashes, stats.a, stats.b, stats.c);
+    calc_histogram(&hashes, &histo, stats.bin_bits);
+    for(int i=0; i<(histo.count); i++) {
+        if(i==64) {
+            printf("\n");  // Insert a line-break after 64 columns
+        }
+        switch(histo.bins[i]) {
+        case 0:  printf(" "); break;
+        case 1:  printf("▁"); break; // "lower one eighth block"
+        case 2:  printf("▂"); break; // "lower one quarter block"
+        case 3:  printf("▃"); break; // "lower three eighths block"
+        case 4:  printf("▄"); break; // "lower half block"
+        case 5:  printf("▅"); break; // "lower five eigths block"
+        case 6:  printf("▆"); break; // "lower three quarters block"
+        case 7:  printf("▇"); break; // "lower seven eigths block"
+        default: printf("█"); break; // "full block"
+        }
+    }
+    printf("\n");
+}
+
+void print_stats_summary(stats_t stats) {
+    printf("max: %d  over_median: %d  ", stats.worst, stats.med);
+    printf("poly(%d, %d, %d)\n", stats.a, stats.b, stats.c);
+}
+
 void summarize_stats() {
-    qsort(STATS, STATS_LEN, sizeof(stats_t), compare_ps);
-    int top_n = 10;
-    int limit = STATS_LEN < top_n ? STATS_LEN : top_n;
-    stats_t p;
+    int size = A_SIZE * B_SIZE * C_SIZE;
+    qsort(STATS, size, sizeof(stats_t), compare_ps);
+    int top_n = 5;
+    int limit = size < top_n ? size : top_n;
+    printf("Bin Count: %3d\n", 1 << STATS[0].bin_bits);
+    printf("==============\n\n");
     for(int i=0; i<limit; i++) {
-        p = STATS[i];
-        printf("worst: %d  ", p.worst);
-        printf("over_med: %2d  bins: %d  ", p.med, p.bins);
-        printf("poly(%d, %2d, %3d)\n", p.a, p.b, p.c);
+        print_stats_summary(STATS[i]);
+        print_histogram(STATS[i]);
+        printf("\n");
     }
 }
 
-void analyze_hash_params(u32 a, u32 b, u32 c) {
+void analyze_hash_params(u32 a, u32 b, u32 c, u32 bin_bits) {
     hashes_t hashes;
     histogram_t histo;
-    int base = (a-A_LO) * (B_SIZE * C_SIZE * BIN_SIZE);
-    base += (b-B_LO) * (C_SIZE * BIN_SIZE);
-    base += (c-C_LO) * BIN_SIZE;
+    int index = (a-A_LO) * (B_SIZE * C_SIZE);
+    index += (b-B_LO) * (C_SIZE);
+    index += (c-C_LO);
     calc_hashes(&hashes, a, b, c);
-    for(u32 bin_bits=BIN_LO; bin_bits<=BIN_HI; bin_bits++) {
-        calc_histogram(&hashes, &histo, bin_bits);
-        calc_stats(&histo, a, b, c, &STATS[base+(bin_bits-BIN_LO)]);
-    }
+    calc_histogram(&hashes, &histo, bin_bits);
+    calc_stats(&histo, a, b, c, &STATS[index]);
 }
 
 int main() {
     load_words();
     printf("words: %d\n", WORD_COUNT);
     // Calculate stats for all combinations of hash parameters and bin sizes
+    for(int bin_bits=BIN_LO; bin_bits<=BIN_HI; bin_bits++) {
 #ifdef __GNUC__
   #ifndef __clang__
     #pragma omp parallel for schedule(dynamic)
   #endif
 #endif
-    for(u32 a=A_LO; a<=A_HI; a++) {
-        printf(".");
-        fflush(stdout);
-        for(u32 b=B_LO; b<=B_HI; b++) {
-            for(u32 c=C_LO; c<=C_HI; c++) {
-                analyze_hash_params(a, b, c);
+        for(u32 a=A_LO; a<=A_HI; a++) {
+            for(u32 b=B_LO; b<=B_HI; b++) {
+                for(u32 c=C_LO; c<=C_HI; c++) {
+                    analyze_hash_params(a, b, c, bin_bits);
+                }
             }
         }
+        printf("\n");
+        summarize_stats();
     }
-    printf("\n");
-    // Find best combinations ranking by low collisions then low bin size
-    summarize_stats();
-    printf("\n");
     return 0;
 }
 
 
 /*
-// Top 10 sorted by worst-case bin frequency then count of bins with frequency
-// higher than the median frequency. The count of bins over median measures how
-// smooth and flat the distribution of hash keys is. Lower is better.
-worst: 4  over_med: 10  bins: 64  poly(1,  4,  55)
-worst: 5  over_med: 10  bins: 64  poly(2, 13,   5)
-worst: 5  over_med: 11  bins: 64  poly(1,  3, 201)
-worst: 5  over_med: 11  bins: 64  poly(1,  6, 181)
-worst: 5  over_med: 11  bins: 64  poly(2,  6,  68)
-worst: 5  over_med: 11  bins: 64  poly(2, 11, 103)
-worst: 5  over_med: 11  bins: 64  poly(2, 13, 194)
-worst: 5  over_med: 12  bins: 64  poly(2,  9, 111)
-worst: 5  over_med: 12  bins: 64  poly(2, 13, 155)
-worst: 5  over_med: 12  bins: 64  poly(2, 13, 197)
+words: 161
 
-// Python code to extract lists of a, b, c, and bins parameters:
-# bins a b c
-params = """
-6 1 4 55
-6 2 13 5
-6 1 3 201
-6 1 6 181
-6 2 6 68
-6 2 11 103
-6 2 13 194
-6 2 9 111
-6 2 13 155
-6 2 13 197
-"""
-lines = [L.split(" ") for L in params.strip().split("\n")]
-(A, B, C, BIN_BITS) = ([], [], [], [])
-for (bin_bits, a, b, c) in lines:
-  A += [int(a)]
-  B += [int(b)]
-  C += [int(c)]
-  BIN_BITS += [int(bin_bits)]
-print(f"A = {sorted(set(A))}\nB = {sorted(set(B))}")
-print(f"C = {sorted(set(C))}\nBIN_BITS = {sorted(set(BIN_BITS))}")
-# A = [1, 2]
-# B = [3, 4, 6, 9, 11, 13]
-# C = [5, 55, 68, 103, 111, 155, 181, 194, 197, 201]
-# BIN_BITS = [6]
+Bin Count:  32
+==============
+
+max: 7  over_median: 3  poly(2, 8, 167)
+▆▄▇▆▄▂▅▆▅▅▆▇▆▆▄▆▃▆▆▆▅▆▇▃▄▆▃▆▅▅▃▂
+
+max: 7  over_median: 12  poly(1, 6, 600)
+▅▆▅▅▇▆▅▄▄▆▆▆▃▇▆▇▄▄▅▆▅▂▃▆▅▄▆▄▅▅▄▅
+
+max: 7  over_median: 12  poly(1, 7, 671)
+▆▇▁▄▄▆▅▄▄▁▇▇▅▃▆▅▅▅▄▇▆▆▅▅▄▅▆▇▄▇▅▅
+
+max: 7  over_median: 12  poly(2, 7, 52)
+▅▄▄▄▄▇▄▃▃▅▇▅▃▆▆▇▅▆▇▅▅▅▂▄▇▆▇▇▅▃▇▃
+
+max: 7  over_median: 12  poly(2, 7, 564)
+▇▅▄▄▅▇▄▃▃▆▇▅▃▆▇▇▃▅▇▅▄▅▂▄▇▅▇▇▅▃▆▃
+
+
+Bin Count:  64
+==============
+
+max: 4  over_median: 10  poly(1, 4, 55)
+▃▂▂ ▄▂▁▃▁▄▁▂▄▂▄▃▃▄▃▂▂▃▁▃▃▂▂▃▂▃▃▄▄▃▂▁▂▁▃▁▄▃▂▂▄▃▂▂▃▂▂▃▂▂▄▃▁▂▃▂▃▃▃▃
+
+max: 4  over_median: 10  poly(1, 4, 567)
+▃▂▂ ▄▂▁▃▁▄▁▂▄▂▄▃▃▄▃▂▂▃▁▃▃▂▂▃▂▃▃▄▄▃▂▁▂▁▃▁▄▃▂▂▄▃▂▂▃▂▂▃▂▂▄▃▁▂▃▂▃▃▃▃
+
+max: 5  over_median: 9  poly(1, 7, 864)
+▁▁▃▂▅▂▃▁▃▁▃▂▂▄▂▃▁▂▂▃▃▃ ▃▃▂▃▁▃▂▂▃▂▁▂▂▃▂▃▃▂▁▂▄▃▂▃▃▅▅▃▃▅▄▄▁▃▂▂▄▃▂▂▁
+
+max: 5  over_median: 9  poly(2, 6, 324)
+▂▂▁▃▁▁▁▁▃▂▃▂ ▂▂▁▃▄▁▃▃▂▃▃▁▂▃▃▂▁▁▂▂▂▃▃▁▂▅▃▄▅▄▃▂▃▃▃▃▃▃▁▄▄▃▂▃▃▃▄▃▃▃▄
+
+max: 5  over_median: 10  poly(2, 6, 749)
+▃▃▃▃▃▁▁▄▃▂▃▂▃▂▃▁▅▃▅▃▂▂▂▁▃▃▁▃▅▂▂▁▃▄▃▃▂▂▃▄▂▂▁▁▄▃▄▁▃▃▂▁▁▁▄▂▁▅▂▃▂ ▃▃
+
+
+Bin Count: 128
+==============
+
+max: 3  over_median: 45  poly(2, 3, 209)
+ ▃▁▂▁▁▂▁▁▂▂ ▃▂ ▂▂▁▁▁ ▁▁▂▂▂▂ ▁▃ ▂▂▁▁▂▁▃ ▃▃▃▁▁▂▁▁ ▁▂  ▂▃▃▁▂  ▂▁▁
+▁▂▁▂▁▁▂▁ ▁▁▁ ▁▁▂▃▁▁▁ ▁   ▁▁▁▁▁▁▂ ▁▁ ▁▂▁▁▁▁▂▁▃▂▁▂▂▂▁▂▁▁▁ ▁▁▁ ▂▂▁▃
+
+max: 3  over_median: 45  poly(2, 3, 465)
+ ▃▁▂▁▁▂▁▁▂▂ ▃▂ ▂▂▁▁▁ ▁▁▂▂▂▂ ▁▃ ▂▂▁▁▂▁▃ ▃▃▃▁▁▂▁▁ ▁▂  ▂▃▃▁▂  ▂▁▁
+▁▂▁▂▁▁▂▁ ▁▁▁ ▁▁▂▃▁▁▁ ▁   ▁▁▁▁▁▁▂ ▁▁ ▁▂▁▁▁▁▂▁▃▂▁▂▂▂▁▂▁▁▁ ▁▁▁ ▂▂▁▃
+
+max: 3  over_median: 45  poly(2, 3, 721)
+ ▃▁▂▁▁▂▁▁▂▂ ▃▂ ▂▂▁▁▁ ▁▁▂▂▂▂ ▁▃ ▂▂▁▁▂▁▃ ▃▃▃▁▁▂▁▁ ▁▂  ▂▃▃▁▂  ▂▁▁
+▁▂▁▂▁▁▂▁ ▁▁▁ ▁▁▂▃▁▁▁ ▁   ▁▁▁▁▁▁▂ ▁▁ ▁▂▁▁▁▁▂▁▃▂▁▂▂▂▁▂▁▁▁ ▁▁▁ ▂▂▁▃
+
+max: 3  over_median: 45  poly(2, 3, 977)
+ ▃▁▂▁▁▂▁▁▂▂ ▃▂ ▂▂▁▁▁ ▁▁▂▂▂▂ ▁▃ ▂▂▁▁▂▁▃ ▃▃▃▁▁▂▁▁ ▁▂  ▂▃▃▁▂  ▂▁▁
+▁▂▁▂▁▁▂▁ ▁▁▁ ▁▁▂▃▁▁▁ ▁   ▁▁▁▁▁▁▂ ▁▁ ▁▂▁▁▁▁▂▁▃▂▁▂▂▂▁▂▁▁▁ ▁▁▁ ▂▂▁▃
+
+max: 3  over_median: 46  poly(2, 6, 588)
+▁▁ ▃▁  ▁▂▃▁ ▁▂▂▁▂▁▁▂▁ ▂  ▂▂▂▃▁ ▂ ▁▃▂▁ ▁▁▁▃▂▁▁▃▁▂▁▁ ▃▂▁▁▂▁▃▃▁▃▃▁▃
+▃ ▁   ▂ ▁▂ ▁   ▁▁▂  ▂▃▁▁ ▁▂▂▁  ▁▁ ▁▁ ▁▃▁▃▁▂▁ ▁  ▃▂▁▁▁▂▃▁▁▂▂ ▃  ▃
+
 */
