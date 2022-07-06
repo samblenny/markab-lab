@@ -104,7 +104,7 @@ E400 Fmt      # Fmt buffer         256 bytes
 FFFF MemMax
 """
 
-ENUM_CODES = """
+CONSTANTS = """
 # Codes for dictionary entry Types
 T_VAR    0   # Variable
 T_CONST  1   # Constant
@@ -115,6 +115,13 @@ T_IMM    4   # Object code for immediate compiled word
 # Codes for interpreter Modes
 MODE_INT  0   # Interpret mode
 MODE_COM  1   # Compiling mode
+
+# Parameters for polynomial string hashing function
+HashA 2
+HashB 11
+HashC 23443
+HashBins 64
+HashMask 63
 """
 
 def filter(src):
@@ -152,7 +159,7 @@ def mkb_memory_map():
 
 def mkb_enum_codes():
   constants = []
-  for line in filter(ENUM_CODES):
+  for line in filter(CONSTANTS):
     (name, code) = line.split(" ")
     constants += [f"{int(code):02x} const {name}"]
   return "\n".join(constants)
@@ -173,7 +180,7 @@ def py_opcode_constants():
 
 def py_enum_codes():
   constants = []
-  for line in filter(ENUM_CODES):
+  for line in filter(CONSTANTS):
     (name, code) = line.split(" ")
     fmt_name = f"{name}"
     constants += [f"{fmt_name:7} = {code}"]
@@ -193,7 +200,7 @@ def py_core_voc():
     (addr, name) = line.split(" ")
     key = f"'{name}':"
     cv += [f"    {key:11} (T_CONST, 0x{addr}),"]
-  for line in filter(ENUM_CODES):
+  for line in filter(CONSTANTS):
     (name, code) = line.split(" ")
     key = f"'{name}':"
     cv += [f"    {key:11} (T_CONST, {code}),"]
