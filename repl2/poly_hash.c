@@ -20,13 +20,13 @@
 
 // These control the search limits for the hash parameters and bin size
 #define A_LO 1
-#define A_HI 255
+#define A_HI 16
 #define B_LO 1
 #define B_HI 31
 #define C_LO 0
 #define C_HI 255
-#define BIN_LO 64
-#define BIN_HI 64
+#define BIN_LO 5
+#define BIN_HI 6
 
 // The stats array holds stats for all combinations of parameters and bin size
 #define A_SIZE (A_HI-A_LO+1)
@@ -138,7 +138,7 @@ u32 poly_hash(u32 a, u32 b, u32 c, int word) {
     int len = WORDS[offset];
     u32 k = c;
     for(int i=1; i<=len && i<=C_PER_WORD; i++) {
-        k = (k * a) ^ WORDS[offset+i];
+        k = (k << a) ^ WORDS[offset+i];
     }
     return k ^ (k >> b);
 }
@@ -150,10 +150,12 @@ void calc_hashes(hashes_t *hashes, u32 a, u32 b, u32 c) {
     }
 }
 
-void calc_histogram(hashes_t *hashes, histogram_t *histo, u32 bin_count) {
+void calc_histogram(hashes_t *hashes, histogram_t *histo, u32 bin_bits) {
+    u32 bin_count = 1 << bin_bits;
+    u32 mask = bin_count -1;
     reset_bins(histo, bin_count);
     for(int i=0; i<(hashes->count); i++) {
-        int k = hashes->table[i] % bin_count;
+        int k = hashes->table[i] & mask;
         histo->bins[k] += 1;
     }
 }
@@ -241,9 +243,9 @@ void summarize_stats() {
     stats_t p;
     for(int i=0; i<limit; i++) {
         p = STATS[i];
-        printf("worst: %2d  ", p.worst);
-        printf("over_med: %2d  bins: %3d  ", p.med, p.bins);
-        printf("poly(%2d,%2d,%3d)\n", p.a, p.b, p.c);
+        printf("worst: %d  ", p.worst);
+        printf("over_med: %2d  bins: %d  ", p.med, p.bins);
+        printf("poly(%d, %2d, %3d)\n", p.a, p.b, p.c);
     }
 }
 
@@ -254,9 +256,9 @@ void analyze_hash_params(u32 a, u32 b, u32 c) {
     base += (b-B_LO) * (C_SIZE * BIN_SIZE);
     base += (c-C_LO) * BIN_SIZE;
     calc_hashes(&hashes, a, b, c);
-    for(u32 bin_count=BIN_LO; bin_count<=BIN_HI; bin_count++) {
-        calc_histogram(&hashes, &histo, bin_count);
-        calc_stats(&histo, a, b, c, &STATS[base+(bin_count-BIN_LO)]);
+    for(u32 bin_bits=BIN_LO; bin_bits<=BIN_HI; bin_bits++) {
+        calc_histogram(&hashes, &histo, bin_bits);
+        calc_stats(&histo, a, b, c, &STATS[base+(bin_bits-BIN_LO)]);
     }
 }
 
@@ -290,42 +292,42 @@ int main() {
 // Top 10 sorted by worst-case bin frequency then count of bins with frequency
 // higher than the median frequency. The count of bins over median measures how
 // smooth and flat the distribution of hash keys is. Lower is better.
-worst:  4  over_med: 10  bins:  64  poly( 2, 4, 55)
-worst:  4  over_med: 10  bins:  64  poly(119, 4,218)
-worst:  4  over_med: 11  bins:  64  poly(15, 6, 95)
-worst:  4  over_med: 11  bins:  64  poly(79,18, 81)
-worst:  4  over_med: 12  bins:  64  poly(78,22, 79)
-worst:  4  over_med: 12  bins:  64  poly(85, 9,206)
-worst:  4  over_med: 12  bins:  64  poly(125,14, 64)
-worst:  4  over_med: 12  bins:  64  poly(229,27, 85)
-worst:  4  over_med: 13  bins:  64  poly(121,10, 38)
-worst:  4  over_med: 14  bins:  64  poly(24, 8,171)
+worst: 4  over_med: 10  bins: 64  poly(1,  4,  55)
+worst: 5  over_med: 10  bins: 64  poly(2, 13,   5)
+worst: 5  over_med: 11  bins: 64  poly(1,  3, 201)
+worst: 5  over_med: 11  bins: 64  poly(1,  6, 181)
+worst: 5  over_med: 11  bins: 64  poly(2,  6,  68)
+worst: 5  over_med: 11  bins: 64  poly(2, 11, 103)
+worst: 5  over_med: 11  bins: 64  poly(2, 13, 194)
+worst: 5  over_med: 12  bins: 64  poly(2,  9, 111)
+worst: 5  over_med: 12  bins: 64  poly(2, 13, 155)
+worst: 5  over_med: 12  bins: 64  poly(2, 13, 197)
 
 // Python code to extract lists of a, b, c, and bins parameters:
 # bins a b c
 params = """
-64 2 4 55
-64 119 4 218
-64 15 6 95
-64 79 18 81
-64 78 22 79
-64 85 9 206
-64 125 14 64
-64 229 27 85
-64 121 10 38
-64 24 8 171
+6 1 4 55
+6 2 13 5
+6 1 3 201
+6 1 6 181
+6 2 6 68
+6 2 11 103
+6 2 13 194
+6 2 9 111
+6 2 13 155
+6 2 13 197
 """
 lines = [L.split(" ") for L in params.strip().split("\n")]
-(A, B, C, BINS) = ([], [], [], [])
-for (bins, a, b, c) in lines:
+(A, B, C, BIN_BITS) = ([], [], [], [])
+for (bin_bits, a, b, c) in lines:
   A += [int(a)]
   B += [int(b)]
   C += [int(c)]
-  BINS += [int(bins)]
+  BIN_BITS += [int(bin_bits)]
 print(f"A = {sorted(set(A))}\nB = {sorted(set(B))}")
-print(f"C = {sorted(set(C))}\nBINS = {sorted(set(BINS))}")
-# A = [2, 15, 24, 78, 79, 85, 119, 121, 125, 229]
-# B = [4, 6, 8, 9, 10, 14, 18, 22, 27]
-# C = [38, 55, 64, 79, 81, 85, 95, 171, 206, 218]
-# BINS = [64]
+print(f"C = {sorted(set(C))}\nBIN_BITS = {sorted(set(BIN_BITS))}")
+# A = [1, 2]
+# B = [3, 4, 6, 9, 11, 13]
+# C = [5, 55, 68, 103, 111, 155, 181, 194, 197, 201]
+# BIN_BITS = [6]
 */
