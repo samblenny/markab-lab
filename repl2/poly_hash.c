@@ -25,8 +25,8 @@
 #define B_HI 31
 #define C_LO 0
 #define C_HI 255
-#define BIN_LO 107
-#define BIN_HI 112
+#define BIN_LO 64
+#define BIN_HI 64
 
 // The stats array holds stats for all combinations of parameters and bin size
 #define A_SIZE (A_HI-A_LO+1)
@@ -287,33 +287,33 @@ int main() {
 
 
 /*
-// Top 20 sorted by worst-case bin frequency then count of bins with frequency
+// Top 10 sorted by worst-case bin frequency then count of bins with frequency
 // higher than the median frequency. The count of bins over median measures how
 // smooth and flat the distribution of hash keys is. Lower is better.
-worst:  3  over_med:  8  bins: 112  poly(123, 8, 15)
-worst:  3  over_med: 11  bins: 110  poly(245,31,240)
-worst:  3  over_med: 11  bins: 111  poly(211, 6,240)
-worst:  3  over_med: 11  bins: 112  poly(189, 2,  7)
-worst:  3  over_med: 12  bins: 107  poly(79,31,150)
-worst:  3  over_med: 12  bins: 107  poly(130,29,133)
-worst:  3  over_med: 12  bins: 109  poly(52, 6,154)
-worst:  3  over_med: 12  bins: 109  poly(165,25, 26)
-worst:  3  over_med: 12  bins: 112  poly(75,13,126)
-worst:  3  over_med: 13  bins: 108  poly(56,16,165)
+worst:  4  over_med: 10  bins:  64  poly( 2, 4, 55)
+worst:  4  over_med: 10  bins:  64  poly(119, 4,218)
+worst:  4  over_med: 11  bins:  64  poly(15, 6, 95)
+worst:  4  over_med: 11  bins:  64  poly(79,18, 81)
+worst:  4  over_med: 12  bins:  64  poly(78,22, 79)
+worst:  4  over_med: 12  bins:  64  poly(85, 9,206)
+worst:  4  over_med: 12  bins:  64  poly(125,14, 64)
+worst:  4  over_med: 12  bins:  64  poly(229,27, 85)
+worst:  4  over_med: 13  bins:  64  poly(121,10, 38)
+worst:  4  over_med: 14  bins:  64  poly(24, 8,171)
 
 // Python code to extract lists of a, b, c, and bins parameters:
 # bins a b c
 params = """
-112 123 8 15
-110 245 31 240
-111 211 6 240
-112 189 2 7
-107 79 31 150
-107 130 29 133
-109 52 6 154
-109 165 25 26
-112 75 13 126
-108 56 16 165
+64 2 4 55
+64 119 4 218
+64 15 6 95
+64 79 18 81
+64 78 22 79
+64 85 9 206
+64 125 14 64
+64 229 27 85
+64 121 10 38
+64 24 8 171
 """
 lines = [L.split(" ") for L in params.strip().split("\n")]
 (A, B, C, BINS) = ([], [], [], [])
@@ -324,8 +324,8 @@ for (bins, a, b, c) in lines:
   BINS += [int(bins)]
 print(f"A = {sorted(set(A))}\nB = {sorted(set(B))}")
 print(f"C = {sorted(set(C))}\nBINS = {sorted(set(BINS))}")
-# A = [52, 56, 75, 79, 123, 130, 165, 189, 211, 245]
-# B = [2, 6, 8, 13, 16, 25, 29, 31]
-# C = [7, 15, 26, 126, 133, 150, 154, 165, 240]
-# BINS = [107, 108, 109, 110, 111, 112]
+# A = [2, 15, 24, 78, 79, 85, 119, 121, 125, 229]
+# B = [4, 6, 8, 9, 10, 14, 18, 22, 27]
+# C = [38, 55, 64, 79, 81, 85, 95, 171, 206, 218]
+# BINS = [64]
 */
