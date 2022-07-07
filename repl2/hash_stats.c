@@ -20,7 +20,7 @@
 
 // These control the search limits for the hash parameters and bin size
 #define A_LO 1
-#define A_HI 4
+#define A_HI 16
 #define B_LO 1
 #define B_HI 15
 #define C_LO 0
@@ -32,8 +32,7 @@
 #define A_SIZE (A_HI-A_LO+1)
 #define B_SIZE (B_HI-B_LO+1)
 #define C_SIZE (C_HI-C_LO+1)
-#define BIN_SIZE (BIN_HI-BIN_LO+1)
-#define STATS_LEN (A_SIZE*B_SIZE*C_SIZE*BIN_SIZE)
+#define STATS_LEN (A_SIZE*B_SIZE*C_SIZE)
 
 #define u8 uint8_t
 #define u16 uint16_t
@@ -44,8 +43,8 @@ typedef struct {
     u8 worst;     // worst-case collisions (highest count out of all the bins)
     u8 med;       // count of bins with over the median number of collisions
     u8 bin_bits;  // number of bin bits; number of bins = (1 << bin_bits)
-    u8 a;         // poly-hash coefficient a
-    u8 b;         // poly-hash coefficient b
+    u16 a;        // poly-hash coefficient a
+    u16 b;        // poly-hash coefficient b
     u16 c;        // poly-hash coefficient c
 } stats_t;
 
@@ -135,6 +134,7 @@ void reset_hashes(hashes_t *hashes, int count) {
     }
 }
 
+// This works pretty well, but the mwc_hash() below distributes keys better.
 u32 poly_hash(u32 a, u32 b, u32 c, int word) {
     int offset = word * C_PER_WORD;
     int len = WORDS[offset];
@@ -145,10 +145,28 @@ u32 poly_hash(u32 a, u32 b, u32 c, int word) {
     return k ^ (k >> b);
 }
 
+// This hash function was inspired by George Marsaglia's 1994 email entitled
+// "Yet another RNG" email describing a class of multiply-with-carry (MWC)
+// random number generator (RNG) functions. This MWC hash does noticably better
+// than my polynomial hash function at uniformly distributing hash keys. I'm
+// not sure if this method of hashing strings with a 16-bit RNG has a specific
+// name. But, the method is step the RNG for each byte of a string and xor the
+// string byte into the RNG state during each iteration.
+u32 mwc_hash(u32 a, u32 b, u32 c, int word) {
+    int offset = word * C_PER_WORD;
+    int len = WORDS[offset];
+    u32 k = c;
+    for(int i=1; i<=len && i<=C_PER_WORD; i++) {
+        k = ((k&0xffff)<<a)+(k>>16) ^ WORDS[offset+i];
+    }
+    return k ^ (k >> b);
+}
+
 void calc_hashes(hashes_t *hashes, u32 a, u32 b, u32 c) {
     reset_hashes(hashes, WORD_COUNT);
     for(int i=0; i<WORD_COUNT; i++) {
-        hashes->table[i] = poly_hash(a, b, c, i);
+//        hashes->table[i] = poly_hash(a, b, c, i);
+        hashes->table[i] = mwc_hash(a, b, c, i);
     }
 }
 
@@ -324,62 +342,62 @@ words: 166
 Bin Count:  32
 ==============
 
-max: 7  over_median: 4  poly(2, 13, 43315)
-▆▆▆▇▆▆▃▅▆▄▅▆▄▇▇▄▄▅▆▅▅▅▆▄▆▆▄▃▄▇▆▂
+max: 7  over_median: 2  poly(11, 9, 26735)
+▆▇▇▆▆▄▅▆▅▆▃▅▆▅▆▆▆▆▆▂▄▂▆▅▅▆▂▅▅▆▆▅
 
-max: 7  over_median: 4  poly(2, 15, 59999)
-▅▆▆▇▆▅▄▆▄▄▁▆▃▆▅▄▆▅▂▆▇▄▃▆▆▆▆▇▅▆▆▇
+max: 7  over_median: 3  poly(2, 1, 36658)
+▅▆▂▅▅▆▆▄▃▃▄▆▇▆▄▇▆▄▆▇▃▅▆▆▄▅▆▅▆▆▆▆
 
-max: 7  over_median: 5  poly(2, 8, 167)
-▆▄▇▆▄▂▅▆▅▅▆▇▆▆▄▆▃▆▆▆▅▆▇▄▆▇▃▇▅▅▃▂
+max: 7  over_median: 3  poly(2, 5, 11876)
+▅▅▇▆▃▆▄▆▅▆▄▃▃▆▆▆▆▆▆▆▄▄▆▃▇▆▄▄▆▇▅▅
 
-max: 7  over_median: 5  poly(2, 8, 2215)
-▆▄▇▆▄▂▅▆▅▅▆▇▆▆▄▆▃▆▆▆▅▆▇▄▆▇▃▇▅▅▃▂
+max: 7  over_median: 3  poly(2, 7, 33215)
+▄▆▃▆▃▅▆▇▃▄▆▄▇▇▄▆▅▆▃▅▄▆▆▅▆▆▅▆▆▅▅▆
 
-max: 7  over_median: 5  poly(2, 8, 4263)
-▆▄▇▆▄▂▅▆▅▅▆▇▆▆▄▆▃▆▆▆▅▆▇▄▆▇▃▇▅▅▃▂
+max: 7  over_median: 3  poly(2, 7, 45374)
+▆▄▇▄▆▆▃▇▄▄▃▆▃▅▆▆▄▅▅▅▆▆▇▆▅▆▄▆▅▆▄▆
 
 
 Bin Count:  64
 ==============
 
-max: 4  over_median: 15  poly(2, 11, 23443)
-▃▄▂▂▂▁▂▃▁▄▄▃▃▃▄▄▂▄▂▁▄▃▁ ▂▂▄▃▂▃▃▃▁▄▁▂▃▄▃▁▄▃▁▁▂▃▃▄▂▂▃▂▁▃▂▃▃▃▃ ▃▄▄▄
+max: 4  over_median: 12  poly(7, 8, 38335)
+▃▃▁▃▄▃▁▃▄▄▁▄▄▃▃▄▄▄▃▂▃▃▃▄▃▂▁▂▁▃▃▂▁▂▁▄▂▂▂▃▁▁▂▄▂▁▂▁▃▃▄▃▃▃▃▃▃▃▁▂▂▃▃▂
 
-max: 4  over_median: 15  poly(2, 11, 56211)
-▃▄▂▂▂▁▂▃▁▄▄▃▃▃▄▄▂▄▂▁▄▃▁ ▂▂▄▃▂▃▃▃▁▄▁▂▃▄▃▁▄▃▁▁▂▃▃▄▂▂▃▂▁▃▂▃▃▃▃ ▃▄▄▄
+max: 4  over_median: 13  poly(6, 2, 33011)
+▁▄▃▂▃▂▃▃▄▄▄▁▄▄▁▃▄▄▃▂▂▃▂▃▂▃▂▃▂▃▄▁▃▃▁▃▄▂▃▃▄▃▄▃▂ ▂▁▂▂▂▁ ▂▄▃▂▃▃▁▃▃▂▃
 
-max: 4  over_median: 18  poly(2, 13, 5439)
-▃▁▄▃▄▄▃▃▂▁▄▁▄▃▄ ▄▄▂▄▃▃▃▂▁▄▁▃▃▁▂▄▄▃▄▁▂▄▃▁▂▂▃▂▃▁▄▂▃ ▁▂▄▃▄▃▄▃▁▃▃▂▁ 
+max: 4  over_median: 15  poly(4, 6, 13904)
+▃▃▃▃▂▂▃▂▂▁▃▄▄▄▄▂▃▂▄▂▃▃▂▁▃▂▃▄▃ ▁▂▄▃▁▁▄▂▄▃▄▂▃▁▂▁▂▄▂▂▃▂▃▂▂▂▄▄▂▂▂▄▄▂
 
-max: 4  over_median: 19  poly(2, 11, 25919)
-▁▃▄▃▂▂▂▄▄▄▄▁▁▂▃▃▁▂▃▃ ▂▂▂▂▄▃▂▄▁▁▂▄▃▂▃▄▄▄▃▃▂▁▃▃▄ ▃▄▁▁▁▄▄▄▂▁▄▃▄▃ ▃▄
+max: 4  over_median: 15  poly(9, 10, 30214)
+▃▄▃▃▂▃▄▁▃▃▃▁▄▃▁▄▁▂▃▁▂▂▃▄▄▃▃▄ ▂▃▂ ▁▂▁▄▄▃▁▁▄▂▃▃▃▃▃▃▄ ▄▃▁▃▃▂▃▂▂▂▄▄▄
 
-max: 4  over_median: 19  poly(2, 11, 58687)
-▁▃▄▃▂▂▂▄▄▄▄▁▁▂▃▃▁▂▃▃ ▂▂▂▂▄▃▂▄▁▁▂▄▃▂▃▄▄▄▃▃▂▁▃▃▄ ▃▄▁▁▁▄▄▄▂▁▄▃▄▃ ▃▄
+max: 4  over_median: 16  poly(3, 4, 23513)
+▄▃▃▄▁▃▂▃▄▃▃▂▄▂▂▁▂▂ ▁▃▁▃▃ ▄▁▁▄▂▁▄▂▃▃▄▃▄▂▄▄▂▂▃▃▄▃▂▂▄▁▁▄▂▁▃▂▃▂▄▃▃▃▄
 
 
 Bin Count: 128
 ==============
 
-max: 3  over_median: 42  poly(2, 10, 27440)
-▂▃ ▃▁▃▂▃▂▁▁▁ ▁▃▂▂▂▃▁▁▃▁▁▁   ▁▁▁▁▃ ▁▁▂▁▂▃ ▁ ▃▁▃▁▁▂▁▁▁▁▁▃▂▁ ▁▁▂ ▁▁
-▁▁ ▁▁▂▁▃ ▁▂▂▁▁▁ ▁▂▃▂▁▁▂▁▁▁▁▂▃▁▁▂▂▂▁ ▁ ▁ ▁ ▂▁▃▃ ▁▁▁ ▁ ▁▃▁  ▁▁▁▁▂▂
+max: 3  over_median: 41  poly(3, 14, 26350)
+▁▁ ▂▁▃▂▁▁▁ ▁ ▁▁▃▁▁▂▁▁▃ ▁▁▂▁▁▁▂▁▁▃▁▁▁  ▂ ▂▃▂ ▁▃▁▂▃▁▁  ▁▃ ▂▁ ▁▃▁▁▃
+▂▁▁▂▁▁▁▁▁▁▁▂▁ ▁▁▃▃▂▁▁ ▃▁▁▃▁  ▃▂▁▃▂▁ ▃▂▁▁▁▁ ▁▁▃ ▁▂▂▃▁▂▃ ▁▁ ▁  ▁▂▁
 
-max: 3  over_median: 42  poly(2, 10, 60208)
-▂▃ ▃▁▃▂▃▂▁▁▁ ▁▃▂▂▂▃▁▁▃▁▁▁   ▁▁▁▁▃ ▁▁▂▁▂▃ ▁ ▃▁▃▁▁▂▁▁▁▁▁▃▂▁ ▁▁▂ ▁▁
-▁▁ ▁▁▂▁▃ ▁▂▂▁▁▁ ▁▂▃▂▁▁▂▁▁▁▁▂▃▁▁▂▂▂▁ ▁ ▁ ▁ ▂▁▃▃ ▁▁▁ ▁ ▁▃▁  ▁▁▁▁▂▂
+max: 3  over_median: 42  poly(2, 13, 12302)
+▃ ▃▁▁▃▁▁▂▁  ▁▁  ▃▃▃▁▃▃▁▁▃▁▂▂▂▁▁▁▂▃▃▁ ▁▂ ▂▁▃ ▁▁ ▁▂▁▁ ▃▁▁▁▂ ▂▂▁▁▃
+▂▃ ▁▃▁ ▁▁ ▁▂▃▁▁▃ ▃  ▁▁▁▁▁  ▂▁▃▂▂▁▁▂▂▁▁▁▁ ▂ ▁▁▁▁▂▁▁▁▁▁ ▁▁▂▁▁ ▁▁▂▁
 
-max: 3  over_median: 43  poly(2, 14, 47619)
-▁▂▁▁▂ ▁▁▂▁▁▁ ▁  ▁▁▂▁▂▁▂   ▃  ▁▃▁▂ ▁ ▃ ▁▃▃▃▃▃▃▃▁▂▁▃▃▁▂ ▂▁ ▃▂▃▁▃▁▂
-  ▂   ▁▃ ▁ ▁▂▁  ▃▁▁▁▁▁▂▁▃▁▁▂▁▁▁▂▁ ▁▃▁▃▂ ▁▁▁▁▁▁▁▁ ▂▃ ▃▁▁▁▃▁  ▃▁▁▁
+max: 3  over_median: 42  poly(3, 4, 27806)
+▃▁▁▂▁ ▁▁▁▁    ▁▁▁▃▂▃▃▃▂▁▁  ▁▁▁▁▁▂▁  ▁ ▃▁▁▃▁▁▃▃▁▃▁▁▁  ▁  ▁ ▃▃▃▁ ▃
+▂▃▂▁▃▁▁ ▁▁▃▃▂▁▁▃ ▁▃▃▁▂▃ ▁▂▁▂▁▃▁ ▁▁▂    ▃ ▂▂▃▃▁▁▁▂ ▁▃▁▁ ▁ ▁▂▁▁
 
-max: 3  over_median: 44  poly(2, 10, 13168)
- ▃ ▁▁▂▁▁   ▂ ▁▁  ▃▃▃▂▁▁▃▁▁▁▁▂▁▁▂▂▁▂▁▂ ▂▂▁▁ ▂▂▃▁▁▃▁▁▃▁ ▁▁  ▁ ▂▁▁▁
-▁▁  ▁▁▁▂▂▁ ▃▁▁▁▃ ▁▂ ▂▁▃▃▂▁▁▁▃▂▂▁ ▁▁▁▃▁▁▁▃ ▁▃▁▃▂▂▁▂▁ ▂▁▂▃▁ ▁▂ ▁▁▁
+max: 3  over_median: 42  poly(3, 9, 55575)
+▁▁  ▃▁▂▁▁▁ ▁▃▂▁▃ ▃▁▁ ▂▂▁  ▁▁▁▁ ▂▂▃▁▁▃▃▁▁▃▁▁ ▁▁▁▁▁▁▁▂▂▁  ▂▁▂▁▃▁▁
+▃▃▁▁▁▂▂▁   ▁▂ ▁▁ ▂▁ ▁▁▃▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▂▃▂▁▁▂ ▂▁▂▂▃▃▁▂▂▂▃▁▂ ▁▂▃▁
 
-max: 3  over_median: 44  poly(2, 10, 17028)
-▂▁▁▃▁▂▃ ▁▁▂▂▃▁▁▁▁▁▂▁▁   ▁▁ ▂  ▁▃▂▂ ▂▁▁▃▁▁▁▃▃▁▁▁▁▁ ▂▃▁▁▂▃ ▁▂▂▂▁▁▁
-▁▂▁▁ ▁▁▁ ▃▁▁ ▁  ▁▁▂▁ ▂▁  ▁▁▁▁ ▁ ▁▂▂▃ ▃▁▃▂▃▂ ▃▁▂▃▃▁ ▃▁ ▁▂▁▂▁▁▁▂▁▂
+max: 3  over_median: 42  poly(9, 7, 19843)
+▃▁▁▃▂▁▁ ▂▁▁▁▃▂▁▁▂▁▁▁▁▁▂▁ ▃▃▁ ▂▂ ▃▁▂▂▁▁▃▃▁▂▁▁▁▂▂▂▃▁▂▁▁▁▃▁▁▂  ▁  ▃
+▁▁▁▂▁ ▁▁▁ ▁ ▃▁ ▁ ▁▂▁▁▁▁   ▃ ▁  ▁ ▃▃▂▁▂▃▃▁ ▁  ▁▃▁▁ ▂▁▁▁▃ ▃▁▃▁▁▂▁▁
 
 */

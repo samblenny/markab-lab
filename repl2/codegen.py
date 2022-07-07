@@ -116,10 +116,10 @@ T_IMM    4   # Object code for immediate compiled word
 MODE_INT  0   # Interpret mode
 MODE_COM  1   # Compiling mode
 
-# Parameters for polynomial string hashing function
-HashA 2
-HashB 11
-HashC 23443
+# Parameters for multiply-with-carry (mwc) string hashing function
+HashA 7
+HashB 8
+HashC 38335
 HashBins 64
 HashMask 63
 """

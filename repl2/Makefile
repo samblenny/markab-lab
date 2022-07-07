@@ -49,7 +49,7 @@ romtest: kernel.rom $(AUTOGEN)
 
 # The -fopenmp enables OpenMP parallelization, but it does not work with clang
 # on macOS (uname -> "Darwin"). So, use a gnu-make conditional to make it work
-poly_hash: poly_hash.c
+hash_stats: hash_stats.c
 ifeq ($(shell uname),Darwin)
 	$(CC) -std=c99 -Wall -O3 -o $@ $<
 else
@@ -57,4 +57,4 @@ else
 endif
 
 clean:
-	@rm -rf __pycache__ poly_hash
+	@rm -rf __pycache__ hash_stats

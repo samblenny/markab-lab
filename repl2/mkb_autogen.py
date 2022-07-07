@@ -177,9 +177,9 @@ T_OBJ   = 3
 T_IMM   = 4
 MODE_INT = 0
 MODE_COM = 1
-HashA   = 2
-HashB   = 11
-HashC   = 23443
+HashA   = 7
+HashB   = 8
+HashC   = 38335
 HashBins = 64
 HashMask = 63
 
@@ -208,9 +208,9 @@ CORE_VOC = {
     'T_IMM':    (T_CONST, 4),
     'MODE_INT': (T_CONST, 0),
     'MODE_COM': (T_CONST, 1),
-    'HashA':    (T_CONST, 2),
-    'HashB':    (T_CONST, 11),
-    'HashC':    (T_CONST, 23443),
+    'HashA':    (T_CONST, 7),
+    'HashB':    (T_CONST, 8),
+    'HashC':    (T_CONST, 38335),
     'HashBins': (T_CONST, 64),
     'HashMask': (T_CONST, 63),
     'nop':      (T_OP,    NOP),

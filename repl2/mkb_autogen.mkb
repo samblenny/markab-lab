@@ -14,9 +14,9 @@ hex
 04 const T_IMM
 00 const MODE_INT
 01 const MODE_COM
-02 const HashA
-0b const HashB
-5b93 const HashC
+07 const HashA
+08 const HashB
+95bf const HashC
 40 const HashBins
 3f const HashMask
 
