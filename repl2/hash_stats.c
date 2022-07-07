@@ -41,7 +41,8 @@
 
 typedef struct {
     u8 worst;     // worst-case collisions (highest count out of all the bins)
-    u8 med;       // count of bins with over the median number of collisions
+    u8 over_med;  // count of bins with over the median number of collisions
+    u8 med;       // median collisions per bin
     u8 bin_bits;  // number of bin bits; number of bins = (1 << bin_bits)
     u16 a;        // poly-hash coefficient a
     u16 b;        // poly-hash coefficient b
@@ -213,7 +214,8 @@ void calc_stats(histogram_t *histo, u32 a, u32 b, u32 c, stats_t *ps) {
     }
     // Update the stats struct
     ps->worst = worst;
-    ps->med = over_median;
+    ps->over_med = over_median;
+    ps->med = median;
     ps->bin_bits = histo->bin_bits;
     ps->a = a;
     ps->b = b;
@@ -224,29 +226,33 @@ int compare_ps(const void *a_, const void *b_) {
     stats_t a = *(const stats_t *) a_;
     stats_t b = *(const stats_t *) b_;
     if(a.worst == b.worst) {
-        if(a.med == b.med) {
-            if(a.bin_bits == b.bin_bits) {
-                if(a.a == b.a) {
-                    if(a.b == b.b) {
-                        if(a.c == b.c) {
-                            return 0;
-                        } else if(a.c < b.c) {
+        if(a.over_med == b.over_med) {
+            if(a.med == b.med) {
+                if(a.bin_bits == b.bin_bits) {
+                    if(a.a == b.a) {
+                        if(a.b == b.b) {
+                            if(a.c == b.c) {
+                                return 0;
+                            } else if(a.c < b.c) {
+                                return -1;
+                            }
+                            return 1;
+                        } else if(a.b < b.b) {
                             return -1;
                         }
                         return 1;
-                    } else if(a.b < b.b) {
+                    } else if(a.a < b.a) {
                         return -1;
                     }
                     return 1;
-                } else if(a.a < b.a) {
+                } else if(a.bin_bits < b.bin_bits) {
                     return -1;
                 }
                 return 1;
-            } else if(a.bin_bits < b.bin_bits) {
+            } else if(a.med < b.med) {
                 return -1;
             }
-            return 1;
-        } else if(a.med < b.med) {
+        } else if(a.over_med < b.over_med) {
             return -1;
         }
         return 1;
@@ -283,8 +289,9 @@ void print_histogram(stats_t stats) {
 }
 
 void print_stats_summary(stats_t stats) {
-    printf("max: %d  over_median: %d  ", stats.worst, stats.med);
-    printf("poly(%d, %d, %d)\n", stats.a, stats.b, stats.c);
+    printf("max: %d  over_median: %d  ", stats.worst, stats.over_med);
+    printf("median: %d  ", stats.med);
+    printf("mwc(%d, %d, %d)\n", stats.a, stats.b, stats.c);
 }
 
 void summarize_stats() {
@@ -342,61 +349,61 @@ words: 166
 Bin Count:  32
 ==============
 
-max: 7  over_median: 2  poly(11, 9, 26735)
+max: 7  over_median: 2  median: 6  mwc(11, 9, 26735)
 ▆▇▇▆▆▄▅▆▅▆▃▅▆▅▆▆▆▆▆▂▄▂▆▅▅▆▂▅▅▆▆▅
 
-max: 7  over_median: 3  poly(2, 1, 36658)
+max: 7  over_median: 3  median: 6  mwc(2, 1, 36658)
 ▅▆▂▅▅▆▆▄▃▃▄▆▇▆▄▇▆▄▆▇▃▅▆▆▄▅▆▅▆▆▆▆
 
-max: 7  over_median: 3  poly(2, 5, 11876)
+max: 7  over_median: 3  median: 6  mwc(2, 5, 11876)
 ▅▅▇▆▃▆▄▆▅▆▄▃▃▆▆▆▆▆▆▆▄▄▆▃▇▆▄▄▆▇▅▅
 
-max: 7  over_median: 3  poly(2, 7, 33215)
+max: 7  over_median: 3  median: 6  mwc(2, 7, 33215)
 ▄▆▃▆▃▅▆▇▃▄▆▄▇▇▄▆▅▆▃▅▄▆▆▅▆▆▅▆▆▅▅▆
 
-max: 7  over_median: 3  poly(2, 7, 45374)
+max: 7  over_median: 3  median: 6  mwc(2, 7, 45374)
 ▆▄▇▄▆▆▃▇▄▄▃▆▃▅▆▆▄▅▅▅▆▆▇▆▅▆▄▆▅▆▄▆
 
 
 Bin Count:  64
 ==============
 
-max: 4  over_median: 12  poly(7, 8, 38335)
+max: 4  over_median: 12  median: 3  mwc(7, 8, 38335)
 ▃▃▁▃▄▃▁▃▄▄▁▄▄▃▃▄▄▄▃▂▃▃▃▄▃▂▁▂▁▃▃▂▁▂▁▄▂▂▂▃▁▁▂▄▂▁▂▁▃▃▄▃▃▃▃▃▃▃▁▂▂▃▃▂
 
-max: 4  over_median: 13  poly(6, 2, 33011)
+max: 4  over_median: 13  median: 3  mwc(6, 2, 33011)
 ▁▄▃▂▃▂▃▃▄▄▄▁▄▄▁▃▄▄▃▂▂▃▂▃▂▃▂▃▂▃▄▁▃▃▁▃▄▂▃▃▄▃▄▃▂ ▂▁▂▂▂▁ ▂▄▃▂▃▃▁▃▃▂▃
 
-max: 4  over_median: 15  poly(4, 6, 13904)
+max: 4  over_median: 15  median: 3  mwc(4, 6, 13904)
 ▃▃▃▃▂▂▃▂▂▁▃▄▄▄▄▂▃▂▄▂▃▃▂▁▃▂▃▄▃ ▁▂▄▃▁▁▄▂▄▃▄▂▃▁▂▁▂▄▂▂▃▂▃▂▂▂▄▄▂▂▂▄▄▂
 
-max: 4  over_median: 15  poly(9, 10, 30214)
+max: 4  over_median: 15  median: 3  mwc(9, 10, 30214)
 ▃▄▃▃▂▃▄▁▃▃▃▁▄▃▁▄▁▂▃▁▂▂▃▄▄▃▃▄ ▂▃▂ ▁▂▁▄▄▃▁▁▄▂▃▃▃▃▃▃▄ ▄▃▁▃▃▂▃▂▂▂▄▄▄
 
-max: 4  over_median: 16  poly(3, 4, 23513)
+max: 4  over_median: 16  median: 3  mwc(3, 4, 23513)
 ▄▃▃▄▁▃▂▃▄▃▃▂▄▂▂▁▂▂ ▁▃▁▃▃ ▄▁▁▄▂▁▄▂▃▃▄▃▄▂▄▄▂▂▃▃▄▃▂▂▄▁▁▄▂▁▃▂▃▂▄▃▃▃▄
 
 
 Bin Count: 128
 ==============
 
-max: 3  over_median: 41  poly(3, 14, 26350)
+max: 3  over_median: 41  median: 1  mwc(3, 14, 26350)
 ▁▁ ▂▁▃▂▁▁▁ ▁ ▁▁▃▁▁▂▁▁▃ ▁▁▂▁▁▁▂▁▁▃▁▁▁  ▂ ▂▃▂ ▁▃▁▂▃▁▁  ▁▃ ▂▁ ▁▃▁▁▃
 ▂▁▁▂▁▁▁▁▁▁▁▂▁ ▁▁▃▃▂▁▁ ▃▁▁▃▁  ▃▂▁▃▂▁ ▃▂▁▁▁▁ ▁▁▃ ▁▂▂▃▁▂▃ ▁▁ ▁  ▁▂▁
 
-max: 3  over_median: 42  poly(2, 13, 12302)
+max: 3  over_median: 42  median: 1  mwc(2, 13, 12302)
 ▃ ▃▁▁▃▁▁▂▁  ▁▁  ▃▃▃▁▃▃▁▁▃▁▂▂▂▁▁▁▂▃▃▁ ▁▂ ▂▁▃ ▁▁ ▁▂▁▁ ▃▁▁▁▂ ▂▂▁▁▃
 ▂▃ ▁▃▁ ▁▁ ▁▂▃▁▁▃ ▃  ▁▁▁▁▁  ▂▁▃▂▂▁▁▂▂▁▁▁▁ ▂ ▁▁▁▁▂▁▁▁▁▁ ▁▁▂▁▁ ▁▁▂▁
 
-max: 3  over_median: 42  poly(3, 4, 27806)
+max: 3  over_median: 42  median: 1  mwc(3, 4, 27806)
 ▃▁▁▂▁ ▁▁▁▁    ▁▁▁▃▂▃▃▃▂▁▁  ▁▁▁▁▁▂▁  ▁ ▃▁▁▃▁▁▃▃▁▃▁▁▁  ▁  ▁ ▃▃▃▁ ▃
 ▂▃▂▁▃▁▁ ▁▁▃▃▂▁▁▃ ▁▃▃▁▂▃ ▁▂▁▂▁▃▁ ▁▁▂    ▃ ▂▂▃▃▁▁▁▂ ▁▃▁▁ ▁ ▁▂▁▁
 
-max: 3  over_median: 42  poly(3, 9, 55575)
+max: 3  over_median: 42  median: 1  mwc(3, 9, 55575)
 ▁▁  ▃▁▂▁▁▁ ▁▃▂▁▃ ▃▁▁ ▂▂▁  ▁▁▁▁ ▂▂▃▁▁▃▃▁▁▃▁▁ ▁▁▁▁▁▁▁▂▂▁  ▂▁▂▁▃▁▁
 ▃▃▁▁▁▂▂▁   ▁▂ ▁▁ ▂▁ ▁▁▃▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▂▃▂▁▁▂ ▂▁▂▂▃▃▁▂▂▂▃▁▂ ▁▂▃▁
 
-max: 3  over_median: 42  poly(9, 7, 19843)
+max: 3  over_median: 42  median: 1  mwc(9, 7, 19843)
 ▃▁▁▃▂▁▁ ▂▁▁▁▃▂▁▁▂▁▁▁▁▁▂▁ ▃▃▁ ▂▂ ▃▁▂▂▁▁▃▃▁▂▁▁▁▂▂▂▃▁▂▁▁▁▃▁▁▂  ▁  ▃
 ▁▁▁▂▁ ▁▁▁ ▁ ▃▁ ▁ ▁▂▁▁▁▁   ▃ ▁  ▁ ▃▃▂▁▂▃▃▁ ▁  ▁▃▁▁ ▂▁▁▁▃ ▃▁▃▁▁▂▁▁
 
