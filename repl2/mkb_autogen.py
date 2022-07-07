@@ -157,13 +157,14 @@ HeapRes = 0xE000
 HeapMax = 0xE0FF
 DP      = 0xE100
 IN      = 0xE104
-CONTEXT = 0xE108
-CURRENT = 0xE10C
+CORE_V  = 0xE108
+EXT_V   = 0xE10C
 MODE    = 0xE110
 LASTCALL = 0xE118
 NEST    = 0xE11C
 BASE    = 0xE120
 EOF     = 0xE124
+LASTWORD = 0xE128
 IB      = 0xE200
 Pad     = 0xE300
 Fmt     = 0xE400
@@ -190,13 +191,14 @@ CORE_VOC = {
     'HeapMax':  (T_CONST, 0xE0FF),
     'DP':       (T_CONST, 0xE100),
     'IN':       (T_CONST, 0xE104),
-    'CONTEXT':  (T_CONST, 0xE108),
-    'CURRENT':  (T_CONST, 0xE10C),
+    'CORE_V':   (T_CONST, 0xE108),
+    'EXT_V':    (T_CONST, 0xE10C),
     'MODE':     (T_CONST, 0xE110),
     'LASTCALL': (T_CONST, 0xE118),
     'NEST':     (T_CONST, 0xE11C),
     'BASE':     (T_CONST, 0xE120),
     'EOF':      (T_CONST, 0xE124),
+    'LASTWORD': (T_CONST, 0xE128),
     'IB':       (T_CONST, 0xE200),
     'Pad':      (T_CONST, 0xE300),
     'Fmt':      (T_CONST, 0xE400),

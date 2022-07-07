@@ -105,13 +105,14 @@ E000 const HeapRes
 E0FF const HeapMax
 E100 const DP
 E104 const IN
-E108 const CONTEXT
-E10C const CURRENT
+E108 const CORE_V
+E10C const EXT_V
 E110 const MODE
 E118 const LASTCALL
 E11C const NEST
 E120 const BASE
 E124 const EOF
+E128 const LASTWORD
 E200 const IB
 E300 const Pad
 E400 const Fmt

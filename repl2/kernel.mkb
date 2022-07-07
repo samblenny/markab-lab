@@ -7,8 +7,8 @@
 load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 
 : here DP h@ ;       ( address for next writable dictionary location)
-: curr CURRENT h@ ;  ( address for head of new definitions vocabulary)
-: ctxt CONTEXT h@ ;  ( address for head of word searching vocabulary)
+: corv CORE_V h@ ;   ( base address of core vocabulary hashmap)
+: extv EXT_V h@ ;    ( base address of extensible vocab hashmap)
 
 : hex 16 BASE w! ;
 : decimal 10 BASE w! ;
@@ -115,9 +115,22 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   1+       ( adding 1 more gets us the address of the .type field)
 ;
 
-: find ( voc -- [addr] bool)  ( Search for word at DP in dictionary)
-  ctxt               ( put address of head of list in T)
-  999 for{           ( loop over up to 999 dictionary entries)
+: w.hash  ( -- binp )  ( Hash string at DP into MWC hashmap bin pointer offset)
+  here >a           ( a = address of string struct at DP)
+  HashC             ( start hash with parameter C, the initial carry value)
+  @a+ 1- for{       ( load length field and loop over string's data field)
+    dup 65535 and   (   mask low halfword of previous hash)
+    HashA <<        (   multiply it by HashA parameter)
+    swap 16 >> +    (   add carry from previous hash to result of multiply)
+    @a+ xor         (   xor string byte with multiply-with-carry RNG result)   
+  }for
+  dup HashB >> xor  ( compress entropy towards low bit with HashB parameter)
+  HashMask and      ( mask low bits to get the hashmap bin number)
+  2 *               ( bin number * 2 = offset to pointer for hashmap bin)
+;
+
+: find.bin  ( binp -- [addr] bool )  ( Search for word at DP in list for bin)
+  19 for{            ( loop over up to 19 dictionary entries)
     dup 0= if{       ( if vocab item pointer is null:)
       drop           (   drop link pointer)
       false rdrop ;  (   return bool=false)
@@ -128,6 +141,18 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
       true rdrop ;   (   return: addr=.type bool=true )
     }if h@           ( else: follow link and keep looping)
   }for drop false    ( end of loop without match: return false)
+;
+
+: find ( -- [addr] bool )  ( Search for word at DP in dictionary)
+  w.hash        ( hash word at DP to get hashmap bin offset)
+  corv over +   ( calculate address of core vocab bin for hash)
+  swap extv +   ( calculate address of extensible vocab bin for hash)
+  find.bin      ( search in ext. vocab, -> {corebin, [addr], T: bool})
+  0= if{        ( if word is not in ext. vocab's bin)
+    find.bin ;  (   find in core: {T: corebin} -> {[addr], T: bool}, return)
+  }if           ( else, {corebin, T: addr})
+  swap drop     ( clean address of core vocab bin off stack: -> {T: addr})
+  true          ( return {addr, T: true} for match in ext vocab)
 ;
 
 : inner  ( v.type -- ??? )  ( Inner interpreter: run code for one word)
@@ -275,12 +300,15 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 ( --- Begin Compiler -------------------------------------------------)
 ( --------------------------------------------------------------------)
 
-: immediate        ( Change type of last word from regular to immediate)
-  a                ( save old value of a)
-  curr v.type >a   ( a = address of dictionary_head.type field)
-  @a T_OBJ = if{   ( if .type was regular compiled word:)
-    T_IMM a !      (   change type to immediate compiled word)
-  }if >a           ( restore old value of a)
+: immediate         ( Change type of last word from regular to immediate)
+  LASTWORD h@       ( load address for start of last defined word)
+  dup 0= if{        ( if last word is 0, no words have been defined yet, so: )
+    drop ;          (   clean up stack, return)
+  }if               ( else: )
+  v.type dup        ( get address of last word's .type field)
+  @ T_OBJ = if{     ( if .type was regular compiled word:)
+    T_IMM swap ! ;  (   change type to immediate compiled word, return)
+  }if drop          ( else: clean up stack, leave type as it was)
 ;
 
 : allot ( bytes -- ) DP h@ + DP h! ;  ( Allocate dictionary space)
@@ -305,16 +333,19 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   NEST @ 0 >
 ;
 
-: create ( -- lenth-of-name )
-  curr h,         ( store link to current head of dictionary at DP)
-  word            ( copy name from input stream to DP)
-  here @ 1+       ( calculate size of name struct: string bytes + length byte)
-  allot           ( allocate dictionary space for the name)
+: cr.link  ( .link -- )  ( Set .link field for create, update hashmap bin ptr)
+  w.hash extv +  ( calculate ext. vocab hashmap bin pointer for word)
+  over over      ( {.link, T: binp} -> {.link, binp, .link, T: binp})
+  h@ swap h!     ( patch this item's link field to point to bin's old head)
+  h!             ( update hashmap bin head of list ptr, {.link, T: binp} -> {})
 ;
 
-: extend  ( addr -- )  ( Extend the dictionary with a new head item)
-  dup CONTEXT h!  ( update context to include new name in searching)
-  CURRENT h!      ( update current to so next new entry will point to this one)
+: create ( -- lenth-of-name )
+  here 0 h,  ( push link addr, compile link=0 [to be patched later])
+  word       ( copy name from input stream to DP)
+  cr.link    ( patch this item's .link if needed, update bin pointer)
+  here @ 1+  ( calculate size of name struct: string bytes + length byte)
+  allot      ( allocate dictionary space for the name)
 ;
 
 : :                ( Start defining a new vocabulary word)
@@ -322,7 +353,7 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   create           ( read name to start dictionary entry)
   T_OBJ ,          ( append type field: object code)
   MODE_COM MODE !  ( set compile mode)
-  extend           ( update the dictionary pointers to include this word)
+  LASTWORD h!      ( set last defined word pointer for benefit of `immediate`)
 ;
 
 : update-mode        ( Clear compile mode, but only for final ; of definition)
@@ -353,7 +384,6 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   create   ( append name as read from text input stream)
   T_VAR ,  ( append .type=var)
   0 w,     ( append .param = I32 initialized to 0)
-  extend   ( update the dictionary pointers)
 ;
 
 : const  ( n -- )  ( Add constant to dictionary)
@@ -361,7 +391,6 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   create     ( append name as read from text input stream)
   T_CONST ,  ( append .type=const to dictionary)
   w,         ( append .param = T as I32 literal)
-  extend     ( update the dictionary pointers)
 ;
 
 : opcode  ( n -- )  ( Add opcode to dictionary)
@@ -369,7 +398,6 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   create     ( append name as read from text input stream)
   T_OP ,     ( append type=opcode)
   , RET ,    ( append .param = opcode from T, then RET)
-  extend     ( update the dictionary pointers)
 ;
 
 : if{ ( -- addr )  ( Start of if block)
@@ -459,9 +487,14 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 ;
 
 : boot    ( Initialize global vars, print version, start outer interpreter)
-  0 IN w!        ( 1 byte,  aligned 4, so zero all 4)
-  0 LASTCALL w!  ( 2 bytes, aligned 4, so zero all 4)
-  10 BASE w!     ( set number base to decimal)
-  false EOF w!   ( clear the end of input flag)
-  outer          ( start the outer interpreter)
+  0 IN w!           ( 1 byte,  aligned 4, so zero all 4)
+  0 LASTCALL w!     ( 2 bytes, aligned 4, so zero all 4)
+  0 LASTWORD w!     ( 2 bytes, aligned 4, so zero all 4)
+  10 BASE w!        ( set number base to decimal)
+  false EOF w!      ( clear the end of input flag)
+  here EXT_V w!     ( set extensible vocab hashmap base pointer)
+  HashBins 1- for{  ( loop to initialize hashmap for ext. vocab: )
+    0 h,            (   allocate and zero 2 bytes for this bin's pointer)
+  }for
+  outer             ( start the outer interpreter)
 ;

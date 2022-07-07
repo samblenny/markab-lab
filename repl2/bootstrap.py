@@ -7,7 +7,8 @@
 from mkb_autogen import (
   JMP, JAL, RET, BZ, BFOR, MTR, U8, U16, I32, SH,
   T_VAR, T_CONST, T_OP, T_OBJ, T_IMM,
-  Heap, HeapMax, CONTEXT, CURRENT, DP,
+  Heap, HeapMax, CORE_V, DP,
+  HashA, HashB, HashC, HashBins, HashMask,
   OPCODES,
 )
 from markab_vm import VM
@@ -30,7 +31,7 @@ class Compiler:
     """Initialize an Markab VM ROM instance for compiling into"""
     self.vm = VM()   # make a VM instance to use for compiling
     self.DP = Heap
-    self.link = 0
+    self.last_word = 0
     self.base = 10
     self.mode = MODE_INT
     self.last_call = 0
@@ -38,27 +39,28 @@ class Compiler:
     self.nest_for = 0
     self.name_set = {}
     self.link_set = {}
-    self.append_byte(U16)       # compile initializer for CONTEXT
-    self.init_context = self.DP
-    self.append_halfword(0)
+    # ROM address 0:
+    self.append_byte(U8)        # compile initializer for CORE_V (6 bytes)
+    self.append_byte(16)        #  core vocab hashmap starts at ROM addr 16
     self.append_byte(U16)
-    self.append_halfword(CONTEXT)
+    self.append_halfword(CORE_V)
     self.append_byte(SH)
-    self.append_byte(U16)       # compile initializer for CURRENT
-    self.init_current = self.DP
-    self.append_halfword(0)
-    self.append_byte(U16)
-    self.append_halfword(CURRENT)
-    self.append_byte(SH)
-    self.append_byte(U16)       # compile initializer for DP
+    # ROM address 6:
+    self.append_byte(U16)       # compile initializer for DP (7 bytes)
     self.init_dp = self.DP
     self.append_halfword(0)
     self.append_byte(U16)
     self.append_halfword(DP)
     self.append_byte(SH)
-    self.append_byte(JMP)       # compile a boot jump to be patched later
+    # ROM address 13:
+    self.append_byte(JMP)       # compile boot jump to patch later (3 bytes)
     self.boot_vector = self.DP
     self.append_halfword(0)
+    # ROM address 16:
+    assert self.DP == 16        # for an exception here: ^^^ check up there
+    self.core_v = self.DP
+    for i in range(HashBins):   # compile initial empty hashmap bins
+      self.append_halfword(0)
 
   def store_byte(self):
     """Wrapper for vm.store_byte() to allow for easy debug logging"""
@@ -85,14 +87,8 @@ class Compiler:
     self.push(self.boot_vector)
     self.store_halfword()
 
-  def patch_context_current_dp(self):
-    """Patch the initializer addresses at start of rom"""
-    self.push(self.link)
-    self.push(self.init_context)
-    self.store_halfword()
-    self.push(self.link)
-    self.push(self.init_current)
-    self.store_halfword()
+  def patch_dp(self):
+    """Patch the DP initializer address at start of rom"""
     self.push(self.DP)
     self.push(self.init_dp)
     self.store_halfword()
@@ -118,14 +114,44 @@ class Compiler:
     self.store_word()
     self.DP += 4
 
+  def load_halfword(self, addr):
+    """Load a 16-bit halfword from the VM's ram (for hashmap, etc.)"""
+    self.push(addr)
+    self.vm.load_halfword()
+    t = self.vm.T
+    self.vm.drop()
+    return t
+
+  def mwc_hash(self, name):
+    """Hash name to bin offset using multiply-with-carry (MWC) string hash"""
+    k = HashC
+    for byte_ in name.encode('utf8'):
+      k = ((k & 0xffff) << HashA) + (k >> 16)  # multiply-with-carry RNG step
+      k ^= byte_                               # combine RNG with string byte
+      k = k & 0xffffffff                       # mask to 32-bits
+    # Finalize:
+    k = k ^ (k >> HashB)  # compress entropy towards low bit
+    k &= HashMask         # mask low bits to get hashmap bin number
+    return k * 2          # bin number * 2 = offset to hashmap bin pointer
+
+  def create_link(self, name):
+    """Handle link initialization for create: set link, update hashmap bin"""
+    offset = self.mwc_hash(name)            # hash name to get bin offset
+    bin_ptr = self.core_v + offset          # apply offset to core hashmap
+    bin_head = self.load_halfword(bin_ptr)  # load bin head via bin pointer
+    self.push(self.DP)
+    self.push(bin_ptr)
+    self.store_halfword()                   # set bin to point at this item
+    self.append_halfword(bin_head)          # set this item's link to old head
+
   def create(self, name):
     """Start a named dictionary entry in the target rom"""
     offset = self.DP & 0xf
     if ALIGN16 and offset != 0:
       self.DP += 16 - offset       # align 16 for nicer hexdumps
     starting_dp = self.DP
-    self.append_halfword(self.link)
-    self.link = starting_dp
+    self.last_word = starting_dp
+    self.create_link(name)
     data = name.encode('utf8')
     self.append_byte(len(data))
     for x in data:
@@ -133,8 +159,8 @@ class Compiler:
     if name == 'boot':
       # The name 'boot' triggers magic to set the boot jump target address
       self.patch_boot_addr(self.DP+1)
-    self.name_set[name] = (None, self.link)
-    self.link_set[self.link] = name
+    self.name_set[name] = (None, starting_dp)
+    self.link_set[starting_dp] = name
 
   def update_name_type(self, name, type_):
     """Update the type of a name in the name set"""
@@ -173,7 +199,6 @@ class Compiler:
 
   def code(self, name):
     """Start a dictionary entry for named code word to the target rom"""
-    link = self.link
     self.create(name)
     self.append_byte(T_OBJ)
     self.append_byte(code)
@@ -182,7 +207,7 @@ class Compiler:
 
   def immediate(self):
     """Modify the last word in the dictionary to be an immediate code word"""
-    self.push(self.link + 2)  # address of name field's length
+    self.push(self.last_word + 2)  # address of name field's length
     self.vm.dup()
     self.vm.load_byte()           # load the name's length
     self.vm.add()                 # add length to address of length field
@@ -253,7 +278,7 @@ class Compiler:
       return pos + 1
     if w == 'immediate':                # immediate
       self.immediate()
-      name = self.link_set[self.link]
+      name = self.link_set[self.last_word]
       self.update_name_type(name, T_IMM)
       return pos + 1
     if w == 'if{':                      # if{
@@ -466,7 +491,7 @@ def compile_mkb(src):
     # only print the source code trace in case of an error
     print(log[0])
     raise e
-  compiler.patch_context_current_dp()
+  compiler.patch_dp()
   with open(SYM_OUT, 'w') as sym:
     # save debug symbols for disassembler
     syms = sorted(compiler.link_set.items())

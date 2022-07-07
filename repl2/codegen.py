@@ -88,13 +88,14 @@ E000 HeapRes  # Heap Reserve buffer                      256 bytes
 E0FF HeapMax  # Heap: end of reserve buffer
 E100 DP       # Dictionary Pointer                       2 bytes (align 4)
 E104 IN       # INput buffer index                       1 byte  (align 4)
-E108 CONTEXT  # Head of vocabulary for finding words     2 bytes (align 4)
-E10C CURRENT  # Head of vocabulary for new definitions   2 bytes (align 4)
+E108 CORE_V   # Pointer to core vocab hashmap            2 bytes (align 4)
+E10C EXT_V    # Pointer to extensible vocab hashmap      2 bytes (align 4)
 E110 MODE     # Current interpreting/compiling mode      1 byte  (align 4)
 E118 LASTCALL  # Pointer to last compiled call instr.    2 bytes (align 4)
 E11C NEST     # Block Nesting level for if{ and for{     1 byte  (align 4)
 E120 BASE     # Number base                              1 byte  (align 4)
 E124 EOF      # Flag to indicate end of input            1 byte  (align 4)
+E128 LASTWORD  # Pointer to last defined word            2 bytes (align 4)
 #...
 E200 IB       # Input Buffer       256 bytes
 E300 Pad      # Pad buffer         256 bytes
