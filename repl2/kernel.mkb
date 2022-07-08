@@ -340,7 +340,7 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   h!             ( update hashmap bin head of list ptr, {.link, T: binp} -> {})
 ;
 
-: create ( -- lenth-of-name )
+: create ( -- )  ( Add a name to the dictionary)
   here 0 h,  ( push link addr, compile link=0 [to be patched later])
   word       ( copy name from input stream to DP)
   cr.link    ( patch this item's .link if needed, update bin pointer)
@@ -380,21 +380,18 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 ;
 
 : var  ( -- )  ( Add variable to dictionary)
-  here     ( save link location for updating dictionary pointers)
   create   ( append name as read from text input stream)
   T_VAR ,  ( append .type=var)
   0 w,     ( append .param = I32 initialized to 0)
 ;
 
 : const  ( n -- )  ( Add constant to dictionary)
-  here swap  ( save link location for updating dictionary pointers)
   create     ( append name as read from text input stream)
   T_CONST ,  ( append .type=const to dictionary)
   w,         ( append .param = T as I32 literal)
 ;
 
 : opcode  ( n -- )  ( Add opcode to dictionary)
-  here swap  ( save link location for updating dictionary pointers)
   create     ( append name as read from text input stream)
   T_OP ,     ( append type=opcode)
   , RET ,    ( append .param = opcode from T, then RET)

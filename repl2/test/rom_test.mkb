@@ -9,3 +9,7 @@
 drop
 : t03 false if{ 4 iod ; }if 5 iod ;   t03       (  5  OK)
 drop
+iod                                (  Stack is empty  OK)
+23 const t04 iod                   (  Stack is empty  OK)
+var t05 5 t05 ! iod                (  Stack is empty  OK)
+0 opcode nop iod                   (  Stack is empty  OK)
