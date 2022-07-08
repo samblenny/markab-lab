@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 #
 .SUFFIXES:
-.PHONY: all run test clean
+.PHONY: all run test clean selfhost
 AUTOGEN=opcodes.mkb mem_map.mkb opcodes.py mem_map.py core_voc.py
 TEST_IN1=test/read_test_data.txt
 TEST_OUT1=test/vm_out.txt
@@ -17,10 +17,13 @@ run: kernel.rom $(AUTOGEN)
 hello: hello.rom $(AUTOGEN)
 	@python3 markab_vm.py hello.rom
 
-kernel.rom: kernel.mkb bootstrap.py $(AUTOGEN)
+selfhost: kernel.rom markab_vm.py kernel.mkb $(AUTOGEN)
+	cat mkb_autogen.mkb kernel.mkb | ./markab_vm.py
+
+kernel.rom: kernel.mkb bootstrap.py markab_vm.py $(AUTOGEN)
 	@python3 bootstrap.py
 
-hello.rom: hello_rom.py $(AUTOGEN)
+hello.rom: hello_rom.py markab_vm.py $(AUTOGEN)
 	@python3 hello_rom.py
 
 opcodes.mkb: codegen.py

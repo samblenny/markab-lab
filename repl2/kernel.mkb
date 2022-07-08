@@ -215,17 +215,39 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   IN.aup             ( update IN, restore a)
 ;
 
-: (  ( Parse a comment from the input stream )
-  IB.done? if{       ( if IB has no more bytes to read:)
-    0 here ! ;       (   set string length at DP to 0, return)
+( --------------------------------------------------------------------------- )
+( Define ( to Parse a comment from the input stream:                          )
+( 1. Until this point, ( is being provided by the kernel or bootstrap compiler)
+( 2. After this definition, future ( will be handled by this word             )
+( 3. This definition cannot have comments in the code because they would      )
+(    compile as calls to the word that is being defined, since it has not yet )
+(    been closed with ; and marked as immediate                               )
+( 4. So, I'm providing duplicate of the code inside a comment, with comments  )
+( --------------------------------------------------------------------------- )
+( : (  ( Parse a comment from the input stream                                )
+(  IB.done? if{       ( if IB has no more bytes to read:                      )
+(    0 here ! ;       (   set string length at DP to 0, return                )
+(  }if                                                                        )
+(  a=IB.next          ( save old a, new a = IB+IN                             )
+(  IB.limit for{      ( loop over unread bytes from IB                        )
+(    @a+ 41 = if{     (   if byte was a closing parenthesis                   )
+(      rdrop          (     drop loop counter to prepare for return           )
+(      IN.aup ;       (     update IN, restore a, return                      )
+(    }if              (   else: keep looping                                  )
+(  }for IN.aup        ( update IN, restore a                                  )
+( ; immediate                                                                 )
+( --------------------------------------------------------------------------- )
+: (
+  IB.done? if{
+    0 here ! ;
   }if
-  a=IB.next          ( save old a, new a = IB+IN)
-  IB.limit for{      ( loop over unread bytes from IB)
-    @a+ 41 = if{     (   if byte was a closing parenthesis)
-      rdrop          (     drop loop counter to prepare for return)
-      IN.aup ;       (     update IN, restore a, return)
-    }if              (   else: keep looping)
-  }for IN.aup        ( update IN, restore a)
+  a=IB.next
+  IB.limit for{
+    @a+ 41 = if{
+      rdrop
+      IN.aup ;
+    }if
+  }for IN.aup
 ; immediate
 
 : 0-9?  ( n -- [n] bool )  ( Try to convert T from ASCII decimal digit)

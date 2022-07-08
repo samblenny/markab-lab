@@ -222,7 +222,15 @@ class VM:
       if op in self.jumpTable:
         (self.jumpTable[op])()
       else:
-        self(ERR_BAD_INSTRUCTION)
+        if DEBUG:
+          print("\n========================")
+          print("DStack: ", end='')
+          self.io_data_stack()
+          print("\nRStack: ", end='')
+          self.io_return_stack_hex()
+          print(f"\nPC: 0x{self.PC:04x} = {self.PC}")
+          raise Exception("bad instruction", op)
+        self.error(ERR_BAD_INSTRUCTION)
         return
     self.error(ERR_MAX_CYCLES)
 
