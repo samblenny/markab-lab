@@ -52,14 +52,6 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 : DP.print  here print ;  ( Print string from DP)
 : IB.print  IB print ;    ( Print input buffer)
 
-: newline? ( byte -- bool )  ( Test if byte is CR or LF)
-  dup 13 = swap 10 = or
-;
-
-: whitespace? ( byte -- bool )  ( Test if byte is space, tab, CR, or LF)
-  dup 32 =  over 9 = or  over 13 = or  swap 10 = or
-;
-
 : IB.len=b-IB  ( old-b -- )  ( Calculate and store IBLen, restore b, reset IN)
   b- b IB -  ( calculate length of bytes copied into IB through b)
   IB ! >b    ( update length byte of IB, restore b)
@@ -75,7 +67,7 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
       >b true EOF !   (     restore old b, set end of input flag)
       rdrop ;         (     end loop, return)
     }if dup !b+       (   else: copy the byte to IB)
-    newline? if{      (   if byte is a LF or CR:)
+    10 = if{          (   if byte is a LF [CR not supported]:)
       b-              (     adjust the byte count to ignore newline)
       IB.len=b-IB     (     update IBLen with byte count, restore b, reset IN)
       rdrop ;         (     drop loop counter and return)
@@ -191,8 +183,8 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 : skip_ws            ( Advance IN past leading spaces in IB's available bytes)
   a=IB.next          ( save old a, new a = addres of next unread byte of IB)
   IB.limit for{      ( loop over the unread bytes of IB)
-    @a+ whitespace?  (   get a byte)
-    0= if{           (   if byte was not whitespace:)
+    @a+ 32 =         (   get a byte, check if it is space [tab not supported])
+    0= if{           (   if byte was not space:)
       rdrop          (     drop loop counter to prepare for return)
       a- IN.aup ;    (     update IN to the byte before a, restore a, return)
     }if              (   else: keep skipping whitespace)
@@ -214,7 +206,7 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   b 0 !b+            ( save pointer to length, store initial length = 0)
   IB.limit for{      ( loop over unread bytes from IB)
     @a+ dup !b+      (   copy byte, space is okay because of the if{ b-)
-    whitespace? if{  (   if byte was whitespace:)
+    32 = if{         (   if byte was space [tab not supported]:)
       rdrop          (     drop loop counter to prepare for return)
       b- w.bpatch    (     calculate length, patch length byte, restore b)
       IN.aup ;       (     update IN, restore a, return)
@@ -300,7 +292,7 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 ( --- Begin Compiler -------------------------------------------------)
 ( --------------------------------------------------------------------)
 
-: immediate         ( Change type of last word from regular to immediate)
+: immediate  ( -- )  ( Change type of last word from regular to immediate)
   LASTWORD h@       ( load address for start of last defined word)
   dup 0= if{        ( if last word is 0, no words have been defined yet, so: )
     drop ;          (   clean up stack, return)
@@ -333,19 +325,16 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   NEST @ 0 >
 ;
 
-: cr.link  ( .link -- )  ( Set .link field for create, update hashmap bin ptr)
+: create ( -- )  ( Add a name to the dictionary)
+  0 h,           ( compile link=0 [to be patched later])
+  word           ( copy name from input stream to DP)
   w.hash extv +  ( calculate ext. vocab hashmap bin pointer for word)
-  over over      ( {.link, T: binp} -> {.link, binp, .link, T: binp})
+  here 2 - swap  ( calculate link address -> {.link, T: binp})
+  over over      ( -> {.link, binp, .link, T: binp})
   h@ swap h!     ( patch this item's link field to point to bin's old head)
   h!             ( update hashmap bin head of list ptr, {.link, T: binp} -> {})
-;
-
-: create ( -- )  ( Add a name to the dictionary)
-  here 0 h,  ( push link addr, compile link=0 [to be patched later])
-  word       ( copy name from input stream to DP)
-  cr.link    ( patch this item's .link if needed, update bin pointer)
-  here @ 1+  ( calculate size of name struct: string bytes + length byte)
-  allot      ( allocate dictionary space for the name)
+  here @ 1+      ( calculate size of name struct: string bytes + length byte)
+  allot          ( allocate dictionary space for the name)
 ;
 
 : :                ( Start defining a new vocabulary word)
@@ -362,7 +351,10 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   }if
 ;
 
-: ;                     ( Return from a word)
+: ;  ( -- )  ( Return from a word)
+  compiling? 0= if{     ( if not ing compile mode:)
+    ;                   (   return)
+  }if
   here 3 - LASTCALL h@  ( tail call optimizer...)
   = if{                 ( if last compiled subroutine call was 3 bytes ago:)
     JMP here 3 - !      (   change the JAL to a JMP)

@@ -17,7 +17,7 @@ run: kernel.rom $(AUTOGEN)
 hello: hello.rom $(AUTOGEN)
 	@python3 markab_vm.py hello.rom
 
-kernel.rom: bootstrap.py $(AUTOGEN)
+kernel.rom: kernel.mkb bootstrap.py $(AUTOGEN)
 	@python3 bootstrap.py
 
 hello.rom: hello_rom.py $(AUTOGEN)
