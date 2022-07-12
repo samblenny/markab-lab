@@ -6,6 +6,8 @@
 This is an experimental work in progress to explore ideas about connecting
 Markab VM instances to Pure Data (Pd "vanilla") using a network bridge.
 
+![screenshot of Pd patch being modified with help from an irc bot](patch-demo.png)
+
 Pd is great to build DSP patches for audio synthesis, effects, and software
 instruments for live performance with midi or OSC. But, Pd's graphical
 programming is not as well suited for sequencing or working with loops,
