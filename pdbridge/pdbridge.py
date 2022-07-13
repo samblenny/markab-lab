@@ -15,6 +15,8 @@ class Irc():
     self.server = server
     self.port = port
     self.chan = chan
+    self.reader = None
+    self.writer = None
     # Regular expression to match PRIVMSG or NOTICE messages in {chan}
     pattern = f":([^ ]+)![^ ]+ (PRIVMSG|NOTICE) {chan} :(.*)"
     self.wake = re.compile(pattern)
@@ -23,20 +25,36 @@ class Irc():
     self.pd = pd
 
   async def connect(self):
-    reader, writer = await asyncio.open_connection(self.server, self.port)
-    self.reader = reader
-    self.writer = writer
-    await self.send(f"NICK {self.nick}")
-    user = f"USER {self.nick} {self.host} {self.server} :{self.name}"
-    await self.send(user)
-    await self.writer.drain()
+    print(f">>> connecting to irc {self.server}:{self.port} >>>")
+    retry = 5
+    notice_enable = True
+    while True:
+      try:
+        # if the server is up and listening, this should work right away
+        reader, writer = await asyncio.open_connection(self.server, self.port)
+        self.reader = reader
+        self.writer = writer
+        await self.send(f"NICK {self.nick}")
+        user = f"USER {self.nick} {self.host} {self.server} :{self.name}"
+        await self.send(user)
+        await self.writer.drain()
+        break
+      except OSError:
+        # if something went wrong, auto-retry with delay
+        if notice_enable:
+          print(">>> irc connect failed: check irc server >>>")
+          notice_enable = False
+        await asyncio.sleep(retry)
 
   async def join(self):
-    self.writer.write(f"JOIN {self.chan}\r\n".encode('utf8'))
-    await self.writer.drain()
+    await self.send(f"JOIN {self.chan}")
 
   async def listen(self):
     while True:
+      if self.reader is None or self.reader.at_eof():
+        # connection is down, so try to reconnect
+        await self.connect()
+        await self.join()
       line = await self.reader.readline()
       line = line.decode('utf8').strip()
       if line == '':
@@ -69,9 +87,12 @@ class Irc():
     await self.send(f"NOTICE {self.chan} :{message}")
 
   async def send(self, message):
-    print(message)
-    self.writer.write(f"{message}\r\n".encode('utf8'))
-    await self.writer.drain()
+    if self.writer is None or self.writer.is_closing():
+      print(">>> irc is disconnected >>>")
+    else:
+      print(message)
+      self.writer.write(f"{message}\r\n".encode('utf8'))
+      await self.writer.drain()
 
 
 class Pd():
