@@ -78,19 +78,36 @@ class Pd():
   def __init__(self, server, port):
     self.server = server
     self.port = port
+    self.reader = None
+    self.writer = None
 
   def set_irc(self, irc):
     self.irc = irc
 
   async def connect(self):
     print(f">>> connecting to pd {self.server}:{self.port} >>>")
-    reader, writer = await asyncio.open_connection(self.server, self.port)
-    print(">>> pd connected >>>")
-    self.reader = reader
-    self.writer = writer
+    retry = 5
+    notice_enable = True
+    while True:
+      try:
+        # if the patch is loaded and listening, this should work right away
+        reader, writer = await asyncio.open_connection(self.server, self.port)
+        self.reader = reader
+        self.writer = writer
+        await self.irc.notice("[pd is connected]")
+        break
+      except OSError:
+        # if something went wrong, auto-retry with delay
+        if notice_enable:
+          await self.irc.notice("[pd is disconnected: check patch]")
+          notice_enable = False
+        await asyncio.sleep(retry)
 
   async def listen(self):
     while True:
+      if self.reader is None or self.reader.at_eof():
+        # connection to pd is down, so try to connect
+        await self.connect()
       line = await self.reader.readline()
       line = line.decode('utf8').strip()
       if line == '':
@@ -99,13 +116,16 @@ class Pd():
         await self.pd.notice(line)
 
   async def send(self, message):
-    self.writer.write(f"{message}\r\n".encode('utf8'))
-    await self.writer.drain()
+    if self.writer is None or self.writer.is_closing():
+      await self.irc.notice("[pd is disconnected: check patch]")
+    else:
+      self.writer.write(f"{message}\r\n".encode('utf8'))
+      await self.writer.drain()
 
 
 async def main():
-  nick = 'pd'
-  name = 'Bridge to Pd'
+  nick = 'pdbot'
+  name = 'Pd Bridge bot'
   host = 'localhost'         # connecting from localhost
   irc_server = 'localhost'   # ...to ngircd server also on localhost
   irc_port = 6667
@@ -124,8 +144,7 @@ async def main():
   await irc.join()
   irc_listen_task = asyncio.create_task(irc.listen())  # background task
 
-  # Start the Pd connection
-  await pd.connect()
+  # Start the Pd connection with auto-reconnect
   await pd.listen()
 
 
