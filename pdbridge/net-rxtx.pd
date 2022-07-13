@@ -1,26 +1,49 @@
-#N canvas 8 40 480 701 12;
+#N canvas 8 86 1008 655 12;
 #X msg 11 47 listen 3000;
 #X msg 25 81 listen 0;
 #X floatatom 113 153 5 0 0 0 - - -;
 #X obj 11 115 netreceive 3000;
 #X obj 11 12 loadbang;
 #X obj 29 153 print rx;
-#X obj 11 229 send pd;
-#X obj 11 184 route pd can;
-#X obj 77 230 send pd-can;
-#N canvas 504 40 512 701 can 1;
-#X restore 136 12 pd can;
-#X text 194 6 <-- this subcanvas receives the messages sent by `send
-pd-can`. The messages can be the same as what goes in a saved .pd file
-to create and connect elements of a patch. The `pd` or `can` prefix
-selects where the inbound messages go. Examples of things to send:
-pd dsp 1 \; pd dsp 0 \; can obj 10 10 loadbang \; can msg 10 40 helloooo
-\; can connect 0 0 1 0 \; can clear \;;
+#X obj 11 259 send pd;
+#N canvas 8 86 1008 655 sub 1;
+#X obj 10 10 osc~ 440;
+#X obj 35 40 receive vol;
+#X obj 10 70 *~ 0;
+#X obj 10 100 dac~;
+#X obj 160 10 receive subsend;
+#X obj 160 40 route vol;
+#X msg 160 70 \$1 100;
+#X obj 160 100 line 0 5;
+#X obj 160 130 send vol;
+#X connect 0 0 2 0;
+#X connect 1 0 2 1;
+#X connect 2 0 3 0;
+#X connect 2 0 3 1;
+#X connect 4 0 5 0;
+#X connect 5 0 6 0;
+#X connect 6 0 7 0;
+#X connect 7 0 8 0;
+#X restore 146 10 pd sub;
+#X obj 99 212 send pd-sub;
+#X obj 11 184 route pd send;
+#X obj 55 236 send subsend;
+#X text 205 4 <-- this subcanvas receives messages sent by `send pd-sub`
+to create and connect objects using the same syntax as .pd files. Net
+messages prefixed `pd` go to main canvas \, `send` to sub-send sender
+\, and the rest to the pd-sub canvas. Example: clear \; pd dsp 1 \;
+obj 10 10 osc~ 440 \; obj 35 40 receive vol \; obj 10 70 *~ 0 \; obj
+10 100 dac~ \; connect 0 0 2 0 \; connect 1 0 2 1 \; connect 2 0 3
+0 \; connect 2 0 3 1 \; obj 160 10 receive subsend \; obj 160 30 route
+vol \; msg 160 70 \\\$1 100 \; obj 160 100 line 0.3 5 \; obj 160 130
+send vol \; connect 4 0 5 0 \; connect 5 0 6 0 \; connect 6 0 7 0 \;
+connect 7 0 8 0 \; send vol 0.3 \;;
 #X connect 0 0 3 0;
 #X connect 1 0 3 0;
 #X connect 3 0 5 0;
-#X connect 3 0 7 0;
+#X connect 3 0 9 0;
 #X connect 3 1 2 0;
 #X connect 4 0 0 0;
-#X connect 7 0 6 0;
-#X connect 7 1 8 0;
+#X connect 9 0 6 0;
+#X connect 9 1 10 0;
+#X connect 9 2 8 0;
