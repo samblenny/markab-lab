@@ -205,7 +205,9 @@ class VM:
       sys.stdout.flush()
     else:
       # When using stdout_irq, buffer the output and raise the IRQ line
+      end = kwargs.get('end', "\n").encode('utf8')
       new_stuff = (" ".join(args)).encode('utf8')
+      new_stuff += end
       self.outbuf += new_stuff
       self.stdout_irq()
 
@@ -912,12 +914,12 @@ class VM:
     for (i, n) in enumerate(self.ram[start:end]):
       dirty = True
       if col == 0:                  # leftmost column is address
-        left = f"{start+i:04x} "
+        left = f"{start+i:04x}  "
         right = ""
-      if col == 8:                  # extra space before 8th byte of a row
+      if col in [4, 8, 12]:         # space before 4th, 8th, 12th bytes of row
         left += " "
         right += " "
-      left += f" {n:02x}"           # accumulate hex digits
+      left += f"{n:02x}"            # accumulate hex digits
       if n >= 32 and n <127:        # accumulate ASCII characters
         right += chr(n)
       else:
