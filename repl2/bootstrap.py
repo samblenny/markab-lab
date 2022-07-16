@@ -7,7 +7,7 @@
 from mkb_autogen import (
   JMP, JAL, RET, BZ, BFOR, MTR, U8, U16, I32, SH,
   T_VAR, T_CONST, T_OP, T_OBJ, T_IMM,
-  Heap, HeapMax, CORE_V, DP,
+  Heap, HeapMax, CORE_V, DP, IRQRX,
   HashA, HashB, HashC, HashBins, HashMask,
   OPCODES,
 )
@@ -40,25 +40,34 @@ class Compiler:
     self.name_set = {}
     self.link_set = {}
     # ROM address 0:
-    self.append_byte(U8)        # compile initializer for CORE_V (6 bytes)
-    self.append_byte(16)        #  core vocab hashmap starts at ROM addr 16
+    self.append_byte(U16)       # compile initializer for CORE_V (7 bytes)
+    self.init_core_v = self.DP
+    self.append_halfword(0)
     self.append_byte(U16)
     self.append_halfword(CORE_V)
     self.append_byte(SH)
-    # ROM address 6:
+    # ROM address 7:
     self.append_byte(U16)       # compile initializer for DP (7 bytes)
     self.init_dp = self.DP
     self.append_halfword(0)
     self.append_byte(U16)
     self.append_halfword(DP)
     self.append_byte(SH)
-    # ROM address 13:
+    # ROM address 14:
+    self.append_byte(U16)       # compile initializer for IRQRX (7 bytes)
+    self.irqrx_vector = self.DP
+    self.append_halfword(0)
+    self.append_byte(U16)
+    self.append_halfword(IRQRX)
+    self.append_byte(SH)
+    # ROM address 21:
     self.append_byte(JMP)       # compile boot jump to patch later (3 bytes)
     self.boot_vector = self.DP
     self.append_halfword(0)
-    # ROM address 16:
-    assert self.DP == 16        # for an exception here: ^^^ check up there
+    # ROM address 24:
+    assert self.DP == 24        # for an exception here: ^^^ check up there
     self.core_v = self.DP
+    self.patch_core_v_addr(self.DP)
     for i in range(HashBins):   # compile initial empty hashmap bins
       self.append_halfword(0)
 
@@ -78,13 +87,27 @@ class Compiler:
     """Wrapper for vm._push() to allow for easy debug logging"""
     self.vm._push(x)
 
+  def patch_core_v_addr(self, addr):
+    """Patch the CORE_V initializer address"""
+    # CAUTION! This uses an absolute address for use with LH and SH.
+    self.push(addr & 0xffff)
+    self.push(self.init_core_v)
+    self.store_halfword()
+
   def patch_boot_addr(self, addr):
     """Patch the target address for the boot jump at start of rom"""
-    # CAUTION! This math might have weird edge cases. Needs validation.
+    # CAUTION! This uses a relative address to go with the JMP instruction.
     # compute signed 16-bit jump offset with wrap-around for full range
     offset = (addr - self.boot_vector) & 0xffff
     self.push(offset)
     self.push(self.boot_vector)
+    self.store_halfword()
+
+  def patch_irqrx_addr(self, addr):
+    """Patch the jump vector for the receive interrupt (IRQRX)"""
+    # CAUTION! This is an interrupt vector, so we use an absolute address.
+    self.push(addr & 0xffff)
+    self.push(self.irqrx_vector)
     self.store_halfword()
 
   def patch_dp(self):
@@ -159,6 +182,10 @@ class Compiler:
     if name == 'boot':
       # The name 'boot' triggers magic to set the boot jump target address
       self.patch_boot_addr(self.DP+1)
+    elif name == 'outer':
+      # The name 'outer' triggers magic to set the IRQRX vector
+      # CAUTION! This is an interrupt vector, so we use an absolute address
+      self.patch_irqrx_addr(self.DP+1)
     self.name_set[name] = (None, starting_dp)
     self.link_set[starting_dp] = name
 

@@ -4,25 +4,28 @@
 #
 # Markab VM emulator
 #
+import asyncio
 import cProfile
 from ctypes import c_int32
-from typing import Callable, Dict
+import os
 import readline
 import sys
-import os
+import time
+from typing import Callable, Dict
 
 from mkb_autogen import (
   NOP, ADD, SUB, INC, DEC, MUL, DIV, MOD, AND, INV, OR, XOR, SLL, SRL, SRA,
-  EQ, GT, LT, NE, ZE, TRUE, FALSE, JMP, JAL, CALL, RET,
+  EQ, GT, LT, NE, ZE, TRUE, FALSE, JMP, JAL, CALL, RET, HALT,
   BZ, BFOR, MTR, RDROP, R, PC, ERR, DROP, DUP, OVER, SWAP,
   U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET, CLERR,
   IOD, IODH, IORH, IOKEY, IOEMIT, IODOT, IODUMP, TRON, TROFF,
   MTA, LBA, LBAI,       AINC, ADEC, A,
   MTB, LBB, LBBI, SBBI, BINC, BDEC, B,
 
-  Heap, HeapRes, HeapMax, MemMax,
+  Heap, HeapRes, HeapMax, MemMax, IRQRX,
   OPCODES,
 )
+from mkb_irc import Irc
 
 
 # This controls debug tracing and dissasembly. DEBUG is a global enable for
@@ -78,9 +81,12 @@ class VM:
     self.DStack = [0] * 16          # Data Stack
     self.RStack = [0] * 16          # Return Stack
     self.ram = bytearray(MemMax+1)  # Random Access Memory
-    self.inbuf = ''                 # Input buffer
+    self.inbuf = b''                # Input buffer
+    self.outbuf = b''               # Output buffer
     self.echo = echo                # Echo depends on tty vs pip, etc.
     self.cycle_count = 65535        # Counter to break infinite loops
+    self.halted = False             # Flag to track halt (used for `bye`)
+    self.stdout_irq = None          # IRQ line (callback) for buffering stdout
     # Debug tracing on/off
     self.dbg_trace_enable = False   # Debug trace is noisy, so default=off
     # Debug symbols
@@ -115,6 +121,7 @@ class VM:
     self.jumpTable[JAL  ] = self.jump_and_link
     self.jumpTable[CALL ] = self.call
     self.jumpTable[RET  ] = self.return_
+    self.jumpTable[HALT ] = self.halt
     self.jumpTable[BZ   ] = self.branch_zero
     self.jumpTable[BFOR ] = self.branch_for_loop
     self.jumpTable[MTR  ] = self.move_t_to_r
@@ -179,10 +186,39 @@ class VM:
         return self.dbg_names[i]
     return '<???>'
 
+  def set_stdout_irq(self, stdout_irq_fn: Callable[None, None]):
+    """Set callback function to raise interrupt line for available output.
+    This is a little weird because of my desire to avoid building a bunch of
+    `async` and `await` stuff into the VM class. This arrangement allows for
+    an async function to provide the VM with input and ask it for pending
+    output after the stdout_irq signal is sent.
+    """
+    self.stdout_irq = stdout_irq_fn
+
+  def print(self, *args, **kwargs):
+    """Send output to stdout (terminal mode) or buffer it (irq mode) """
+    if self.stdout_irq is None:
+      # In termio mode send output to stdout
+      print(self.outbuf.decode('utf8'), end='')
+      self.outbuf = b''
+      print(*args, **kwargs)
+      sys.stdout.flush()
+    else:
+      # When using stdout_irq, buffer the output and raise the IRQ line
+      new_stuff = (" ".join(args)).encode('utf8')
+      self.outbuf += new_stuff
+      self.stdout_irq()
+
+  def drain_stdout(self):
+    """ """
+    outbuf = self.outbuf.decode('utf8')
+    self.outbuf = b''
+    return outbuf
+
   def error(self, code):
     """Set the ERR register with an error code"""
     if DEBUG:
-      print(f"<<ERR{code}>>", end='')
+      self.print(f"<<ERR{code}>>", end='')
     self.ERR = code
 
   def _load_rom(self, code):
@@ -199,6 +235,30 @@ class VM:
     self._load_rom(code)
     self.PC = Heap          # hardcode boot vector to start of heap (for now)
     self._step(max_cycles)
+
+  def irq_rx(self, line):
+    """Interrupt request for receiving a line of input"""
+    # First, copy the input line to the input buffer as UTF-8
+    self.inbuf += line.encode('utf8')
+    # Be sure the line ends with LF (some input sources do, some don't)
+    if line[-1] != "\n":
+      self.inbuf += b'\x0a'
+    # When stdin is a pipe, echo input to stdout (minus its trailing newline)
+    if (not self.stdout_irq) and self.echo:
+      print(line[:-1], end='')
+    # Next, attempt to jump to interrupt request vector for received input
+    self._push(IRQRX)
+    self.load_halfword()
+    irq_vector = self.T
+    self.drop()
+    # allow for the possibility that the interrupt vector is not set
+    if irq_vector != 0:
+      self.PC = irq_vector
+      max_cycles = 65335
+      self._step(max_cycles)
+    else:
+      if DEBUG:
+        print("<< IRQRX is 0 >>>")
 
   def _step(self, max_cycles):
     """Step the virtual CPU clock to run up to max_cycles instructions"""
@@ -559,6 +619,10 @@ class VM:
       self.R = self.RStack[rSecond]
     self.RSDeep -= 1
 
+  def halt(self):
+    """Set the halt flag to stop further instructions (used for `bye`)"""
+    self.halted = True
+
   def io_data_stack(self):
     self._log_ds(base=10)
 
@@ -712,46 +776,48 @@ class VM:
 
   def _log_ds(self, base=10):
     """Log (debug print) the data stack in the manner of .S"""
-    print(" ", end='')
+    buf = " "
     deep = self.DSDeep
     if deep > 2:
       for i in range(deep-2):
         n = self.DStack[i]
         if base == 16:
-          print(f" {n&0xffffffff:x}", end='')
+          buf += f" {n&0xffffffff:x}"
         else:
-          print(f" {n}", end='')
+          buf += f" {n}"
     if deep > 1:
       if base == 16:
-        print(f" {self.S&0xffffffff:x}", end='')
+        buf += f" {self.S&0xffffffff:x}"
       else:
-        print(f" {self.S}", end='')
+        buf += f" {self.S}"
     if deep > 0:
       if base == 16:
-        print(f" {self.T&0xffffffff:x}", end='')
+        buf += f" {self.T&0xffffffff:x}"
       else:
-        print(f" {self.T}", end='')
+        buf += f" {self.T}"
     else:
-      print(" Stack is empty", end='')
+      buf += " Stack is empty"
+    self.print(buf, end='')
 
   def _log_rs(self, base=10):
     """Log (debug print) the return stack in the manner of .S"""
-    print(" ", end='')
+    buf = " "
     deep = self.RSDeep
     if deep > 1:
       for i in range(deep-1):
         n = self.RStack[i]
         if base == 16:
-          print(f" {n&0xffffffff:x}", end='')
+          buf += f" {n&0xffffffff:x}"
         else:
-          print(f" {n}", end='')
+          buf += f" {n}"
     if deep > 0:
       if base == 16:
-        print(f" {self.R&0xffffffff:x}", end='')
+        buf += f" {self.R&0xffffffff:x}"
       else:
-        print(f" {self.R}", end='')
+        buf += f" {self.R}"
     else:
-      print(" R-Stack is empty", end='')
+      buf += " R-Stack is empty"
+    self.print(buf, end='')
 
   def clear_error(self):
     """Clear VM error status code"""
@@ -788,26 +854,11 @@ class VM:
   def io_key(self):
     """Push the next byte from Standard Input to the data stack.
 
-    Input comes from readline, which is line buffered. So, this can block the
-    event loop until a full line of text is available. The result of a call
-    to `input()` is cached and returned byte by byte. Then, when that line has
-    been completely consumed, `_read()` will make another call to `input()`.
-
     Results (stack effects):
     - Got an input byte, push 2 items: {S: byte, T: -1 (true)}
     - End of file, push 1 item:           {T: 0 (false)}
     """
     self.cycle_count = 65535  # reset the infinite loop detection count
-    if len(self.inbuf) < 1:
-      try:
-        self.inbuf = input().encode('utf-8')+b'\x0a'
-        if self.echo:
-          # When stdin is coming from a pipe, echo input to stdout
-          sys.stdout.flush()
-          print(self.inbuf.decode('utf8')[:-1], end='')
-          sys.stdout.flush()
-      except EOFError:
-        self.inbuf = b''
     if len(self.inbuf) > 0:
       self._push(self.inbuf[0])
       self._push(-1)
@@ -816,18 +867,19 @@ class VM:
       self._push(0)
 
   def io_emit(self):
-    """Write low byte of T to the Standard Output stream.
+    """Buffer the low byte of T for stdout.
 
-    Doing the buffer.write() thing allows for writing utf-8 sequences byte by
-    byte without having to buffer and parse UTF-8, or fight with Python's type
-    system. This output method is most suitable for tests, demo code, and
+    This is meant to allow for utf-8 sequences to be emitted 1 byte at a time
+    without getting into fights with Python over its expectations about string
+    encoding. This output method is most suitable for tests, demo code, and
     prototypes, where simplicity of the code is more important than its
     efficiency. Using this method to print long strings would be inefficient.
     """
     self.cycle_count = 65535  # reset the infinite loop detection count
-    sys.stdout.flush()
-    sys.stdout.buffer.write(int.to_bytes(self.T & 0xff, 1, 'little'))
-    sys.stdout.flush()
+    new_stuff = int.to_bytes(self.T & 0xff, 1, 'little')
+    self.outbuf += new_stuff
+    if self.T == 10:
+      self.print(end='')
     self.drop()
 
   def io_dot(self):
@@ -836,9 +888,8 @@ class VM:
     if self.DSDeep < 1:
       self.error(ERR_D_UNDER)
       return
-    sys.stdout.flush()
-    print(f" {self.T}", end='')
-    sys.stdout.flush()
+    new_stuff = f" {self.T}".encode('utf8')
+    self.outbuf += new_stuff
     self.drop()
 
   def io_dump(self):
@@ -872,13 +923,13 @@ class VM:
       else:
         right += '.'
       if col == 15:                 # print digits and chars at end of row
-        print(f"{left}  {right}")
+        self.print(f"{left}  {right}")
         dirty = False
       col = (col + 1) & 15
     if dirty:
       # if number of bytes requested was not an even multiple of 16, then
       # print what's left of the last row
-      print(f"{left}  {right}")
+      self.print(f"{left}  {right}")
 
   def trace_on(self):
     """Enable debug tracing (also see DEBUG global var)"""
@@ -891,50 +942,131 @@ class VM:
   def _ok_or_err(self):
     """Print the OK or ERR line-end status message and clear any errors"""
     if self.ERR != 0:
-      print(f"  ERR{self.ERR}")
+      self.print(f"  ERR{self.ERR}")
       self.ERR = 0
     else:
-      print("  OK")
+      self.print("  OK")
+
+
+class Irq():
+  """Class to manage virtual interrupt requests between async/non-async"""
+  def __init__(self, vm, irc):
+    self.vm = vm
+    self.irc = irc
+    self.stdout_interrupt = False
+    self.stdin_interrupt = False
+
+  def stdout(self):
+    """Non-async callback so the VM can signal it has buffered output ready"""
+    self.stdout_interrupt = True
+
+  async def drain_stdout(self):
+    """Async interrupt handler that can be used with Irc.listen()"""
+    if self.stdout_interrupt:
+      stdout_buf = self.vm.drain_stdout().strip()
+      for line in stdout_buf.split("\n"):
+        await self.irc.notice(line)
+      self.stdout_interrupt = False
+
+
+async def irc_main(vm, rom_bytes, max_cycles):
+  """Start the VM in irc-bot mode"""
+  nick = 'mkbbot'
+  name = 'mkbbot'
+  host = 'localhost'         # connecting from localhost
+  irc_server = 'localhost'   # ...to ngircd server also on localhost
+  irc_port = 6667
+  chan = '#mkb'
+
+  # Plumb up interrupt handling and stdin/stdout between VM and irc
+  irc = Irc(nick, name, host, irc_server, irc_port, chan)
+  irq = Irq(vm, irc)
+  irc.set_rx_callback(vm.irq_rx)
+  irc.set_rx_irq(irq.drain_stdout)
+  vm.set_stdout_irq(irq.stdout)
+
+  # Connect to irc
+  await irc.connect()
+  await irc.join()
+  vm._warm_boot(rom_bytes, max_cycles)  # this should return quickly
+  await irc.listen()                    # this is the REPL event loop
+
+def termio_boot(vm, rom_bytes, max_cycles):
+  """VM bootload and input loop for terminal mode"""
+  vm._warm_boot(rom_bytes, max_cycles)
+  vm._push(IRQRX)
+  vm.load_halfword()
+  if vm.T == 0:
+    # if boot code did not set a receive IRQ vector, don't start input loop
+    return
+  vm.drop()
+  for line in sys.stdin:
+    # Input comes from readline, which is line buffered, so this blocks the
+    # thread until a full line of text is available. The VM is expected to
+    # process the line of input and then return promptly.
+    vm.irq_rx(line)
+    if vm.halted:
+      # this happens when `bye` signals it wants to exit
+      break
+
+def termio_main(vm, rom_bytes, max_cycles):
+  """Start the VM in terminal IO mode"""
+  if PROFILE:
+    # This will print a chart of function call counts and timings at exit
+    cProfile.run('termio_boot(v, rom_bytes, 65535)', sort='cumulative')
+  else:
+    termio_boot(v, rom_bytes, max_cycles)
+
+  if v.echo:
+    # add a final newline if input is coming from pipe
+    print()
+
 
 """
 Load and boot the ROM file when VM is run as a module rather than imported
 """
 if __name__ == '__main__':
 
-  # Start by assuming we'll use the default rom file
+  # Start by assuming we'll use the default rom file and terminal IO
   rom = ROM_FILE
+  irc_io = False
+  args = sys.argv[1:]
 
-  # Then check for a command line argument asking for a different rom.
+  # Check for a command line argument asking for a different rom.
   # For example: `./markab_vm.py hello.rom`
-  if (len(sys.argv) == 2) and (sys.argv[1].endswith(".rom")):
-    rom = sys.argv[1]
+  if (len(args) > 0) and (args[-1].endswith(".rom")):
+      rom = args[-1]
+
+  # Check for `--irc` flag asking to use irc for IO
+  if (len(args) > 0) and '--irc' in args:
+    irc_io = True
 
   # Make a VM instance
   v = VM(echo=(not sys.stdin.isatty()))
 
   # Attempt to load debug symbols (e.g. for kernel.rom, check kernel.symbols)
-  sym_file = rom[:-4] + ".symbols"
   v.sym_addrs = []
   v.sym_names = []
-  try:
-    with open(sym_file, 'r') as f:
-      lines = f.read().strip().split("\n")
-      lines = [L.split() for L in lines]
-      lines.reverse()
-      for (addr, name) in lines:
-        v.dbg_add_symbol(addr, name)
-  except:
-    pass
+  if DEBUG:
+    sym_file = rom[:-4] + ".symbols"
+    try:
+      with open(sym_file, 'r') as f:
+        lines = f.read().strip().split("\n")
+        lines = [L.split() for L in lines]
+        lines.reverse()
+        for (addr, name) in lines:
+          v.dbg_add_symbol(addr, name)
+    except:
+      pass
 
-  # Open the rom file and run it
+  # Load the rom file
+  rom_bytes = b''
   with open(rom, 'rb') as f:
-    rom = f.read()
-    if PROFILE:
-      # This will print a chart of function call counts and timings
-      cProfile.run('v._warm_boot(rom, 65535)', sort='cumulative')
-    else:
-      v._warm_boot(rom, 65535)
+    rom_bytes = f.read()
 
-  if v.echo:
-    # add a final newline if input is coming from pipe
-    print()
+  # Boot the VM
+  if irc_io:
+    # Start in irc bot IO mode
+    asyncio.run(irc_main(v, rom_bytes, 65535))
+  else:
+    termio_main(v, rom_bytes, 65535)

@@ -2,8 +2,6 @@
 ( SPDX-License-Identifier: MIT)
 ( Markab kernel)
 
-( TODO: make this actually work)
-
 load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 
 : here DP h@ ;       ( address for next writable dictionary location)
@@ -19,8 +17,8 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 : space  32 emit ;  ( Emit one space)
 : spaces  ( n -- )  1- for{ 32 emit }for ;  ( Emit n spaces)
 
-: bye  ( Exit process by emptying the return stack, then returning)
-  true EOF !  ( set the end of input flag)
+: bye  ( Notify the VM and its host process that the program wants to halt)
+  halt
 ;
 
 : compiling?  ( -- bool )  ( Check if compile mode active)
@@ -492,9 +490,7 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 : outer         ( Outer interpreter)
   readline      ( get a line of text from stdin)
   dowords       ( loop over all the words of the line)
-  EOF @ 0= if{  ( if the end of input flag is clear:)
-    outer ;     (   use tail recursion to keep getting more lines)
-  }if
+  ( ...)        ( return to wait for IRQRX to invoke outer again)
 ;
 
 : boot    ( Initialize global vars, print version, start outer interpreter)
@@ -507,5 +503,5 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   HashBins 1- for{  ( loop to initialize hashmap for ext. vocab: )
     0 h,            (   allocate and zero 2 bytes for this bin's pointer)
   }for
-  outer             ( start the outer interpreter)
+  ( ...)            ( return to wait for IRQRX to invoke outer interpreter)
 ;

@@ -876,6 +876,9 @@ def test_instructions_reset_io():
   print("( addr:   18 19                          )")
   print("        BFOR 16                       }ASM")
   print("(            ^^^ 19-3=16                 )")
+  # Since this test does not have a REPL loop, manually copy one line from
+  # test's stdin to the VM's input buffer
+  v.irq_rx(input())
   code = bytearray()
   code.extend([U8, 99, MTR, IOKEY])
   code.extend([ZE, BZ, 3, RDROP, RET, DUP, U8, 10])

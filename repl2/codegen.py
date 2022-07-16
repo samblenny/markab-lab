@@ -21,6 +21,7 @@ clerr CLERR
 <ASM> U8
 <ASM> U16
 <ASM> I32
+halt HALT
 tron TRON
 troff TROFF
 dump IODUMP
@@ -96,6 +97,7 @@ E11C NEST     # Block Nesting level for if{ and for{     1 byte  (align 4)
 E120 BASE     # Number base                              1 byte  (align 4)
 E124 EOF      # Flag to indicate end of input            1 byte  (align 4)
 E128 LASTWORD  # Pointer to last defined word            2 bytes (align 4)
+E12C IRQRX    # IRQ vector for receiving input           2 bytes (align 4)
 #...
 E200 IB       # Input Buffer       256 bytes
 E300 Pad      # Pad buffer         256 bytes
