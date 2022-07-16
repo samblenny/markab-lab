@@ -931,7 +931,7 @@ class VM:
     if dirty:
       # if number of bytes requested was not an even multiple of 16, then
       # print what's left of the last row
-      self.print(f"{left}  {right}")
+      self.print(f"{left:41}  {right}")
 
   def trace_on(self):
     """Enable debug tracing (also see DEBUG global var)"""
@@ -973,8 +973,8 @@ class Irq():
 
 async def irc_main(vm, rom_bytes, max_cycles):
   """Start the VM in irc-bot mode"""
-  nick = 'mkbbot'
-  name = 'mkbbot'
+  nick = 'mkbot'
+  name = 'mkbot'
   host = 'localhost'         # connecting from localhost
   irc_server = 'localhost'   # ...to ngircd server also on localhost
   irc_port = 6667
