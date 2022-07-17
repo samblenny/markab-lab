@@ -112,7 +112,7 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
     dup 65535 and   (   mask low halfword of previous hash)
     HashA <<        (   multiply it by HashA parameter)
     swap 16 >> +    (   add carry from previous hash to result of multiply)
-    @a+ xor         (   xor string byte with multiply-with-carry RNG result)   
+    @a+ xor         (   xor string byte with multiply-with-carry RNG result)
   }for
   dup HashB >> xor  ( compress entropy towards low bit with HashB parameter)
   HashMask and      ( mask low bits to get the hashmap bin number)
@@ -408,6 +408,62 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   T_OP ,     ( append type=opcode)
   , RET ,    ( append .param = opcode from T, then RET)
 ;
+
+: qt.start  ( -- ptr )  ( start sequence for compiling a string with ")
+  compiling? if{  ( if starting a quoted string during a definition:)
+    JMP , 0 h,    ( compile a jump to skip string; address gets patched later)
+  }if
+  here            ( always push a pointer to the start of the string)
+;
+
+: qt.end  ( ptr a b -- [ptr] )  ( end sequence for compiling a string with ")
+  swap IN.aup       ( -> {ptr, T: old-b} update IN, restore old a)
+  swap b over !     ( -> {old-b, T: ptr} patch compiled string's length field)
+  swap >b           ( restore old value of b)
+  ( --------------------------------------------------------------------------)
+  ( This next bit is tricky. When " compiles a string to the dictionary, that )
+  ( may or may not be happening in the middle of the definition of some other )
+  ( word. So, my solution is to compile a jump around the string if " happens )
+  ( as part of a definition. The stuff below is:                              )
+  ( 1. Patching jump address that gets initially compiled above by `qt.start` )
+  ( 2. Compiling a U16 literal to push the string's address at runtime        )
+  ( 3. Cleaning the string pointer off the compile-time stack                 )
+  ( --------------------------------------------------------------------------)
+  compiling? if{    ( if compile mode is active, compile ptr as U16 literal:)
+    here            (   -> { ptr-str, T: ptr-U16} push jump target address)
+    U16 , over h,   (   -> { ptr-str, T: ptr-U16} compile str-ptr as U16 lit.)
+    over - 2 +      (   -> { ptr-str, T: rel-jump} compute relative jump dist)
+    swap 2 -        (   -> { jmp-rptr: T: jmp-addr-ptr} compute jump addr ptr)
+    h!              (   patch the jump address to skip string and jump to U16)
+  }if
+;
+
+( --------------------------------------------------------------------------- )
+( " compiles a string struct to the dictionary and pushes a pointer to the    )
+( start of the struct to the stack. The comment below with `( " ( ...` is to  )
+( keep my simple-minded syntax highlighting plugins from getting confused and )
+( making a mess. Strings end with the next `"`, like: " I'm a string"         )
+( Including a double quote in a string is not possible with this word, as it  )
+( lacks an escaping mechanism. To get a quote, just do `34 emit`.             )
+( --------------------------------------------------------------------------- )
+: "  ( " ( )  ( -- ptr )
+  qt.start        ( -> { T: ptr} push pointer to start of string struct)
+  0 ,             ( compile .length field = 0, expecting to patch it later)
+  IB.done? if{    ( end early with 0-length string if end of line without ")
+    ;
+  }if             ( otherwise, copy bytes to dictionary until the next " )
+  a=IB.next       ( -> { ptr, T: old-a})
+  b 0 >b          ( -> { ptr, old-a, T: old-b} save old b, b = 0)
+  IB.limit for{
+    @a+           ( -> {ptr, old-a, old-b, T: in-byte} load input byte)
+    dup 34 = if{  ( 34 is ASCII for " ; if input byte is ": )
+      drop rdrop  ( clean copy input byte off stack, clean for loop counter)
+      qt.end      ( update IN, restore old a and b, patch length field)
+      ;           ( return)
+    }if b+ ,      ( else: increment length count and compile byte)
+  }for            ( {ptr, old-a, old-b} this is bad: end of line without ")
+  qt.end          ( update IN, restore old a and b, patch length field)
+; immediate
 
 : if{ ( -- addr )  ( Start of if block)
   BZ , here 0 , NEST+
