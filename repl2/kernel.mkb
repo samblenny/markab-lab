@@ -371,8 +371,12 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   }if
 ;
 
-: ;  ( -- )  ( Return from a word)
-  compiling? 0= if{     ( if not ing compile mode:)
+( --------------------------------------------------------------------------- )
+( Start of `;` and `;shdw` weirdness, see comment below for more details      )
+( --------------------------------------------------------------------------- )
+
+: ;shdw  ( -- )  ( shadow of ; to avoid recursion during self-hosting compile)
+  compiling? 0= if{     ( if not in compile mode:)
     ;                   (   return)
   }if
   here 3 - LASTCALL h@  ( tail call optimizer...)
@@ -382,6 +386,27 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   }if RET ,             ( else: compile a RET instruction)
   update-mode           ( clear compile mode if needed)
 ; immediate
+
+( --------------------------------------------------------------------------- )
+( CAUTION! This definition uses `;shdw` in place of `;` to avoid the problem  )
+( of compiling self-recursive calls when we need a `;` run in immediate mode. )
+( Just like with the definition of `(`, the problem is that the kernel can't  )
+( run this `;` as an immidiate word because its definition is incomplete and  )
+( it has not yet been marked as immediate. In this case, a workable solution  )
+( is to bootstrap through the `;shdw` shadow definition that does the same    )
+( thing as `;`. It's weird, but it works. Maybe there's a better way?         )
+( --------------------------------------------------------------------------- )
+: ;  ( -- )  ( Return from a word)
+  compiling? 0= if{     ( if not in compile mode:)
+    ;shdw               (   return)
+  }if
+  here 3 - LASTCALL h@  ( tail call optimizer...)
+  = if{                 ( if last compiled subroutine call was 3 bytes ago:)
+    JMP here 3 - !      (   change the JAL to a JMP)
+    update-mode ;shdw   (   clear compile mode if needed, then return)
+  }if RET ,             ( else: compile a RET instruction)
+  update-mode           ( clear compile mode if needed)
+;shdw immediate
 
 : c-number ( n -- )  ( Compile number from T into dictionary)
   dup 0 < over 65535 > or if{  ( if n < 0 or n > 0xffff:)
@@ -466,6 +491,22 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   }for            ( {ptr, old-a, old-b} this is bad: end of line without ")
   qt.end          ( update IN, restore old a and b, patch length field)
 ; immediate
+
+( --------------------------------------------------------------------------- )
+( You could just do `" foo.mkb" load`, but that would compile "foo.mkb" into  )
+( the dictionary, which you probably don't want. Doing `load" foo.mkb"` is a  )
+( way to keep the filename from wasting dictionary space.                     )
+( CAUTION! This pretends like filenames never have spaces and that it's safe  )
+( to not properly parse for the trailing quote. The intended use is like:     )
+(  `load" mkb_autogen.mkb"`                                                   )
+( --------------------------------------------------------------------------- )
+: load"  ( " ( )  ( -- )  ( Read filepath from IB and load it)
+  here word DP h!    ( copy next input word as string to DP)
+  here @ dup 0= if{  ( if string is empty: clean stack and return)
+    drop ;
+  }if 1- here !      ( else: shorten the string to trim the trailing " )
+  here load          ( push address of filepath string and load it)
+;
 
 : if{ ( -- addr )  ( Start of if block)
   BZ , here 0 , NEST+

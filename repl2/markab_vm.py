@@ -8,6 +8,7 @@ import asyncio
 import cProfile
 from ctypes import c_int32
 import os
+import re
 import readline
 import sys
 import time
@@ -18,7 +19,7 @@ from mkb_autogen import (
   EQ, GT, LT, NE, ZE, TRUE, FALSE, JMP, JAL, CALL, RET, HALT,
   BZ, BFOR, MTR, RDROP, R, PC, ERR, DROP, DUP, OVER, SWAP,
   U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET, CLERR,
-  IOD, IODH, IORH, IOKEY, IOEMIT, IODOT, IODUMP, TRON, TROFF,
+  IOD, IODH, IORH, IOKEY, IOEMIT, IODOT, IODUMP, IOLOAD, IOSAVE, TRON, TROFF,
   MTA, LBA, LBAI,       AINC, ADEC, A,
   MTB, LBB, LBBI, SBBI, BINC, BDEC, B,
 
@@ -40,6 +41,16 @@ DEBUG = False #True
 #  (see https://docs.python.org/3/library/profile.html)
 PROFILE = False #True
 
+# Allow list of regular expressions for files that can be written by IOSAVE
+IOSAVE_ALLOW_RE_LIST = """
+self_hosted\.rom
+"""
+
+# Allow list of regular expressions for files that can be read by IOLOAD
+IOLOAD_ALLOW_RE_LIST = """
+.+\.mkb
+"""
+
 ROM_FILE = 'kernel.rom'
 ERR_D_OVER = 1
 ERR_D_UNDER = 2
@@ -49,6 +60,8 @@ ERR_BAD_INSTRUCTION = 5
 ERR_R_OVER = 6
 ERR_R_UNDER = 7
 ERR_MAX_CYCLES = 8
+ERR_FILE_PERMS = 9
+ERR_FILE_NOT_FOUND = 10
 
 # Configure STDIN/STDOUT at load-time for use utf-8 encoding.
 # For documentation on arguments to `reconfigure()`, see
@@ -151,6 +164,8 @@ class VM:
     self.jumpTable[IOEMIT] = self.io_emit
     self.jumpTable[IODOT] = self.io_dot
     self.jumpTable[IODUMP] = self.io_dump
+    self.jumpTable[IOLOAD] = self.io_load_file
+    self.jumpTable[IOSAVE] = self.io_save_file
     self.jumpTable[TRON ] = self.trace_on
     self.jumpTable[TROFF] = self.trace_off
     self.jumpTable[MTA  ] = self.move_t_to_a
@@ -166,6 +181,14 @@ class VM:
     self.jumpTable[BINC ] = self.b_increment
     self.jumpTable[BDEC ] = self.b_decrement
     self.jumpTable[B    ] = self.b_
+    # Compile filename allow-list regular expressions for IOLOAD
+    self.ioload_allow_re = []
+    for line in IOLOAD_ALLOW_RE_LIST.strip().split("\n"):
+      self.ioload_allow_re.append(re.compile(line))
+    # Compile filename allow-list regular expressions for IOSAVE
+    self.iosave_allow_re = []
+    for line in IOSAVE_ALLOW_RE_LIST.strip().split("\n"):
+      self.iosave_allow_re.append(re.compile(line))
 
   def dbg_add_symbol(self, addr, name):
     """Add a debug symbol entry to the symbol table"""
@@ -932,6 +955,138 @@ class VM:
       # if number of bytes requested was not an even multiple of 16, then
       # print what's left of the last row
       self.print(f"{left:41}  {right}")
+
+  # =========================================================================
+  # =============== START OF DANGEROUS FILE IO STUFF ========================
+  # =========================================================================
+  # ==                                                                     ==
+  # ==  As far as I know, this is code is implemented well, but file IO    ==
+  # ==  is traditionally a common area for mistakes leading to unintended  ==
+  # ==  behavior. It's possible I've overlooked something important.       ==
+  # ==                                                                     ==
+  # ==  The safeguards here are mainly designed to prevent file IO by      ==
+  # ==  accident in the event of typos or bugs. If you, the random future  ==
+  # ==  reader of this code, feel adventurous and get inspired to run      ==
+  # ==  this VM on a public irc channel, bad things might happen. Don't    ==
+  # ==  say I never warned you. (maybe check out the allow lists up top)   ==
+  # ==                                                                     ==
+  # =========================================================================
+
+  # ⚠️  DANGER! DANGER! DANGER! LOTS OF DANGER! ⚠️
+  # If you are reviewing for possible security issues, pay attention here
+  def _load_string(self, addr):
+    """Load a Markab string from ram[addr] and return it as a python string"""
+    addr = self.T & 0xffff
+    count = self.ram[addr]
+    if addr + count < len(self.ram):
+      s = (self.ram[addr+1:addr+count+1]).decode('utf8')
+      return s
+    else:
+      if DEBUG:
+        print("<<< _load_string(): bad address >>>")
+      return ""
+
+  # ⚠️  DANGER! DANGER! DANGER! LOTS OF DANGER! ⚠️
+  # If you are reviewing for possible security issues, pay attention here
+  def _normalize_filepath(self, filepath):
+    path = os.path.normcase(os.path.abspath(filepath))
+    if DEBUG:
+      print(f"<<< _normalize_filepath() -> '{path}' >>>")
+    return path
+
+  # ⚠️  DANGER! DANGER! DANGER! LOTS OF DANGER! ⚠️
+  # If you are reviewing for possible security issues, pay attention here
+  def _is_file_in_cwd(self, filepath):
+    """Return whether file path is in the current working directory"""
+    cwd = self._normalize_filepath(os.getcwd())
+    abs_path = self._normalize_filepath(filepath)
+    if abs_path.startswith(cwd):
+      return True
+    else:
+      return False
+
+  # ⚠️  DANGER! DANGER! DANGER! LOTS OF DANGER! ⚠️
+  # If you are reviewing for possible security issues, pay attention here
+  def io_load_file(self):
+    """Load and interpret file, taking file path from string pointer in T.
+    File path must pass two tests:
+    1. Match one of the allow-list regular expressions for IOLOAD
+    2. Be located in the current working directory (including subdirectories)
+    """
+    if self.DSDeep < 1:
+      self.error(ERR_D_UNDER)
+      return
+    filepath = self._load_string(self.T)
+    self.drop()
+    # Check filename against the allow list
+    re_match = any([a.match(filepath) for a in self.ioload_allow_re])
+    cwd_match = self._is_file_in_cwd(filepath)
+    if DEBUG:
+      print(f"<<< IOLOAD: re match '{filepath}' ? --> {re_match} >>>")
+      print(f"<<< IOLOAD: cwd match '{filepath}' ? --> {cwd_match} >>>")
+    if (not re_match) or (not cwd_match):
+      self.error(ERR_FILE_PERMS)
+      return
+    try:
+      # Save VM state
+      old_inbuf = self.inbuf
+      old_pc = self.PC
+      old_echo = self.echo
+      # Read and interpret the file
+      self.echo = True
+      with open(filepath) as f:
+        for line in f:
+          self.irq_rx(line)
+      # Restore old state
+      self.PC = old_pc
+      self.echo = old_echo
+      if self.ERR == 0:
+        self.inbuf = old_inbuf
+    except FileNotFoundError:
+      self.error(ERR_FILE_NOT_FOUND)
+      return
+
+  # ⚠️  DANGER! DANGER! DANGER! LOTS OF DANGER! ⚠️
+  # If you are reviewing for possible security issues, pay attention here
+  def io_save_file(self):
+    """Save memory to file, T: filename, S: source address, 3rd: byte count.
+    File path must pass two tests:
+    1. Match one of the allow-list regular expressions for IOSAVE
+    2. Be located in the current working directory (including subdirectories)
+    """
+    # //////////////////////////////////////////////////////////////////
+    print("//////// TODO FINISH IMPLEMENTING io_save_file() ///////////")
+    # //////////////////////////////////////////////////////////////////
+    if self.DSDeep < 3:
+      self.error(ERR_D_UNDER)
+      return
+    # Pop arguments off stack before doing any error checks
+    filepath = self._load_string(self.T)
+    self.drop()
+    src_addr = self.T & 0xffff
+    self.drop()
+    count = self.T & 0xffff
+    self.drop()
+    # Check the filename against the allow list
+    re_match = any([a.match(filepath) for a in self.iosave_allow_re])
+    cwd_match = self._is_file_in_cwd(filepath)
+    if DEBUG:
+      print(f"<<< IOSAVE: re match '{filepath}' ? --> {re_match} >>>")
+      print(f"<<< IOSAVE: cwd match '{filepath}' ? --> {cwd_match} >>>")
+    if (not re_match) or (not cwd_match):
+      self.error(ERR_FILE_PERMS)
+      return
+    # Check if source address and byte count are reasonable
+    if src_addr + count > len(self.ram):
+      self.error(ERR_BAD_ADDRESS)
+      return
+    #///////////////////////////////////////////
+    # TODO: make this part actually save a file
+    #///////////////////////////////////////////
+
+  # =======================================================================
+  # === END OF DANGEROUS FILE IO STUFF ====================================
+  # =======================================================================
 
   def trace_on(self):
     """Enable debug tracing (also see DEBUG global var)"""

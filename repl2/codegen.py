@@ -27,6 +27,8 @@ troff TROFF
 dump IODUMP
 key IOKEY
 iorh IORH
+load IOLOAD
+save IOSAVE
 >r MTR
 r R
 call CALL

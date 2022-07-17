@@ -291,7 +291,7 @@ class Compiler:
       self.update_name_type(name, T_OBJ)
       self.mode = MODE_COM
       return pos + 2
-    if w == ';':                        # ;
+    if w in [';', ';shdw']:             # ; or ;shdw
       maybe_call = self.DP - 3
       if (maybe_call == self.last_call):
         # Do tail call optimization
