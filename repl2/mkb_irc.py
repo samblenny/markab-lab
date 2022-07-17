@@ -99,9 +99,22 @@ class Irc():
     await self.send(f"NOTICE {self.chan} :{message}")
 
   async def send(self, message):
+    """Send irc message with crude truncation at 480 bytes.
+    The RFC limit is 512 bytes for a message, but ngircd will cut messages down
+    to about 497 bytes. So, I will stay a bit below the lower limit. This way
+    of truncation can misbehave badly for long messages that include non-ASCII
+    characters. If that becomes an issue, the truncation routine needs to be
+    improved to detect Unicode grapheme cluster boundaries. That's a fairly
+    involved thing to do, so for now I'll just igore it and hope for the best.
+    """
+    message = f"{message}".encode('utf8')
+    if len(message) > 480:
+      message = message[:480] + "[TRUNCATED]\r\n".encode('utf8')
+    else:
+      message += "\r\n".encode('utf8')
     if self.writer is None or self.writer.is_closing():
       print(">>> irc is disconnected >>>")
     else:
-      print(message)
-      self.writer.write(f"{message}\r\n".encode('utf8'))
+      print(message.decode('utf8').strip())
+      self.writer.write(message)
       await self.writer.drain()
