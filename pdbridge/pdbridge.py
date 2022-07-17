@@ -76,7 +76,7 @@ class Irc():
       (sender, method, message) = result.group(1, 2, 3)
       if method == 'PRIVMSG':
         if message.lower().startswith("hi"):
-          await self.privmsg(f"Hello, {sender}")
+          await self.notice(f"Hello, {sender}")
         else:
           await self.pd.send(message)
 
