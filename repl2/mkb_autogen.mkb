@@ -15,6 +15,7 @@ hex
 00 const MODE_INT
 01 const MODE_COM
 0b const ErrUnknown
+0c const ErrNest
 07 const HashA
 08 const HashB
 95bf const HashC

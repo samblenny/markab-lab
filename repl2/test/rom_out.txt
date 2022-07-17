@@ -19,4 +19,10 @@ var t05 5 t05 ! iod                (  Stack is empty  OK)  Stack is empty  OK
 " bar" const t09  t08 t09 strcmp .               ( 0  OK) 0  OK
 : foo? t08 here word strcmp . ;  foo? foo       ( -1  OK) -1  OK
 load" test/load_test.mkb"                      ( t10  OK) t10  OK
+: t11 }if ;                                    (  ERR 12)  ERR 12
+err .                                            ( 0  OK) 0  OK
+: t12 true if{                              (  Compiling)  Compiling
+    ;                                       (  Compiling)  Compiling
+  }if                                       (  Compiling)  Compiling
+;                                                  (  OK)  OK
 

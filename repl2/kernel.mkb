@@ -333,18 +333,16 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 : okon  true  OK_EN ! ;  ( Turn on OK prompts)
 
 : ok  ( Print OK prompt if OK prompt is enabled)
-  OK_EN @ if{
-    2 spaces 79 emit 75 emit cr
-  }if
-;
-
-: prompt  ( Print OK or ERR prompt, depending on what's enabled)
-  err 0= if{        ( if no errors: print OK prompt)
-    ok ;
-  }if               ( else: print ERR prompt)
-  2 spaces 69 emit
-  82 emit 82 emit
-  err . cr
+  OK_EN @ 0= if{ ; }if  ( return if OK prompt is not enabled)
+  2 spaces              ( else: start with 2 spaces, then...)
+  compiling? if{        ( if compile mode is active:)
+    67 emit 111 emit    ( print "Compiling" cr, then return)
+    109 emit 112 emit
+    105 emit 108 emit
+    105 emit 110 emit
+    103 emit cr ;
+  }if                   ( else:)
+  79 emit 75 emit cr    ( print regular OK prompt)
 ;
 
 : NEST+  ( -- )  ( Increment block nesting level)
@@ -352,11 +350,11 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 ;
 
 : NEST-  ( -- )  ( Decrement block nesting level)
-  NEST @ 1-    ( load value of nesting level and decrement it)
-  dup 0 < if{  ( if result is < 0)
-    dup xor    (   replace the result with 0)
-    ( TODO: deal with error: source code has unbalanced }if or }for)
-  }if NEST !   ( store the new nesting level)
+  NEST @ 1-       ( load value of nesting level and decrement it)
+  dup 0 < if{     ( if result is < 0)
+    dup xor       (   replace the result with 0)
+    ErrNest >err  (   raise an error indicating unbalanced }if or }for)
+  }if NEST !      ( store the new nesting level)
 ;
 
 : NESTED?  ( -- bool)  ( Is nesting level > 0, because of if{ or for{ block?)
@@ -376,6 +374,20 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 
 : LOADNEST?  ( -- bool)  ( Is load nesting level > 0 because of nested loads?)
   LOADNEST @ 0 >
+;
+
+: prompt  ( Print OK or ERR prompt, depending on what's enabled)
+  err 0= if{        ( if no errors: print OK prompt)
+    ok ;
+  }if               ( else:)
+  2 spaces 69 emit  ( print error prompt: '  ? ...')
+  82 emit 82 emit
+  err . cr
+  compiling? 0=     ( if not compiling and also not loading a file:)
+  LOADNEST? 0= and
+  if{
+    0 >err          (   err is not needed to break any loops, so clear it)
+  }if
 ;
 
 : create ( -- )  ( Add a name to the dictionary)

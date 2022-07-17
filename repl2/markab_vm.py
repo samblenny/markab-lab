@@ -23,7 +23,7 @@ from mkb_autogen import (
   MTA, LBA, LBAI,       AINC, ADEC, A,
   MTB, LBB, LBBI, SBBI, BINC, BDEC, B,
 
-  Heap, HeapRes, HeapMax, MemMax, IRQRX,
+  Heap, HeapRes, HeapMax, MemMax, IRQRX, ErrUnknown, ErrNest,
   OPCODES,
 )
 from mkb_irc import Irc
@@ -62,7 +62,8 @@ ERR_R_UNDER = 7
 ERR_MAX_CYCLES = 8
 ERR_FILE_PERMS = 9
 ERR_FILE_NOT_FOUND = 10
-ERR_UNKNOWN = 11
+ERR_UNKNOWN = ErrUnknown  # 11: unknown word
+ERR_NEST = ErrNest        # 12: compiler encountered unbalanced }if or }for
 
 # Configure STDIN/STDOUT at load-time for use utf-8 encoding.
 # For documentation on arguments to `reconfigure()`, see

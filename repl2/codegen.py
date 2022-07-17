@@ -125,6 +125,7 @@ MODE_COM  1   # Compiling mode
 
 # Error codes (most errors get set internally by the VM)
 ErrUnknown 11  # Unknown word
+ErrNest    12  # Compiler encountered unbalanced nesting of }if or }for
 
 # Parameters for multiply-with-carry (mwc) string hashing function
 HashA 7
