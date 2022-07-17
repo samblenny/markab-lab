@@ -17,7 +17,6 @@ var t05 5 t05 ! iod                (  Stack is empty  OK)  Stack is empty  OK
 : t07 "   another one" print ; t07     (  another one OK)  another one  OK
 " foo" const t08  " foo" t08 strcmp .           ( -1  OK) -1  OK
 " bar" const t09  t08 t09 strcmp .               ( 0  OK) 0  OK
-: foo? t08 here word strcmp . DP h! ;  foo? foo ( -1  OK) -1  OK
-load" test/load_test.mkb"        ( "  t10" print t10  OK) "  t10" print t10  OK
-  OK
+: foo? t08 here word strcmp . ;  foo? foo       ( -1  OK) -1  OK
+load" test/load_test.mkb"                      ( t10  OK) t10  OK
 

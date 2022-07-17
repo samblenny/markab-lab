@@ -497,8 +497,8 @@ ASM{ U8 8 MTB BDEC B IOD RESET }ASM
 warmboot                                       (  7  OK)  7  OK
 
 === test.vm.test_instructions_err_clerr() ===
-( opcode coverage: ERR CLERR         )
+( opcode coverage: ERR MTE         )
 ASM{ RESET ERR IOD DROP DROP ERR IOD
-     DROP CLERR ERR IOD           }ASM
+     DROP U8 0 MTE ERR IOD        }ASM
 warmboot                                 (  0  2  0  OK)  0  2  0  OK
 

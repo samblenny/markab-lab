@@ -17,8 +17,8 @@ from typing import Callable, Dict
 from mkb_autogen import (
   NOP, ADD, SUB, INC, DEC, MUL, DIV, MOD, AND, INV, OR, XOR, SLL, SRL, SRA,
   EQ, GT, LT, NE, ZE, TRUE, FALSE, JMP, JAL, CALL, RET, HALT,
-  BZ, BFOR, MTR, RDROP, R, PC, ERR, DROP, DUP, OVER, SWAP,
-  U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET, CLERR,
+  BZ, BFOR, MTR, RDROP, R, PC, ERR, MTE, DROP, DUP, OVER, SWAP,
+  U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET,
   IOD, IODH, IORH, IOKEY, IOEMIT, IODOT, IODUMP, IOLOAD, IOSAVE, TRON, TROFF,
   MTA, LBA, LBAI,       AINC, ADEC, A,
   MTB, LBB, LBBI, SBBI, BINC, BDEC, B,
@@ -62,6 +62,7 @@ ERR_R_UNDER = 7
 ERR_MAX_CYCLES = 8
 ERR_FILE_PERMS = 9
 ERR_FILE_NOT_FOUND = 10
+ERR_UNKNOWN = 11
 
 # Configure STDIN/STDOUT at load-time for use utf-8 encoding.
 # For documentation on arguments to `reconfigure()`, see
@@ -142,6 +143,7 @@ class VM:
     self.jumpTable[R    ] = self.r_
     self.jumpTable[PC   ] = self.pc_
     self.jumpTable[ERR  ] = self.err_
+    self.jumpTable[MTE  ] = self.move_t_to_err
     self.jumpTable[DROP ] = self.drop
     self.jumpTable[DUP  ] = self.dup
     self.jumpTable[OVER ] = self.over
@@ -156,7 +158,6 @@ class VM:
     self.jumpTable[LW   ] = self.load_word
     self.jumpTable[SW   ] = self.store_word
     self.jumpTable[RESET] = self.reset
-    self.jumpTable[CLERR] = self.clear_error
     self.jumpTable[IOD  ] = self.io_data_stack
     self.jumpTable[IODH ] = self.io_data_stack_hex
     self.jumpTable[IORH ] = self.io_return_stack_hex
@@ -626,10 +627,6 @@ class VM:
     self.RSDeep = 0
     self.ERR = 0
 
-  def clear_err(self):
-    """Clear the VM's error register (ERR)"""
-    self.ERR = 0
-
   def return_(self):
     """Return from subroutine, taking address from return stack"""
     if self.RSDeep < 1:
@@ -740,22 +737,13 @@ class VM:
     self.B = self.T
     self.drop()
 
-  def move_t_to_x(self):
-    """Move top of data stack (T) to register X"""
+  def move_t_to_err(self):
+    """Move top of data stack (T) to ERR register"""
     if self.DSDeep < 1:
       self.reset()
       self.error(ERR_D_UNDER)
       return
-    self.X = self.T
-    self.drop()
-
-  def move_t_to_y(self):
-    """Move top of data stack (T) to register Y"""
-    if self.DSDeep < 1:
-      self.reset()
-      self.error(ERR_D_UNDER)
-      return
-    self.Y = self.T
+    self.ERR = self.T
     self.drop()
 
   def load_halfword(self):
@@ -843,10 +831,6 @@ class VM:
     else:
       buf += " R-Stack is empty"
     self.print(buf, end='')
-
-  def clear_error(self):
-    """Clear VM error status code"""
-    self.ERR = 0
 
   def r_(self):
     """Push a copy of top of Return stack (R) to the data stack"""
@@ -1033,10 +1017,15 @@ class VM:
       old_pc = self.PC
       old_echo = self.echo
       # Read and interpret the file
-      self.echo = True
+      self.echo = False
       with open(filepath) as f:
-        for line in f:
+        for (n, line) in enumerate(f):
           self.irq_rx(line)
+          if self.ERR != 0:
+            line = line.split("\n")[0]
+            print(f"{n+1}: {line}")
+            print(f"ERROR on line {n+1} of {filepath}")
+            break
       # Restore old state
       self.PC = old_pc
       self.echo = old_echo

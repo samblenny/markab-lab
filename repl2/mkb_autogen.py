@@ -8,28 +8,28 @@
 # Markab VM opcode constants
 NOP    =  0
 RESET  =  1
-CLERR  =  2
-JMP    =  3
-JAL    =  4
-RET    =  5
-BZ     =  6
-BFOR   =  7
-U8     =  8
-U16    =  9
-I32    = 10
-HALT   = 11
-TRON   = 12
-TROFF  = 13
-IODUMP = 14
-IOKEY  = 15
-IORH   = 16
-IOLOAD = 17
-IOSAVE = 18
-MTR    = 19
-R      = 20
-CALL   = 21
-PC     = 22
-ERR    = 23
+JMP    =  2
+JAL    =  3
+RET    =  4
+BZ     =  5
+BFOR   =  6
+U8     =  7
+U16    =  8
+I32    =  9
+HALT   = 10
+TRON   = 11
+TROFF  = 12
+IODUMP = 13
+IOKEY  = 14
+IORH   = 15
+IOLOAD = 16
+IOSAVE = 17
+MTR    = 18
+R      = 19
+CALL   = 20
+PC     = 21
+ERR    = 22
+MTE    = 23
 LB     = 24
 SB     = 25
 LH     = 26
@@ -84,28 +84,28 @@ FALSE  = 72
 OPCODES = {
     'NOP':     0,
     'RESET':   1,
-    'CLERR':   2,
-    'JMP':     3,
-    'JAL':     4,
-    'RET':     5,
-    'BZ':      6,
-    'BFOR':    7,
-    'U8':      8,
-    'U16':     9,
-    'I32':    10,
-    'HALT':   11,
-    'TRON':   12,
-    'TROFF':  13,
-    'IODUMP': 14,
-    'IOKEY':  15,
-    'IORH':   16,
-    'IOLOAD': 17,
-    'IOSAVE': 18,
-    'MTR':    19,
-    'R':      20,
-    'CALL':   21,
-    'PC':     22,
-    'ERR':    23,
+    'JMP':     2,
+    'JAL':     3,
+    'RET':     4,
+    'BZ':      5,
+    'BFOR':    6,
+    'U8':      7,
+    'U16':     8,
+    'I32':     9,
+    'HALT':   10,
+    'TRON':   11,
+    'TROFF':  12,
+    'IODUMP': 13,
+    'IOKEY':  14,
+    'IORH':   15,
+    'IOLOAD': 16,
+    'IOSAVE': 17,
+    'MTR':    18,
+    'R':      19,
+    'CALL':   20,
+    'PC':     21,
+    'ERR':    22,
+    'MTE':    23,
     'LB':     24,
     'SB':     25,
     'LH':     26,
@@ -172,6 +172,8 @@ BASE    = 0xE120
 EOF     = 0xE124
 LASTWORD = 0xE128
 IRQRX   = 0xE12C
+OK_EN   = 0xE130
+LOADNEST = 0xE134
 IB      = 0xE200
 Pad     = 0xE300
 Fmt     = 0xE400
@@ -185,6 +187,7 @@ T_OBJ   = 3
 T_IMM   = 4
 MODE_INT = 0
 MODE_COM = 1
+ErrUnknown = 11
 HashA   = 7
 HashB   = 8
 HashC   = 38335
@@ -207,6 +210,8 @@ CORE_VOC = {
     'EOF':      (T_CONST, 0xE124),
     'LASTWORD': (T_CONST, 0xE128),
     'IRQRX':    (T_CONST, 0xE12C),
+    'OK_EN':    (T_CONST, 0xE130),
+    'LOADNEST': (T_CONST, 0xE134),
     'IB':       (T_CONST, 0xE200),
     'Pad':      (T_CONST, 0xE300),
     'Fmt':      (T_CONST, 0xE400),
@@ -218,6 +223,7 @@ CORE_VOC = {
     'T_IMM':    (T_CONST, 4),
     'MODE_INT': (T_CONST, 0),
     'MODE_COM': (T_CONST, 1),
+    'ErrUnknown': (T_CONST, 11),
     'HashA':    (T_CONST, 7),
     'HashB':    (T_CONST, 8),
     'HashC':    (T_CONST, 38335),
@@ -225,7 +231,6 @@ CORE_VOC = {
     'HashMask': (T_CONST, 63),
     'nop':      (T_OP,    NOP),
     'reset':    (T_OP,    RESET),
-    'clerr':    (T_OP,    CLERR),
     'halt':     (T_OP,    HALT),
     'tron':     (T_OP,    TRON),
     'troff':    (T_OP,    TROFF),
@@ -239,6 +244,7 @@ CORE_VOC = {
     'call':     (T_OP,    CALL),
     'pc':       (T_OP,    PC),
     'err':      (T_OP,    ERR),
+    '>err':     (T_OP,    MTE),
     '@':        (T_OP,    LB),
     '!':        (T_OP,    SB),
     'h@':       (T_OP,    LH),

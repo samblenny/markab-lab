@@ -12,7 +12,6 @@ PY_OUTFILE = "mkb_autogen.py"
 OPCODES = """
 nop NOP
 reset RESET
-clerr CLERR
 <ASM> JMP
 <ASM> JAL
 <ASM> RET
@@ -34,6 +33,7 @@ r R
 call CALL
 pc PC
 err ERR
+>err MTE
 @ LB
 ! SB
 h@ LH
@@ -100,6 +100,8 @@ E120 BASE     # Number base                              1 byte  (align 4)
 E124 EOF      # Flag to indicate end of input            1 byte  (align 4)
 E128 LASTWORD  # Pointer to last defined word            2 bytes (align 4)
 E12C IRQRX    # IRQ vector for receiving input           2 bytes (align 4)
+E130 OK_EN    # OK prompt enable                         1 byte  (align 4)
+E134 LOADNEST  # IOLOAD nesting level                    1 byte  (align 4)
 #...
 E200 IB       # Input Buffer       256 bytes
 E300 Pad      # Pad buffer         256 bytes
@@ -120,6 +122,9 @@ T_IMM    4   # Object code for immediate compiled word
 # Codes for interpreter Modes
 MODE_INT  0   # Interpret mode
 MODE_COM  1   # Compiling mode
+
+# Error codes (most errors get set internally by the VM)
+ErrUnknown 11  # Unknown word
 
 # Parameters for multiply-with-carry (mwc) string hashing function
 HashA 7

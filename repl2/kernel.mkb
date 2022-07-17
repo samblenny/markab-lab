@@ -329,6 +329,24 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 : h, here h! 2 allot ;   ( store low halfword of T at DP)
 : w, here w! 4 allot ;   ( store full word T at DP)
 
+: okoff false OK_EN ! ;  ( Turn off OK prompts)
+: okon  true  OK_EN ! ;  ( Turn on OK prompts)
+
+: ok  ( Print OK prompt if OK prompt is enabled)
+  OK_EN @ if{
+    2 spaces 79 emit 75 emit cr
+  }if
+;
+
+: prompt  ( Print OK or ERR prompt, depending on what's enabled)
+  err 0= if{        ( if no errors: print OK prompt)
+    ok ;
+  }if               ( else: print ERR prompt)
+  2 spaces 69 emit
+  82 emit 82 emit
+  err . cr
+;
+
 : NEST+  ( -- )  ( Increment block nesting level)
   NEST dup @ 1+ swap !
 ;
@@ -343,6 +361,21 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 
 : NESTED?  ( -- bool)  ( Is nesting level > 0, because of if{ or for{ block?)
   NEST @ 0 >
+;
+
+: LOADNEST+  ( Increment IOLOAD nesting level)
+  LOADNEST @ 1+ LOADNEST !
+;
+
+: LOADNEST-  ( Decrement IOLOAD nesting level)
+  LOADNEST @ 1-
+  dup 0 < if{
+    dup xor
+  }if LOADNEST !
+;
+
+: LOADNEST?  ( -- bool)  ( Is load nesting level > 0 because of nested loads?)
+  LOADNEST @ 0 >
 ;
 
 : create ( -- )  ( Add a name to the dictionary)
@@ -505,7 +538,13 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   here @ dup 0= if{  ( if string is empty: clean stack and return)
     drop ;
   }if 1- here !      ( else: shorten the string to trim the trailing " )
+  okoff              ( turn off OK prompts)
+  LOADNEST+
   here load          ( push address of filepath string and load it)
+  LOADNEST-
+  LOADNEST? 0= if{   ( if this was the outermost load:)
+    okon prompt      (   turn OK prompts back on, end with prompt)
+  }if
 ;
 
 : if{ ( -- addr )  ( Start of if block)
@@ -561,8 +600,7 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 : dowords             ( Interpret words from a line of text input)
   skip_ws             ( skip whitespace at start of unread bytes in IB)
   IB.done? if{        ( if IB is empty:)
-    2 spaces 79 emit  ( print "  OK\n" prompt, return to end loop)
-    75 emit cr ;
+    prompt ;          ( print "  OK" or "  ERR.." prompt, return to end loop)
   }if
   here                ( save DP since next call will change it)
   word                ( try to copy a word from IB to DP)
@@ -582,8 +620,9 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
     }if
     dowords ;         (   loop using tail recursion)
   }if
+  ErrUnknown >err
   2 spaces 63 emit    ( else: print error message '  ? ')
-  space DP.print cr   ( print the unknown word in quotes)
+  space DP.print cr   ( print the unknown word)
 ;
 
 : outer         ( Outer interpreter)
@@ -596,8 +635,10 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   0 IN w!           ( 1 byte,  aligned 4, so zero all 4)
   0 LASTCALL w!     ( 2 bytes, aligned 4, so zero all 4)
   0 LASTWORD w!     ( 2 bytes, aligned 4, so zero all 4)
+  0 LOADNEST w!     ( 1 byte, aligned 4, so zero all 4)
   10 BASE w!        ( set number base to decimal)
   false EOF w!      ( clear the end of input flag)
+  true OK_EN w!     ( enable OK prompts)
   here EXT_V w!     ( set extensible vocab hashmap base pointer)
   HashBins 1- for{  ( loop to initialize hashmap for ext. vocab: )
     0 h,            (   allocate and zero 2 bytes for this bin's pointer)

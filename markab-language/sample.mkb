@@ -12,8 +12,8 @@
 ( Markab is case-sensitive, so uppercase and lowercase are not the same)
 nop + - 1+ 1- * / % and inv or xor << >> >>>
 = > < != 0= true false call halt
->r rdrop r pc err drop dup over swap
-@ ! h@ h! w@ w! reset clerr
+>r rdrop r pc err >err drop dup over swap
+@ ! h@ h! w@ w! reset
 iod iodh iorh key emit . dump load save tron troff
 >a @a @a+     a+ a- a
 >b @b @b+ !b+ b+ b- b
@@ -24,8 +24,8 @@ if{ }if for{ }for
 NOP ADD SUB INC DEC MUL DIV MOD AND INV OR XOR
 SLL SRL SRA
 EQ GT LT NE ZE TRUE FALSE JMP JAL CALL RET HALT
-BZ BFOR MTR RDROP R PC ERR DROP DUP OVER SWAP
-U8 U16 I32 LB SB LH SH LW SW RESET CLERR
+BZ BFOR MTR RDROP R PC ERR MTE DROP DUP OVER SWAP
+U8 U16 I32 LB SB LH SH LW SW RESET
 IOD IODH IORH IOKEY IOEMIT IODOT IODUMP IOLOAD IOSAVE TRON TROFF
 MTA LBA LBAI      AINC ADEC A
 MTB LBB LBBI SBBI BINC BDEC B

@@ -7,8 +7,8 @@
 :syntax keyword mkbOpcode NOP ADD SUB INC DEC MUL DIV MOD AND INV OR XOR
 :syntax keyword mkbOpcode SLL SRL SRA
 :syntax keyword mkbOpcode EQ GT LT NE ZE TRUE FALSE JMP JAL CALL RET HALT
-:syntax keyword mkbOpcode BZ BFOR MTR RDROP R PC ERR DROP DUP OVER SWAP
-:syntax keyword mkbOpcode U8 U16 I32 LB SB LH SH LW SW RESET CLERR
+:syntax keyword mkbOpcode BZ BFOR MTR RDROP R PC ERR MTE DROP DUP OVER SWAP
+:syntax keyword mkbOpcode U8 U16 I32 LB SB LH SH LW SW RESET
 :syntax keyword mkbOpcode IOD IODH IORH IOKEY IOEMIT IODOT IODUMP TRON TROFF
 :syntax keyword mkbOpcode IOLOAD IOSAVE
 :syntax keyword mkbOpcode MTA LBA LBAI      AINC ADEC A
@@ -22,8 +22,8 @@
 :syntax keyword mkbCoreVocab nop + - 1+ 1- * / % and inv or xor
 :syntax keyword mkbCoreVocab << >> >>>
 :syntax keyword mkbCoreVocab = > < != 0= true false call halt
-:syntax keyword mkbCoreVocab >r rdrop r pc err drop dup over swap
-:syntax keyword mkbCoreVocab @ ! h@ h! w@ w! reset clerr
+:syntax keyword mkbCoreVocab >r rdrop r pc err >err drop dup over swap
+:syntax keyword mkbCoreVocab @ ! h@ h! w@ w! reset
 :syntax keyword mkbCoreVocab iod iodh iorh key emit . dump tron troff
 :syntax keyword mkbCoreVocab load save
 :syntax keyword mkbCoreVocab >a @a @a+     a+ a- a

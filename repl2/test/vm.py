@@ -7,8 +7,8 @@ from markab_vm import VM
 from mkb_autogen import (
   NOP, ADD, SUB, INC, DEC, MUL, DIV, MOD, AND, INV, OR, XOR, SLL, SRL, SRA,
   EQ, GT, LT, NE, ZE, TRUE, FALSE, JMP, JAL, CALL, RET,
-  BZ, BFOR, MTR, RDROP, R, PC, ERR, DROP, DUP, OVER, SWAP,
-  U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET, CLERR,
+  BZ, BFOR, MTR, RDROP, R, PC, ERR, MTE, DROP, DUP, OVER, SWAP,
+  U8, U16, I32, LB, SB, LH, SH, LW, SW, RESET,
   IOD, IODH, IORH, IOKEY, IOEMIT, IODOT, IODUMP, TRON, TROFF,
   MTA, LBA, LBAI,       AINC, ADEC, A,
   MTB, LBB, LBBI, SBBI, BINC, BDEC, B,
@@ -1020,14 +1020,14 @@ def test_instructions_mtb_lbb_lbbi_sbbi_binc_bdec_b():
   v._ok_or_err()
   print()
 
-def test_instructions_err_clerr():
+def test_instructions_err_mte():
   v = VM()
   print("=== test.vm.test_instructions_err_clerr() ===")
-  print("( opcode coverage: ERR CLERR         )")
+  print("( opcode coverage: ERR MTE         )")
   print("ASM{ RESET ERR IOD DROP DROP ERR IOD")
-  print("     DROP CLERR ERR IOD           }ASM")
+  print("     DROP U8 0 MTE ERR IOD        }ASM")
   code = bytearray([RESET, ERR, IOD, DROP, DROP, ERR, IOD])
-  code.extend(     [DROP, CLERR, ERR, IOD, RET])
+  code.extend(     [DROP, U8, 0, MTE, ERR, IOD, RET])
   p("warmboot                                 (  0  2  0  OK)")
   v._warm_boot(code, max_cycles=99)
   v._ok_or_err()
@@ -1057,4 +1057,4 @@ test_instructions_reset_io()
 test_instructions_r_pc()
 test_instructions_mta_lba_lbai_ainc_adec_a()
 test_instructions_mtb_lbb_lbbi_sbbi_binc_bdec_b()
-test_instructions_err_clerr()
+test_instructions_err_mte()
