@@ -29,18 +29,13 @@ err .                                            ( 0  OK) 0  OK
 ;                                                  (  OK)  OK
 ( t13: Unknown word during load)  OK
 load" test/load_t13.mkb"         (  ? not-a-name  ERR 11)  ? not-a-name  ERR 11
-2: : t13 not-a-name ;
-ERROR on line 2 of test/load_t13.mkb
-  ERR 11
+ERR test/load_t13.mkb:2: : t13 not-a-name ;
 err .                                            ( 0  OK) 0  OK
 LOADNEST? .                                      ( 0  OK) 0  OK
 ( t14: Attempted infinite load" recursion)  OK
 load" test/load_t14.mkb"                       (  ERR 13)  ERR 13
-2: load" test/load_t14.mkb"
-ERROR on line 2 of test/load_t14.mkb
-2: load" test/load_t14.mkb"
-ERROR on line 2 of test/load_t14.mkb
-  ERR 13
+ERR test/load_t14.mkb:2: load" test/load_t14.mkb"
+ERR test/load_t14.mkb:2: load" test/load_t14.mkb"
 err .                                            ( 0  OK) 0  OK
 LOADNEST? .                                      ( 0  OK) 0  OK
 ( t15: Attempted infinitely tail-recursive call)  OK

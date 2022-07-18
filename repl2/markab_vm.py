@@ -1039,8 +1039,7 @@ class VM:
           self.irq_rx(line)
           if self.ERR != 0:
             line = line.split("\n")[0]
-            print(f"{n+1}: {line}")
-            print(f"ERROR on line {n+1} of {filepath}")
+            self.print(f"ERR {filepath}:{n+1}: {line}")
             break
       # Restore old state
       self.ioload_depth -= 1

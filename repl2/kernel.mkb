@@ -376,6 +376,15 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   LOADNEST @ 0 >
 ;
 
+: recover  ( Recover from error condition by resetting state vars)
+  MODE_INT MODE !  ( clear compile mode)
+  0 NEST !         ( reset if/for nesting level)
+  LOADNEST? 0=     ( if not loading a file:)
+  if{
+    0 >err         (   err is not needed to break any loops, so clear it)
+  }if
+;
+
 : prompt  ( Print OK or ERR prompt, depending on what's enabled)
   err 0= if{        ( if no errors: print OK prompt)
     ok ;
@@ -383,12 +392,7 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   2 spaces 69 emit  ( print error prompt: '  ? ...')
   82 emit 82 emit
   err . cr
-  MODE_INT MODE !   ( clear compile mode)
-  0 NEST !          ( reset if/for nesting level)
-  LOADNEST? 0=      ( if not loading a file:)
-  if{
-    0 >err          (   err is not needed to break any loops, so clear it)
-  }if
+  recover           ( adjust state vars to recover from error condition)
 ;
 
 : create ( -- )  ( Add a name to the dictionary)
@@ -556,7 +560,10 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   here load          ( push address of filepath string and load it)
   LOADNEST-
   LOADNEST? 0= if{   ( if this was the outermost load:)
-    okon prompt      (   turn OK prompts back on, end with prompt)
+    okon err 0= if{  (   turn OK prompts back on, if no errors:)
+      ok             (     print ok prompt, *not* an additional err prompt!)
+    }if
+    recover          (   clear any errors, without an addtional error prompt)
   }if
 ;
 
@@ -640,14 +647,12 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 ;
 
 : outer  ( Outer interpreter: interpret a line of text)
-  err if{            ( if error is non-zero, probably VM interrupted last line)
-    MODE_INT MODE !  (   reset compile/interpret mode to interpret)
-    0 NEST !         (   reset for/if nesting level)
-    0 >err           (   reset error register, assuming VM printed error code)
+  err if{    ( if error is non-zero, probably VM interrupted last line)
+    recover  (   adjust state vars to recover from error condition)
   }if
-  readline           ( get a line of text from stdin)
-  dowords            ( loop over all the words of the line)
-  ( ...)             ( return to wait for IRQRX to invoke outer again)
+  readline   ( get a line of text from stdin)
+  dowords    ( loop over all the words of the line)
+  ( ...)     ( return to wait for IRQRX to invoke outer again)
 ;
 
 : boot    ( Initialize global vars, print version, start outer interpreter)
