@@ -864,14 +864,6 @@ class VM:
     """Push a copy of register B to the data stack"""
     self._push(self.B)
 
-  def x_(self):
-    """Push a copy of register X to the data stack"""
-    self._push(self.X)
-
-  def y_(self):
-    """Push a copy of register Y to the data stack"""
-    self._push(self.Y)
-
   def io_key(self):
     """Push the next byte from Standard Input to the data stack.
 
