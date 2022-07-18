@@ -1,0 +1,22 @@
+( Build tone generator patch in Pd: equivalent to sub-canvas.txt)
+10 const pad     var row 0 row !          : row+ row @ 3 + row ! ;
+var col 0 col !  : col+ col @ 1+ col ! ;  : col- col @ 1- col ! ;
+var n 0 n !      : prev n @ 2 - ;         : this n @ 1- ;   : n+ n @ 1+ n ! ;
+: xy col @ 25 * pad + . row @ 10 * pad + . ;
+: end " ;   " print ;     : head print xy space ;   : tail print end n+ row+ ;
+: obj " obj" head tail ;  : msg " msg" head tail ;
+: conn ( fr to skip -- ) " connect" print prev swap - . swap . this . . end ;
+: connL ( out0 -> in0) 0 0 0 conn ;   : connR ( out0 -> in1) 0 1 0 conn ;
+: rx " obj" head " receive " print tail ;
+: go
+  " clear; pd dsp 1;  " print cr
+  " osc~ 440" obj  col+ " vol" rx col-  cr
+  " *~ 0" obj  0 0 1 conn  connR  cr
+  " dac~" obj  connL  connR  cr   row @ 2 + row  !
+  " subsend"   rx   cr
+  " route vol" obj  connL  cr
+  " \$1 100"   msg  connL  cr
+  " line 0 5"  obj  connL  cr
+  " send vol"  obj  connL  cr
+  " send vol 0.3;" print cr
+;
