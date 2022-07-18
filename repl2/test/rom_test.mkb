@@ -37,9 +37,7 @@ err .                                            ( 0  OK)
 LOADNEST? .                                      ( 0  OK)
 ( t15: Attempted infinitely tail-recursive call)
 : t15 t15 ;  t15                                (  ERR 8)
-
-err . ( empty line above is intentional)         ( 0  OK)
+err .                                            ( 0  OK)
 ( t16: Attempted infinitely recursive regular call)
 : t16 t16 nop ;  t16                            (  ERR 5)
-
-err . ( empty line above is intentional)         ( 0  OK)
+err .                                            ( 0  OK)

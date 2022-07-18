@@ -320,8 +320,17 @@ class VM:
           print(f"\nPC: 0x{self.PC:04x} = {self.PC}")
           raise Exception("bad instruction", op)
         self.error(ERR_BAD_INSTRUCTION)
+        self.print(f"  ERR {self.ERR}")
         return
+    # Making it here means the VM interrupted the code because it ran too long.
+    # This probably means things have gone haywire, and potentially the memory
+    # state is corrupted. But, try to make the best of it. So, since the kernel
+    # didn't get a chance to print its own prompt, set the error code and
+    # print an error prompt. Also, clear the return stack
     self.error(ERR_MAX_CYCLES)
+    self.print(f"  ERR {self.ERR}")
+    self.RSDeep = 0
+
 
   def _op_st(self, fn):
     """Apply operation λ(S,T), storing the result in S and dropping T"""
@@ -1096,7 +1105,7 @@ class VM:
   def _ok_or_err(self):
     """Print the OK or ERR line-end status message and clear any errors"""
     if self.ERR != 0:
-      self.print(f"  ERR{self.ERR}")
+      self.print(f"  ERR {self.ERR}")
       self.ERR = 0
     else:
       self.print("  OK")

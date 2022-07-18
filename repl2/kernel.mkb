@@ -639,10 +639,15 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   prompt              ( call prompt to print the error code and reset err)
 ;
 
-: outer         ( Outer interpreter)
-  readline      ( get a line of text from stdin)
-  dowords       ( loop over all the words of the line)
-  ( ...)        ( return to wait for IRQRX to invoke outer again)
+: outer  ( Outer interpreter: interpret a line of text)
+  err if{            ( if error is non-zero, probably VM interrupted last line)
+    MODE_INT MODE !  (   reset compile/interpret mode to interpret)
+    0 NEST !         (   reset for/if nesting level)
+    0 >err           (   reset error register, assuming VM printed error code)
+  }if
+  readline           ( get a line of text from stdin)
+  dowords            ( loop over all the words of the line)
+  ( ...)             ( return to wait for IRQRX to invoke outer again)
 ;
 
 : boot    ( Initialize global vars, print version, start outer interpreter)

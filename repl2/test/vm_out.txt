@@ -19,7 +19,7 @@
 15 .s  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15  OK
 16 .s  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16  OK
 17 .s  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17  OK
-18 .s  Stack is empty  ERR1
+18 .s  Stack is empty  ERR 1
 ( This time, the stack won't clear because only 18 items are pushed)
 0 .s  0  OK
 1 .s  0 1  OK
@@ -57,7 +57,7 @@ drop .s  0 1 2  OK
 drop .s  0 1  OK
 drop .s  0  OK
 drop .s  Stack is empty  OK
-drop .s  Stack is empty  ERR2
+drop .s  Stack is empty  ERR 2
 
 === test.vm.test_add_subtract() ===
 -5 1 2 .s      (  -6 1 2  OK)  -6 1 2  OK
@@ -104,13 +104,13 @@ true false .s reset          (  -1 0  OK)  -1 0  OK
 
 === test.vm.test_load_store() ===
 ( fetch words take 1 argument)
-w@ .s        (  Stack is empty  ERR2)  Stack is empty  ERR2
-h@ .s        (  Stack is empty  ERR2)  Stack is empty  ERR2
-@ .s         (  Stack is empty  ERR2)  Stack is empty  ERR2
+w@ .s        (  Stack is empty  ERR 2)  Stack is empty  ERR 2
+h@ .s        (  Stack is empty  ERR 2)  Stack is empty  ERR 2
+@ .s         (  Stack is empty  ERR 2)  Stack is empty  ERR 2
 ( store words take 2 arguments)
-9000 w! .s             (  9000  ERR2)  9000  ERR2
-h! .s                  (  9000  ERR2)  9000  ERR2
-! .s                   (  9000  ERR2)  9000  ERR2
+9000 w! .s             (  9000  ERR 2)  9000  ERR 2
+h! .s                  (  9000  ERR 2)  9000  ERR 2
+! .s                   (  9000  ERR 2)  9000  ERR 2
 drop  OK
 ( w! and w@ cover full signed int32 range )
 ( note: w@ does sign extension)
@@ -157,7 +157,7 @@ reset 99 .s                (  99 OK)  99  OK
 14 >r .ret  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14  OK
 15 >r .ret  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15  OK
 16 >r .ret  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16  OK
-17 >r .ret  R-Stack is empty  ERR6
+17 >r .ret  R-Stack is empty  ERR 6
 .s             (  Stack is empty OK)  Stack is empty  OK
 ( attempt to underflow return stack)
 reset 99 .s               (  99  OK)  99  OK
@@ -196,7 +196,7 @@ rdrop .ret  0 1  OK
 rdrop .ret  0  OK
 rdrop .ret  R-Stack is empty  OK
 .s                           (  99  OK)  99  OK
-rdrop .ret   (  R-Stack is empty  ERR7)  R-Stack is empty  ERR7
+rdrop .ret  (  R-Stack is empty  ERR 7)  R-Stack is empty  ERR 7
 .s               (  Stack is empty  OK)  Stack is empty  OK
 
 === test.vm.test_comparisons() ===
