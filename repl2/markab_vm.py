@@ -64,6 +64,7 @@ ERR_FILE_PERMS = 9
 ERR_FILE_NOT_FOUND = 10
 ERR_UNKNOWN = ErrUnknown  # 11: unknown word
 ERR_NEST = ErrNest        # 12: compiler encountered unbalanced }if or }for
+ERR_IOLOAD_DEPTH = 13
 
 # Configure STDIN/STDOUT at load-time for use utf-8 encoding.
 # For documentation on arguments to `reconfigure()`, see
@@ -102,6 +103,7 @@ class VM:
     self.cycle_count = 65535        # Counter to break infinite loops
     self.halted = False             # Flag to track halt (used for `bye`)
     self.stdout_irq = None          # IRQ line (callback) for buffering stdout
+    self.ioload_depth = 0           # Nesting level for io_load_file
     # Debug tracing on/off
     self.dbg_trace_enable = False   # Debug trace is noisy, so default=off
     # Debug symbols
@@ -1001,6 +1003,9 @@ class VM:
     if self.DSDeep < 1:
       self.error(ERR_D_UNDER)
       return
+    if self.ioload_depth > 1:
+      self.error(ERR_IOLOAD_DEPTH)
+      return
     filepath = self._load_string(self.T)
     self.drop()
     # Check filename against the allow list
@@ -1020,6 +1025,7 @@ class VM:
       # Read and interpret the file
       self.echo = False
       with open(filepath) as f:
+        self.ioload_depth += 1
         for (n, line) in enumerate(f):
           self.irq_rx(line)
           if self.ERR != 0:
@@ -1028,6 +1034,7 @@ class VM:
             print(f"ERROR on line {n+1} of {filepath}")
             break
       # Restore old state
+      self.ioload_depth -= 1
       self.PC = old_pc
       self.echo = old_echo
       if self.ERR == 0:

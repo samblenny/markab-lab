@@ -383,8 +383,9 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   2 spaces 69 emit  ( print error prompt: '  ? ...')
   82 emit 82 emit
   err . cr
-  compiling? 0=     ( if not compiling and also not loading a file:)
-  LOADNEST? 0= and
+  MODE_INT MODE !   ( clear compile mode)
+  0 NEST !          ( reset if/for nesting level)
+  LOADNEST? 0=      ( if not loading a file:)
   if{
     0 >err          (   err is not needed to break any loops, so clear it)
   }if
@@ -634,7 +635,8 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   }if
   ErrUnknown >err
   2 spaces 63 emit    ( else: print error message '  ? ')
-  space DP.print cr   ( print the unknown word)
+  space DP.print      ( print the unknown word)
+  prompt              ( call prompt to print the error code and reset err)
 ;
 
 : outer         ( Outer interpreter)
