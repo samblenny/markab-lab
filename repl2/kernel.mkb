@@ -656,6 +656,7 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 ;
 
 : boot    ( Initialize global vars, print version, start outer interpreter)
+  reset             ( clear stacks and errors: mainly useful for reboot)
   0 IN w!           ( 1 byte,  aligned 4, so zero all 4)
   0 LASTCALL w!     ( 2 bytes, aligned 4, so zero all 4)
   0 LASTWORD w!     ( 2 bytes, aligned 4, so zero all 4)

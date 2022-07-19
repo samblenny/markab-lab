@@ -502,3 +502,33 @@ ASM{ RESET ERR IOD DROP DROP ERR IOD
      DROP U8 0 MTE ERR IOD        }ASM
 warmboot                                 (  0  2  0  OK)  0  2  0  OK
 
+=== test.vm.test_bad_addresses() ===
+( Jump aligned with operand beyond end of ram)
+(addr  0   1   2   3   4  5   6              )
+ASM{  U8 JMP U16 255 255 SB JMP 249 255  }ASM
+(                       65535-6 ^^^^^^^      )
+warmboot                                      (  ERR 14)  ERR 14
+( Call aligned with operand beyond end of ram)
+(addr  0   1   2   3   4  5   6              )
+ASM{  U8 JAL U16 255 255 SB JMP 249 255  }ASM
+(                       65535-6 ^^^^^^^      )
+warmboot                                      (  ERR 14)  ERR 14
+( U8 aligned with operand beyond end of ram  )
+(addr  0  1   2   3   4  5   6               )
+ASM{  U8 U8 U16 255 255 SB JMP 249 255  }ASM
+(                      65535-6 ^^^^^^^       )
+warmboot                                      (  ERR 14)  ERR 14
+( U16 aligned with operand beyond end of ram )
+(addr  0   1   2   3   4  5   6              )
+ASM{  U8 U16 U16 255 255 SB JMP 249 255  }ASM
+(                      65535-6 ^^^^^^^       )
+warmboot                                      (  ERR 14)  ERR 14
+( I32 aligned with operand beyond end of ram )
+(addr  0   1   2   3   4  5   6              )
+ASM{  U8 I32 U16 255 255 SB JMP 249 255  }ASM
+(                      65535-6 ^^^^^^^       )
+warmboot                                      (  ERR 14)  ERR 14
+( IODUMP of memory range beyond end of ram   )
+ASM{ U8 255 U16 250 255 IODUMP  }ASM
+warmboot                                       (  ERR 3)  ERR 3
+

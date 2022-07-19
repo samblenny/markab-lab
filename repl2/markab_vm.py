@@ -52,19 +52,21 @@ IOLOAD_ALLOW_RE_LIST = """
 """
 
 ROM_FILE = 'kernel.rom'
-ERR_D_OVER = 1
-ERR_D_UNDER = 2
-ERR_BAD_ADDRESS = 3
-ERR_BOOT_OVERFLOW = 4
-ERR_BAD_INSTRUCTION = 5
-ERR_R_OVER = 6
-ERR_R_UNDER = 7
-ERR_MAX_CYCLES = 8
-ERR_FILE_PERMS = 9
-ERR_FILE_NOT_FOUND = 10
-ERR_UNKNOWN = ErrUnknown  # 11: unknown word
-ERR_NEST = ErrNest        # 12: compiler encountered unbalanced }if or }for
-ERR_IOLOAD_DEPTH = 13
+
+ERR_D_OVER = 1            #  1: Data stack overflow
+ERR_D_UNDER = 2           #  2: Data stack underflow
+ERR_BAD_ADDRESS = 3       #  3: Expected vaild address but got something else
+ERR_BOOT_OVERFLOW = 4     #  4: ROM image is too big to fit in the heap
+ERR_BAD_INSTRUCTION = 5   #  5: Expected an opcode but got something else
+ERR_R_OVER = 6            #  6: Return stack overflow
+ERR_R_UNDER = 7           #  7: Return stack underflow
+ERR_MAX_CYCLES = 8        #  8: Call to _step() ran for too many clock cycles
+ERR_FILE_PERMS = 9        #  9: In `load" x"`: x failed permissions check
+ERR_FILE_NOT_FOUND = 10   # 10: In `load" x"`: opening x failed
+ERR_UNKNOWN = ErrUnknown  # 11: Outer interpreter encountered an unknown word
+ERR_NEST = ErrNest        # 12: Compiler encountered unbalanced }if or }for
+ERR_IOLOAD_DEPTH = 13     # 13: Too many levels of nested `load" ..."` calls
+ERR_BAD_PC_ADDR = 14      # 14: Bad program counter value: address not in heap
 
 # Configure STDIN/STDOUT at load-time for use utf-8 encoding.
 # For documentation on arguments to `reconfigure()`, see
@@ -295,6 +297,11 @@ class VM:
     while self.cycle_count > 0:
       self.cycle_count -= 1
       pc = self.PC
+      if pc < 0 or pc >= HeapMax:
+        # Stop if program counter somehow got set to address not in dictionary
+        self.error(ERR_BAD_PC_ADDR)
+        self.print(f"  ERR {self.ERR}")
+        return
       self.PC += 1
       op = self.ram[pc]
       if DEBUG and self.dbg_trace_enable:
@@ -911,7 +918,9 @@ class VM:
     if self.DSDeep < 2:
       self.error(ERR_D_UNDER)
       return
-    if self.T > MemMax or self.T + self.S > MemMax:
+    bad_start_addr = (self.T < 0) or (self.T > MemMax)
+    bad_byte_count = (self.S < 0) or (self.T + self.S > MemMax)
+    if bad_start_addr or bad_byte_count:
       self.error(ERR_BAD_ADDRESS)
       return
     col = 0
