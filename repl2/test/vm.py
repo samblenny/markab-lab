@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT
 #
 
-from markab_vm import VM
+import markab_vm as v
 from mkb_autogen import (
   NOP, ADD, SUB, INC, DEC, MUL, DIV, MOD, AND, INV, OR, XOR, SLL, SRL, SRA,
   EQ, GT, LT, NE, ZE, TRUE, FALSE, JMP, JAL, CALL, RET,
@@ -18,7 +18,7 @@ def p(s):
   print(s, end='')
 
 def test_push_pop():
-  v = VM()
+  v.reset_state()
   print("=== test.vm.test_push_pop() ===")
   p(".s")
   v._log_ds()
@@ -45,7 +45,7 @@ def test_push_pop():
   print()
 
 def test_add_subtract():
-  v = VM()
+  v.reset_state()
   print("=== test.vm.test_add_subtract() ===")
   p("-5 1 2 .s      (  -6 1 2  OK)")
   v._push(-6)
@@ -82,7 +82,7 @@ def test_add_subtract():
   print()
 
 def test_multiply():
-  v = VM()
+  v.reset_state()
   print("=== test.vm.test_multiply() ===")
   p("3 -1 .s                         (  3 -1  OK)")
   v._push(3)
@@ -116,7 +116,7 @@ def test_multiply():
   print()
 
 def test_shift():
-  v = VM()
+  v.reset_state()
   print("=== test.vm.test_shift() ===")
   p("1 31 .s                   (  1 31  OK)")
   v._push(1)
@@ -164,7 +164,7 @@ def test_shift():
   print()
 
 def test_bitwise():
-  v = VM()
+  v.reset_state()
   print("=== test.vm.test_bitwise() ===")
   print("hex")
   p("ffffffff 3333 and .s drop     (  3333  OK)")
@@ -198,7 +198,7 @@ def test_bitwise():
   print()
 
 def test_literals():
-  v = VM()
+  v.reset_state()
   print("=== test.vm.test_literals() ===")
   p("0 255 .s drop drop          (  0 255  OK)")
   code = bytearray()
@@ -237,7 +237,7 @@ def test_literals():
   print()
 
 def test_load_store():
-  v = VM()
+  v.reset_state()
   print("=== test.vm.test_load_store() ===")
   # =====================================================
   print("( fetch words take 1 argument)")
@@ -338,7 +338,7 @@ def test_load_store():
   print()
 
 def test_return_stack():
-  v = VM()
+  v.reset_state()
   print("=== test.vm.test_return_stack() ===")
   p(".s            (  Stack is empty  OK)")
   v._log_ds()
@@ -421,7 +421,7 @@ def test_return_stack():
   print()
 
 def test_comparisons():
-  v = VM()
+  v.reset_state()
   print("=== test.vm.test_comparisons() ===")
   p("reset 1 2 =   2 2 =   2 1 =   .s   (  0 -1 0  OK)")
   v.reset()
@@ -493,7 +493,7 @@ def test_comparisons():
   print()
 
 def test_over_swap():
-  v = VM()
+  v.reset_state()
   print("=== test.vm.test_over_swap() ===")
   p("1 2 over .s                         (  1 2 1  OK)")
   v._push(1)
@@ -508,7 +508,7 @@ def test_over_swap():
   print()
 
 def test_instructions_math_logic():
-  v = VM()
+  v.reset_state()
   print("=== test.vm.test_instructions_math_logic() ===")
   print("( opcode coverage: NOP ADD SUB INC DEC MUL        )")
   print("(    nop    1 dup   + dup    9   - dup   *  .s    )")
@@ -614,7 +614,7 @@ def test_instructions_math_logic():
   print()
 
 def test_instructions_jump():
-  v = VM()
+  v.reset_state()
   print("=== test.vm.test_instructions_jump() ===")
   print("( opcode coverage: JMP                            )")
   print("( assemble tokens to memory starting at address 0 )")
@@ -636,7 +636,7 @@ def test_instructions_jump():
   print()
 
 def test_instructions_jal_call_return():
-  v = VM()
+  v.reset_state()
   print("=== test.vm.test_instructions_jal_return() ===")
   print("( opcode coverage: JAL RET                        )")
   print("( assemble tokens to memory starting at address 0 )")
@@ -692,7 +692,7 @@ def test_instructions_jal_call_return():
   print()
 
 def test_instructions_jz():
-  v = VM()
+  v.reset_state()
   print("=== test.vm.test_instructions_jz() ===")
   print("( opcode coverage: BZ                                     )")
   print("( equivalent to: 0 dup if{ 7 }if 0 0= dup if{ 8 }IF       )")
@@ -711,7 +711,7 @@ def test_instructions_jz():
   print()
 
 def test_instructions_bfor_mtr_r():
-  v = VM()
+  v.reset_state()
   print("=== test.vm.test_instructions_bfor_mtr_r() ===")
   print("( opcode coverage: BFOR MTR R      )")
   print("(         3 for{  R  }for          )")
@@ -739,7 +739,7 @@ def test_instructions_bfor_mtr_r():
   print()
 
 def test_instructions_drop_dup_over_swap():
-  v = VM()
+  v.reset_state()
   print("( opcode coverage: DROP DUP OVER SWAP   )")
   print("( equivalent to: 1 2 over dup drop swap )")
   print("ASM{ u8 1 u8 255 over dup drop swap }ASM")
@@ -753,7 +753,7 @@ def test_instructions_drop_dup_over_swap():
   print()
 
 def test_instructions_u8_sb_lb():
-  v = VM()
+  v.reset_state()
   print("== vm.test.test_instructions_u8_sb_lb() ===")
   print("( opcode coverage: U16 SB LB             )")
   print("(     512     1    over b! b@            )")
@@ -779,7 +779,7 @@ def test_instructions_u8_sb_lb():
   print()
 
 def test_instructions_u16_sh_lh():
-  v = VM()
+  v.reset_state()
   print("== vm.test.test_instructions_u16_sh_lh() ===")
   print("( opcode coverage: U16 SH LH             )")
   print("(     512     1    over h! h@            )")
@@ -805,7 +805,7 @@ def test_instructions_u16_sh_lh():
   print()
 
 def test_instructions_i32_sw_lw():
-  v = VM()
+  v.reset_state()
   print("== vm.test.test_instructions_i32_sw_lw() ===")
   print("( opcode coverage: I32 SW LW RESET               )")
   print("(     512     -6                  over w! w@     )")
@@ -832,7 +832,7 @@ def test_instructions_i32_sw_lw():
 
 
 def test_instructions_reset_io():
-  v = VM()
+  v.reset_state()
   print("=== test.vm.test_instructions_reset_io() ===")
   print("( opcode coverage: RESET IOD             )")
   print("( ---------------------------------------)")
@@ -915,7 +915,7 @@ def test_instructions_reset_io():
   print()
 
 def test_instructions_r_pc():
-  v = VM()
+  v.reset_state()
   print("=== test.vm.test_instructions_r_pc() ===")
   print("( opcode coverage: R PC                  )")
   print("( ---------------------------------------)")
@@ -938,7 +938,7 @@ def test_instructions_r_pc():
   print()
 
 def test_instructions_mta_lba_lbai_ainc_adec_a():
-  v = VM()
+  v.reset_state()
   print("=== test.vm.test_instructions_mta_lbai_ainc_adec_a() ===")
   print("( ---------------------------------------------)")
   print("( MTA -- Move T to register A                  )")
@@ -978,7 +978,7 @@ def test_instructions_mta_lba_lbai_ainc_adec_a():
   print()
 
 def test_instructions_mtb_lbb_lbbi_sbbi_binc_bdec_b():
-  v = VM()
+  v.reset_state()
   print("=== test.vm.test_instructions_mtb_lbb_lbbi_sbbi_binc_bdec_b() ===")
   print("( ---------------------------------------)")
   print("( MTB -- Move T to register B            )")
@@ -1021,7 +1021,7 @@ def test_instructions_mtb_lbb_lbbi_sbbi_binc_bdec_b():
   print()
 
 def test_instructions_err_mte():
-  v = VM()
+  v.reset_state()
   print("=== test.vm.test_instructions_err_clerr() ===")
   print("( opcode coverage: ERR MTE         )")
   print("ASM{ RESET ERR IOD DROP DROP ERR IOD")
@@ -1035,7 +1035,7 @@ def test_instructions_err_mte():
 
 def test_bad_addresses():
   """Test for opcodes triggering an out of bounds exception reading from ram"""
-  v = VM()
+  v.reset_state()
   print("=== test.vm.test_bad_addresses() ===")
   print("( Jump aligned with operand beyond end of ram)")
   print("(addr  0   1   2   3   4  5   6              )")

@@ -11,7 +11,7 @@ from mkb_autogen import (
   HashA, HashB, HashC, HashBins, HashMask,
   OPCODES,
 )
-from markab_vm import VM
+import markab_vm as vm
 
 from os.path import basename, normpath
 
@@ -29,7 +29,8 @@ MODE_COM = 1
 class Compiler:
   def __init__(self):
     """Initialize an Markab VM ROM instance for compiling into"""
-    self.vm = VM()   # make a VM instance to use for compiling
+    vm.reset_state()
+    self.vm = vm   # make a VM instance to use for compiling
     self.DP = Heap
     self.last_word = 0
     self.base = 10
@@ -203,7 +204,7 @@ class Compiler:
 
   def const(self, name):
     """Add a dictionary entry for a named constant word to the target rom"""
-    if self.vm.DSDeep < 1:
+    if self.vm.DSDEEP < 1:
       raise Exception("const: stack underflow")
     self.create(name)
     self.append_byte(T_CONST)
@@ -214,7 +215,7 @@ class Compiler:
 
   def opcode(self, name):
     """Add a dictionary entry for a named opcode word to the target rom"""
-    if self.vm.DSDeep < 1:
+    if self.vm.DSDEEP < 1:
       raise Exception("opcode: stack underflow")
     self.create(name)
     self.append_byte(T_OP)
@@ -524,7 +525,7 @@ def compile_mkb(src):
     syms = sorted(compiler.link_set.items())
     syms = [f"{addr} {name}" for (addr, name) in syms]
     sym.write("\n".join(syms)+"\n")
-  return compiler.vm.ram[Heap:compiler.DP]
+  return compiler.vm.RAM[Heap:compiler.DP]
 
 with open(ROM_OUT, 'w') as rom:
   with open(SRC_IN, 'r') as src:
