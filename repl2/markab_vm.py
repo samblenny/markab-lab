@@ -4,15 +4,27 @@
 #
 # Markab VM emulator
 #
-import asyncio
-import cProfile
 from ctypes import c_int32
 import os
 import re
-import readline
 import sys
 import time
 from typing import Callable, Dict
+
+# This controls debug tracing and dissasembly. DEBUG is a global enable for
+# tracing, but it won't do anything unless the code uses a TRON instruction to
+# turn tracing on (TROFF turns it back off). Intended usage is that you bracket
+# a specific area of code to be traced with TRON/TROFF. Otherwise, the huge
+# amount of trace data from dictionary lookups will be too noisy to follow.
+#
+DEBUG = False #True
+
+# Set this to True if you want a profile report from cProfile
+#
+PROFILE = False #True
+
+if PROFILE:
+  import cProfile
 
 from mkb_autogen import (
   NOP, ADD, SUB, INC, DEC, MUL, DIV, MOD, AND, INV, OR, XOR, SLL, SRL, SRA,
@@ -26,20 +38,7 @@ from mkb_autogen import (
   Heap, HeapRes, HeapMax, MemMax, IRQRX, ErrUnknown, ErrNest,
   OPCODES,
 )
-from mkb_irc import Irc
 
-
-# This controls debug tracing and dissasembly. DEBUG is a global enable for
-# tracing, but it won't do anything unless the code uses a TRON instruction to
-# turn tracing on (TROFF turns it back off). Intended usage is that you bracket
-# a specific area of code to be traced with TRON/TROFF. Otherwise, the huge
-# amount of trace data from dictionary lookups will be too noisy to follow.
-#
-DEBUG = False #True
-
-# Set this to True if you want a profile report from cProfile
-#  (see https://docs.python.org/3/library/profile.html)
-PROFILE = False #True
 
 # Allow list of regular expressions for files that can be written by IOSAVE
 IOSAVE_ALLOW_RE_LIST = """
@@ -74,8 +73,6 @@ ERR_BAD_PC_ADDR = 14      # 14: Bad program counter value: address not in heap
 sys.stdout.reconfigure(encoding='utf-8', line_buffering=True)
 sys.stdin.reconfigure(encoding='utf-8', line_buffering=True)
 
-# Turn off readline's automatic appending of input to the history file
-readline.write_history_file = lambda *args: None
 
 class VM:
   """
@@ -1176,49 +1173,6 @@ class VM:
       self.print("  OK")
 
 
-class Irq():
-  """Class to manage virtual interrupt requests between async/non-async"""
-  def __init__(self, vm, irc):
-    self.vm = vm
-    self.irc = irc
-    self.stdout_interrupt = False
-    self.stdin_interrupt = False
-
-  def stdout(self):
-    """Non-async callback so the VM can signal it has buffered output ready"""
-    self.stdout_interrupt = True
-
-  async def drain_stdout(self):
-    """Async interrupt handler that can be used with Irc.listen()"""
-    if self.stdout_interrupt:
-      stdout_buf = self.vm.drain_stdout().strip()
-      for line in stdout_buf.split("\n"):
-        await self.irc.notice(line)
-      self.stdout_interrupt = False
-
-
-async def irc_main(vm, rom_bytes, max_cycles):
-  """Start the VM in irc-bot mode"""
-  nick = 'mkbot'
-  name = 'mkbot'
-  host = 'localhost'         # connecting from localhost
-  irc_server = 'localhost'   # ...to ngircd server also on localhost
-  irc_port = 6667
-  chan = '#mkb'
-
-  # Plumb up interrupt handling and stdin/stdout between VM and irc
-  irc = Irc(nick, name, host, irc_server, irc_port, chan)
-  irq = Irq(vm, irc)
-  irc.set_rx_callback(vm.irq_rx)
-  irc.set_rx_irq(irq.drain_stdout)
-  vm.set_stdout_irq(irq.stdout)
-
-  # Connect to irc
-  await irc.connect()
-  await irc.join()
-  vm._warm_boot(rom_bytes, max_cycles)  # this should return quickly
-  await irc.listen()                    # this is the REPL event loop
-
 def termio_boot(vm, rom_bytes, max_cycles):
   """VM bootload and input loop for terminal mode"""
   vm._warm_boot(rom_bytes, max_cycles)
@@ -1255,19 +1209,13 @@ Load and boot the ROM file when VM is run as a module rather than imported
 """
 if __name__ == '__main__':
 
-  # Start by assuming we'll use the default rom file and terminal IO
   rom = ROM_FILE
-  irc_io = False
   args = sys.argv[1:]
 
   # Check for a command line argument asking for a different rom.
   # For example: `./markab_vm.py hello.rom`
   if (len(args) > 0) and (args[-1].endswith(".rom")):
       rom = args[-1]
-
-  # Check for `--irc` flag asking to use irc for IO
-  if (len(args) > 0) and '--irc' in args:
-    irc_io = True
 
   # Make a VM instance
   v = VM(echo=(not sys.stdin.isatty()))
@@ -1292,9 +1240,5 @@ if __name__ == '__main__':
   with open(rom, 'rb') as f:
     rom_bytes = f.read()
 
-  # Boot the VM
-  if irc_io:
-    # Start in irc bot IO mode
-    asyncio.run(irc_main(v, rom_bytes, 65535))
-  else:
-    termio_main(v, rom_bytes, 65535)
+  # Boot the VM in terminal IO mode
+  termio_main(v, rom_bytes, 65535)
