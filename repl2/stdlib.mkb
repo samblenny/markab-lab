@@ -1,0 +1,16 @@
+( Copyright © 2022 Sam Blenny)
+( SPDX-License-Identifier: MIT)
+( Markab standard library)
+( This is mostly for stuff that uses immediate words, quoted strings, or other)
+( compile-time interpreted code that I haven't bothered to implement support  )
+( for in the bootstrap compiler.                                              )
+
+: free ( -- )  ( Print memory usage: used in KB, free in % of heap)
+  here 512 + 1024 / . "  KB used " print      ( round up to multiple of 1KB)
+  DP here - 100 * DP / . " % free" print
+;
+
+( Manually compile a `reboot` word that will jump to the bootloader. This is)
+( a way to reset the extensible vocabulary if you've messed around for long )
+( enough in the interpreter to begin running low on free memory in the heap.)
+create reboot T_OBJ , JMP , 0 here - h,
