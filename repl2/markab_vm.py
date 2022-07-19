@@ -88,8 +88,6 @@ class VM:
     self.base = 10                  # number Base for debug printing
     self.A = 0                      # register for source address or scratch
     self.B = 0                      # register for destination addr or scratch
-    self.X = 0                      # scratch (temporary) register
-    self.Y = 0                      # scratch (temporary) register
     self.T = 0                      # Top of data stack
     self.S = 0                      # Second on data stack
     self.R = 0                      # top of Return stack
@@ -341,12 +339,23 @@ class VM:
 
   def _op_st(self, fn):
     """Apply operation λ(S,T), storing the result in S and dropping T"""
-    if self.DSDeep < 2:
+    deep = self.DSDeep
+    if deep < 2:
       self.error(ERR_D_UNDER)
       return
     n = fn(self.S, self.T) & 0xffffffff
-    self.S = (n & 0x7fffffff) - (n & 0x80000000)  # sign extend i32->whatever
-    self.drop()
+    self.T = (n & 0x7fffffff) - (n & 0x80000000)  # sign extend i32->whatever
+    # The rest of this function is an unroll of a call to drop() with a slight
+    # optimization to avoid copying S to T. According to cProfile, _op_st() is
+    # one of the most frequently called functions in the VM. Avoiding the extra
+    # function call here speeds it up measurably.
+    if deep < 1:
+      self.error(ERR_D_UNDER)
+      return
+    if deep > 2:
+      third = deep - 3
+      self.S = self.DStack[third]
+    self.DSDeep = deep - 1
 
   def _op_t(self, fn):
     """Apply operation λ(T), storing the result in T"""
@@ -486,7 +495,22 @@ class VM:
 
   def equal(self):
     """Evaluate S == T (true:-1, false:0), store result in S, drop T"""
-    self._op_st(lambda s, t: -1 if s == t else 0)
+    deep = self.DSDeep
+    if deep < 2:
+      self.error(ERR_D_UNDER)
+      return
+    self.T = -1 if (self.S == self.T) else 0
+    # The rest of this function is an unroll of a call to drop() with a slight
+    # optimization to avoid copying S to T. According to cProfile, equal() is
+    # one of the most frequently called functions in the VM. Avoiding the extra
+    # function call here speeds it up measurably.
+    if deep < 1:
+      self.error(ERR_D_UNDER)
+      return
+    if deep > 2:
+      third = deep - 3
+      self.S = self.DStack[third]
+    self.DSDeep = deep - 1
 
   def load_word(self):
     """Load a signed int32 (word = 4 bytes) from memory address T, into T"""
@@ -524,18 +548,29 @@ class VM:
     """Branch to PC-relative address if T == 0, drop T.
     The branch address is PC-relative to allow for relocatable object code.
     """
-    if self.DSDeep < 1:
+    deep = self.DSDeep
+    if deep < 1:
       self.error(ERR_D_UNDER)
       return
     pc = self.PC
     if self.T == 0:
       # Branch forward past conditional block: Add address literal from
       # instruction stream to PC. Maximum branch distance is +255.
-      self.PC += self.ram[pc]
+      self.PC = pc + self.ram[pc]
     else:
       # Enter conditional block: Advance PC past address literal
-      self.PC += 1
-    self.drop()
+      self.PC = pc + 1
+    # The rest of this function is an unroll of a call to drop(). According to
+    # cProfile, branch_zero() is one of the most frequently called functions in
+    # the VM. Avoiding the extra function call here speeds it up measurably.
+    if deep < 1:
+      self.error(ERR_D_UNDER)
+      return
+    self.T = self.S
+    if deep > 2:
+      third = deep - 3
+      self.S = self.DStack[third]
+    self.DSDeep = deep - 1
 
   def branch_for_loop(self):
     """Decrement R and branch to start of for-loop if R >= 0.
@@ -796,7 +831,10 @@ class VM:
 
   def zero_equal(self):
     """Evaluate 0 == T (true:-1, false:0), store result in T"""
-    self._op_t(lambda t: -1 if 0 == t else 0)
+    if self.DSDeep < 1:
+      self.error(ERR_D_UNDER)
+      return
+    self.T = -1 if (self.T == 0) else 0
 
   def true_(self):
     """Push -1 (true) to data stack"""
