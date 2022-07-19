@@ -349,9 +349,6 @@ class VM:
     # optimization to avoid copying S to T. According to cProfile, _op_st() is
     # one of the most frequently called functions in the VM. Avoiding the extra
     # function call here speeds it up measurably.
-    if deep < 1:
-      self.error(ERR_D_UNDER)
-      return
     if deep > 2:
       third = deep - 3
       self.S = self.DStack[third]
@@ -475,7 +472,7 @@ class VM:
     # add offset to program counter to compute destination address.
     # the 0xffff mask lets you do stuff like (5-100) & 0xffff = 65441 so a
     # a signed 16-bit pc-relative offset can address the full memory range
-    self.PC = (self.PC + n) & 0xffff
+    self.PC = (pc + n) & 0xffff
 
   def drop(self):
     """Drop T, the top item of the data stack"""
@@ -563,9 +560,6 @@ class VM:
     # The rest of this function is an unroll of a call to drop(). According to
     # cProfile, branch_zero() is one of the most frequently called functions in
     # the VM. Avoiding the extra function call here speeds it up measurably.
-    if deep < 1:
-      self.error(ERR_D_UNDER)
-      return
     self.T = self.S
     if deep > 2:
       third = deep - 3
@@ -599,7 +593,19 @@ class VM:
     pc = self.PC
     n = (self.ram[pc+1] << 8) | self.ram[pc]  # LE halfword
     self.PC += 2
-    self._push(n)
+    # The rest of this function is an unroll of _push(). The point is to save
+    # the overhead of a function call since U16 gets called very frequently.
+    deep = self.DSDeep
+    if deep > 17:
+      self.reset()             # Clear data and return stacks
+      self.error(ERR_D_OVER)   # Set error code
+      return
+    if deep > 1:
+      third = deep - 2
+      self.DStack[third] = self.S
+    self.S = self.T
+    self.T = n
+    self.DSDeep = deep + 1
 
   def i32_literal(self):
     """Read int32 word (4 bytes) signed literal, push as T"""
@@ -613,7 +619,19 @@ class VM:
     pc = self.PC
     n = self.ram[pc]
     self.PC = pc + 1
-    self._push(n)
+    # The rest of this function is an unroll of _push(). The point is to save
+    # the overhead of a function call since U8 gets called very frequently.
+    deep = self.DSDeep
+    if deep > 17:
+      self.reset()             # Clear data and return stacks
+      self.error(ERR_D_OVER)   # Set error code
+      return
+    if deep > 1:
+      third = deep - 2
+      self.DStack[third] = self.S
+    self.S = self.T
+    self.T = n
+    self.DSDeep = deep + 1
 
   def subtract(self):
     """Subtract T from S, store result in S, drop T"""
@@ -637,7 +655,16 @@ class VM:
 
   def not_equal(self):
     """Evaluate S != T (true:-1, false:0), store result in S, drop T"""
-    self._op_st(lambda s, t: -1 if s != t else 0)
+    deep = self.DSDeep
+    if deep < 2:
+      self.error(ERR_D_UNDER)
+      return
+    self.T = -1 if (self.S != self.T) else 0
+    # The rest of this function is an optimized unroll of a call to drop()
+    if deep > 2:
+      third = deep - 3
+      self.S = self.DStack[third]
+    self.DSDeep = deep - 1
 
   def or_(self):
     """Store bitwise OR of S with T into S, then drop T"""
