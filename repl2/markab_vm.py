@@ -210,7 +210,7 @@ class VM:
         return self.dbg_names[i]
     return '<???>'
 
-  def set_stdout_irq(self, stdout_irq_fn: Callable[None, None]):
+  def set_stdout_irq(self, stdout_irq_fn: Callable[[], None]):
     """Set callback function to raise interrupt line for available output.
     This is a little weird because of my desire to avoid building a bunch of
     `async` and `await` stuff into the VM class. This arrangement allows for
