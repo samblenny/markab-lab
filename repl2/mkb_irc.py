@@ -9,7 +9,7 @@ import re
 import sys
 from typing import Callable
 
-from markab_vm import VM, ROM_FILE
+import markab_vm as vm
 
 
 class Irc():
@@ -126,8 +126,7 @@ class Irc():
 
 class Irq():
   """Class to manage virtual interrupt requests between async/non-async"""
-  def __init__(self, vm, irc):
-    self.vm = vm
+  def __init__(self, irc):
     self.irc = irc
     self.stdout_interrupt = False
     self.stdin_interrupt = False
@@ -139,13 +138,13 @@ class Irq():
   async def drain_stdout(self):
     """Async interrupt handler that can be used with Irc.listen()"""
     if self.stdout_interrupt:
-      stdout_buf = self.vm.drain_stdout().strip()
+      stdout_buf = vm.drain_stdout().strip()
       for line in stdout_buf.split("\n"):
         await self.irc.notice(line)
       self.stdout_interrupt = False
 
 
-async def irc_main(vm, rom_bytes, max_cycles):
+async def irc_main(rom_bytes, max_cycles):
   """Start the VM in irc-bot mode"""
   nick = 'mkbot'
   name = 'mkbot'
@@ -156,7 +155,7 @@ async def irc_main(vm, rom_bytes, max_cycles):
 
   # Plumb up interrupt handling and stdin/stdout between VM and irc
   irc = Irc(nick, name, host, irc_server, irc_port, chan)
-  irq = Irq(vm, irc)
+  irq = Irq(irc)
   irc.set_rx_callback(vm.irq_rx)
   irc.set_rx_irq(irq.drain_stdout)
   vm.set_stdout_irq(irq.stdout)
@@ -174,7 +173,7 @@ Load and boot the ROM file when VM is run as a module rather than imported
 if __name__ == '__main__':
 
   # Start by assuming we'll use the default rom file and terminal IO
-  rom = ROM_FILE
+  rom = vm.ROM_FILE
   args = sys.argv[1:]
 
   # Check for a command line argument asking for a different rom.
@@ -182,8 +181,8 @@ if __name__ == '__main__':
   if (len(args) > 0) and (args[-1].endswith(".rom")):
       rom = args[-1]
 
-  # Make a VM instance
-  v = VM(echo=(not sys.stdin.isatty()))
+  # Initialize the VM
+  vm.reset_state(echo=(not sys.stdin.isatty()))
 
   # Load the rom file
   rom_bytes = b''
@@ -191,4 +190,4 @@ if __name__ == '__main__':
     rom_bytes = f.read()
 
   # Boot the VM with irc IO
-  asyncio.run(irc_main(v, rom_bytes, 65535))
+  asyncio.run(irc_main(rom_bytes, 65535))
