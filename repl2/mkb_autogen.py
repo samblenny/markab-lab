@@ -174,6 +174,7 @@ LASTWORD = 0xE128
 IRQRX   = 0xE12C
 OK_EN   = 0xE130
 LOADNEST = 0xE134
+IRQERR  = 0xE138
 IB      = 0xE200
 Pad     = 0xE300
 Fmt     = 0xE400
@@ -213,6 +214,7 @@ CORE_VOC = {
     'IRQRX':    (T_CONST, 0xE12C),
     'OK_EN':    (T_CONST, 0xE130),
     'LOADNEST': (T_CONST, 0xE134),
+    'IRQERR':   (T_CONST, 0xE138),
     'IB':       (T_CONST, 0xE200),
     'Pad':      (T_CONST, 0xE300),
     'Fmt':      (T_CONST, 0xE400),

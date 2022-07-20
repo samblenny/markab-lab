@@ -12,10 +12,23 @@ from mkb_autogen import (
   IOD, IODH, IORH, IOKEY, IOEMIT, IODOT, IODUMP, TRON, TROFF,
   MTA, LBA, LBAI,       AINC, ADEC, A,
   MTB, LBB, LBBI, SBBI, BINC, BDEC, B,
+  IRQERR,
 )
 
 def p(s):
   print(s, end='')
+
+def install_default_irqerr():
+  """Configure a basic error handler to print a "  Err {n}\n" prompt """
+  handler = bytearray([U8, 32, IOEMIT, U8, 32, IOEMIT, U8, 69, IOEMIT])
+  handler.extend([U8, 82, IOEMIT, U8, 82, IOEMIT, IODOT, U8, 10, IOEMIT])
+  handler.extend([RET])
+  start = 0xafff
+  end = 0xafff + len(handler)
+  v.RAM[start:end] = handler
+  v._push(start)
+  v._push(IRQERR)
+  v.store_halfword()
 
 def test_push_pop():
   v.reset_state()
@@ -238,6 +251,7 @@ def test_literals():
 
 def test_load_store():
   v.reset_state()
+  install_default_irqerr()
   print("=== test.vm.test_load_store() ===")
   # =====================================================
   print("( fetch words take 1 argument)")
@@ -394,6 +408,7 @@ def test_return_stack():
   print("( attempt to underflow return stack)")
   p("reset 99 .s               (  99  OK)")
   v.reset()
+  install_default_irqerr()
   v._push(99)
   v._log_ds()
   v._ok_or_err()
@@ -1020,22 +1035,30 @@ def test_instructions_mtb_lbb_lbbi_sbbi_binc_bdec_b():
   v._ok_or_err()
   print()
 
-def test_instructions_err_mte():
+def test_instructions_mte():
   v.reset_state()
-  print("=== test.vm.test_instructions_err_clerr() ===")
-  print("( opcode coverage: ERR MTE         )")
-  print("ASM{ RESET ERR IOD DROP DROP ERR IOD")
-  print("     DROP U8 0 MTE ERR IOD        }ASM")
-  code = bytearray([RESET, ERR, IOD, DROP, DROP, ERR, IOD])
-  code.extend(     [DROP, U8, 0, MTE, ERR, IOD, RET])
-  p("warmboot                                 (  0  2  0  OK)")
+  install_default_irqerr()
+  print("=== test.vm.test_instructions_mte() ===")
+  print("( opcode coverage: MTE         )")
+  print("ASM{ RESET U8 1 MTE U8 42 IOEMIT RET }ASM")
+  code = bytearray([RESET, U8, 1, MTE, U8, 42, IOEMIT, RET])
+  p("warmboot                                       (  ERR 1)")
+  v._warm_boot(code, max_cycles=99)
+  print("ASM{ U8 32 IOEMIT U8 42 IOEMIT RET }ASM")
+  code = bytearray([U8, 32, IOEMIT, U8, 42, IOEMIT, RET])
+  p("warmboot                                        ( *  OK)")
   v._warm_boot(code, max_cycles=99)
   v._ok_or_err()
+  print("ASM{ U8 2 MTE U8 42 IOEMIT RET }ASM")
+  code = bytearray([U8, 2, MTE, U8, 42, IOEMIT, RET])
+  p("warmboot                                       (  ERR 2)")
+  v._warm_boot(code, max_cycles=99)
   print()
 
 def test_bad_addresses():
   """Test for opcodes triggering an out of bounds exception reading from ram"""
   v.reset_state()
+  install_default_irqerr()
   print("=== test.vm.test_bad_addresses() ===")
   print("( Jump aligned with operand beyond end of ram)")
   print("(addr  0   1   2   3   4  5   6              )")
@@ -1077,7 +1100,6 @@ def test_bad_addresses():
   code = bytearray([U8, 255, U16, 250, 255, IODUMP, RET])
   p("warmboot                                       (  ERR 3)")
   v._warm_boot(code, max_cycles=30)
-  v._ok_or_err()
   print()
 
 test_push_pop()
@@ -1103,5 +1125,5 @@ test_instructions_reset_io()
 test_instructions_r_pc()
 test_instructions_mta_lba_lbai_ainc_adec_a()
 test_instructions_mtb_lbb_lbbi_sbbi_binc_bdec_b()
-test_instructions_err_mte()
+test_instructions_mte()
 test_bad_addresses()

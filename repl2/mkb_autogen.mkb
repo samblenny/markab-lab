@@ -121,6 +121,7 @@ E128 const LASTWORD
 E12C const IRQRX
 E130 const OK_EN
 E134 const LOADNEST
+E138 const IRQERR
 E200 const IB
 E300 const Pad
 E400 const Fmt

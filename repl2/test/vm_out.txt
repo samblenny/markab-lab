@@ -496,11 +496,14 @@ warmboot                                       (  9  OK)  9  OK
 ASM{ U8 8 MTB BDEC B IOD RESET }ASM
 warmboot                                       (  7  OK)  7  OK
 
-=== test.vm.test_instructions_err_clerr() ===
-( opcode coverage: ERR MTE         )
-ASM{ RESET ERR IOD DROP DROP ERR IOD
-     DROP U8 0 MTE ERR IOD        }ASM
-warmboot                                 (  0  2  0  OK)  0  2  0  OK
+=== test.vm.test_instructions_mte() ===
+( opcode coverage: MTE         )
+ASM{ RESET U8 1 MTE U8 42 IOEMIT RET }ASM
+warmboot                                       (  ERR 1)  ERR 1
+ASM{ U8 32 IOEMIT U8 42 IOEMIT RET }ASM
+warmboot                                        ( *  OK) *  OK
+ASM{ U8 2 MTE U8 42 IOEMIT RET }ASM
+warmboot                                       (  ERR 2)  ERR 2
 
 === test.vm.test_bad_addresses() ===
 ( Jump aligned with operand beyond end of ram)

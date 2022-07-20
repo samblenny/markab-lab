@@ -20,7 +20,9 @@ var t05 5 t05 ! iod                (  Stack is empty  OK)  Stack is empty  OK
 : foo? t08 here word strcmp . ;  foo? foo       ( -1  OK) -1  OK
 load" test/load_test.mkb"                      ( t10  OK) t10  OK
 ( t11: Malformed if-block)  OK
-: t11 }if ;                                    (  ERR 12)  ERR 12
+: t11 ( missing T=addr from if{ )  }if ;        (  ERR 2)  ERR 2
+( fake if{ addr: ) 9000  OK
+: t11 ( pops fake addr->) }if ;                (  ERR 12)  ERR 12
 err .                                            ( 0  OK) 0  OK
 ( t12: Compiling/OK prompts during compile)  OK
 : t12 true if{                              (  Compiling)  Compiling
@@ -29,19 +31,19 @@ err .                                            ( 0  OK) 0  OK
 ;                                                  (  OK)  OK
 ( t13: Unknown word during load)  OK
 load" test/load_t13.mkb"         (  ? not-a-name  ERR 11)  ? not-a-name  ERR 11
-ERR test/load_t13.mkb:2: : t13 not-a-name ;
+test/load_t13.mkb:2: : t13 not-a-name ;  ERR 15
 err .                                            ( 0  OK) 0  OK
 LOADNEST? .                                      ( 0  OK) 0  OK
 ( t14: Attempted infinite load" recursion)  OK
 load" test/load_t14.mkb"                       (  ERR 13)  ERR 13
-ERR test/load_t14.mkb:2: load" test/load_t14.mkb"
-ERR test/load_t14.mkb:2: load" test/load_t14.mkb"
+test/load_t14.mkb:2: load" test/load_t14.mkb"  ERR 15
+test/load_t14.mkb:2: load" test/load_t14.mkb"  ERR 15
 err .                                            ( 0  OK) 0  OK
 LOADNEST? .                                      ( 0  OK) 0  OK
 ( t15: Attempted infinitely tail-recursive call)  OK
 : t15 t15 ;  t15                                (  ERR 8)  ERR 8
 err .                                            ( 0  OK) 0  OK
 ( t16: Attempted infinitely recursive regular call)  OK
-: t16 t16 nop ;  t16                            (  ERR 5)  ERR 5
+: t16 t16 nop ;  t16                            (  ERR 6)  ERR 6
 err .                                            ( 0  OK) 0  OK
 

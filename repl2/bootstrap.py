@@ -7,7 +7,7 @@
 from mkb_autogen import (
   JMP, JAL, RET, BZ, BFOR, MTR, U8, U16, I32, SH,
   T_VAR, T_CONST, T_OP, T_OBJ, T_IMM,
-  Heap, HeapMax, CORE_V, DP, IRQRX,
+  Heap, HeapMax, CORE_V, DP, IRQRX, IRQERR,
   HashA, HashB, HashC, HashBins, HashMask,
   OPCODES,
 )
@@ -62,11 +62,18 @@ class Compiler:
     self.append_halfword(IRQRX)
     self.append_byte(SH)
     # ROM address 21:
+    self.append_byte(U16)       # compile initializer for IRQERR (7 bytes)
+    self.irqerr_vector = self.DP
+    self.append_halfword(0)
+    self.append_byte(U16)
+    self.append_halfword(IRQERR)
+    self.append_byte(SH)
+    # ROM address 28:
     self.append_byte(JMP)       # compile boot jump to patch later (3 bytes)
     self.boot_vector = self.DP
     self.append_halfword(0)
-    # ROM address 24:
-    assert self.DP == 24        # for an exception here: ^^^ check up there
+    # ROM address 31:
+    assert self.DP == 31        # for an exception here: ^^^ check up there
     self.core_v = self.DP
     self.patch_core_v_addr(self.DP)
     for i in range(HashBins):   # compile initial empty hashmap bins
@@ -109,6 +116,13 @@ class Compiler:
     # CAUTION! This is an interrupt vector, so we use an absolute address.
     self.push(addr & 0xffff)
     self.push(self.irqrx_vector)
+    self.store_halfword()
+
+  def patch_irqerr_addr(self, addr):
+    """Patch the jump vector for the error interrupt (IRQERR)"""
+    # CAUTION! This is an interrupt vector, so we use an absolute address.
+    self.push(addr & 0xffff)
+    self.push(self.irqerr_vector)
     self.store_halfword()
 
   def patch_dp(self):
@@ -187,6 +201,10 @@ class Compiler:
       # The name 'outer' triggers magic to set the IRQRX vector
       # CAUTION! This is an interrupt vector, so we use an absolute address
       self.patch_irqrx_addr(self.DP+1)
+    elif name == 'irqerr':
+      # The name 'irqerr' triggers magic to set the IRQERR vector
+      # CAUTION! This is an interrupt vector, so we use an absolute address
+      self.patch_irqerr_addr(self.DP+1)
     self.name_set[name] = (None, starting_dp)
     self.link_set[starting_dp] = name
 

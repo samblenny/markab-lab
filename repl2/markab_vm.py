@@ -15,7 +15,7 @@ import time
 from typing import Callable, Dict
 
 import mkb_autogen as ag
-from mkb_autogen import MemMax, IRQRX, ErrUnknown, ErrNest, OPCODES
+from mkb_autogen import MemMax, IRQRX, IRQERR, ErrUnknown, ErrNest, OPCODES
 
 # This controls debug tracing and dissasembly. DEBUG is a global enable for
 # tracing, but it won't do anything unless the code uses a TRON instruction to
@@ -59,6 +59,7 @@ ERR_UNKNOWN = ErrUnknown  # 11: Outer interpreter encountered an unknown word
 ERR_NEST = ErrNest        # 12: Compiler encountered unbalanced }if or }for
 ERR_IOLOAD_DEPTH = 13     # 13: Too many levels of nested `load" ..."` calls
 ERR_BAD_PC_ADDR = 14      # 14: Bad program counter value: address not in heap
+ERR_IOLOAD_FAIL = 15      # 15: Error while loading a file
 
 # Configure STDIN/STDOUT at load-time for use utf-8 encoding.
 # For documentation on arguments to `reconfigure()`, see
@@ -67,7 +68,7 @@ sys.stdout.reconfigure(encoding='utf-8', line_buffering=True)
 sys.stdin.reconfigure(encoding='utf-8', line_buffering=True)
 
 # VM state variables: model the registers and RAM of a virtual CPU
-VM_ERR = 0                 # Error code register
+ERR = 0                    # Error register (don't confuse with ERR opcode!)
 BASE = 10                  # number Base for debug printing
 A = 0                      # register for source address or scratch
 B = 0                      # register for destination addr or scratch
@@ -83,10 +84,10 @@ RAM = bytearray(MemMax+1)  # Random Access Memory
 INBUF = b''                # Input buffer
 OUTBUF = b''               # Output buffer
 ECHO = False               # Echo depends on tty vs pip, etc.
-CYCLE_COUNT = 65535        # Counter to break infinite loops
 HALTED = False             # Flag to track halt (used for `bye`)
 STDOUT_IRQ = None          # IRQ line (callback) for buffering stdout
-IOLOAD_DEPTH = 0           # Nesting level for io_load_file
+IOLOAD_DEPTH = 0           # Nesting level for io_load_file()
+IOLOAD_FAIL = False        # Flag indicating an error during io_load_file()
 # Debug tracing on/off
 DBG_TRACE_ENABLE = False   # Debug trace is noisy, so default=off
 # Debug symbols
@@ -109,9 +110,9 @@ for line in IOSAVE_ALLOW_RE_LIST.strip().split("\n"):
 def reset_state(echo=False):
   """Initialize virtual CPU, RAM, and peripherals"""
   global ERR, BASE, A, B, T, S, R, PC, DSDEEP, RSDEEP, DSTACK, RSTACK, RAM
-  global INBUF, OUTBUF, ECHO, CYCLE_COUNT, HALTED, STDOUT_IRQ, IOLOAD_DEPTH
+  global INBUF, OUTBUF, ECHO, HALTED, STDOUT_IRQ, IOLOAD_DEPTH
   global DBG_TRACE_ENABLE
-  ERR = 0                    # Error code register
+  ERR = 0                    # Error register (don't confuse with ERR opcode!)
   BASE = 10                  # number Base for debug printing
   A = 0                      # register for source address or scratch
   B = 0                      # register for destination addr or scratch
@@ -127,10 +128,10 @@ def reset_state(echo=False):
   INBUF = b''                # Input buffer
   OUTBUF = b''               # Output buffer
   ECHO = echo                # Echo depends on tty vs pip, etc.
-  CYCLE_COUNT = 65535        # Counter to break infinite loops
   HALTED = False             # Flag to track halt (used for `bye`)
   STDOUT_IRQ = None          # IRQ line (callback) for buffering stdout
-  IOLOAD_DEPTH = 0           # Nesting level for io_load_file
+  IOLOAD_DEPTH = 0           # Nesting level for io_load_file()
+  IOLOAD_FAIL = False        # Flag indicating an error during io_load_file()
   # Debug tracing on/off
   DBG_TRACE_ENABLE = False   # Debug trace is noisy, so default=off
 
@@ -216,7 +217,7 @@ def irq_rx(line):
   # First, copy the input line to the input buffer as UTF-8
   INBUF += line.encode('utf8')
   # Be sure the line ends with LF (some input sources do, some don't)
-  if line[-1] != "\n":
+  if (len(line) == 0) or (line[-1] != "\n"):
     INBUF += b'\x0a'
   # When stdin is a pipe, echo input to stdout (minus its trailing newline)
   if (not STDOUT_IRQ) and ECHO:
@@ -235,21 +236,76 @@ def irq_rx(line):
     if DEBUG:
       print("<< IRQRX is 0 >>>")
 
+def irq_err(err_):
+  """Handle error interrupt by jumping via error handler vector (IRQERR)"""
+  global PC, IOLOAD_FAIL
+  # Clear the VM's stacks, input buffer, and error code
+  reset()
+  _push(err_)
+  # If this error happened while a file load was in progress, set a flag to
+  # prevent spurious OK prompts as the io_load_file() calls unwind
+  if IOLOAD_DEPTH > 0:
+    IOLOAD_FAIL = True
+  # Set program counter to jump to the error handler vector
+  addr = (RAM[IRQERR+1] << 8) | RAM[IRQERR]  # LE halfword
+  if addr > ag.HeapMax:
+    mkb_print("  --\nError... IRQERR didn't work... emergency reboot")
+    PC = 0
+  else:
+    PC = addr
+
 def _step(max_cycles):
-  """Step the virtual CPU clock to run up to max_cycles instructions"""
-  global CYCLE_COUNT, PC, RSDEEP
-  CYCLE_COUNT = max_cycles
-  while CYCLE_COUNT > 0:
-    CYCLE_COUNT -= 1
+  """Step the virtual CPU clock to run up to max_cycles instructions.
+  This is the non-debug version with a shorter inner loop vs _step_debug()."""
+  global PC, RSDEEP
+  if DEBUG:
+    _step_debug(max_cycles)
+    return
+  for _ in range(max_cycles):
     pc = PC
     if pc < 0 or pc >= ag.HeapMax:
       # Stop if program counter somehow got set to address not in dictionary
-      error(ERR_BAD_PC_ADDR)
-      mkb_print(f"  ERR {ERR}")
-      return
+      irq_err(ERR_BAD_PC_ADDR)
+      continue
     PC += 1
     op = RAM[pc]
-    if DEBUG and DBG_TRACE_ENABLE:
+    if RSDEEP == 0 and op == ag.RET:
+      return
+    if op in JUMP_TABLE:
+      (JUMP_TABLE[op])()
+      if ERR == 0:
+        continue
+      else:
+        irq_err(ERR)
+        continue
+    else:
+      irq_err(ERR_BAD_INSTRUCTION)
+      continue
+  # Making it here means the VM interrupted the code because it ran too long.
+  # This probably means things have gone haywire, and potentially the memory
+  # state is corrupted. But, try to make the best of it. So, since the kernel
+  # didn't get a chance to print its own prompt, set the error code and
+  # print an error prompt. Also, clear the return stack
+  irq_err(ERR_MAX_CYCLES)
+  _step(65535)
+
+def _step_debug(max_cycles):
+  """Step the virtual CPU clock up to max_cycles, with DEBUG tracing.
+  It's worth giving this its own function with some code duplication against
+  _step() because the inner loop of _step() runs so frequently. Pulling this
+  extra stuff into its own function, rather than putting it in an if-iv block
+  of _step(), makes a noticable profiling improvement.
+  """
+  global PC, RSDEEP
+  for _ in range(max_cycles):
+    pc = PC
+    if pc < 0 or pc >= ag.HeapMax:
+      # Stop if program counter somehow got set to address not in dictionary
+      irq_err(ERR_BAD_PC_ADDR)
+      continue
+    PC += 1
+    op = RAM[pc]
+    if DBG_TRACE_ENABLE:
       name = [k for (k,v) in OPCODES.items() if v == op]
       if len(name) == 1:
         name = name[0]
@@ -262,27 +318,27 @@ def _step(max_cycles):
       return
     if op in JUMP_TABLE:
       (JUMP_TABLE[op])()
+      if ERR == 0:
+        continue
+      else:
+        irq_err(ERR)
+        continue
     else:
-      if DEBUG:
-        print("\n========================")
-        print("DStack: ", end='')
-        io_data_stack()
-        print("\nRStack: ", end='')
-        io_return_stack_hex()
-        print(f"\nPC: 0x{PC:04x} = {PC}")
-        raise Exception("bad instruction", op)
-      error(ERR_BAD_INSTRUCTION)
-      mkb_print(f"  ERR {ERR}")
-      return
-  # Making it here means the VM interrupted the code because it ran too long.
-  # This probably means things have gone haywire, and potentially the memory
-  # state is corrupted. But, try to make the best of it. So, since the kernel
-  # didn't get a chance to print its own prompt, set the error code and
-  # print an error prompt. Also, clear the return stack
-  error(ERR_MAX_CYCLES)
-  mkb_print(f"  ERR {ERR}")
-  RSDEEP = 0
-
+      print("\n========================")
+      print("DStack: ", end='')
+      io_data_stack()
+      print("\nRStack: ", end='')
+      io_return_stack_hex()
+      print(f"\nPC: 0x{PC:04x} = {PC}")
+      raise Exception("bad instruction", op)
+  # Making it here means the VM interrupted the code because it ran too long,
+  # or one of the instructions triggered an error. This probably means things
+  # have gone haywire, with the stacks and program counter corrupted. But, try
+  # to make the best of it. Since the kernel didn't get a chance to print its
+  # own prompt, clear the return stack, set the right error code, and jump to
+  # the kernel's error prompt vector.
+  irq_err(ERR_MAX_CYCLES)
+  _step(65535)
 
 def _op_st(fn):
   """Apply operation λ(S,T), storing the result in S and dropping T"""
@@ -664,11 +720,12 @@ def b_decrement():
   B -= 1
 
 def reset():
-  """Reset the data stack, return stack and error code"""
-  global DSDEEP, RSDEEP, ERR
+  """Reset the data stack, return stack, error code, and input buffer"""
+  global DSDEEP, RSDEEP, ERR, INBUF
   DSDEEP = 0
   RSDEEP = 0
   ERR = 0
+  INBUF = b''
 
 def return_():
   """Return from subroutine, taking address from return stack"""
@@ -913,8 +970,7 @@ def io_key():
   - Got an input byte, push 2 items: {S: byte, T: -1 (true)}
   - End of file, push 1 item:           {T: 0 (false)}
   """
-  global CYCLE_COUNT, INBUF
-  CYCLE_COUNT = 65535  # reset the infinite loop detection count
+  global INBUF
   if len(INBUF) > 0:
     _push(INBUF[0])
     _push(-1)
@@ -931,8 +987,7 @@ def io_emit():
   prototypes, where simplicity of the code is more important than its
   efficiency. Using this method to print long strings would be inefficient.
   """
-  global CYCLE_COUNT, OUTBUF
-  CYCLE_COUNT = 65535  # reset the infinite loop detection count
+  global OUTBUF
   new_stuff = int.to_bytes(T & 0xff, 1, 'little')
   OUTBUF += new_stuff
   if T == 10:
@@ -941,8 +996,7 @@ def io_emit():
 
 def io_dot():
   """Print T to standard output, then drop T"""
-  global CYCLE_COUNT, OUTBUF
-  CYCLE_COUNT = 65535  # reset the infinite loop detection count
+  global OUTBUF
   if DSDEEP < 1:
     error(ERR_D_UNDER)
     return
@@ -952,8 +1006,6 @@ def io_dot():
 
 def io_dump():
   """Hexdump S bytes of memory starting from address T, then drop S and T"""
-  global CYCLE_COUNT
-  CYCLE_COUNT = 65535  # reset the infinite loop detection count
   if DSDEEP < 2:
     error(ERR_D_UNDER)
     return
@@ -1049,7 +1101,7 @@ def io_load_file():
   1. Match one of the allow-list regular expressions for IOLOAD
   2. Be located in the current working directory (including subdirectories)
   """
-  global ECHO, IOLOAD_DEPTH, PC, INBUF
+  global ECHO, IOLOAD_DEPTH, PC, INBUF, IOLOAD_FAIL
   if DSDEEP < 1:
     error(ERR_D_UNDER)
     return
@@ -1078,16 +1130,19 @@ def io_load_file():
       IOLOAD_DEPTH += 1
       for (n, line) in enumerate(f):
         irq_rx(line)
-        if ERR != 0:
+        if IOLOAD_FAIL:
           line = line.split("\n")[0]
-          mkb_print(f"ERR {filepath}:{n+1}: {line}")
+          mkb_print(f"{filepath}:{n+1}: {line}", end='')
+          error(ERR_IOLOAD_FAIL)
           break
     # Restore old state
     IOLOAD_DEPTH -= 1
     PC = old_pc
     ECHO = old_echo
-    if ERR == 0:
+    if (ERR == 0) and (not IOLOAD_FAIL):
       INBUF = old_inbuf
+    if IOLOAD_DEPTH == 0:
+      IOLOAD_FAIL = 0
   except FileNotFoundError:
     error(ERR_FILE_NOT_FOUND)
     return
