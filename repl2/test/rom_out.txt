@@ -46,4 +46,66 @@ err .                                            ( 0  OK) 0  OK
 ( t16: Attempted infinitely recursive regular call)  OK
 : t16 t16 nop ;  t16                            (  ERR 6)  ERR 6
 err .                                            ( 0  OK) 0  OK
+( t17: Attempt to overflow the return stack.    )  OK
+(      The juggling of return values is to avoid)  OK
+(      git diffs for compiled addresses that can)  OK
+(      change each time I modify the kernel code)  OK
+: t17  ( n -- )  Compiling
+  dup r >a rdrop r >b rdrop cr   ( pop addresses)  Compiling
+  ( n) for{ r iorh >r cr }for                 ( )  Compiling
+  ( n) for{ r rdrop rdrop iorh >r cr }for     ( )  Compiling
+  b >r a >r                  ( restore addresses)  Compiling
+;  OK
+( n=15 is too much)  OK
+15 t17
+  f
+  f e
+  f e d
+  f e d c
+  f e d c b
+  f e d c b a
+  f e d c b a 9
+  f e d c b a 9 8
+  f e d c b a 9 8 7
+  f e d c b a 9 8 7 6
+  f e d c b a 9 8 7 6 5
+  f e d c b a 9 8 7 6 5 4
+  f e d c b a 9 8 7 6 5 4 3
+  f e d c b a 9 8 7 6 5 4 3 2
+  f e d c b a 9 8 7 6 5 4 3 2 1
+  f e d c b a 9 8 7 6 5 4 3 2 1 0  ERR 6
+( n=14 is okay)  OK
+14 t17
+  e
+  e d
+  e d c
+  e d c b
+  e d c b a
+  e d c b a 9
+  e d c b a 9 8
+  e d c b a 9 8 7
+  e d c b a 9 8 7 6
+  e d c b a 9 8 7 6 5
+  e d c b a 9 8 7 6 5 4
+  e d c b a 9 8 7 6 5 4 3
+  e d c b a 9 8 7 6 5 4 3 2
+  e d c b a 9 8 7 6 5 4 3 2 1
+  e d c b a 9 8 7 6 5 4 3 2 1 0
+  e d c b a 9 8 7 6 5 4 3 2 1
+  e d c b a 9 8 7 6 5 4 3 2
+  e d c b a 9 8 7 6 5 4 3
+  e d c b a 9 8 7 6 5 4
+  e d c b a 9 8 7 6 5
+  e d c b a 9 8 7 6
+  e d c b a 9 8 7
+  e d c b a 9 8
+  e d c b a 9
+  e d c b a
+  e d c b
+  e d c
+  e d
+  e
+  R-Stack is empty
+  OK
+  OK
 

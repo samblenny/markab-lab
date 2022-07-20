@@ -188,13 +188,6 @@ def drain_stdout():
   OUTBUF = b''
   return outbuf_
 
-def error(code):
-  """Set the ERR register with an error code"""
-  global ERR
-  if DEBUG:
-    mkb_print(f"<<ERR{code}>>", end='')
-  ERR = code
-
 def _load_rom(code):
   """Load byte array of rom image into memory"""
   n = len(code)
@@ -273,11 +266,6 @@ def _step(max_cycles):
       return
     if op in JUMP_TABLE:
       (JUMP_TABLE[op])()
-      if ERR == 0:
-        continue
-      else:
-        irq_err(ERR)
-        continue
     else:
       irq_err(ERR_BAD_INSTRUCTION)
       continue
@@ -313,16 +301,11 @@ def _step_debug(max_cycles):
         name = f"{name}"
       print(f"<<{pc:04x}:{op:2}: {dbg_name_for(pc):9}:{name:6}", end='')
       _log_ds()
-      print(">>")
+      print(f" ERR:{ERR}>>")
     if RSDEEP == 0 and op == ag.RET:
       return
     if op in JUMP_TABLE:
       (JUMP_TABLE[op])()
-      if ERR == 0:
-        continue
-      else:
-        irq_err(ERR)
-        continue
     else:
       print("\n========================")
       print("DStack: ", end='')
@@ -344,7 +327,7 @@ def _op_st(fn):
   """Apply operation λ(S,T), storing the result in S and dropping T"""
   global S, T, DSDEEP
   if DSDEEP < 2:
-    error(ERR_D_UNDER)
+    irq_err(ERR_D_UNDER)
     return
   n = fn(S, T) & 0xffffffff
   T = (n & 0x7fffffff) - (n & 0x80000000)  # sign extend i32->whatever
@@ -361,7 +344,7 @@ def _op_t(fn):
   """Apply operation λ(T), storing the result in T"""
   global T
   if DSDEEP < 1:
-    error(ERR_D_UNDER)
+    irq_err(ERR_D_UNDER)
     return
   n = fn(T) & 0xffffffff
   T = (n & 0x7fffffff) - (n & 0x80000000)  # sign extend i32->whatever
@@ -370,8 +353,7 @@ def _push(n):
   """Push n onto the data stack as a 32-bit signed integer"""
   global S, T, DSDEEP
   if DSDEEP > 17:
-    reset()             # Clear data and return stacks
-    error(ERR_D_OVER)   # Set error code
+    irq_err(ERR_D_OVER)   # Set error code
     return
   if DSDEEP > 1:
     third = DSDEEP - 2
@@ -392,7 +374,7 @@ def load_byte():
   """Load a uint8 (1 byte) from memory address T, saving result in T"""
   global T
   if DSDEEP < 1:
-    error(ERR_D_UNDER)
+    irq_err(ERR_D_UNDER)
     return
   addr = T & 0xffff
   T = RAM[addr]
@@ -436,7 +418,7 @@ def store_byte_b_increment():
 def store_byte():
   """Store low byte of S (uint8) at memory address T"""
   if DSDEEP < 2:
-    error(ERR_D_UNDER)
+    irq_err(ERR_D_UNDER)
     return
   addr = T & 0xffff
   RAM[addr] = S & 0xff
@@ -448,7 +430,7 @@ def call():
   global R, RSDEEP, PC
   if RSDEEP > 16:
     reset()
-    error(ERR_R_OVER)
+    irq_err(ERR_R_OVER)
     return
   # push the current Program Counter (PC) to return stack
   if RSDEEP > 0:
@@ -467,7 +449,7 @@ def jump_and_link():
   global R, RSDEEP, PC
   if RSDEEP > 16:
     reset()
-    error(ERR_R_OVER)
+    irq_err(ERR_R_OVER)
     return
   # read a 16-bit signed offset (relative to PC) from instruction stream
   pc = PC
@@ -488,7 +470,7 @@ def drop():
   """Drop T, the top item of the data stack"""
   global T, S, DSDEEP
   if DSDEEP < 1:
-    error(ERR_D_UNDER)
+    irq_err(ERR_D_UNDER)
     return
   T = S
   if DSDEEP > 2:
@@ -504,7 +486,7 @@ def equal():
   """Evaluate S == T (true:-1, false:0), store result in S, drop T"""
   global T, S, DSDEEP
   if DSDEEP < 2:
-    error(ERR_D_UNDER)
+    irq_err(ERR_D_UNDER)
     return
   T = -1 if (S == T) else 0
   # The rest of this function is an unroll of a call to drop() with a slight
@@ -512,7 +494,7 @@ def equal():
   # one of the most frequently called functions in the VM. Avoiding the extra
   # function call here speeds it up measurably.
   if DSDEEP < 1:
-    error(ERR_D_UNDER)
+    irq_err(ERR_D_UNDER)
     return
   if DSDEEP > 2:
     third = DSDEEP - 3
@@ -523,11 +505,11 @@ def load_word():
   """Load a signed int32 (word = 4 bytes) from memory address T, into T"""
   global T
   if DSDEEP < 1:
-    error(ERR_D_UNDER)
+    irq_err(ERR_D_UNDER)
     return
   addr = T & 0xffff
   if addr > MemMax-3:
-    error(ERR_BAD_ADDRESS)
+    irq_err(ERR_BAD_ADDRESS)
     return
   T = int.from_bytes(RAM[addr:addr+4], 'little', signed=True)
 
@@ -559,7 +541,7 @@ def branch_zero():
   """
   global PC, T, S, DSDEEP
   if DSDEEP < 1:
-    error(ERR_D_UNDER)
+    irq_err(ERR_D_UNDER)
     return
   pc = PC
   if T == 0:
@@ -584,7 +566,7 @@ def branch_for_loop():
   """
   global R, PC
   if RSDEEP < 1:
-    error(ERR_R_UNDER)
+    irq_err(ERR_R_UNDER)
     return
   R -= 1
   pc = PC
@@ -610,8 +592,7 @@ def u16_literal():
   # The rest of this function is an unroll of _push(). The point is to save
   # the overhead of a function call since U16 gets called very frequently.
   if DSDEEP > 17:
-    reset()             # Clear data and return stacks
-    error(ERR_D_OVER)   # Set error code
+    irq_err(ERR_D_OVER)   # Set error code
     return
   if DSDEEP > 1:
     third = DSDEEP - 2
@@ -637,8 +618,7 @@ def u8_literal():
   # The rest of this function is an unroll of _push(). The point is to save
   # the overhead of a function call since U8 gets called very frequently.
   if DSDEEP > 17:
-    reset()             # Clear data and return stacks
-    error(ERR_D_OVER)   # Set error code
+    irq_err(ERR_D_OVER)   # Set error code
     return
   if DSDEEP > 1:
     third = DSDEEP - 2
@@ -671,7 +651,7 @@ def not_equal():
   """Evaluate S != T (true:-1, false:0), store result in S, drop T"""
   global T, S, DSDEEP
   if DSDEEP < 2:
-    error(ERR_D_UNDER)
+    irq_err(ERR_D_UNDER)
     return
   T = -1 if (S != T) else 0
   # The rest of this function is an optimized unroll of a call to drop()
@@ -687,7 +667,7 @@ def or_():
 def over():
   """Push a copy of S"""
   if DSDEEP < 1:
-    error(ERR_D_UNDER)
+    irq_err(ERR_D_UNDER)
     return
   _push(S)
 
@@ -731,8 +711,7 @@ def return_():
   """Return from subroutine, taking address from return stack"""
   global PC, R, RSDEEP
   if RSDEEP < 1:
-    reset()
-    error(ERR_R_UNDER)
+    irq_err(ERR_R_UNDER)
     return
   # Set program counter from top of return stack
   PC = R
@@ -760,8 +739,7 @@ def r_drop():
   """Drop R in the manner needed when exiting from a counted loop"""
   global R, RSDEEP
   if RSDEEP < 1:
-    reset()
-    error(ERR_R_UNDER)
+    irq_err(ERR_R_UNDER)
     return
   if RSDEEP > 1:
     rSecond = RSDEEP - 2
@@ -785,12 +763,12 @@ def shift_right_logical():
 def store_word():
   """Store word (4 bytes) from S as signed int32 at memory address T"""
   if DSDEEP < 2:
-    error(ERR_D_UNDER)
+    irq_err(ERR_D_UNDER)
     return
   addr = T & 0xffff
   x = int.to_bytes(c_int32(S).value, 4, 'little', signed=True)
   if addr > MemMax-3:
-    error(ERR_BAD_ADDRESS)
+    irq_err(ERR_BAD_ADDRESS)
   else:
     RAM[addr:addr+4] = x
   drop()
@@ -800,7 +778,7 @@ def swap():
   """Swap S with T"""
   global T, S
   if DSDEEP < 2:
-    error(ERR_D_UNDER)
+    irq_err(ERR_D_UNDER)
     return
   tmp = T
   T = S
@@ -810,12 +788,10 @@ def move_t_to_r():
   """Move top of data stack (T) to top of return stack (R)"""
   global R, RSDEEP
   if RSDEEP > 16:
-    reset()
-    error(ERR_R_OVER)
+    irq_err(ERR_R_OVER)
     return
   if DSDEEP < 1:
-    reset()
-    error(ERR_D_UNDER)
+    irq_err(ERR_D_UNDER)
     return
   if RSDEEP > 0:
     rSecond = RSDEEP - 1
@@ -828,8 +804,7 @@ def move_t_to_a():
   """Move top of data stack (T) to register A"""
   global A
   if DSDEEP < 1:
-    reset()
-    error(ERR_D_UNDER)
+    irq_err(ERR_D_UNDER)
     return
   A = T
   drop()
@@ -838,42 +813,41 @@ def move_t_to_b():
   """Move top of data stack (T) to register B"""
   global B
   if DSDEEP < 1:
-    reset()
-    error(ERR_D_UNDER)
+    irq_err(ERR_D_UNDER)
     return
   B = T
   drop()
 
 def move_t_to_err():
-  """Move top of data stack (T) to ERR register"""
+  """Move top of data stack (T) to ERR register (raise an error)"""
   global ERR
   if DSDEEP < 1:
-    reset()
-    error(ERR_D_UNDER)
+    irq_err(ERR_D_UNDER)
     return
   ERR = T
   drop()
+  irq_err(ERR)
 
 def load_halfword():
   """Load halfword (2 bytes, zero-extended) from memory address T, into T"""
   global T
   if DSDEEP < 1:
-    error(ERR_D_UNDER)
+    irq_err(ERR_D_UNDER)
     return
   addr = T & 0xffff
   if addr > MemMax-1:
-    error(ERR_BAD_ADDRESS)
+    irq_err(ERR_BAD_ADDRESS)
     return
   T = (RAM[addr+1] << 8) | RAM[addr]  # LE halfword
 
 def store_halfword():
   """Store low 2 bytes from S (uint16) at memory address T"""
   if DSDEEP < 2:
-    error(ERR_D_UNDER)
+    irq_err(ERR_D_UNDER)
     return
   addr = T & 0xffff
   if addr > MemMax-1:
-    error(ERR_BAD_ADDRESS)
+    irq_err(ERR_BAD_ADDRESS)
   else:
     RAM[addr] = S & 0xff           # LE halfword low byte
     RAM[addr+1] = (S >> 8) & 0xff  # LE halfword high byte
@@ -888,7 +862,7 @@ def zero_equal():
   """Evaluate 0 == T (true:-1, false:0), store result in T"""
   global T
   if DSDEEP < 1:
-    error(ERR_D_UNDER)
+    irq_err(ERR_D_UNDER)
     return
   T = -1 if (T == 0) else 0
 
@@ -998,7 +972,7 @@ def io_dot():
   """Print T to standard output, then drop T"""
   global OUTBUF
   if DSDEEP < 1:
-    error(ERR_D_UNDER)
+    irq_err(ERR_D_UNDER)
     return
   new_stuff = f" {T}".encode('utf8')
   OUTBUF += new_stuff
@@ -1007,12 +981,12 @@ def io_dot():
 def io_dump():
   """Hexdump S bytes of memory starting from address T, then drop S and T"""
   if DSDEEP < 2:
-    error(ERR_D_UNDER)
+    irq_err(ERR_D_UNDER)
     return
   bad_start_addr = (T < 0) or (T > MemMax)
   bad_byte_count = (S < 0) or (T + S > MemMax)
   if bad_start_addr or bad_byte_count:
-    error(ERR_BAD_ADDRESS)
+    irq_err(ERR_BAD_ADDRESS)
     return
   col = 0
   start = T
@@ -1103,10 +1077,10 @@ def io_load_file():
   """
   global ECHO, IOLOAD_DEPTH, PC, INBUF, IOLOAD_FAIL
   if DSDEEP < 1:
-    error(ERR_D_UNDER)
+    irq_err(ERR_D_UNDER)
     return
   if IOLOAD_DEPTH > 1:
-    error(ERR_IOLOAD_DEPTH)
+    irq_err(ERR_IOLOAD_DEPTH)
     return
   filepath = _load_string(T)
   drop()
@@ -1117,7 +1091,7 @@ def io_load_file():
     print(f"<<< IOLOAD: re match '{filepath}' ? --> {re_match} >>>")
     print(f"<<< IOLOAD: cwd match '{filepath}' ? --> {cwd_match} >>>")
   if (not re_match) or (not cwd_match):
-    error(ERR_FILE_PERMS)
+    irq_err(ERR_FILE_PERMS)
     return
   try:
     # Save VM state
@@ -1126,6 +1100,7 @@ def io_load_file():
     old_echo = ECHO
     # Read and interpret the file
     ECHO = False
+    cascade_errors = True
     with open(filepath) as f:
       IOLOAD_DEPTH += 1
       for (n, line) in enumerate(f):
@@ -1133,7 +1108,7 @@ def io_load_file():
         if IOLOAD_FAIL:
           line = line.split("\n")[0]
           mkb_print(f"{filepath}:{n+1}: {line}", end='')
-          error(ERR_IOLOAD_FAIL)
+          irq_err(ERR_IOLOAD_FAIL)
           break
     # Restore old state
     IOLOAD_DEPTH -= 1
@@ -1141,11 +1116,16 @@ def io_load_file():
     ECHO = old_echo
     if (ERR == 0) and (not IOLOAD_FAIL):
       INBUF = old_inbuf
+      # This is the happy path to the land of "  OK", so no cascading errors
+      cascade_errors = False
     if IOLOAD_DEPTH == 0:
       IOLOAD_FAIL = 0
   except FileNotFoundError:
-    error(ERR_FILE_NOT_FOUND)
+    irq_err(ERR_FILE_NOT_FOUND)
     return
+  # CAUTION! Checking IOLOAD_FAIL here would be wrong.
+  if cascade_errors:
+    irq_err(ERR_IOLOAD_FAIL)
 
 # ⚠️  DANGER! DANGER! DANGER! LOTS OF DANGER! ⚠️
 # If you are reviewing for possible security issues, pay attention here
@@ -1159,7 +1139,7 @@ def io_save_file():
   print("//////// TODO FINISH IMPLEMENTING io_save_file() ///////////")
   # //////////////////////////////////////////////////////////////////
   if DSDEEP < 3:
-    error(ERR_D_UNDER)
+    irq_err(ERR_D_UNDER)
     return
   # Pop arguments off stack before doing any error checks
   filepath = _load_string(T)
@@ -1175,11 +1155,11 @@ def io_save_file():
     print(f"<<< IOSAVE: re match '{filepath}' ? --> {re_match} >>>")
     print(f"<<< IOSAVE: cwd match '{filepath}' ? --> {cwd_match} >>>")
   if (not re_match) or (not cwd_match):
-    error(ERR_FILE_PERMS)
+    irq_err(ERR_FILE_PERMS)
     return
   # Check if source address and byte count are reasonable
   if src_addr + count > len(RAM):
-    error(ERR_BAD_ADDRESS)
+    irq_err(ERR_BAD_ADDRESS)
     return
   #///////////////////////////////////////////
   # TODO: make this part actually save a file

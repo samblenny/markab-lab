@@ -43,3 +43,18 @@ err .                                            ( 0  OK)
 ( t16: Attempted infinitely recursive regular call)
 : t16 t16 nop ;  t16                            (  ERR 6)
 err .                                            ( 0  OK)
+( t17: Attempt to overflow the return stack.    )
+(      The juggling of return values is to avoid)
+(      git diffs for compiled addresses that can)
+(      change each time I modify the kernel code)
+: t17  ( n -- )
+  dup r >a rdrop r >b rdrop cr   ( pop addresses)
+  ( n) for{ r iorh >r cr }for                 ( )
+  ( n) for{ r rdrop rdrop iorh >r cr }for     ( )
+  b >r a >r                  ( restore addresses)
+;
+( n=15 is too much)
+15 t17
+( n=14 is okay)
+14 t17
+

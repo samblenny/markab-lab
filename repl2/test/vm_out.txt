@@ -1,6 +1,8 @@
 === test.vm.test_push_pop() ===
 .s  Stack is empty  OK
-( Stack capacity is 18. Trying to push 19th item will clear stack)
+( Stack capacity is 18, and printing OK uses 1 slot. So, at the)
+( end of the line that pushes the 18th item, there is an error )
+( which clears the stack and invokes the error handler.)
 0 .s  0  OK
 1 .s  0 1  OK
 2 .s  0 1 2  OK
@@ -18,9 +20,8 @@
 14 .s  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14  OK
 15 .s  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15  OK
 16 .s  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16  OK
-17 .s  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17  OK
-18 .s  Stack is empty  ERR 1
-( This time, the stack won't clear because only 18 items are pushed)
+17 .s  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17  ERR 1
+( This time, the stack won't clear because only 17 items are pushed)
 0 .s  0  OK
 1 .s  0 1  OK
 2 .s  0 1 2  OK
@@ -38,8 +39,6 @@
 14 .s  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14  OK
 15 .s  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15  OK
 16 .s  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16  OK
-17 .s  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17  OK
-drop .s  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16  OK
 drop .s  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15  OK
 drop .s  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14  OK
 drop .s  0 1 2 3 4 5 6 7 8 9 10 11 12 13  OK
@@ -57,7 +56,7 @@ drop .s  0 1 2  OK
 drop .s  0 1  OK
 drop .s  0  OK
 drop .s  Stack is empty  OK
-drop .s  Stack is empty  ERR 2
+drop .s  ERR 2
 
 === test.vm.test_add_subtract() ===
 -5 1 2 .s      (  -6 1 2  OK)  -6 1 2  OK
@@ -104,14 +103,14 @@ true false .s reset          (  -1 0  OK)  -1 0  OK
 
 === test.vm.test_load_store() ===
 ( fetch words take 1 argument)
-w@ .s        (  Stack is empty  ERR 2)  Stack is empty  ERR 2
-h@ .s        (  Stack is empty  ERR 2)  Stack is empty  ERR 2
-@ .s         (  Stack is empty  ERR 2)  Stack is empty  ERR 2
+w@ .s                        (  ERR 2)  ERR 2
+h@ .s                        (  ERR 2)  ERR 2
+@ .s                         (  ERR 2)  ERR 2
 ( store words take 2 arguments)
-9000 w! .s             (  9000  ERR 2)  9000  ERR 2
-h! .s                  (  9000  ERR 2)  9000  ERR 2
-! .s                   (  9000  ERR 2)  9000  ERR 2
-drop  OK
+9000 w! .s                   (  ERR 2)  ERR 2
+9000 h! .s                   (  ERR 2)  ERR 2
+! .s                   (  9000  ERR 2)  ERR 2
+.s              (  Stack is empty  OK)  Stack is empty  OK
 ( w! and w@ cover full signed int32 range )
 ( note: w@ does sign extension)
 -1 9000 w! 9000 w@               (  -1  OK)  -1  OK
@@ -127,77 +126,6 @@ reset  OK
 -1 9000 ! 9000 @              (  255  OK)  255  OK
 1 >> 9000 ! 9000 @ .s         (  127  OK)  127  OK
 reset  OK
-
-=== test.vm.test_return_stack() ===
-.s            (  Stack is empty  OK)  Stack is empty  OK
-.ret        (  R-Stack is empty  OK)  R-Stack is empty  OK
- 1 2 3 .s              (  1 2 3  OK)  1 2 3  OK
->r >r >r .ret          (  3 2 1  OK)  3 2 1  OK
-.s            (  Stack is empty  OK)  Stack is empty  OK
-rdrop rdrop rdrop .s          (  OK)  Stack is empty  OK
-.ret        (  R-Stack is empty  OK)  R-Stack is empty  OK
-( attempt to overflow return stack)
-( note: overflow auto-resets both stacks)
-reset 99 .s                (  99 OK)  99  OK
-.ret        (  R-Stack is empty  OK)  R-Stack is empty  OK
-0 >r .ret  0  OK
-1 >r .ret  0 1  OK
-2 >r .ret  0 1 2  OK
-3 >r .ret  0 1 2 3  OK
-4 >r .ret  0 1 2 3 4  OK
-5 >r .ret  0 1 2 3 4 5  OK
-6 >r .ret  0 1 2 3 4 5 6  OK
-7 >r .ret  0 1 2 3 4 5 6 7  OK
-8 >r .ret  0 1 2 3 4 5 6 7 8  OK
-9 >r .ret  0 1 2 3 4 5 6 7 8 9  OK
-10 >r .ret  0 1 2 3 4 5 6 7 8 9 10  OK
-11 >r .ret  0 1 2 3 4 5 6 7 8 9 10 11  OK
-12 >r .ret  0 1 2 3 4 5 6 7 8 9 10 11 12  OK
-13 >r .ret  0 1 2 3 4 5 6 7 8 9 10 11 12 13  OK
-14 >r .ret  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14  OK
-15 >r .ret  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15  OK
-16 >r .ret  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16  OK
-17 >r .ret  R-Stack is empty  ERR 6
-.s             (  Stack is empty OK)  Stack is empty  OK
-( attempt to underflow return stack)
-reset 99 .s               (  99  OK)  99  OK
-0 >r .ret  0  OK
-1 >r .ret  0 1  OK
-2 >r .ret  0 1 2  OK
-3 >r .ret  0 1 2 3  OK
-4 >r .ret  0 1 2 3 4  OK
-5 >r .ret  0 1 2 3 4 5  OK
-6 >r .ret  0 1 2 3 4 5 6  OK
-7 >r .ret  0 1 2 3 4 5 6 7  OK
-8 >r .ret  0 1 2 3 4 5 6 7 8  OK
-9 >r .ret  0 1 2 3 4 5 6 7 8 9  OK
-10 >r .ret  0 1 2 3 4 5 6 7 8 9 10  OK
-11 >r .ret  0 1 2 3 4 5 6 7 8 9 10 11  OK
-12 >r .ret  0 1 2 3 4 5 6 7 8 9 10 11 12  OK
-13 >r .ret  0 1 2 3 4 5 6 7 8 9 10 11 12 13  OK
-14 >r .ret  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14  OK
-15 >r .ret  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15  OK
-16 >r .ret  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16  OK
-rdrop .ret  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15  OK
-rdrop .ret  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14  OK
-rdrop .ret  0 1 2 3 4 5 6 7 8 9 10 11 12 13  OK
-rdrop .ret  0 1 2 3 4 5 6 7 8 9 10 11 12  OK
-rdrop .ret  0 1 2 3 4 5 6 7 8 9 10 11  OK
-rdrop .ret  0 1 2 3 4 5 6 7 8 9 10  OK
-rdrop .ret  0 1 2 3 4 5 6 7 8 9  OK
-rdrop .ret  0 1 2 3 4 5 6 7 8  OK
-rdrop .ret  0 1 2 3 4 5 6 7  OK
-rdrop .ret  0 1 2 3 4 5 6  OK
-rdrop .ret  0 1 2 3 4 5  OK
-rdrop .ret  0 1 2 3 4  OK
-rdrop .ret  0 1 2 3  OK
-rdrop .ret  0 1 2  OK
-rdrop .ret  0 1  OK
-rdrop .ret  0  OK
-rdrop .ret  R-Stack is empty  OK
-.s                           (  99  OK)  99  OK
-rdrop .ret  (  R-Stack is empty  ERR 7)  R-Stack is empty  ERR 7
-.s               (  Stack is empty  OK)  Stack is empty  OK
 
 === test.vm.test_comparisons() ===
 reset 1 2 =   2 2 =   2 1 =   .s   (  0 -1 0  OK)  0 -1 0  OK
