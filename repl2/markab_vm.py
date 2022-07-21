@@ -925,10 +925,6 @@ def pc_():
   """Push a copy of the Program Counter (PC) to the data stack"""
   _push(PC)
 
-def err_():
-  """Push a copy of the Error register (ERR) to the data stack"""
-  _push(ERR)
-
 def a_():
   """Push a copy of register A to the data stack"""
   _push(A)
@@ -1226,7 +1222,6 @@ JUMP_TABLE[ag.MTR   ] = move_t_to_r
 JUMP_TABLE[ag.RDROP ] = r_drop
 JUMP_TABLE[ag.R     ] = r_
 JUMP_TABLE[ag.PC    ] = pc_
-JUMP_TABLE[ag.ERR   ] = err_
 JUMP_TABLE[ag.MTE   ] = move_t_to_err
 JUMP_TABLE[ag.DROP  ] = drop
 JUMP_TABLE[ag.DUP   ] = dup

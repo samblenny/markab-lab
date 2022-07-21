@@ -23,7 +23,7 @@ load" test/load_test.mkb"                      ( t10  OK) t10  OK
 : t11 ( missing T=addr from if{ )  }if ;        (  ERR 2)  ERR 2
 ( fake if{ addr: ) 9000  OK
 : t11 ( pops fake addr->) }if ;                (  ERR 12)  ERR 12
-err .                                            ( 0  OK) 0  OK
+nop                                                (  OK)  OK
 ( t12: Compiling/OK prompts during compile)  OK
 : t12 true if{                              (  Compiling)  Compiling
     ;                                       (  Compiling)  Compiling
@@ -32,20 +32,20 @@ err .                                            ( 0  OK) 0  OK
 ( t13: Unknown word during load)  OK
 load" test/load_t13.mkb"         (  ? not-a-name  ERR 11)  ? not-a-name  ERR 11
 test/load_t13.mkb:2: : t13 not-a-name ;  ERR 15
-err .                                            ( 0  OK) 0  OK
+nop                                                (  OK)  OK
 LOADNEST? .                                      ( 0  OK) 0  OK
 ( t14: Attempted infinite load" recursion)  OK
 load" test/load_t14.mkb"                       (  ERR 13)  ERR 13
 test/load_t14.mkb:2: load" test/load_t14.mkb"  ERR 15
 test/load_t14.mkb:2: load" test/load_t14.mkb"  ERR 15
-err .                                            ( 0  OK) 0  OK
+nop                                                (  OK)  OK
 LOADNEST? .                                      ( 0  OK) 0  OK
 ( t15: Attempted infinitely tail-recursive call)  OK
 : t15 t15 ;  t15                                (  ERR 8)  ERR 8
-err .                                            ( 0  OK) 0  OK
+nop                                                (  OK)  OK
 ( t16: Attempted infinitely recursive regular call)  OK
 : t16 t16 nop ;  t16                            (  ERR 6)  ERR 6
-err .                                            ( 0  OK) 0  OK
+nop                                                (  OK)  OK
 ( t17: Attempt to overflow the return stack.    )  OK
 (      The juggling of return values is to avoid)  OK
 (      git diffs for compiled addresses that can)  OK

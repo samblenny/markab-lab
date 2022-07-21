@@ -32,7 +32,6 @@ save IOSAVE
 r R
 call CALL
 pc PC
-err ERR
 >err MTE
 @ LB
 ! SB
