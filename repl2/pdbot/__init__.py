@@ -1,9 +1,10 @@
-#!/usr/bin/python3
 # Copyright (c) 2022 Sam Blenny
 # SPDX-License-Identifier: MIT
-#
-# Network bridge to connect pd-vanilla netsend/netreceive objects to IRC
-#
+"""
+Pdbot is an irc bot to connect pd-vanilla netsend/netreceive objects to IRC.
+
+To start pdbot, run `python3 -m pdbot` from a terminal.
+"""
 import asyncio
 import re
 
@@ -167,6 +168,3 @@ async def main():
 
   # Start the Pd connection with auto-reconnect
   await pd.listen()
-
-
-asyncio.run(main())
