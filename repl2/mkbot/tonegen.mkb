@@ -8,15 +8,20 @@ var n 0 n !      : prev n @ 2 - ;         : this n @ 1- ;   : n+ n @ 1+ n ! ;
 : conn ( fr to skip -- ) " connect" print prev swap - . swap . this . . end ;
 : connL ( out0 -> in0) 0 0 0 conn ;   : connR ( out0 -> in1) 0 1 0 conn ;
 : rx " obj" head " receive " print tail ;
+: pd " @pd " print ;
 : go
-  " clear; pd dsp 1;  " print cr
-  " osc~ 440" obj  col+ " vol" rx col-  cr
-  " *~ 0" obj  0 0 1 conn  connR  cr
-  " dac~" obj  connL  connR  cr   row @ 2 + row  !
-  " subsend"   rx   cr
-  " route vol" obj  connL  cr
-  " \$1 100"   msg  connL  cr
-  " line 0 5"  obj  connL  cr
-  " send vol"  obj  connL  cr
-  " send vol 0.3;" print cr
+  0 row ! 0 col ! 0 n !
+  pd " clear; pd dsp 1;  " print cr
+  pd " osc~ 440" obj  col+ " vol" rx col-  cr
+  pd " *~ 0" obj  0 0 1 conn  connR  cr
+  pd " dac~" obj  connL  connR  cr   row @ 2 + row  !
+  pd " subsend"   rx   cr
+  pd " route vol" obj  connL  cr
+  pd " \$1 100"   msg  connL  cr
+  pd " line 0 5"  obj  connL  cr
+  pd " send vol"  obj  connL  cr
+  pd " send vol 0.02;" print cr
 ;
+: dsp1 pd " pd dsp 1;" print cr ;
+: dsp0 pd " pd dsp 0;" print cr ;
+: mute pd " send vol 0;" print cr ;

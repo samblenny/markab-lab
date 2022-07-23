@@ -59,7 +59,7 @@ class Irc(ircbot.Irc):
 
 async def irc_main(rom_bytes, max_cycles):
   """Start the VM in irc-bot mode"""
-  nick = 'mkbot'
+  nick = 'mk'
   name = 'mkbot'
   host = 'localhost'         # connecting from localhost
   irc_server = 'localhost'   # ...to ngircd server also on localhost

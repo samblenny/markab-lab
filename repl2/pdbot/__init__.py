@@ -63,8 +63,8 @@ class Pd():
 
 
 async def main():
-  nick = 'pdbot'
-  name = 'Pd Bridge bot'
+  nick = 'pd'
+  name = 'pdbot'
   host = 'localhost'         # connecting from localhost
   irc_server = 'localhost'   # ...to ngircd server also on localhost
   irc_port = 6667
