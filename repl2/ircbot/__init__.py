@@ -23,8 +23,7 @@ class Irc():
     # Prepare regular expressions for use in routing inbound messages
     re_privmsg = f":([^ ]+)![^ ]+ PRIVMSG ({chan}|{nick}) :(.*)"
     re_greet = f"([Hh](i|ello))[^a-zA-Z_-]*$"
-    nick2 = nick[:2]
-    re_to_me = f"(@{nick}|@{nick2}|{nick}[,:]|{nick2}[,:]) *(.*)"
+    re_to_me = f"({nick}[,:]) (.*)"
     self.re_privmsg = re.compile(re_privmsg)
     self.re_greet = re.compile(re_greet)
     self.re_to_me = re.compile(re_to_me)

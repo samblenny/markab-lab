@@ -8,7 +8,7 @@ var n 0 n !      : prev n @ 2 - ;         : this n @ 1- ;   : n+ n @ 1+ n ! ;
 : conn ( fr to skip -- ) " connect" print prev swap - . swap . this . . end ;
 : connL ( out0 -> in0) 0 0 0 conn ;   : connR ( out0 -> in1) 0 1 0 conn ;
 : rx " obj" head " receive " print tail ;
-: pd " @pd " print ;
+: pd " pd, " print ;
 : go
   0 row ! 0 col ! 0 n !
   pd " clear; pd dsp 1;  " print cr
