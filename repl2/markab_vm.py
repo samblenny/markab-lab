@@ -85,7 +85,7 @@ INBUF = b''                # Input buffer
 OUTBUF = b''               # Output buffer
 ECHO = False               # Echo depends on tty vs pip, etc.
 HALTED = False             # Flag to track halt (used for `bye`)
-STDOUT_IRQ = None          # IRQ line (callback) for buffering stdout
+HOLD_STDOUT = False        # Flag to use holding buffer for stdout
 IOLOAD_DEPTH = 0           # Nesting level for io_load_file()
 IOLOAD_FAIL = False        # Flag indicating an error during io_load_file()
 # Debug tracing on/off
@@ -107,10 +107,10 @@ for line in IOSAVE_ALLOW_RE_LIST.strip().split("\n"):
   iosave_allow_re.append(re.compile(line))
 
 
-def reset_state(echo=False):
+def reset_state(echo=False, hold_stdout=False):
   """Initialize virtual CPU, RAM, and peripherals"""
   global ERR, BASE, A, B, T, S, R, PC, DSDEEP, RSDEEP, DSTACK, RSTACK, RAM
-  global INBUF, OUTBUF, ECHO, HALTED, STDOUT_IRQ, IOLOAD_DEPTH
+  global INBUF, OUTBUF, ECHO, HALTED, HOLD_STDOUT, IOLOAD_DEPTH
   global DBG_TRACE_ENABLE
   ERR = 0                    # Error register (don't confuse with ERR opcode!)
   BASE = 10                  # number Base for debug printing
@@ -129,7 +129,7 @@ def reset_state(echo=False):
   OUTBUF = b''               # Output buffer
   ECHO = echo                # Echo depends on tty vs pip, etc.
   HALTED = False             # Flag to track halt (used for `bye`)
-  STDOUT_IRQ = None          # IRQ line (callback) for buffering stdout
+  HOLD_STDOUT = hold_stdout  # Flag to use holding buffer for stdout
   IOLOAD_DEPTH = 0           # Nesting level for io_load_file()
   IOLOAD_FAIL = False        # Flag indicating an error during io_load_file()
   # Debug tracing on/off
@@ -154,32 +154,21 @@ def dbg_name_for(addr):
       return DBG_NAMES[i]
   return '<???>'
 
-def set_stdout_irq(stdout_irq_fn: Callable[[], None]):
-  """Set callback function to raise interrupt line for available output.
-  This is a little weird because of my desire to avoid building a bunch of
-  `async` and `await` stuff into the VM class. This arrangement allows for
-  an async function to provide the VM with input and ask it for pending
-  output after the STDOUT_IRQ signal is sent.
-  """
-  global STDOUT_IRQ
-  STDOUT_IRQ = stdout_irq_fn
-
 def mkb_print(*args, **kwargs):
-  """Send output to stdout (terminal mode) or buffer it (irq mode) """
+  """Send output to stdout (terminal mode) or buffer it (hold mode)"""
   global OUTBUF
-  if STDOUT_IRQ is None:
+  if not HOLD_STDOUT:
     # In termio mode send output to stdout
     print(OUTBUF.decode('utf8'), end='')
     OUTBUF = b''
     print(*args, **kwargs)
     sys.stdout.flush()
   else:
-    # When using STDOUT_IRQ, buffer the output and raise the IRQ line
+    # When using HOLD_STDOUT, buffer the output to be polled later by caller
     end = kwargs.get('end', "\n").encode('utf8')
     new_stuff = (" ".join(args)).encode('utf8')
     new_stuff += end
     OUTBUF += new_stuff
-    STDOUT_IRQ()
 
 def drain_stdout():
   """Return contents of OUTBUF and clear it"""
@@ -213,7 +202,7 @@ def irq_rx(line):
   if (len(line) == 0) or (line[-1] != "\n"):
     INBUF += b'\x0a'
   # When stdin is a pipe, echo input to stdout (minus its trailing newline)
-  if (not STDOUT_IRQ) and ECHO:
+  if (not HOLD_STDOUT) and ECHO:
     print(line[:-1], end='')
   # Next, attempt to jump to interrupt request vector for received input
   _push(IRQRX)

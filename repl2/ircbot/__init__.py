@@ -50,14 +50,20 @@ class Irc():
       return
     # Route 2: Query -> Forward message body to backend
     if channick == self.nick:
-      await self.backend.send(body, channick)
+      await self.send_to_backend(body, sender)  # query reply goes to sender!
       return
     # Route 3: Addressed in channel -> Forward tail of message body to backend
     re_to_me = self.re_to_me.match(body)
     if (channick == self.chan) and re_to_me:
       tail = re_to_me.group(2)
-      await self.backend.send(tail, channick)
+      await self.send_to_backend(tail, channick)
       return
+
+  async def send_to_backend(self, body, channick):
+    """Send message to the bot's backend handler. Subclasses can override this
+    method to wait for a reply, do async to sync domain crossing, or whatever.
+    """
+    await self.backend.send(body, channick)
 
   def set_backend(self, sender):
     """Register a backend sender object that provides a send(str) method"""
