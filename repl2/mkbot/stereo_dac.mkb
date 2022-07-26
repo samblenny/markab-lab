@@ -1,0 +1,24 @@
+( Build stereo DAC module with message-based volume control)
+: libpd " LIBPD" strfind if{ drop ; }if " mkbot/libpd.mkb" load ;
+libpd  ( load libpd if it is not already loaded)
+
+resetpatch
+pd " Volume control" text cr 5 x+ 5 y-
+pd " receive vol"  obj connL cr
+pd " clip 0 99"    obj connL cr
+pd num                 connL cr
+pd " dbtorms"      obj connL cr
+pd " \$1 70"       msg connL cr
+pd " line 0 5"     obj connL cr
+pd " send mainVol" obj connL cr
+10 y w! 150 x w!
+pd " Main Mix (stereo)" text cr 5 x+ 5 y-
+pd " catch~ mainL"  obj cr  18 x+
+pd " catch~ mainLR" obj cr  18 x+
+pd " catch~ mainR"  obj cr  18 x+
+pd " r mainVol"     obj cr  54 x- 7 y+
+pd " *~"            obj cr  30 y- 36 x+
+pd 0 0 3 conn 0 0 2 conn connR cr
+pd " *~"            obj cr  25 x- 1 y+
+pd 0 0 3 conn 0 0 2 conn 0 1 1 conn cr
+pd " dac~"          obj 0 0 1 conn connR cr

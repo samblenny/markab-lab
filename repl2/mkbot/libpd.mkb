@@ -1,0 +1,19 @@
+( Library for generating Pd messages to build and operate Pd patches)
+true const LIBPD
+var y  : y+ y w@ + y w! ;  : y- y w@ swap - y w! ;
+var x  : x+ x w@ + x w! ;  : x- x w@ swap - x w! ;
+var n  : prev n w@ 2 - ;   : this n w@ 1- ;     : n1+ n w@ 1+ n w! ;
+: end " ; " print ;
+: head print x w@ . y w@ . space ;
+: tail print end n1+ 30 y+ ;
+: obj " obj" head tail ;
+: msg " msg" head tail ;
+: text " text" head tail ;
+: num " floatatom" head " 5 0 0 0 - - -" tail ;
+: conn ( fr to skip -- ) " connect" print prev swap - . swap . this . . end ;
+: connL ( out0 -> in0) 0 0 0 conn ;
+: connR ( out0 -> in1) 0 1 0 conn ;
+: pd " pd, " print ;
+: resetpatch pd " clear;" print cr 10 x w! 10 y w! 0 n w! ;
+: dsp1 pd " pd dsp 1;" print cr ;
+: dsp0 pd " pd dsp 0;" print cr ;

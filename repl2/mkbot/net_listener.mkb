@@ -1,0 +1,17 @@
+( Build Pd netreceive network listener module with message router)
+: libpd " LIBPD" strfind if{ drop ; }if " mkbot/libpd.mkb" load ;
+libpd  ( load libpd if it is not already loaded)
+
+resetpatch
+pd " Network Listener"  text cr 5 x+ 5 y-
+pd " loadbang"          obj cr
+pd " listen 3000"       msg connL cr 10 x+
+pd " listen 0"          msg       cr 10 x-
+pd " netreceive 3000"   obj 0 0 1 conn connL cr 10 x+
+pd " print rx"          obj connL            cr 92 x+ 30 y-
+pd num                      1 0 1 conn cr 102 x-
+pd " route pd send vol" obj 0 0 2 conn cr 116 x+ 4 y-
+pd " send pd-sub"       obj 3 0 0 conn cr 39 x- 4 y-
+pd " send vol"          obj 2 0 1 conn cr 39 x- 4 y-
+pd " send subsend"      obj 1 0 2 conn cr 38 x- 4 y-
+pd " send pd"           obj 0 0 3 conn cr

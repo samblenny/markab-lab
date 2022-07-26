@@ -1,27 +1,13 @@
-( Build tone generator patch in Pd: equivalent to sub-canvas.txt)
-10 const pad     var row 0 row !          : row+ row @ 3 + row ! ;
-var col 0 col !  : col+ col @ 1+ col ! ;  : col- col @ 1- col ! ;
-var n 0 n !      : prev n @ 2 - ;         : this n @ 1- ;   : n+ n @ 1+ n ! ;
-: xy col @ 25 * pad + . row @ 10 * pad + . ;
-: end " ;   " print ;     : head print xy space ;   : tail print end n+ row+ ;
-: obj " obj" head tail ;  : msg " msg" head tail ;
-: conn ( fr to skip -- ) " connect" print prev swap - . swap . this . . end ;
-: connL ( out0 -> in0) 0 0 0 conn ;   : connR ( out0 -> in1) 0 1 0 conn ;
-: rx " obj" head " receive " print tail ;
-: pd " pd, " print ;
-: go
-  0 row ! 0 col ! 0 n !
-  pd " clear; pd dsp 1;  " print cr
-  pd " osc~ 440" obj  col+ " vol" rx col-  cr
-  pd " *~ 0" obj  0 0 1 conn  connR  cr
-  pd " dac~" obj  connL  connR  cr   row @ 2 + row  !
-  pd " subsend"   rx   cr
-  pd " route vol" obj  connL  cr
-  pd " \$1 100"   msg  connL  cr
-  pd " line 0 5"  obj  connL  cr
-  pd " send vol"  obj  connL  cr
-  pd " send vol 0.02;" print cr
-;
-: dsp1 pd " pd dsp 1;" print cr ;
-: dsp0 pd " pd dsp 0;" print cr ;
-: mute pd " send vol 0;" print cr ;
+( Build tone generator patch with volume control in Pd messages)
+: libpd " LIBPD" strfind if{ drop ; }if " mkbot/libpd.mkb" load ;
+libpd  ( load libpd if it is not already loaded)
+
+resetpatch
+pd " Tone generator" text      cr 5 x+ 5 y-
+pd " osc~ 440"       obj       cr
+pd " throw~ mainLR"  obj connL cr 15 y+
+pd " \; pd dsp 0"    msg       cr 30 y- 90 x+
+pd " \; pd dsp 1"    msg       cr 25 y+ 90 x-
+pd " \; vol 0"       msg       cr 30 y- 60 x+
+pd " \; vol 65"      msg       cr 30 y- 67 x+
+pd " \; vol 80"      msg       cr
