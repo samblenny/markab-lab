@@ -57,4 +57,10 @@ nop                                                (  OK)
 15 t17
 ( n=14 is okay)
 14 t17
-
+( t18: Find word "star" in the dictionary with  )
+(      ' at compile time and strfind at run time)
+(      then compare results: should be equal    )
+: t18 " star" strfind .
+  ' star swapi U16i h,i I32i w,i
+  . = . ;
+t18                                       ( -1 -1 -1  OK)

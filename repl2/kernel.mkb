@@ -85,6 +85,13 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   }for true            ( all bytes match: return true)
 ;
 
+: strcpdp  ( addr -- )  ( Copy string from address T to DP for use with find)
+  >a here >b    ( a = source string address, b = DP destination address)
+  @a+ dup for{  ( for a in source string: {.length, .data[]})
+    !b+ @a+     (   copy a to b, initial value of a is length byte from above)
+  }for drop     ( clean stack: last value from @a+ was not part of the string)
+;
+
 ( ------------------------- )
 ( Vocab item struct format: )
 ( Byte range   Field        )
@@ -143,6 +150,10 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   }if           ( else, {corebin, T: addr})
   swap drop     ( clean address of core vocab bin off stack: -> {T: addr})
   true          ( return {addr, T: true} for match in ext vocab)
+;
+
+: strfind  ( addr -- [addr] bool )  ( Find string at address T)
+  strcpdp find
 ;
 
 : inner  ( v.type -- ??? )  ( Inner interpreter: run code for one word)
@@ -212,6 +223,10 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   }for w.bpatch      ( patch length byte, restore b)
   IN.aup             ( update IN, restore a)
 ;
+
+: '  ( -- [addr] bool )  ( Look up next word from input stream in dictionary)
+  word find
+; immediate
 
 ( --------------------------------------------------------------------------- )
 ( Define ( to Parse a comment from the input stream:                          )
@@ -328,6 +343,13 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 :  , here  ! 1 allot ;   ( store low byte of T at DP)
 : h, here h! 2 allot ;   ( store low halfword of T at DP)
 : w, here w! 4 allot ;   ( store full word T at DP)
+: U8i  U8 , ; immediate   ( store U8 opcode during compile)
+: U16i U16 , ; immediate  ( store U16 opcode during compile)
+: I32i I32 , ; immediate  ( store I32 opcode during compile)
+: swapi swap ; immediate  ( swap during compile)
+:  ,i  , ;  immediate    ( store low byte of T at DP during compile)
+: h,i h, ;  immediate    ( store low halfword of T at DP during compile)
+: w,i w, ;  immediate    ( store full word T at DP during compile)
 
 : okoff false OK_EN ! ;  ( Turn off OK prompts)
 : okon  true  OK_EN ! ;  ( Turn on OK prompts)

@@ -107,5 +107,11 @@ nop                                                (  OK)  OK
   e
   R-Stack is empty
   OK
-  OK
+( t18: Find word "star" in the dictionary with  )  OK
+(      ' at compile time and strfind at run time)  OK
+(      then compare results: should be equal    )  OK
+: t18 " star" strfind .  Compiling
+  ' star swapi U16i h,i I32i w,i  Compiling
+  . = . ;  OK
+t18                                       ( -1 -1 -1  OK) -1 -1 -1  OK
 
