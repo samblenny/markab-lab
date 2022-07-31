@@ -1,0 +1,34 @@
+( Build a wavetable synth with a graph you can draw waves into with your mouse)
+: libpd " LIBPD" strfind if{ drop ; }if " mkbot/libpd.mkb" load ;
+libpd  ( load libpd if it is not already loaded)
+
+( To create the equivalent of the Put:Graph menu item in Pd by sending network)
+( messages, you have to:)
+(  1. Make a subpatch with `pd`)
+(  2. Send subpatch `vis 0` message to close its window)
+(  3. Send subpatch `coords ... 1` message to activate graph-on-parent)
+(  4. Send subpatch `array <name> <size> float 2` message to make the array)
+
+( coords arguments: x1 y1 x2 y2 pixwidth pixhheight setgraph)
+( - setgraph: {1: graph-on-parent and hide-name, 2: only graph-on-parent})
+
+resetpatch
+pd " Wavetable thing" text         5 x+ 5 y-
+   " r subsend"       obj
+   " route a1"        obj connL
+   " s pd-a1"         obj connL    20 y+
+   " pd a1"           obj       cr 40 y+         ( make subpatch to hold graph)
+( within the array subpatch)
+pd " send a1 vis 0;"                            print ( close subpatch editor)
+   " send a1 coords 0 1 514 -1 515 60 2 10 10;" print ( set up graph-on-parent)
+   " send a1 array a1 515 float 2;"             print ( make the array)
+( back to main subpatch)
+pd " \; a1 sinesum 512 0.3 0 0.2 0 0.1" msg 15 y+  ( click this for sine waves)
+   " sig~ 220"       obj                           ( make wavetable oscillator)
+   " tabosc4~ a1"    obj connL
+   " throw~ mainLR"  obj connL cr 15 y+
+pd " \; pd dsp 0"    msg          30 y- 90 x+  ( add DSP and volume buttons)
+   " \; pd dsp 1"    msg          25 y+ 90 x-
+   " \; vol 0"       msg          30 y- 60 x+
+   " \; vol 65"      msg          30 y- 67 x+
+   " \; vol 80"      msg       cr
