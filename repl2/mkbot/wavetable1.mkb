@@ -12,23 +12,25 @@ libpd  ( load libpd if it is not already loaded)
 ( coords arguments: x1 y1 x2 y2 pixwidth pixhheight setgraph)
 ( - setgraph: {1: graph-on-parent and hide-name, 2: only graph-on-parent})
 
+: subsend  ( string-addr -- )  " send " print print end ;
+
 resetpatch
-pd " Wavetable thing" text         5 x+ 5 y-
+pd " Wavetable thing" text           5 y-   5 x+  ( subsend message router)
    " r subsend"       obj
    " route a1"        obj connL
-   " s pd-a1"         obj connL    20 y+
-   " pd a1"           obj       cr 40 y+         ( make subpatch to hold graph)
-( within the array subpatch)
-pd " send a1 vis 0;"                            print ( close subpatch editor)
-   " send a1 coords 0 1 514 -1 515 60 2 10 10;" print ( set up graph-on-parent)
-   " send a1 array a1 515 float 2;"             print ( make the array)
+   " s pd-a1"         obj connL cr 100 y- 160 x+
+pd " \; pd dsp 0"     msg           30 y-  90 x+  ( DSP and volume buttons)
+   " \; pd dsp 1"     msg           25 y+  90 x-
+   " \; vol 0"        msg           30 y-  60 x+
+   " \; vol 65"       msg           30 y-  67 x+
+   " \; vol 80"       msg       cr  30 y+ 287 x-
+pd " pd a1"           obj           45 y+         ( subpatch for array graph)
+   ( within array graph subpatch:)
+   " a1 vis 0"                      subsend       ( close subpatch editor)
+   " a1 array a1 515 float 2"       subsend       ( make the array)
+   " a1 coords 0 1 514 -1 515 60 2" subsend cr    ( set up graph-on-parent)
 ( back to main subpatch)
-pd " \; a1 sinesum 512 0.3 0 0.2 0 0.1" msg 15 y+  ( click this for sine waves)
-   " sig~ 220"       obj                           ( make wavetable oscillator)
-   " tabosc4~ a1"    obj connL
-   " throw~ mainLR"  obj connL cr 15 y+
-pd " \; pd dsp 0"    msg          30 y- 90 x+  ( add DSP and volume buttons)
-   " \; pd dsp 1"    msg          25 y+ 90 x-
-   " \; vol 0"       msg          30 y- 60 x+
-   " \; vol 65"      msg          30 y- 67 x+
-   " \; vol 80"      msg       cr
+pd " sig~ 220"        obj                          ( wavetable oscillator)
+   " tabosc4~ a1"     obj connL
+   " throw~ mainLR"   obj connL cr  90 y- 160 x+
+pd " \; a1 sinesum 512 0.3 0 0.2"   msg cr         ( button to make sinewaves)
