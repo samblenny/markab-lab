@@ -1,12 +1,29 @@
 ( Library for generating Pd messages to build and operate Pd patches)
-true const LIBPD
+true const LIBPD  ( <- this is for doing only-once loads to conserve ram)
+
+20 const BOX_Y              ( normal box height for Pd's default font size)
+10 const PAD_Y              ( default y-pad between boxes)
+BOX_Y PAD_Y + const AUTO_Y  ( automatic y increment after adding a box)
+
 var y  : y+ y w@ + y w! ;  : y- y w@ swap - y w! ;
 var x  : x+ x w@ + x w! ;  : x- x w@ swap - x w! ;
 var n  : prev n w@ 2 - ;   : this n w@ 1- ;     : n1+ n w@ 1+ n w! ;
 : end " ; " print ;
 : head print x w@ . y w@ . space ;
-: tail print end n1+ 30 y+ ;
-: obj " obj" head tail ;
+: tail  ( str -- )  ( Print end of Pd box creating message and update coords)
+  ( str) print end n1+ AUTO_Y y+
+;
+: tail2 ( str2 str1 -- )  ( Like tail, but argument is str1 + space + str2)
+  ( str1) print space
+  ( str2) print
+  end n1+ AUTO_Y y+
+;
+: obj ( str -- )  ( Print message to make a Pd obj box with argument str)
+  " obj" head tail
+;
+: obj2 ( str2 str1 -- )  ( like obj, but argument is str1 + space + str2)
+  " obj" head tail2
+;
 : msg " msg" head tail ;
 : text " text" head tail ;
 : num " floatatom" head " 5 0 0 0 - - -" tail ;
@@ -17,3 +34,33 @@ var n  : prev n w@ 2 - ;   : this n w@ 1- ;     : n1+ n w@ 1+ n w! ;
 : resetpatch pd " clear;" print cr 10 x w! 10 y w! 0 n w! ;
 : dsp1 pd " pd dsp 1;" print cr ;
 : dsp0 pd " pd dsp 0;" print cr ;
+: subsend  ( str -- )  ( Print message prefix for subpatch str)
+  " send " print print end
+;
+: subsend2  ( str2 str1 -- )  ( like subsend, but arg is str1 + space + str2)
+  " send " print
+  ( str1) print space
+  ( str2) print end
+;
+: dac-buttons  ( DSP and volume control buttons)
+  " \; pd dsp 0"  msg AUTO_Y y-  90 x+
+  " \; pd dsp 1"  msg 25     y+  90 x-
+  " \; vol 0"     msg AUTO_Y y-  60 x+
+  " \; vol 65"    msg AUTO_Y y-  67 x+
+  " \; vol 80"    msg AUTO_Y y+ 127 x-
+;
+: array-graph  ( w s -- )  ( Array graph subpatch: name:s, array_width:w)
+  dup                                           ( remember name string pointer)
+  ( s) " pd" obj2                               ( make `pd ...` subpatch box)
+  " vis 0" over ( s)                subsend2    ( close subpatch editor)
+  ( Make the array, example: `send <s> array <s> <w> float 2`)
+  " send " print dup ( s) print "  array " print dup ( s) print
+    over ( w) . "  float 2" print end
+  ( Set up graph-on-parent)
+  (   example w=515, h=60: `send <s> coords 0  99 18  0  100   60     2`)
+  (                                         x0 y1 x1 y0 wide high flags )
+  " send " print ( s) print ( x0, y1:) "  coords 0 99" print
+   ( 1-) ( x1: w-1) . ( y0:) 0 . ( width:) 75 . ( h:) 40 . ( flags:) 2 . end
+  ( calculate box layout y increment to match graph height:)
+  40 y+
+;

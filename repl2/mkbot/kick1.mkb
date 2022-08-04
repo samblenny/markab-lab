@@ -1,0 +1,57 @@
+( Attempt at a kick patch)
+: libpd " LIBPD" strfind if{ drop ; }if " mkbot/libpd.mkb" load ;
+libpd  ( load libpd if it is not already loaded)
+
+resetpatch
+pd " Kick thing"   text            5 y-   5 x+  ( subsend message router)
+   " r subsend"     obj
+   " list split 1"  obj connL
+   " t b s"         obj connL
+   " list store"    obj connL 1 1 1 conn 30 y- 90 x+
+   " symbol pd-\$1" msg 1 0 1 conn             90 x-
+   " list trim"     obj 0 0 1 conn             65 x+
+   " send"          obj connL 0 1 1 conn cr    65 x-
+20 y+
+pd dac-buttons                           cr       ( DSP and volume buttons)
+200 x+ 310 y-
+( tabread4~ range is 1..array_size-2, so 19 element array -> range 1..16)
+pd ( array_size:) 11 " clk" array-graph           ( arraygraph subpatch)
+   ( array_size:) 11 " adsr" array-graph          ( arraygraph subpatch)
+   ( array_size:) 11 " mids" array-graph  cr      ( arraygraph subpatch)
+5 y-
+pd " noise~"          obj                         ( noise source)
+   " *~ 0.01"         obj connL
+   " s~ nz"           obj connL cr
+310 y- 90 x+
+pd " phasor~ 2"       obj                         ( table phase generator)
+   " *~ 8"            obj connL
+   " +~ 1"            obj connL
+   " s~ phase"        obj connL cr  10 y+
+pd " r~ phase"        obj                         ( beater click)
+   " tabread4~ clk"   obj connL            19 x+
+   " r~ nz"           obj                  19 x-
+   " *~"              obj 0 0 1 conn connR
+   " lop~ 1287"       obj connL
+   " throw~ mainLR"   obj connL cr 210 y- 110 x+
+pd " r~ phase"        obj                         ( loudness envelope + 55Hz)
+   " tabread4~ adsr"  obj connL
+   " *~ 0.015"        obj connL            19 x+
+   " osc~ 55"         obj                  19 x-
+   " *~"              obj 0 0 1 conn connR
+   " lop~ 400"        obj connL
+   " throw~ mainLR"   obj connL cr 210 y- 120 x+
+pd " r~ phase"        obj                         ( midrange pitch envelope)
+   " tabread4~ mids"  obj connL            60 x+
+   " *~ 3"            obj connL     30 y-  60 x-
+   " noise~"          obj
+   " vcf~ 110 2"      obj connL 0 1 1 conn        ( non-harmonic mids thump)
+   " *~"              obj 0 0 8 conn connR
+   " *~ 5"            obj connL
+   " throw~ mainLR"   obj connL cr
+310 y- 150 x-
+pd " msg" head                                    ( initialize the arrays)
+   " \; clk  0 0 18  0  0  0  0 0 0 0 0 0 " print
+   " \; adsr 0 0 84 59 47 27 20 9 2 0 0 0 " print
+   " \; mids 0 0 32 29 24 19 12 7 0 0 0 0 " tail
+   connL cr
+
