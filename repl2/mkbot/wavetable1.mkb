@@ -15,15 +15,9 @@ libpd  ( load libpd if it is not already loaded)
 : subsend  ( string-addr -- )  " send " print print end ;
 
 resetpatch
-pd " Wavetable thing" text           5 y-   5 x+  ( subsend message router)
-   " r subsend"       obj
-   " route a1"        obj connL
-   " s pd-a1"         obj connL cr 100 y- 160 x+
-pd " \; pd dsp 0"     msg           30 y-  90 x+  ( DSP and volume buttons)
-   " \; pd dsp 1"     msg           25 y+  90 x-
-   " \; vol 0"        msg           30 y-  60 x+
-   " \; vol 65"       msg           30 y-  67 x+
-   " \; vol 80"       msg       cr  30 y+ 287 x-
+pd " Wavetable thing"   text cr  0 y+  5 x+
+pd dac-buttons cr                                 ( DSP and volume buttons)
+15 y+                                             ( y-pad for subpatch label)
 pd " pd a1"           obj           45 y+         ( subpatch for array graph)
    ( within array graph subpatch:)
    " a1 vis 0"                      subsend       ( close subpatch editor)

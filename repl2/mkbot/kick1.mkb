@@ -3,17 +3,9 @@
 libpd  ( load libpd if it is not already loaded)
 
 resetpatch
-pd " Kick thing"   text            5 y-   5 x+  ( subsend message router)
-   " r subsend"     obj
-   " list split 1"  obj connL
-   " t b s"         obj connL
-   " list store"    obj connL 1 1 1 conn 30 y- 90 x+
-   " symbol pd-\$1" msg 1 0 1 conn             90 x-
-   " list trim"     obj 0 0 1 conn             65 x+
-   " send"          obj connL 0 1 1 conn cr    65 x-
-20 y+
-pd dac-buttons                           cr       ( DSP and volume buttons)
-200 x+ 310 y-
+pd " Kick thing"   text cr  0 y+  5 x+
+pd dac-buttons cr                                 ( DSP and volume buttons)
+15 y+                                             ( y-pad for subpatch label)
 ( tabread4~ range is 1..array_size-2, so 19 element array -> range 1..16)
 pd ( array_size:) 11 " clk" array-graph           ( arraygraph subpatch)
    ( array_size:) 11 " adsr" array-graph          ( arraygraph subpatch)
