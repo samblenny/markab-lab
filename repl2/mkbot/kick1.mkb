@@ -7,43 +7,49 @@ pd " Kick thing"   text cr  0 y+  5 x+
 pd dac-buttons cr                                 ( DSP and volume buttons)
 15 y+                                             ( y-pad for subpatch label)
 ( tabread4~ range is 1..array_size-2, so 19 element array -> range 1..16)
-pd ( array_size:) 11 " clk" array-graph           ( arraygraph subpatch)
-   ( array_size:) 11 " adsr" array-graph          ( arraygraph subpatch)
+pd ( array_size:) 11 " adsr" array-graph          ( arraygraph subpatch)
    ( array_size:) 11 " mids" array-graph  cr      ( arraygraph subpatch)
 5 y-
-pd " noise~"          obj                         ( noise source)
-   " *~ 0.01"         obj connL
+pd " r rst"           obj                         ( noise source)
+   " seed 1083"       msg connL                   (  reset rng every trigger)
+   " noise~"          obj connL
    " s~ nz"           obj connL cr
-310 y- 90 x+
-pd " phasor~ 2"       obj                         ( table phase generator)
-   " *~ 8"            obj connL
-   " +~ 1"            obj connL
-   " s~ phase"        obj connL cr  10 y+
-pd " r~ phase"        obj                         ( beater click)
-   " tabread4~ clk"   obj connL            19 x+
-   " r~ nz"           obj                  19 x-
-   " *~"              obj 0 0 1 conn connR
-   " lop~ 1287"       obj connL
-   " throw~ mainLR"   obj connL cr 210 y- 110 x+
+275 y- 90 x+
+pd " msg" head                                    ( initialize the arrays)
+   " \; adsr 0 82 82 79 76 69 54 29 14 0 0 0 " print
+   " \; mids 0 71 69 62 44 30 22 17 14 0 0 0 " print
+   " \; metro bang "                           tail
+   connL cr 50 y+
+pd " r metro"         obj                         ( table phase generator)
+   " metro 800"       obj connL            25 x+
+   " t b b b"         obj connL            25 x-
+   " 8 100"           msg connL            48 x+
+   " 1"               msg 1 0 1 conn 60 y- 13 x+
+   " s rst"           obj 2 0 2 conn 30 y+ 61 x-
+   " line~"           obj 0 0 1 conn 0 0 2 conn
+   " s~ phase"        obj connL cr
+210 y- 120 x+
 pd " r~ phase"        obj                         ( loudness envelope + 55Hz)
    " tabread4~ adsr"  obj connL
-   " *~ 0.015"        obj connL            19 x+
-   " osc~ 55"         obj                  19 x-
-   " *~"              obj 0 0 1 conn connR
-   " lop~ 400"        obj connL
-   " throw~ mainLR"   obj connL cr 210 y- 120 x+
+   " *~ 0.005"        obj connL      8 y+   7 x+
+   " r rst"           obj            5 y-
+   " 0.17"            msg connL      3 y-
+   " osc~ 55"         obj 0 1 0 conn        7 x-
+   " *~"              obj 0 0 3 conn connR
+   " throw~ kick"     obj connL cr
+240 y- 120 x+
 pd " r~ phase"        obj                         ( midrange pitch envelope)
-   " tabread4~ mids"  obj connL            60 x+
-   " *~ 3"            obj connL     30 y-  60 x-
-   " noise~"          obj
-   " vcf~ 110 2"      obj connL 0 1 1 conn        ( non-harmonic mids thump)
-   " *~"              obj 0 0 8 conn connR
-   " *~ 5"            obj connL
-   " throw~ mainLR"   obj connL cr
-310 y- 150 x-
-pd " msg" head                                    ( initialize the arrays)
-   " \; clk  0 0 18  0  0  0  0 0 0 0 0 0 " print
-   " \; adsr 0 0 84 59 47 27 20 9 2 0 0 0 " print
-   " \; mids 0 0 32 29 24 19 12 7 0 0 0 0 " tail
-   connL cr
-
+   " tabread4~ mids"  obj connL            50 x+
+   " *~ 1.71"         obj connL     30 y-  50 x-
+   " r~ nz"           obj
+   " vcf~ 27"         obj connL 0 1 1 conn        ( non-harmonic mids thump)
+   " *~"              obj 0 0 10 conn connR       (  connect loudness envelope)
+   " *~ 35"           obj connL
+   " lop~ 1472"       obj connL
+   " throw~ kick"     obj connL cr  90 y- 90 x+
+100 y+ 330 x-
+pd 5120 " scope" array-scope 80 y- 170 x-        ( oscilloscope array graph)
+   " catch~ kick"     obj 30 y- 96 x+
+   " r rst"           obj 86 x-
+   " tabwrite~ scope" obj connL 0 0 1 conn 10 x-
+   " throw~ mainLR"   obj 0 0 2 conn cr

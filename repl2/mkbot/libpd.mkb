@@ -62,5 +62,18 @@ var n  : prev n w@ 2 - ;   : this n w@ 1- ;     : n1+ n w@ 1+ n w! ;
   " send " print ( s) print ( x0, y1:) "  coords 0 99" print
    ( 1-) ( x1: w-1) . ( y0:) 0 . ( width:) 75 . ( h:) 40 . ( flags:) 2 . end
   ( calculate box layout y increment to match graph height:)
-  40 y+
+  30 y+
+;
+: array-scope  ( t s -- )  ( Array Oscilloscope subpatch: name:s, samples:t)
+  dup                                           ( remember name string pointer)
+  ( s) " pd" obj2                               ( make `pd ...` subpatch box)
+  " vis 0" over ( s)                subsend2    ( close subpatch editor)
+  ( Make the array, example: `send <s> array <s> <x> float 2`)
+  " send " print dup ( s) print "  array " print dup ( s) print
+    over ( x) . "  float 2" print end
+  ( Set up graph-on-parent for y:1..-1, x: 0..<t>, width: 320, height: 60)
+  " send " print ( s) print ( x0, y1:) "  coords 0 1" print ( x1:) .
+  ( y0, width, height, flags:) "  -1 320 60 2" print end
+  ( calculate box layout y increment to match graph height:)
+  30 y+
 ;
