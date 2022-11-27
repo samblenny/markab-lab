@@ -580,6 +580,21 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   }if
 ;
 
+( Write RAM region to file:)
+(  - RAM region start address comes from T:start_addr)
+(  - RAM region size size is S:count bytes)
+(  - Filepath is read from IB to avoid compiling it into the dictionary)
+( Since this uses `word` to parse the file path, spaces in file or directry)
+( names will not work.)
+: save"  ( " ( )  ( count start_addr -- )
+  here word DP h!    ( copy next input word as string to DP)
+  here @ dup 0= if{  ( if string is empty: clean stack and raise error)
+    drop
+    ErrIOSAVE >err ;
+  }if 1- here !      ( else: shorten the string to trim the trailing " )
+  here save          ( push address of filepath string and load it)
+;
+
 : if{ ( -- addr )  ( Start of if block)
   BZ , here 0 , NEST+
 ; immediate
@@ -669,6 +684,13 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   ( ...)     ( return to wait for IRQRX to invoke outer again)
 ;
 
+( ---------------------------------------------------------------------------)
+( CAUTION! Weird magic happens here. At the moment, the bootstrap compiler,  )
+( bootstrap.py, compiles a jump to the `boot` word's compiled code as part   )
+( of the bootloader at the start of the kernel. See Compiler::__init__ and   )
+( Compiler::create in bootstrap.py for details. Other magic words whose code )
+( addresses get patched into the bootloader include `outer` and `irqerr`.    )
+( ---------------------------------------------------------------------------)
 : boot    ( Initialize global vars, print version, start outer interpreter)
   reset             ( clear stacks and errors: mainly useful for reboot)
   0 IN w!           ( 1 byte,  aligned 4, so zero all 4)

@@ -36,6 +36,10 @@ if PROFILE:
 # Allow list of regular expressions for files that can be written by IOSAVE
 IOSAVE_ALLOW_RE_LIST = """
 self_hosted\.rom
+test/mkb_save\.mkb
+test/mkb_save\.rom
+mkb_save\.rom
+mkb_save\.gif
 """
 
 # Allow list of regular expressions for files that can be read by IOLOAD
@@ -53,13 +57,14 @@ ERR_BAD_INSTRUCTION = 5   #  5: Expected an opcode but got something else
 ERR_R_OVER = 6            #  6: Return stack overflow
 ERR_R_UNDER = 7           #  7: Return stack underflow
 ERR_MAX_CYCLES = 8        #  8: Call to _step() ran for too many clock cycles
-ERR_FILE_PERMS = 9        #  9: In `load" x"`: x failed permissions check
-ERR_FILE_NOT_FOUND = 10   # 10: In `load" x"`: opening x failed
+ERR_FILE_PERMS = 9        #  9: Filepath failed VM sandbox permission check
+ERR_FILE_NOT_FOUND = 10   # 10: Unable to open specified filepath
 ERR_UNKNOWN = ErrUnknown  # 11: Outer interpreter encountered an unknown word
 ERR_NEST = ErrNest        # 12: Compiler encountered unbalanced }if or }for
 ERR_IOLOAD_DEPTH = 13     # 13: Too many levels of nested `load" ..."` calls
 ERR_BAD_PC_ADDR = 14      # 14: Bad program counter value: address not in heap
 ERR_IOLOAD_FAIL = 15      # 15: Error while loading a file
+ERR_IOSAVE_FAIL = 16      # 16: Error while saving file
 
 # Configure STDIN/STDOUT at load-time for use utf-8 encoding.
 # For documentation on arguments to `reconfigure()`, see
@@ -1115,23 +1120,20 @@ def io_load_file():
 # ⚠️  DANGER! DANGER! DANGER! LOTS OF DANGER! ⚠️
 # If you are reviewing for possible security issues, pay attention here
 def io_save_file():
-  """Save memory to file, T: filename, S: source address, 3rd: byte count.
+  """Save memory to file, T: filename, S: byte count, 3rd: source address.
   File path must pass two tests:
   1. Match one of the allow-list regular expressions for IOSAVE
   2. Be located in the current working directory (including subdirectories)
   """
-  # //////////////////////////////////////////////////////////////////
-  print("//////// TODO FINISH IMPLEMENTING io_save_file() ///////////")
-  # //////////////////////////////////////////////////////////////////
   if DSDEEP < 3:
     irq_err(ERR_D_UNDER)
     return
   # Pop arguments off stack before doing any error checks
   filepath = _load_string(T)
   drop()
-  src_addr = T & 0xffff
+  count = T
   drop()
-  count = T & 0xffff
+  src_addr = T
   drop()
   # Check the filename against the allow list
   re_match = any([a.match(filepath) for a in iosave_allow_re])
@@ -1143,12 +1145,20 @@ def io_save_file():
     irq_err(ERR_FILE_PERMS)
     return
   # Check if source address and byte count are reasonable
-  if src_addr + count > len(RAM):
+  addr_limit = 0xffff
+  check_1 = (src_addr < 0) or (src_addr > addr_limit)
+  check_2 = (count < 1) or (count > addr_limit)
+  check_3 = (src_addr + count - 1) > addr_limit
+  if check_1 or check_2 or check_3:
     irq_err(ERR_BAD_ADDRESS)
     return
-  #///////////////////////////////////////////
-  # TODO: make this part actually save a file
-  #///////////////////////////////////////////
+  try:
+    with open(filepath, "wb") as out_file:
+      out_file.write(RAM[src_addr:src_addr+count])
+  except OSError:
+    # This is a catchall for problems with file IO at the host OS level.
+    # Error might be due to file permissions, a full disk, or whatever.
+    irq_err(ERR_IOSAVE_FAIL)
 
 # =======================================================================
 # === END OF DANGEROUS FILE IO STUFF ====================================

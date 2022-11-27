@@ -188,6 +188,7 @@ MODE_INT = 0
 MODE_COM = 1
 ErrUnknown = 11
 ErrNest = 12
+ErrIOSAVE = 16
 HashA   = 7
 HashB   = 8
 HashC   = 38335
@@ -226,6 +227,7 @@ CORE_VOC = {
     'MODE_COM': (T_CONST, 1),
     'ErrUnknown': (T_CONST, 11),
     'ErrNest':  (T_CONST, 12),
+    'ErrIOSAVE': (T_CONST, 16),
     'HashA':    (T_CONST, 7),
     'HashB':    (T_CONST, 8),
     'HashC':    (T_CONST, 38335),
