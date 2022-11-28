@@ -2,7 +2,7 @@
 ( SPDX-License-Identifier: MIT)
 ( Markab kernel)
 
-load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
+load mkb_autogen.mkb  ( load definitions for opcodes, enums, and core vocab)
 
 : here DP h@ ;       ( address for next writable dictionary location)
 : corv CORE_V h@ ;   ( base address of core vocabulary hashmap)
@@ -559,38 +559,32 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
 ; immediate
 
 ( --------------------------------------------------------------------------- )
-( You could just do `" foo.mkb" load`, but that would compile "foo.mkb" into  )
-( the dictionary, which you probably don't want. Doing `load" foo.mkb"` is a  )
+( You could just do `" foo.mkb" load_`, but that would compile "foo.mkb" into )
+( the dictionary, which you probably don't want. Doing `load foo.mkb` is a    )
 ( way to keep the filename from wasting dictionary space.                     )
-( CAUTION! This pretends like filenames never have spaces and that it's safe  )
-( to not properly parse for the trailing quote. The intended use is like:     )
-(  `load" mkb_autogen.mkb"`                                                   )
+( CAUTION! This pretends like filenames never have spaces, which is kind of   )
+( unreasonable, but it's good enough for now. The intended use is like:       )
+(  `load mkb_autogen.mkb`                                                     )
 ( --------------------------------------------------------------------------- )
-: load"  ( " ( )  ( -- )  ( Read filepath from IB and load it)
-  here word DP h!    ( copy next input word as string to DP)
-  here @ dup 0= if{  ( if string is empty: clean stack and return)
-    drop ;
-  }if 1- here !      ( else: shorten the string to trim the trailing " )
-  okoff              ( turn off OK prompts)
+: load  ( -- )  ( Read filepath from IB and load it)
+  here word DP h!   ( copy next input word as string to DP)
+  okoff             ( turn off OK prompts)
   LOADNEST+
-  here load          ( push address of filepath string and load it)
+  here load_        ( push address of filepath string, invoke IOLOAD opcode)
   LOADNEST-
-  LOADNEST? 0= if{   ( if this was the outermost load:)
-    okon ok          (   turn OK prompts back on, print ok)
+  LOADNEST? 0= if{  ( if this was the outermost load:)
+    okon ok         (   turn OK prompts back on, print ok)
   }if
 ;
 
-( Open a file: convenience wrapper for FOPEN)
-( The filepath is read from IB to avoid compiling it into the dictionary.)
-( Since this uses `word` to parse the filepath, spaces in file or directry)
-( names will not work.)
-: fopen"  ( " ( )    ( -- )
+( Open a file: convenience wrapper for FOPEN, taking filepath from input stream)
+( Reading filepath from IB avoids compiling the string into the dictionary.)
+( This parses the filepath with `word`, so spaces in file or directry names)
+( will not work.)
+: fopen  ( -- )
   here word DP h!    ( copy next input word as string to DP)
-  here @ dup 0= if{  ( if string is empty: clean stack and raise error)
-    drop
-    ErrFilepath >err ;
-  }if 1- here !      ( else: shorten the string to trim the trailing " )
-  here fopen         ( push address of filepath string and open it)
+  here               ( push address of filepath string)
+  fopen_             ( then open it by invoking the FOPEN opcode)
 ;
 
 : if{ ( -- addr )  ( Start of if block)

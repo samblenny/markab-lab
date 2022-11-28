@@ -461,7 +461,7 @@ def next_word(pos, src):
 def preprocess_mkb(depth, src):
   """Preprocess Markab source code (comments, loads), return array of words"""
   if depth < 1:
-    raise Exception('Preprocessor: too much recursion (maybe a `load"` loop?)')
+    raise Exception('Preprocessor: too much recursion (maybe a `load` loop?)')
   pos = 0
   words = []
   count = len(src)
@@ -484,9 +484,9 @@ def preprocess_mkb(depth, src):
     if word == '(':
       pos = skip_comment(pos, src)
       continue
-    if word == 'load"':
-      # Parse string for a filename to load (CAUTION!)
-      (filename, pos) = parse_string(pos, src)
+    if word == 'load':
+      # Parse next word as a filename to load (CAUTION!)
+      (filename, pos) = next_word(pos, src)
       # Normalize filename and strip directory prefix to enforce that the load
       # file must be in the current working directory. This is a lazy way to
       # guard against security issues related to arbitrary filesystem access.

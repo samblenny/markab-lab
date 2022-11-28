@@ -26,8 +26,8 @@ troff TROFF
 dump IODUMP
 key IOKEY
 iorh IORH
-load IOLOAD
-fopen FOPEN
+load_ IOLOAD
+fopen_ FOPEN
 fread FREAD
 fwrite FWRITE
 fseek FSEEK

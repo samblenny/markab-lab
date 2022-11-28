@@ -61,7 +61,7 @@ ERR_FILEPATH = 9          #  9: Filepath failed VM sandbox permission check
 ERR_FILE_NOT_FOUND = 10   # 10: Unable to open specified filepath
 ERR_UNKNOWN = ErrUnknown  # 11: Outer interpreter encountered an unknown word
 ERR_NEST = ErrNest        # 12: Compiler encountered unbalanced }if or }for
-ERR_IOLOAD_DEPTH = 13     # 13: Too many levels of nested `load" ..."` calls
+ERR_IOLOAD_DEPTH = 13     # 13: Too many levels of nested `load ...` calls
 ERR_BAD_PC_ADDR = 14      # 14: Bad program counter value: address not in heap
 ERR_IOLOAD_FAIL = 15      # 15: Error while loading a file
 ERR_NO_OPEN_FILE = 16     # 16: Requested operation needs open file from FOPEN
@@ -1177,7 +1177,7 @@ def io_fopen():
     irq_err(ERR_IOSAVE_FAIL)
 
 def io_fread():
-  """Copy T bytes from FOPEN file's seek position to RAM addres S.
+  """Copy T bytes from the FOPEN file's seek position to RAM address S.
   Stack effects:
   - Pop (S, T) as (dest_addr, count)
   - Push number of bytes read from file as T (may be less than requested)

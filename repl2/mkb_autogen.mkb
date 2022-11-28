@@ -45,8 +45,8 @@ hex
 0d opcode dump
 0e opcode key
 0f opcode iorh
-10 opcode load
-11 opcode fopen
+10 opcode load_
+11 opcode fopen_
 12 opcode fread
 13 opcode fwrite
 14 opcode fseek
