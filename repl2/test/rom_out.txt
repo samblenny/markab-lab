@@ -21,16 +21,6 @@ var t05 5 t05 ! iod                (  Stack is empty  OK)  Stack is empty  OK
 ( test file loading)  OK
 load" test/load_test.mkb"                      ( t10  OK) t10  OK
 load" name_not_on_vm_allow_list"                (  ERR 9)  ERR 9
-( test file saving)  OK
-(  write some code to a file, then load it back)  OK
-" : e emit ; 32 e 83 e 65 e 86 e 69 e " const t10b  OK
-t10b 1+ t10b @ save" test/mkb_save.mkb"            (  OK)  OK
-load" test/mkb_save.mkb"                      ( SAVE  OK) SAVE  OK
-(  test source RAM range and filepath checks)  OK
-0 hex ffff decimal save" test/mkb_save.rom"        (  OK)  OK
-0 0 save" test/mkb_save.rom"                    (  ERR 3)  ERR 3
-0 1 save" test/mkb_save.rom"                       (  OK)  OK
-0 1 save" name_not_on_vm_allow_list"            (  ERR 9)  ERR 9
 ( t11: Malformed if-block)  OK
 : t11 ( missing T=addr from if{ )  }if ;        (  ERR 2)  ERR 2
 ( fake if{ addr: ) 9000  OK
@@ -126,4 +116,41 @@ nop                                                (  OK)  OK
   ' star swapi U16i h,i I32i w,i  Compiling
   . = . ;  OK
 t18                                       ( -1 -1 -1  OK) -1 -1 -1  OK
+( t19: Test FOPEN filepath sandboxing)  OK
+fopen" name_not_on_vm_allow_list"               (  ERR 9)  ERR 9
+fopen" ../mkb_save.rom"                         (  ERR 9)  ERR 9
+fopen" kernel.rom"                              (  ERR 9)  ERR 9
+iod                                (  Stack is Empty  OK)  Stack is empty  OK
+( t20: Test file IO api to write and load code)  OK
+fopen" test/mkb_save.mkb"                          (  OK)  OK
+fopen" test/mkb_save.mkb"                      (  ERR 17)  ERR 17
+0 fseek .                                        (  0 OK) 0  OK
+ftrunc                                             (  OK)  OK
+var badUtf8 255 badUtf8 w!                         (  OK)  OK
+badUtf8 1 fwrite . fclose                        ( 1  OK) 1  OK
+fclose                                             (  OK)  OK
+fclose ( closing when already closed is fine)      (  OK)  OK
+0 fseek . ( file io op when closed is error)   (  ERR 16)  ERR 16
+ftrunc                                         (  ERR 16)  ERR 16
+0 1 fwrite .                                   (  ERR 16)  ERR 16
+load" test/mkb_save.mkb" ( file is malformed)  (  ERR 15)  ERR 15
+(  do it again but with well formed code)  OK
+fopen" test/mkb_save.mkb" 0 fseek . ftrunc       ( 0  OK) 0  OK
+" : e emit ; 32 e 83 e 65 e 86 e 69 e " const t20s  OK
+t20s 1+ t20s @ fwrite .                         (  36 OK) 36  OK
+fclose                                             (  OK)  OK
+load" test/mkb_save.mkb"                      ( SAVE  OK) SAVE  OK
+iod                                (  Stack is Empty  OK)  Stack is empty  OK
+( t21: Test source/destination RAM range checks)  OK
+fopen" test/mkb_save.rom" 0 fseek . ftrunc        ( 0 OK) 0  OK
+0 65535 fwrite .                             ( 65535  OK) 65535  OK
+fclose                                             (  OK)  OK
+iod                                (  Stack is Empty  OK)  Stack is empty  OK
+fopen" test/mkb_save.rom" 0 fseek . ftrunc        ( 0 OK) 0  OK
+0 0 fwrite .                                    (  ERR 3)  ERR 3
+0 fseek . ftrunc                                 ( 0  OK) 0  OK
+var badUtf8 255 badUtf8 w!                         (  OK)  OK
+badUtf8 1 fwrite .                               ( 1  OK) 1  OK
+fclose                                             (  OK)  OK
+iod                                (  Stack is Empty  OK)  Stack is empty  OK
 

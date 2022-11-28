@@ -580,19 +580,17 @@ load" mkb_autogen.mkb"  ( load definitions for opcodes, enums, and core vocab)
   }if
 ;
 
-( Write RAM region to file:)
-(  - RAM region start address comes from T:start_addr)
-(  - RAM region size size is S:count bytes)
-(  - Filepath is read from IB to avoid compiling it into the dictionary)
-( Since this uses `word` to parse the file path, spaces in file or directry)
+( Open a file: convenience wrapper for FOPEN)
+( The filepath is read from IB to avoid compiling it into the dictionary.)
+( Since this uses `word` to parse the filepath, spaces in file or directry)
 ( names will not work.)
-: save"  ( " ( )  ( count start_addr -- )
+: fopen"  ( " ( )    ( -- )
   here word DP h!    ( copy next input word as string to DP)
   here @ dup 0= if{  ( if string is empty: clean stack and raise error)
     drop
-    ErrIOSAVE >err ;
+    ErrFilepath >err ;
   }if 1- here !      ( else: shorten the string to trim the trailing " )
-  here save          ( push address of filepath string and load it)
+  here fopen         ( push address of filepath string and open it)
 ;
 
 : if{ ( -- addr )  ( Start of if block)

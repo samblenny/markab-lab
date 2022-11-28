@@ -33,8 +33,8 @@ if PROFILE:
   import cProfile
 
 
-# Allow list of regular expressions for files that can be written by IOSAVE
-IOSAVE_ALLOW_RE_LIST = """
+# Allow list of regular expressions for files that can be opened with FOPEN
+FOPEN_ALLOW_RE_LIST = """
 self_hosted\.rom
 test/mkb_save\.mkb
 test/mkb_save\.rom
@@ -57,14 +57,17 @@ ERR_BAD_INSTRUCTION = 5   #  5: Expected an opcode but got something else
 ERR_R_OVER = 6            #  6: Return stack overflow
 ERR_R_UNDER = 7           #  7: Return stack underflow
 ERR_MAX_CYCLES = 8        #  8: Call to _step() ran for too many clock cycles
-ERR_FILE_PERMS = 9        #  9: Filepath failed VM sandbox permission check
+ERR_FILEPATH = 9          #  9: Filepath failed VM sandbox permission check
 ERR_FILE_NOT_FOUND = 10   # 10: Unable to open specified filepath
 ERR_UNKNOWN = ErrUnknown  # 11: Outer interpreter encountered an unknown word
 ERR_NEST = ErrNest        # 12: Compiler encountered unbalanced }if or }for
 ERR_IOLOAD_DEPTH = 13     # 13: Too many levels of nested `load" ..."` calls
 ERR_BAD_PC_ADDR = 14      # 14: Bad program counter value: address not in heap
 ERR_IOLOAD_FAIL = 15      # 15: Error while loading a file
-ERR_IOSAVE_FAIL = 16      # 16: Error while saving file
+ERR_NO_OPEN_FILE = 16     # 16: Requested operation needs open file from FOPEN
+ERR_OPEN_FILE = 17        # 17: Attempt to use FOPEN when file is already open
+ERR_FILE_IO_FAIL = 18     # 18: Catchall for errors from host OS file IO API
+ERR_UTF8 = 19             # 19: Error decoding UTF-8 string
 
 # Configure STDIN/STDOUT at load-time for use utf-8 encoding.
 # For documentation on arguments to `reconfigure()`, see
@@ -93,6 +96,7 @@ HALTED = False             # Flag to track halt (used for `bye`)
 HOLD_STDOUT = False        # Flag to use holding buffer for stdout
 IOLOAD_DEPTH = 0           # Nesting level for io_load_file()
 IOLOAD_FAIL = False        # Flag indicating an error during io_load_file()
+FOPEN_FILE = None          # File (if any) that was opened by FOPEN 
 # Debug tracing on/off
 DBG_TRACE_ENABLE = False   # Debug trace is noisy, so default=off
 # Debug symbols
@@ -107,9 +111,9 @@ ioload_allow_re = []
 for line in IOLOAD_ALLOW_RE_LIST.strip().split("\n"):
   ioload_allow_re.append(re.compile(line))
 # Compile filename allow-list regular expressions for IOSAVE
-iosave_allow_re = []
-for line in IOSAVE_ALLOW_RE_LIST.strip().split("\n"):
-  iosave_allow_re.append(re.compile(line))
+fopen_allow_re = []
+for line in FOPEN_ALLOW_RE_LIST.strip().split("\n"):
+  fopen_allow_re.append(re.compile(line))
 
 
 def reset_state(echo=False, hold_stdout=False):
@@ -137,6 +141,7 @@ def reset_state(echo=False, hold_stdout=False):
   HOLD_STDOUT = hold_stdout  # Flag to use holding buffer for stdout
   IOLOAD_DEPTH = 0           # Nesting level for io_load_file()
   IOLOAD_FAIL = False        # Flag indicating an error during io_load_file()
+  io_fclose()                # Attempt to close file on the chance it was open
   # Debug tracing on/off
   DBG_TRACE_ENABLE = False   # Debug trace is noisy, so default=off
 
@@ -719,6 +724,7 @@ def halt():
   """Set the halt flag to stop further instructions (used for `bye`)"""
   global HALTED
   HALTED = True
+  io_fclose()   # Make sure the file is closed, if one was open
 
 def io_data_stack():
   _log_ds(base=10)
@@ -1031,8 +1037,12 @@ def _load_string(addr):
   addr = T & 0xffff
   count = RAM[addr]
   if addr + count < len(RAM):
-    str_ = (RAM[addr+1:addr+count+1]).decode('utf8')
-    return str_
+    try:
+      str_ = (RAM[addr+1:addr+count+1]).decode('utf8')
+      return str_
+    except UnicodeDecodeError:
+      irq_err(ERR_UTF8)
+      return ""
   else:
     if DEBUG:
       print("<<< _load_string(): bad address >>>")
@@ -1081,7 +1091,7 @@ def io_load_file():
     print(f"<<< IOLOAD: re match '{filepath}' ? --> {re_match} >>>")
     print(f"<<< IOLOAD: cwd match '{filepath}' ? --> {cwd_match} >>>")
   if (not re_match) or (not cwd_match):
-    irq_err(ERR_FILE_PERMS)
+    irq_err(ERR_FILEPATH)
     return
   try:
     # Save VM state
@@ -1093,13 +1103,18 @@ def io_load_file():
     cascade_errors = True
     with open(filepath) as f:
       IOLOAD_DEPTH += 1
-      for (n, line) in enumerate(f):
-        irq_rx(line)
-        if IOLOAD_FAIL:
-          line = line.split("\n")[0]
-          mkb_print(f"{filepath}:{n+1}: {line}", end='')
-          irq_err(ERR_IOLOAD_FAIL)
-          break
+      try:
+        for (n, line) in enumerate(f):
+          irq_rx(line)
+          if IOLOAD_FAIL:
+            line = line.split("\n")[0]
+            mkb_print(f"{filepath}:{n+1}: {line}", end='')
+            irq_err(ERR_IOLOAD_FAIL)
+            break
+      except UnicodeDecodeError:
+        irq_err(ERR_UTF8)
+        # DON'T return yet! Need to fall through to state restoration code
+        # Note: this error code will get changed to an ERR_IOLOAD_FAIL
     # Restore old state
     IOLOAD_DEPTH -= 1
     PC = old_pc
@@ -1119,31 +1134,93 @@ def io_load_file():
 
 # ⚠️  DANGER! DANGER! DANGER! LOTS OF DANGER! ⚠️
 # If you are reviewing for possible security issues, pay attention here
-def io_save_file():
-  """Save memory to file, T: filename, S: byte count, 3rd: source address.
+def io_fopen():
+  """Open filepath from T in 'r+b' mode (read/write/binary without truncation).
+
+  This is intended to facilitate random read/write access to files that are
+  potentially too big to fit in a RAM buffer (for example, animated GIF). If
+  you want to replace the contents of an existing file, do FOPEN, FSEEK to 0,
+  FTRUNC, then FWRITE.
+
   File path must pass two tests:
-  1. Match one of the allow-list regular expressions for IOSAVE
+  1. Match one of the allow-list regular expressions from FOPEN_ALLOW_RE_LIST
   2. Be located in the current working directory (including subdirectories)
+
+  Note: It is an error to call FOPEN when there is already an open file.
   """
-  if DSDEEP < 3:
+  global FOPEN_FILE
+  if DSDEEP < 1:
     irq_err(ERR_D_UNDER)
     return
   # Pop arguments off stack before doing any error checks
   filepath = _load_string(T)
   drop()
-  count = T
-  drop()
-  src_addr = T
-  drop()
+  # Check if a file is already open
+  if not FOPEN_FILE is None:
+    irq_err(ERR_OPEN_FILE)
+    return
   # Check the filename against the allow list
-  re_match = any([a.match(filepath) for a in iosave_allow_re])
+  re_match = any([a.match(filepath) for a in fopen_allow_re])
   cwd_match = _is_file_in_cwd(filepath)
   if DEBUG:
-    print(f"<<< IOSAVE: re match '{filepath}' ? --> {re_match} >>>")
-    print(f"<<< IOSAVE: cwd match '{filepath}' ? --> {cwd_match} >>>")
+    print(f"<<< FOPEN: re match '{filepath}' ? --> {re_match} >>>")
+    print(f"<<< FOPEN: cwd match '{filepath}' ? --> {cwd_match} >>>")
   if (not re_match) or (not cwd_match):
-    irq_err(ERR_FILE_PERMS)
+    irq_err(ERR_FILEPATH)
     return
+  try:
+    FOPEN_FILE = open(filepath, "wb")
+  except OSError:
+    # This is a catchall for problems with file IO at the host OS level.
+    # Error might be due to file permissions, a full disk, or whatever.
+    FOPEN_FILE = None
+    irq_err(ERR_IOSAVE_FAIL)
+
+def io_fread():
+  """Copy T bytes from FOPEN file's seek position to RAM addres S.
+  Stack effects:
+  - Pop (S, T) as (dest_addr, count)
+  - Push number of bytes read from file as T (may be less than requested)
+  """
+  if DSDEEP < 2:
+    irq_err(ERR_D_UNDER)
+    return
+  # Pop arguments off stack before doing any error checks
+  byte_count = T
+  dest_addr = S & 0xffff
+  drop()
+  drop()
+  # Check if destination address and byte count are reasonable
+  addr_limit = 0xffff
+  check_1 = (dest_addr < 0) or (dest_addr > addr_limit)
+  check_2 = (count < 1) or (count > addr_limit)
+  check_3 = (dest_addr + count - 1) > addr_limit
+  if check_1 or check_2 or check_3:
+    irq_err(ERR_BAD_ADDRESS)
+    return
+  # Read the data
+  try:
+    bytes_read = FOPEN_FILE.readinto(RAM[dest_addr:dest_addr+count])
+    _push(bytes_read)
+  except OSError:
+    # This is a catchall for problems with file IO at the host OS level.
+    # Error might be due to file permissions, a full disk, or whatever.
+    irq_err(ERR_IOSAVE_FAIL)
+
+def io_fwrite():
+  """Write T bytes from RAM source address S to FOPEN file's seek position.
+  Stack effects:
+  - Pop (S, T) as (src_addr, count)
+  - Push number of bytes written to file as T (may be less than requested)
+  """
+  if DSDEEP < 2:
+    irq_err(ERR_D_UNDER)
+    return
+  # Pop arguments off stack before doing any error checks
+  count = T
+  src_addr = S & 0xffff
+  drop()
+  drop()
   # Check if source address and byte count are reasonable
   addr_limit = 0xffff
   check_1 = (src_addr < 0) or (src_addr > addr_limit)
@@ -1152,13 +1229,66 @@ def io_save_file():
   if check_1 or check_2 or check_3:
     irq_err(ERR_BAD_ADDRESS)
     return
+  # Write the data
+  if FOPEN_FILE is None:
+    irq_err(ERR_NO_OPEN_FILE)
+    return
   try:
-    with open(filepath, "wb") as out_file:
-      out_file.write(RAM[src_addr:src_addr+count])
+    bytes_written = FOPEN_FILE.write(RAM[src_addr:src_addr+count])
+    _push(bytes_written)
   except OSError:
     # This is a catchall for problems with file IO at the host OS level.
     # Error might be due to file permissions, a full disk, or whatever.
     irq_err(ERR_IOSAVE_FAIL)
+
+def io_fseek():
+  """Seek file from FOPEN to position T, relative to start of file. Resulting
+  position is pushed as T (may be different than requested position)."""
+  if DSDEEP < 1:
+    irq_err(ERR_D_UNDER)
+    return
+  if FOPEN_FILE is None:
+    irq_err(ERR_NO_OPEN_FILE)
+    return
+  try:
+    new_position = FOPEN_FILE.seek(T)
+    _push(new_position)
+    drop()
+  except OSError:
+    irq_err(ERR_FILE_IO_FAIL)
+
+def io_ftell():
+  """Check seek position of file from FOPEN, push result as T."""
+  if FOPEN_FILE is None:
+    irq_err(ERR_NO_OPEN_FILE)
+    return
+  try:
+    seek_position = FOPEN_FILE.tell()
+    _push(seek_position)
+  except OSError:
+    irq_err(ERR_FILE_IO_FAIL)
+
+def io_ftrunc():
+  """Truncate file from FOPEN to current seek position."""
+  if FOPEN_FILE is None:
+    irq_err(ERR_NO_OPEN_FILE)
+    return
+  try:
+    _ = FOPEN_FILE.truncate()
+  except OSError:
+    irq_err(ERR_FILE_IO_FAIL)
+
+def io_fclose():
+  """Close file from FOPEN."""
+  global FOPEN_FILE
+  if FOPEN_FILE is None:
+    return
+  try:
+    FOPEN_FILE.close()
+    FOPEN_FILE = None
+  except OSError:
+    FOPEN_FILE = None
+    irq_err(ERR_FILE_IO_FAIL)
 
 # =======================================================================
 # === END OF DANGEROUS FILE IO STUFF ====================================
@@ -1244,7 +1374,13 @@ JUMP_TABLE[ag.IOEMIT] = io_emit
 JUMP_TABLE[ag.IODOT ] = io_dot
 JUMP_TABLE[ag.IODUMP] = io_dump
 JUMP_TABLE[ag.IOLOAD] = io_load_file
-JUMP_TABLE[ag.IOSAVE] = io_save_file
+JUMP_TABLE[ag.FOPEN ] = io_fopen
+JUMP_TABLE[ag.FREAD ] = io_fread
+JUMP_TABLE[ag.FWRITE] = io_fwrite
+JUMP_TABLE[ag.FSEEK ] = io_fseek
+JUMP_TABLE[ag.FTELL ] = io_ftell
+JUMP_TABLE[ag.FTRUNC] = io_ftrunc
+JUMP_TABLE[ag.FCLOSE] = io_fclose
 JUMP_TABLE[ag.TRON  ] = trace_on
 JUMP_TABLE[ag.TROFF ] = trace_off
 JUMP_TABLE[ag.MTA   ] = move_t_to_a
