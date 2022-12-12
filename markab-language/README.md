@@ -49,7 +49,8 @@ SLL SRL SRA
 EQ GT LT NE ZE TRUE FALSE JMP JAL CALL RET HALT
 BZ BFOR MTR RDROP R PC MTE DROP DUP OVER SWAP
 U8 U16 I32 LB SB LH SH LW SW RESET
-IOD IODH IORH IOKEY IOEMIT IODOT IODUMP IOLOAD IOSAVE TRON TROFF
+IOD IODH IORH IOKEY IOEMIT IODOT IODUMP IOLOAD TRON TROFF
+FOPEN FREAD FWRITE FSEEK FTELL FTRUNC FCLOSE
 MTA LBA LBAI      AINC ADEC A
 MTB LBB LBBI SBBI BINC BDEC B
 ```
@@ -62,7 +63,8 @@ nop + - 1+ 1- * / % and inv or xor
 = > < != 0= true false call halt
 >r rdrop r pc >err drop dup over swap
 @ ! h@ h! w@ w! reset
-iod iod iorh key emit . dump load save tron troff
+iod iod iorh key emit . dump load_ tron troff
+fopen_ fread fwrite fseek ftell ftrunc fclose
 >a @a @a+     a+ a- a
 >b @b @b+ !b+ b+ b- b
 : ; var const opcode
@@ -252,6 +254,14 @@ Notes on the table of opcodes below:
 | DUP    | dup  | Push a copy of T |
 | EQ     | =    | Evaluate S == T (true:-1, false:0), store result in S, drop T |
 | FALSE  | false | Push 0 (false) to data stack |
+| FCLOSE | fclose | Close the file from FOPEN. Invoking close after file was already closed is fine. |
+| FOPEN  | fopen_ | Open filepath from T in 'r+b' mode (read/write/binary without truncation). This is intended to facilitate random read/write access to files that are potentially too big to fit in a RAM buffer. If you want to replace the contents of an existing file, do FOPEN, FSEEK to 0, FTRUNC, then FWRITE. Filepath must be within the current directory and pass the VM's sandboxing checks (see `FOPEN_ALLOW_RE_LIST = ...` in `markab_vm.py`). Usage: `fopen test/mkb_save.rom` |
+| FREAD  | fread | Copy T bytes from the FOPEN file's seek position into RAM region starting at address S. Pops (S, T) as (destination address, byte count). Pushes number of bytes actually read as T. |
+| FSEEK  | fseek | Seek file from FOPEN to position T, relative to start of file. Resulting
+  position is pushed as T (may be different than requested position). |
+| FTELL  | ftell | Check seek position of file from FOPEN, push result as T. |
+| FTRUNC | ftrunc | Truncate file from FOPEN to current seek position. (no stack changes) |
+| FWRITE | fwrite | Write T bytes from RAM source address S to FOPEN file's seek position. Pops (S, T) as (source address-addr, count). Pushes number of bytes written to file as T (may be less than requested). |
 | GT     | >    | Evaluate S > T (true:-1, false:0), store result in S, drop T |
 | HALT   | halt | Set the halt flag to stop further instructions (used for `bye`) |
 | I32    |      | Read int32 word (4 bytes) signed literal from instruction stream, push as T |
@@ -262,10 +272,9 @@ Notes on the table of opcodes below:
 | IODOT  | .    | Print T to standard output, then drop T |
 | IODUMP | dump | Hexdump S bytes of memory starting from address T, then drop S and T |
 | IOEMIT | emit | Buffer the low byte of T for stdout. |
-| IOKEY  | key  | Push the next byte from Standard Input to the data stack. Stack effect depends on whether a byte was available. When byte is available, push the data byte, then push true (-1): result is T=-1 (true), S=data_byte. When no data is available, push false (0): result is T=0 (false). |
-| IOLOAD | load | Load and interpret file, taking file path from string pointer in T. File path must pass two tests: 1. Match one of the allow-list regular expressions for IOLOAD (see markab_vm.py) 2. Be located in the current working directory (including subdirectories) |
+| IOKEY  | key  | Push the next byte from Standard Input to the data stack. Stack effect depends on whether a byte was available. When byte is available, push the data byte, then push true (-1): result is T=-1 (true), S=data-byte. When no data is available, push false (0): result is T=0 (false). |
+| IOLOAD | load_ | Load and interpret file, taking file path from string pointer in T. File path must pass two tests: 1. Match one of the allow-list regular expressions for IOLOAD (see `markab_vm.py`) 2. Be located in the current working directory (including subdirectories) |
 | IORH   | iorh | Debug dump return stack in hexadecimal format |
-| IOSAVE | save | **THIS IS UNFINISHED** Save memory to file, T: filename, S: source address, 3rd: byte count. File path must pass two tests: 1. Match one of the allow-list regular expressions for IOSAVE (see markab_vm.py) 2. Be located in the current working directory (including subdirectories) |
 | JAL    |      | Jump to 16-bit address (from instruction stream) after pushing old value of PC to return stack. The jump address is PC-relative to allow for relocatable object code. |
 | JMP    |      | Jump to 16-bit address (from instruction stream). The jump address is PC-relative to allow for relocatable object code. |
 | LB     | @    | Load a uint8 (1 byte) from memory address T, saving result in T |
@@ -300,8 +309,8 @@ Notes on the table of opcodes below:
 | SUB    | -    | Subtract T from S, store result in S, drop T |
 | SW     | w!   | Store word (4 bytes) from S as signed int32 at memory address T |
 | SWAP   | swap | Swap S with T |
-| TROFF  | troff | Disable debug tracing (also see DEBUG global var in markab_vm.py) |
-| TRON   | tron | Enable debug tracing (also see DEBUG global var in markab_vm.py) |
+| TROFF  | troff | Disable debug tracing (also see `DEBUG` global var in `markab_vm.py`) |
+| TRON   | tron | Enable debug tracing (also see `DEBUG` global var in `markab_vm.py`) |
 | TRUE   | true | Push -1 (true) to data stack |
 | U16    |      | Read uint16 halfword (2 bytes) literal from instruction stream, zero-extend it, push as T |
 | U8     |      | Read uint8 byte literal from instruction stream, zero-extend it, push as T |
@@ -320,7 +329,8 @@ nop + - 1+ 1- * / % and inv or xor
 = > < != 0= true false call halt
 >r rdrop r pc >err drop dup over swap
 @ ! h@ h! w@ w! reset
-iod iod iorh key emit . dump load save tron troff
+iod iod iorh key emit . dump load_ tron troff
+fopen_ fread fwrite fseek ftell ftrunc fclose
 >a @a @a+     a+ a- a
 >b @b @b+ !b+ b+ b- b
 ```
@@ -378,8 +388,8 @@ usable. I don't expect these words to change much:
 | "      | Immediate mode word to compile string into dictionary, reads from input stream until next instance of `"`. The string bytes just go at the end of the last dictionary entry but there isn't a named header. The address of the first byte of the string gets pushed into T. Strings are stored with a length-byte prefix, so " hello" would become 5, 'h', 'e', 'l', 'l', 'o', and the pointer in T would point to the address of the `5` byte. Maximum string length is 255 bytes. |
 | print  | Print a string that begins at the address stored in T. Usage: `" hello" print` |
 | (      | Immediate mode word to compile (skip) a comment, reads from input stream until next instance of `)` |
-| load"  | Read the name of a file from the input stream, terminated by the next instance of `"`, check if the filename passes the sandboxing rules (see markab_vm.py), and if so, append the contents of the file to the input buffer. This is for compiling or running code from a file rather than typing it in each time by yourself. *Note:* this will probably not work for filenames that include space characters! |
-| save"  | **Not Implemented Yet!** When finished, this will allow for exporting the dictionary to a new rom file. At the moment, the only way to create a rom file is using the bootstrap.py bootstrap compiler or to compile it yourself by hand. |
+| load   | Read a filepath from the input stream, terminated by the next space, check if the filepath passes the sandboxing rules (see `markab_vm.py`), and if so, append the contents of the file to the input buffer. This is for compiling or running code from a file rather than typing it in each time by yourself. *Note:* This will not work for file paths that include space characters! Usage: `load whatever.mkb` |
+| fopen  | This is a convenience wrapper for the FOPEN opcode which avoids compiling the filepath string into the dictionary by reading it as a word from the input stream. The filepath must pass the VM's sandboxing rules (see `markab_vm.py`). *Note:* This will not work for file paths that include space characters! Usage: `fopen test/mkb_save.rom` |
 | bye    | Halt the VM, causing the process for markab_vm.py to exit |
 
 Example of using `if{...}if` conditional block:
@@ -447,10 +457,14 @@ This is what the error codes mean (taken from markab_vm.py):
 | 6  | ERR_R_OVER          | Return stack overflow |
 | 7  | ERR_R_UNDER         | Return stack underflow |
 | 8  | ERR_MAX_CYCLES      | Call ran for too many clock cycles |
-| 9  | ERR_FILE_PERMS      | In `load" x"`: x failed permissions check |
-| 10 | ERR_FILE_NOT_FOUND  | In `load" x"`: opening x failed |
+| 9  | ERR_FILEPATH        | Filepath failed VM sandbox permission check |
+| 10 | ERR_FILE_NOT_FOUND  | Unable to open specified filepath |
 | 11 | ERR_UNKNOWN         | Outer interpreter encountered an unknown word |
 | 12 | ERR_NEST            | Compiler encountered unbalanced }if or }for |
-| 13 | ERR_IOLOAD_DEPTH    | Too many levels of nested `load" ..."` calls |
+| 13 | ERR_IOLOAD_DEPTH    | Too many levels of nested `load ...` calls |
 | 14 | ERR_BAD_PC_ADDR     | Bad program counter value: address not in heap |
 | 15 | ERR_IOLOAD_FAIL     | Error while loading a file |
+| 16 | ERR_NO_OPEN_FILE    | Requested operation needs open file from FOPEN |
+| 17 | ERR_OPEN_FILE       | Attempt to use FOPEN when file is already open |
+| 18 | ERR_FILE_IO_FAIL    | Catchall for errors from host OS file IO API |
+| 19 | ERR_UTF8            | Error decoding UTF-8 string |

@@ -18,7 +18,7 @@
     "BZ" "BFOR" "MTR" "RDROP" "R" "PC" "MTE" "DROP" "DUP" "OVER" "SWAP"
     "U8" "U16" "I32" "LB" "SB" "LH" "SH" "LW" "SW" "RESET"
     "IOD" "IODH" "IORH" "IOKEY" "IOEMIT" "IODOT" "IODUMP" "TRON" "TROFF"
-    "IOLOAD" "IOSAVE"
+    "IOLOAD" "FOPEN" "FREAD" "FWRITE" "FSEEK" "FTELL" "FTRUNC" "FCLOSE"
     "MTA" "LBA" "LBAI"        "AINC" "ADEC" "A"
     "MTB" "LBB" "LBBI" "SBBI" "BINC" "BDEC" "B"
 
@@ -28,7 +28,8 @@
     "=" ">" "<" "!=" "0=" "true" "false" "call" "halt"
     ">r" "rdrop" "drop" "r" "pc" ">err" "dup" "over" "swap"
     "@" "!" "h@" "h!" "w@" "w!" "reset"
-    "iod" "iodh" "iorh" "key" "emit" "." "dump" "load" "save" "tron" "troff"
+    "iod" "iodh" "iorh" "key" "emit" "." "dump" "load_" "tron" "troff"
+    "fopen_" "fread" "fwrite" "fseek" "ftell" "ftrunc" "fclose"
     ">a" "@a" "@a+"       "a+" "a-" "a"
     ">b" "@b" "@b+" "!b+" "b+" "b-" "b"
     ":" ";" "var" "const" "opcode"

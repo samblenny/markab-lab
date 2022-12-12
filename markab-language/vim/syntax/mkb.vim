@@ -10,7 +10,8 @@
 :syntax keyword mkbOpcode BZ BFOR MTR RDROP R PC MTE DROP DUP OVER SWAP
 :syntax keyword mkbOpcode U8 U16 I32 LB SB LH SH LW SW RESET
 :syntax keyword mkbOpcode IOD IODH IORH IOKEY IOEMIT IODOT IODUMP TRON TROFF
-:syntax keyword mkbOpcode IOLOAD IOSAVE
+:syntax keyword mkbOpcode IOLOAD
+:syntax keyword mkbOpcode FOPEN FREAD FWRITE FSEEK FTELL FTRUNC FCLOSE
 :syntax keyword mkbOpcode MTA LBA LBAI      AINC ADEC A
 :syntax keyword mkbOpcode MTB LBB LBBI SBBI BINC BDEC B
 :syntax match mkbComment /( [^)]*)/
@@ -25,7 +26,8 @@
 :syntax keyword mkbCoreVocab >r rdrop r pc >err drop dup over swap
 :syntax keyword mkbCoreVocab @ ! h@ h! w@ w! reset
 :syntax keyword mkbCoreVocab iod iodh iorh key emit . dump tron troff
-:syntax keyword mkbCoreVocab load save
+:syntax keyword mkbCoreVocab load_
+:syntax keyword mkbCoreVocab fopen_ fread fwrite fseek ftell ftrunc fclose
 :syntax keyword mkbCoreVocab >a @a @a+     a+ a- a
 :syntax keyword mkbCoreVocab >b @b @b+ !b+ b+ b- b >x x >y y
 :syntax keyword mkbCoreVocab : ; var const opcode
