@@ -257,8 +257,7 @@ Notes on the table of opcodes below:
 | FCLOSE | fclose | Close the file from FOPEN. Invoking close after file was already closed is fine. |
 | FOPEN  | fopen_ | Open filepath from T in 'r+b' mode (read/write/binary without truncation). This is intended to facilitate random read/write access to files that are potentially too big to fit in a RAM buffer. If you want to replace the contents of an existing file, do FOPEN, FSEEK to 0, FTRUNC, then FWRITE. Filepath must be within the current directory and pass the VM's sandboxing checks (see `FOPEN_ALLOW_RE_LIST = ...` in `markab_vm.py`). Usage: `fopen test/mkb_save.rom` |
 | FREAD  | fread | Copy T bytes from the FOPEN file's seek position into RAM region starting at address S. Pops (S, T) as (destination address, byte count). Pushes number of bytes actually read as T. |
-| FSEEK  | fseek | Seek file from FOPEN to position T, relative to start of file. Resulting
-  position is pushed as T (may be different than requested position). |
+| FSEEK  | fseek | Seek file from FOPEN to position T, relative to start of file. Resulting position is pushed as T (may be different than requested position). |
 | FTELL  | ftell | Check seek position of file from FOPEN, push result as T. |
 | FTRUNC | ftrunc | Truncate file from FOPEN to current seek position. (no stack changes) |
 | FWRITE | fwrite | Write T bytes from RAM source address S to FOPEN file's seek position. Pops (S, T) as (source address-addr, count). Pushes number of bytes written to file as T (may be less than requested). |
