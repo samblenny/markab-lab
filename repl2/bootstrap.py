@@ -176,11 +176,26 @@ class Compiler:
     """Handle link initialization for create: set link, update hashmap bin"""
     offset = self.mwc_hash(name)            # hash name to get bin offset
     bin_ptr = self.core_v + offset          # apply offset to core hashmap
-    bin_head = self.load_halfword(bin_ptr)  # load bin head via bin pointer
-    self.push(self.DP)
+    # Save a copy of the relative head of list address (base is bin pointer)
+    old_head_rel = self.load_halfword(bin_ptr)
+    # Calculate and store a new relative head of list address pointing to this
+    # item which is currently being inserted (base is bin pointer)
+    new_head_abs = self.DP
+    new_head_rel = (new_head_abs - bin_ptr) & 0xffff
+    self.push(new_head_rel)
     self.push(bin_ptr)
-    self.store_halfword()                   # set bin to point at this item
-    self.append_halfword(bin_head)          # set this item's link to old head
+    self.store_halfword()
+    # Rebase the old head of list link (old_base: bin pointer, new_base: .link
+    # field of this item which is currently being inserted). A null link (0)
+    # marks end of list, so the if-block below makes sure to only rebase the
+    # relative link address when that address is non-null. Otherwise, we would
+    # corrupt the end of list marker, causing much trouble.
+    old_head_abs = 0
+    link_rel = 0
+    if old_head_rel != 0:
+      old_head_abs = old_head_rel + bin_ptr
+      link_rel = (old_head_abs - self.DP) & 0xffff
+    self.append_halfword(link_rel)
 
   def create(self, name):
     """Start a named dictionary entry in the target rom"""
@@ -188,7 +203,7 @@ class Compiler:
     if ALIGN16 and offset != 0:
       self.DP += 16 - offset       # align 16 for nicer hexdumps
     starting_dp = self.DP
-    self.last_word = starting_dp
+    self.last_word = starting_dp   # absolute addr. of this word
     self.create_link(name)
     data = name.encode('utf8')
     self.append_byte(len(data))
