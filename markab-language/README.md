@@ -244,7 +244,7 @@ Notes on the table of opcodes below:
 | AND    | and  | Store bitwise AND of S with T into S, then drop T |
 | B      | b    | Push a copy of register B to the data stack |
 | BDEC   | b-   | Subtract 1 from register B |
-| BFOR   |      | Decrement R and branch to start of for-loop if R >= 0. Branch offset is read from instruction stream as 8-bit unsigned int to be subtracted from PC (branch direction is always backwards). |
+| BFOR   |      | Decrement R and branch to start of for-loop if R > 0. Branch offset is read from instruction stream as 8-bit unsigned int to be subtracted from PC (branch direction is always backwards). |
 | BINC   | b+   | Add 1 to register B |
 | BZ     |      | Branch to PC-relative address (read from instruction stream) if T == 0, drop T. The branch address is PC-relative to allow for relocatable object code. |
 | CALL   | call | Call to subroutine at address T, pushing old PC to return stack |
