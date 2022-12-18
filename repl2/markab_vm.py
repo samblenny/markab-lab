@@ -560,7 +560,7 @@ def branch_zero():
   DSDEEP -= 1
 
 def branch_for_loop():
-  """Decrement R and branch to start of for-loop if R >= 0.
+  """Decrement R and branch to start of for-loop if R > 0.
   The branch address is PC-relative to allow for relocatable object code.
   """
   global R, PC
@@ -569,7 +569,7 @@ def branch_for_loop():
     return
   R -= 1
   pc = PC
-  if R >= 0:
+  if R > 0:
     # Keep looping: Branch backwards by subtracting byte literal from PC
     # Maximum branch distance is -255
     PC -= RAM[pc]

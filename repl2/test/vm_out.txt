@@ -250,18 +250,18 @@ warmboot  OK
 
 === test.vm.test_instructions_bfor_mtr_r() ===
 ( opcode coverage: BFOR MTR R      )
-(         3 for{  R  }for          )
+(         4 for{  R  }for          )
 ( addr: 0 1    2 *3*    4 5   6    )
-ASM{   U8 3  MTR  R  BFOR 2 RET }ASM
+ASM{   U8 4  MTR  R  BFOR 2 RET }ASM
 (                        ^^^ 5-3=2 )
 warmboot  OK
-.s                                       (  3 2 1 0  OK)  3 2 1 0  OK
+.s                                       (  4 3 2 1  OK)  4 3 2 1  OK
 reset  OK
-(       3 for{ r    1 and    42 emit }for     )
+(       4 for{ r    1 and    42 emit }for     )
 (addr:  1   2 *3* 4 5   6  7  8      9   10 11)
-ASM{ U8 3 MTR  R U8 1 AND U8 42 IOEMIT BFOR 8 }ASM
+ASM{ U8 4 MTR  R U8 1 AND U8 42 IOEMIT BFOR 8 }ASM
 (                                   11-3=8 ^^^)
-.s                                   (****  1 0 1 0  OK)****  1 0 1 0  OK
+.s                                   (****  0 1 0 1  OK)****  0 1 0 1  OK
 
 ( opcode coverage: DROP DUP OVER SWAP   )
 ( equivalent to: 1 2 over dup drop swap )
@@ -376,13 +376,13 @@ warmboot                                       (  3  OK)  3  OK
 ( MTA -- Move T to register A                  )
 ( LBA -- Load Byte via A                       )
 ( LBAI -- Load Byte via A, inc A: @a+          )
-(         14  >a  @a+  1- for{  @a   a+   emit )
-( addr: 0  1   2    3   4    5 *6*    7      8 )
-ASM{   U8 13 MTA LBAI DEC  MTR LBA AINC IOEMIT
+(         12  >a  @a+ for{  @a   a+   emit     )
+( addr: 0  1   2    3   4 *5*    6      7 )
+ASM{   U8 13 MTA LBAI MTR LBA AINC IOEMIT
 (             }for reset                       )
-( addr:    9 10    11  12                      )
+( addr:    8  9    10  11                      )
         BFOR  4 RESET RET
-( addr: *13*                                   )
+( addr: *12*                                   )
           7  32 32 72 101 108 108 111 }ASM
 warmboot                                   (  Hello  OK)  Hello  OK
 ( ---------------------------------------)

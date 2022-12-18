@@ -5,7 +5,7 @@
 # Markab bootstrap compiler
 #
 from mkb_autogen import (
-  JMP, JAL, RET, BZ, BFOR, MTR, U8, U16, I32, SH,
+  JMP, JAL, RET, BZ, BFOR, MTR, U8, U16, I32, SH, DEC,
   T_VAR, T_CONST, T_OP, T_OBJ, T_IMM,
   Heap, HeapMax, CORE_V, DP, IRQRX, IRQERR,
   HashA, HashB, HashC, HashBins, HashMask,
@@ -378,6 +378,14 @@ class Compiler:
         raise Exception("`}for` without matching `for{`")
       self.last_call = 0                #   prevent glitch with: ` ... }for ;`
       return pos + 1
+    if w == "'":                            # '
+      name = words[pos + 1]                 # read a name from input stream
+      if not (name in self.name_set):
+        raise Exception("compile_word: '", name)
+      (type_, link) = self.name_set[name]   # find name in target's dictionary
+      param = link + 2 + 1 + len(name) + 1  # calculate addr of param field
+      self.push(param)                      # push addr of param field
+      return pos + 2
     if w in self.name_set:              # look for word in target's dictionary
       (type_, link) = self.name_set[w]
       param = link + 2 + 1 + len(w) + 1

@@ -3,7 +3,7 @@
 
 : 2d drop drop ;
 : 4d 2d 2d ;
-: t01 3 for{ r 1 and }for iod ;      t01  (  1 0 1 0  OK)
+: t01 4 for{ r 1 and }for iod ;      t01  (  0 1 0 1  OK)
 4d
 : t02 true  if{ 4 iod ; }if 5 iod ;   t02       (  4  OK)
 drop
@@ -55,10 +55,10 @@ nop                                                (  OK)
   ( n) for{ r rdrop rdrop iorh >r cr }for     ( )
   b >r a >r                  ( restore addresses)
 ;
-( n=15 is too much)
+( 16 items is too much)
+16 t17
+( 15 items is okay)
 15 t17
-( n=14 is okay)
-14 t17
 ( t18: Find word "star" in the dictionary with  )
 (      ' at compile time and strfind at run time)
 (      then compare results: should be equal    )
