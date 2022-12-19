@@ -187,7 +187,7 @@ LOADNEST = 0xE134
 IRQERR  = 0xE138
 IB      = 0xE200
 Pad     = 0xE300
-Fmt     = 0xE400
+Scratch = 0xE400
 MemMax  = 0xFFFF
 
 # Markab language enum codes
@@ -228,7 +228,7 @@ CORE_VOC = {
     'IRQERR':   (T_CONST, 0xE138),
     'IB':       (T_CONST, 0xE200),
     'Pad':      (T_CONST, 0xE300),
-    'Fmt':      (T_CONST, 0xE400),
+    'Scratch':  (T_CONST, 0xE400),
     'MemMax':   (T_CONST, 0xFFFF),
     'T_VAR':    (T_CONST, 0),
     'T_CONST':  (T_CONST, 1),

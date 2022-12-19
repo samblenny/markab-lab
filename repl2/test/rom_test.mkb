@@ -59,13 +59,8 @@ nop                                                (  OK)
 16 t17
 ( 15 items is okay)
 15 t17
-( t18: Find word "star" in the dictionary with  )
-(      ' at compile time and strfind at run time)
-(      then compare results: should be equal    )
-: t18 " star" strfind .
-  ' star swapi U16i h,i I32i w,i
-  . = . ;
-t18                                       ( -1 -1 -1  OK)
+( t18: [I removed this test]  )
+: t18 nop ;
 ( t19: Test FOPEN filepath sandboxing)
 fopen name_not_on_vm_allow_list                 (  ERR 9)
 fopen ../mkb_save.rom                           (  ERR 9)

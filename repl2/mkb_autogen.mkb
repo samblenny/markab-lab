@@ -130,7 +130,7 @@ E134 const LOADNEST
 E138 const IRQERR
 E200 const IB
 E300 const Pad
-E400 const Fmt
+E400 const Scratch
 FFFF const MemMax
 
 decimal

@@ -111,7 +111,7 @@ E138 IRQERR   # IRQ vector for error handler             2 bytes (align 4)
 #...
 E200 IB       # Input Buffer       256 bytes
 E300 Pad      # Pad buffer         256 bytes
-E400 Fmt      # Fmt buffer         256 bytes
+E400 Scratch  # Scratch buffer     256 bytes
 #E4FF           end of fmt buffer
 #...
 FFFF MemMax

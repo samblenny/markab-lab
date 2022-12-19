@@ -1079,7 +1079,7 @@ def io_load_file():
   if DSDEEP < 1:
     irq_err(ERR_D_UNDER)
     return
-  if IOLOAD_DEPTH > 1:
+  if IOLOAD_DEPTH > 2:
     irq_err(ERR_IOLOAD_DEPTH)
     return
   filepath = _load_string(T)
