@@ -40,7 +40,7 @@ DP                Scratch 11 + h!
 ( Initialize IRQRX with `' outer`)
 ( The address is 16-bit relative as needed for use with JMP)
 U16                Scratch 14 + !
-' outer drop 1+ @                  ( get absolute ext. vocab code address)
+' outer drop 1+                    ( get absolute ext. vocab code address)
   extv - 31 +      Scratch 15 + h! ( rebase for core vocab and store address)
 U16                Scratch 17 + !
 IRQRX              Scratch 18 + h!
@@ -49,16 +49,17 @@ IRQRX              Scratch 18 + h!
 ( Initialize IRQERR with `' irqerr`)
 ( The address is 16-bit relative as needed for use with JMP)
 U16                 Scratch 21 + !
-' irqerr drop 1+ @                  ( get absolute ext. vocab code address)
+' irqerr drop 1+                    ( get absolute ext. vocab code address)
   extv - 31 +       Scratch 22 + h! ( rebase for core vocab and store address)
 U16                 Scratch 24 + !
-IRQRX               Scratch 25 + h!
+IRQERR              Scratch 25 + h!
 ' h! drop 1+ @      Scratch 27 + !
 
 ( Jump to `boot`)
+( JMP target gets stored in rom[29:30], so target address is relative to 29)
 JMP                 Scratch 28 + !
-' boot drop 1+ @                    ( get absolute ext. vocab code address)
-  extv - 31 +       Scratch 29 + h! ( rebase for core vocab and store address)
+' boot drop 1+                      ( get absolute ext. vocab code address)
+  extv - 29 +       Scratch 29 + h! ( rebase for core vocab and store address)
 
 
 ( Open rom file for writing, replacing its old data, if there was any)
