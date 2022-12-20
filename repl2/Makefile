@@ -19,8 +19,7 @@ hello: hello.rom $(AUTOGEN)
 
 selfhost: kernel.rom markab_vm.py kernel.mkb self_host.mkb $(AUTOGEN)
 	echo 'load self_host.mkb' | ./markab_vm.py kernel.rom
-	hexdump -C self_hosted.rom > self_hosted.rom.hex.txt
-	hexdump -C kernel.rom > kernel.rom.hex.txt
+	diff self_hosted.rom kernel.rom
 
 kernel.rom: kernel.mkb bootstrap.py markab_vm.py $(AUTOGEN)
 	@python3 bootstrap.py

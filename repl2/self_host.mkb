@@ -57,10 +57,10 @@ IRQERR              Scratch 25 + h!
 
 ( Jump to `boot`)
 ( JMP target gets stored in rom[29:30], so target address is relative to 29)
-JMP                 Scratch 28 + !
-' boot drop 1+                      ( get absolute ext. vocab code address)
-  extv - 29 +       Scratch 29 + h! ( rebase for core vocab and store address)
-
+JMP             Scratch 28 + !
+' boot drop 1+                   ( get absolute ext. vocab code address)
+  extv -                         ( rebase for core vocab)
+  2 +           Scratch 29 + h!  ( +2 bytes for size of this address, store it)
 
 ( Open rom file for writing, replacing its old data, if there was any)
 fopen self_hosted.rom
