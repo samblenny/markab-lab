@@ -149,4 +149,10 @@ var badUtf8 255 badUtf8 w!                         (  OK)  OK
 badUtf8 1 fwrite .                               ( 1  OK) 1  OK
 fclose                                             (  OK)  OK
 iod                                (  Stack is Empty  OK)  Stack is empty  OK
+( Test extra whitespace for ' address lookup )  OK
+' iod drop  '  iod drop - .                      ( 0  OK) 0  OK
+( Test extra whitespace for fopen )  OK
+fopen  test/mkb_save.mkb fclose                    (  OK)  OK
+( Test extra whtespace for : )  OK
+:  t23 nop ;  ' t23 swap drop .                 ( -1  OK) -1  OK
 

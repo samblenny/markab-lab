@@ -1169,7 +1169,7 @@ def io_fopen():
     irq_err(ERR_FILEPATH)
     return
   try:
-    FOPEN_FILE = open(filepath, "wb")
+    FOPEN_FILE = open(filepath, "r+b")
   except OSError:
     # This is a catchall for problems with file IO at the host OS level.
     # Error might be due to file permissions, a full disk, or whatever.
