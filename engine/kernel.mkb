@@ -1,0 +1,730 @@
+( Copyright © 2022 Sam Blenny)
+( SPDX-License-Identifier: MIT)
+( Markab kernel)
+
+load mkb_autogen.mkb  ( load definitions for opcodes, enums, and core vocab)
+
+: here DP h@ ;       ( address for next writable dictionary location)
+: corv CORE_V h@ ;   ( base address of core vocabulary hashmap)
+: extv EXT_V h@ ;    ( base address of extensible vocab hashmap)
+
+: hex 16 BASE w! ;
+: decimal 10 BASE w! ;
+
+: cr     10 emit ;  ( Emit newline, but call it by the traditional CR name)
+: quote  34 emit ;  ( Emit quote: " )
+: star   42 emit ;  ( Emit asterisk: * )
+: space  32 emit ;  ( Emit one space)
+: spaces  ( n -- )  for{ 32 emit }for ;  ( Emit n spaces)
+
+: bye  ( Notify the VM and its host process that the program wants to halt)
+  halt
+;
+
+: compiling?  ( -- bool )  ( Check if compile mode active)
+  MODE @ MODE_COM =
+;
+
+( ----------------------------- )
+( String struct format:         )
+( Byte range   Field            )
+(      0       .length: max 255 )
+(    1:n       .data            )
+( ----------------------------- )
+
+: print ( addr -- )  ( Print string from address in T, first byte is length)
+  a swap >a    ( save old a, new a = address of buffer from T)
+  @a 1 < if{   ( if string is empty)
+    >a ;       (   restore a, return)
+  }if          ( else:)
+  @a+ for{     ( loop over string's data bytes)
+    @a+ emit   (   emit next byte)
+  }for >a      ( restore old value of a)
+;
+
+: DP.len   ( -- len  )  here @ ;   ( Get value of DP string length field)
+: DP.data  ( -- addr )  here 1+ ;  ( Get address of DP string data field)
+: IB.len   ( -- len  )  IB @ ;     ( Get value of IP string length field)
+: IB.data  ( -- addr )  IB 1+ ;    ( Get address of IB string data field)
+
+: DP.print  here print ;  ( Print string from DP)
+: IB.print  IB print ;    ( Print input buffer)
+
+: IB.len=b-IB  ( old-b -- )  ( Calculate and store IBLen, restore b, reset IN)
+  b- b IB -  ( calculate length of bytes copied into IB through b)
+  IB ! >b    ( update length byte of IB, restore b)
+  0 IN !     ( reset IN)
+;
+
+: readline            ( Read a line of text from standard input)
+  b IB.data >b        ( save old b, new b = pointer to Input Buffer)
+  256 for{            ( loop for up to IB capacity of 255 bytes)
+    key               (   read byte from standard input, copy it to IB)
+    0= if{            (   if end of stream:)
+      0 IB ! 0 IN !   (     zero IB length and IN)
+      >b true EOF !   (     restore old b, set end of input flag)
+      rdrop ;         (     break out of loop, return)
+    }if dup !b+       (   else: copy the byte to IB)
+    10 = if{          (   if byte is a LF [CR not supported]:)
+      b-              (     adjust the byte count to ignore newline)
+      IB.len=b-IB     (     update IBLen with byte count, restore b, reset IN)
+      rdrop ;         (     break out of loop, return)
+    }if               (   else: keep looping)
+  }for IB.len=b-IB    ( update IBLen with byte count, restore b, reset IN)
+;
+
+: strcmp ( addr addr -- bool )  ( Compare strings, return match as boolean)
+  >a >b                ( replace a and b: a = T, b = S)
+  @a @b+ != if{        ( if length bytes do not match)
+    false ;            (   return bool=false)
+  }if
+  @a+ for{             ( loop over all the bytes)
+    @a+ @b+ != if{     (   if bytes do not match)
+      false rdrop ;    (     then break out of loop, returning bool=false)
+    }if
+  }for true            ( all bytes match: return true)
+;
+
+: strcpdp  ( addr -- )  ( Copy string from address T to DP for use with find)
+  >a here >b    ( a = source string address, b = DP destination address)
+  @a 1+         ( load source string length, add 1 to account for length byte)
+  for{          ( for a in source string: {.length, .data[]})
+    @a+ !b+     (   copy a to b, initial value of a is length byte)
+  }for
+;
+
+( ------------------------- )
+( Vocab item struct format: )
+( Byte range   Field        )
+(    0:1       .link        )
+(      2       .name.length )
+(    3:n       .name.bytes  )
+(      n       .type        )
+(  n+1:n+m     .code/.param )
+( ------------------------- )
+
+: v.name  ( v -- .name )  ( Compute address of vocab item's .name field)
+  2 +  ( skip 2 bytes to get past the .link field)
+;
+
+: v.type  ( v -- .type )  ( Compute address of vocab item's .type field)
+  2 +      ( skip 2 bytes to get past the .link field)
+  dup @ +  ( skip .name.length bytes to get to the end of the .name.data field)
+  1+       ( adding 1 more gets us the address of the .type field)
+;
+
+: w.hash  ( -- binp )  ( Hash string at DP into MWC hashmap bin pointer offset)
+  here >a           ( a = address of string struct at DP)
+  HashC             ( start hash with parameter C, the initial carry value)
+  @a+ for{          ( load length field and loop over string's data field)
+    dup 65535 and   (   mask low halfword of previous hash)
+    HashA <<        (   multiply it by HashA parameter)
+    swap 16 >> +    (   add carry from previous hash to result of multiply)
+    @a+ xor         (   xor string byte with multiply-with-carry RNG result)
+  }for
+  dup HashB >> xor  ( compress entropy towards low bit with HashB parameter)
+  HashMask and      ( mask low bits to get the hashmap bin number)
+  2 *               ( bin number * 2 = offset to pointer for hashmap bin)
+;
+
+: find.bin  ( binp -- [addr] bool )  ( Search for word at DP in list for bin)
+  ( initial stack state: {..., T: vocab_bin_absolute_address})
+  99 for{            ( loop over up to 99 dictionary entries)
+                     ( { T: absolute_address_of_list_item})
+    dup 0= if{       ( if vocab item pointer is null:)
+      drop false     (   {T: abs_addr==0} -> {T: false})
+      rdrop ;        (   break out of loop returning {T: false})
+    }if              ( else: {T: abs_addr_list_item != 0})
+    dup v.name       ( calculate address of vocab item's .name field)
+                     (  -> {abs_addr_list_item, T: list_item.name})
+    DP h@            ( -> {abs_addr_item, list_item.name, T: search_word})
+    strcmp           ( compare vocab item's name with search word)
+                     (  -> {abs_addr_list_item, T: bool})
+    if{              ( if they match:)
+                     (   {T: abs_addr_matching_list_item})
+      v.type         (   calculate address of vocab item's .type field)
+      true rdrop ;   (   break loop returning {addr=.type, T: bool=true})
+    }if              ( else: stack is {T: abs_addr_non_matching_list_item})
+    dup h@           ( follow link -> {T: abs_addr_current, T: rel_addr_next})
+    swap over        ( -> {rel_addr_next, abs_addr_current, T: rel_addr_next})
+    + 65535 and swap ( -> {abs_addr_next, rel_addr_next})
+    0= if{           ( if relative address is 0, meaning abs_addr is wrong:)
+      drop 0         (   {T: incorrect_abs_addr_next} -> {T: 0=null_ptr})
+    }if              ( {T: [abs_addr_next_item | null_ptr]})
+  }for               ( loop finished, no match -> {T: abs_addr_not_a_match)
+  drop false         ( clean address off stack, return {T: false})
+;
+
+: find ( -- [addr] bool )  ( Search for word at DP in dictionary)
+  w.hash        ( hash word at DP to get hashmap bin offset)
+                (  -> {T: bin_offset})
+  corv over +   ( calculate address of core vocab bin for hash)
+    65535 and   (  -> {bin_offset, T: core_bin_address})
+  swap extv +   ( calculate address of extensible vocab bin for hash)
+    65535 and   (  -> {core_bin_address, T: ext_bin_address})
+  find.bin      ( search in ext. vocab)
+                (  -> {core_bin_address, [addr], T: bool})
+  0= if{        ( if word is not in ext. vocab's bin, -> {T: core_bin_address})
+    find.bin    (   find word in core vocab)
+    ;           (   return {[addr], T: bool})
+  }if           ( else, {core_bin_address, T: ext_word_address})
+  swap drop     ( clean core vocab bin address off stack)
+  true          ( return {ext_word_address, T: true} for match in ext vocab)
+;
+
+: strfind  ( addr -- [addr] bool )  ( Find string at address T)
+  strcpdp find
+;
+
+: inner  ( v.type -- ??? )  ( Inner interpreter: run code for one word)
+  dup @ swap 1+ swap  ( S: address of .type + 1, T: value of .type field)
+  dup T_VAR = if{     ( if type is variable:)
+    drop              (   drop copy of .type value)
+    ;                 (   return {T: address of word's .param field})
+  }if T_CONST = if{   ( else if type is constant:)
+    w@ ;              (   push value of the constant from .param, return)
+  }if                 ( else if type is opcode or reg/imm compiled word:)
+  call                (   call into .param *which had better return!*)
+;
+
+: a=IB.next  ( -- old-a )  ( Save old a, set new a = IB+1+IN)
+  a        ( save old a)
+  IB.data  ( get address of IB, add 1 to skip length byte)
+  IN @ +   ( add value of IN, yielding address of next unread byte)
+  >a       ( move address to a)
+;
+
+: IB.limit  ( -- n )  ( Calculate unread bytes left in IB to use as loop limit)
+  IB.len  ( get length data in IB)
+  IN @ -  ( subtract IN, giving number of unread bytes remaining in IB)
+;
+
+: IB.done?  ( -- bool )  ( Return true if IB has no more bytes to read)
+  IN @ IB.len < 0=
+;
+
+: IN.aup  ( old-a -- )  ( Update IN from a, restore old a)
+  a IB 1+ -  ( calculate a - IB + 1, yielding new value of IN)
+  IN ! >a    ( update IN, restore old value a)
+;
+
+: skip_ws            ( Advance IN past leading spaces in IB's available bytes)
+  a=IB.next          ( save old a, new a = addres of next unread byte of IB)
+  IB.limit for{      ( loop over the unread bytes of IB)
+    @a+ 32 =         (   get a byte, check if it is space [tab not supported])
+    0= if{           (   if byte was not space:)
+      a- IN.aup      (     update IN to the byte before a, restore a)
+      rdrop ;        (     break out of loop and return)
+    }if              (   else: keep skipping whitespace)
+  }for IN.aup        ( update IN and restore old value of a)
+;
+
+: w.bpatch  ( old-b addr -- )  ( Patch length byte of string for w-copy)
+  b- b over -  ( calculate length using pointer to length byte)
+  swap !       ( patch length byte with actual length of word)
+  >b           ( restore old value of b)
+;
+
+: word  ( -- )       ( Copy a word from IB to dictionary at DP)
+  skip_ws
+  IB.done? if{       ( if IB has no more bytes to read:)
+    0 here ! ;       (   set string length at DP to 0, return)
+  }if
+  a=IB.next          ( save old a, new a = IB+IN)
+  b here >b          ( save old b, new b = DP)
+  b 0 !b+            ( save pointer to length, store initial length = 0)
+  IB.limit for{      ( loop over unread bytes from IB)
+    @a+ dup !b+      (   copy byte, space is okay because of the if{ b-)
+    32 = if{         (   if byte was space [tab not supported]:)
+      b- w.bpatch    (     calculate length, patch length byte, restore b)
+      IN.aup         (     update IN, restore a)
+      rdrop ;        (     break out of loop, return)
+    }if              (   else: keep looping)
+  }for w.bpatch      ( patch length byte, restore b)
+  IN.aup             ( update IN, restore a)
+;
+
+: '  ( -- [addr] bool )  ( Look up next word from input stream in dictionary)
+  word find
+; immediate
+
+( --------------------------------------------------------------------------- )
+( Define ( to Parse a comment from the input stream:                          )
+( 1. Until this point, ( is being provided by the kernel or bootstrap compiler)
+( 2. After this definition, future ( will be handled by this word             )
+( 3. This definition cannot have comments in the code because they would      )
+(    compile as calls to the word that is being defined, since it has not yet )
+(    been closed with ; and marked as immediate                               )
+( 4. So, I'm providing duplicate of the code inside a comment, with comments  )
+( --------------------------------------------------------------------------- )
+( : (  ( Parse a comment from the input stream                                )
+(  IB.done? if{       ( if IB has no more bytes to read:                      )
+(    0 here ! ;       (   set string length at DP to 0, return                )
+(  }if                                                                        )
+(  a=IB.next          ( save old a, new a = IB+IN                             )
+(  IB.limit for{      ( loop over unread bytes from IB                        )
+(    @a+ 41 = if{     (   if byte was a closing parenthesis                   )
+(      IN.aup         (     update IN, restore a                              )
+(      rdrop ;        (     break out of loop, return                         )
+(    }if              (   else: keep looping                                  )
+(  }for IN.aup        ( update IN, restore a                                  )
+( ; immediate                                                                 )
+( --------------------------------------------------------------------------- )
+: (
+  IB.done? if{
+    0 here ! ;
+  }if
+  a=IB.next
+  IB.limit for{
+    @a+ 41 = if{
+      IN.aup
+      rdrop ;
+    }if
+  }for IN.aup
+; immediate
+
+: 0-9?  ( n -- [n] bool )  ( Try to convert T from ASCII decimal digit)
+  48 - dup             ( calculate n = n-'0' = n-48)
+  0 < over 9 > or if{  ( if n-'0'<0 or 9<n-'0':)
+    drop false ;       (   return {bool=false}, n is not a decimal digit)
+  }if true             ( else: return {n bool=true}, n is a decimal digit)
+;
+
+: A-F?  ( n -- [n] bool )  ( Try to convert T from uppercase hex digit)
+  65 - dup             ( calculate n = n-'A' = n-65)
+  0 < over 5 > or if{  ( if n-'A'<0 or 5<n-'A':)
+    drop false ;       (   return {bool=false}, n is not uppercase hex digit)
+  }if 10 +             ( else: calculate n = n+10 as low digit is '0', not 'A')
+  true                 ( return {n bool=true}, n is uppercase hex digit)
+;
+
+: a-f?  ( n -- [n] bool )  ( Try to convert T from lowercase hex digit)
+  97 - dup             ( calculate n = n-'a' = n-97)
+  0 < over 5 > or if{  ( if n-'a'<0 or 5<n-'a':)
+    drop false ;       (   return {bool=false}, n is not lowercase hex digit)
+  }if 10 +             ( else: calculate n = n+10 as low digit is '0', not 'a')
+  true                 ( return {n bool=true}, n is lowercase hex digit)
+;
+
+: @a_atoi?  ( ascii -- [n] bool )  ( Try to convert ascii digit to integer)
+  @a 0-9?             ( try simple decimal conversion first)
+  BASE @ 16 = if{     ( if base is 16:)
+    dup 0= if{        (   if decimal conversion fails:)
+      drop @a a-f?    (     try to convert as lowercase hex digit)
+      dup 0= if{      (     if that also fails:)
+        drop @a A-F?  (       try to convert as uppercase hex digit)
+      }if
+    }if
+  }if
+;
+
+( NOTE: This allows a leading '-' to negate hexadecimal numbers, which is a  )
+(       little weird. But, doing it this way, with the same negation behavior)
+(       for both hex and decimal, significantly simplifies the code.         )
+(                                                                            )
+: number ( -- [n] bool )  ( Try to parse word at DP as number in current base)
+  0                  ( start number at n=0)
+  false >b           ( b = false, meaning assume number is positive)
+  DP.data >a         ( a = address of first string data byte)
+  DP.len             ( push length of string for use as loop limit)
+  a @ 45 = if{       ( if first byte of string in DP is '-':)
+    true >b          (   b = true, meaning number should be negated)
+    a+ 1-            (   skip the '-': increment a, decrement loop limit)
+  }if
+  for{               ( loop over each byte of word at DP)
+    BASE @ *         (   scale n up by base)
+    @a_atoi?         (   try to convert ASCII to integer in current base)
+    0= if{           (   if byte was not an ASCII digit in current base:)
+      drop           (     drop n)
+      false rdrop ;  (     break loop, return {T: false}, word is not a number)
+    }if + a+         (   else: add this digit to n, advance a to next byte)
+  }for
+  b if{ inv 1+ }if   ( if b was set for a leading '-': negate n)
+  true               ( return {n bool=true})
+;
+
+( --------------------------------------------------------------------)
+( --- Begin Compiler -------------------------------------------------)
+( --------------------------------------------------------------------)
+
+: immediate  ( -- )  ( Change type of last word from regular to immediate)
+  LASTWORD h@       ( load address for start of last defined word)
+  dup 0= if{        ( if last word is 0, no words have been defined yet, so: )
+    drop ;          (   clean up stack, return)
+  }if               ( else: )
+  v.type dup        ( get address of last word's .type field)
+  @ T_OBJ = if{     ( if .type was regular compiled word:)
+    T_IMM swap ! ;  (   change type to immediate compiled word, return)
+  }if drop          ( else: clean up stack, leave type as it was)
+;
+
+: allot ( bytes -- ) DP h@ + DP h! ;  ( Allocate dictionary space)
+
+:  , here  ! 1 allot ;   ( store low byte of T at DP)
+: h, here h! 2 allot ;   ( store low halfword of T at DP)
+: w, here w! 4 allot ;   ( store full word T at DP)
+
+: okoff false OK_EN ! ;  ( Turn off OK prompts)
+: okon  true  OK_EN ! ;  ( Turn on OK prompts)
+
+: ok  ( Print OK prompt if OK prompt is enabled)
+  OK_EN @ 0= if{ ; }if  ( return if OK prompt is not enabled)
+  2 spaces              ( else: start with 2 spaces, then...)
+  compiling? if{        ( if compile mode is active:)
+    67 emit 111 emit    ( print "Compiling" cr, then return)
+    109 emit 112 emit
+    105 emit 108 emit
+    105 emit 110 emit
+    103 emit cr ;
+  }if                   ( else:)
+  79 emit 75 emit cr    ( print regular OK prompt)
+;
+
+: NEST+  ( -- )  ( Increment block nesting level)
+  NEST dup @ 1+ swap !
+;
+
+: NEST-  ( -- )  ( Decrement block nesting level)
+  NEST @ 1-       ( load value of nesting level and decrement it)
+  dup 0 < if{     ( if result is < 0)
+    dup xor       (   replace the result with 0)
+    ErrNest >err  (   raise an error indicating unbalanced }if or }for)
+  }if NEST !      ( store the new nesting level)
+;
+
+: NESTED?  ( -- bool)  ( Is nesting level > 0, because of if{ or for{ block?)
+  NEST @ 0 >
+;
+
+: LOADNEST+  ( Increment IOLOAD nesting level)
+  LOADNEST @ 1+ LOADNEST !
+;
+
+: LOADNEST-  ( Decrement IOLOAD nesting level)
+  LOADNEST @ 1-
+  dup 0 < if{
+    dup xor
+  }if LOADNEST !
+;
+
+: LOADNEST?  ( -- bool)  ( Is load nesting level > 0 because of nested loads?)
+  LOADNEST @ 0 >
+;
+
+: irqerr  ( err_code -- )  ( Error interrupt handler: restore known state)
+  MODE_INT MODE !   ( clear compile mode)
+  0 NEST !          ( reset if/for nesting level)
+  LOADNEST? if{     ( if the error happened inside a load:)
+    LOADNEST-       (   decrement the load nesting level)
+    >err            (   re-raise the error to escape another level of loading)
+  }if               ( else:)
+  2 spaces 69 emit  (   print error prompt: '  ERR')
+  82 emit 82 emit
+  . cr              (   print the error code from T)
+  okon              (   turn ok prompts on)
+;
+
+: create ( -- )  ( Add a name to the dictionary)
+  a b             ( save old values of a and b -> {old_a, old_b})
+  0 h,            ( compile link=0 [to be patched later], stack is {})
+  word            ( copy name from input stream to DP, stack is {})
+  w.hash extv +   ( calculate ext. vocab hashmap bin pointer for word)
+    65535 and
+  >a              ( a = absolute_address_bin_pointer)
+  here 2 - >b     ( b = absolute_address_this_word.link -> {old_a, T: old_b})
+  a h@            ( load relative address of head of list via bin pointer)
+                  (  -> {old_a, old_b, T: rel_list_head)
+  dup             ( -> {old_a, old_b, rel_list_head, T: rel_list_head})
+  ( This block rebases non-zero relative links but passes link==0 unchanged)
+  if{             ( if list head relative address was non-zero:)
+                  (   stack is {old_a, old_b, T: rel_list_head})
+    a + 65535 and (   calculate absolute address of list head)
+                  (    -> {old_a, old_b, abs_list_head_addr})
+    b -           (   make relative link from this_word.link to the old head)
+      65535 and   (    -> {old_a, old_b, rel_.link_to_old_head})
+  }if             ( else: T will be either 0=null_ptr or old head rel link)
+  b h!            ( patch this item's link field to point to bin's old head)
+  b a - 65535 and ( calculate relative address from bin pointer to this word)
+  a h!            ( update bin head of list ptr to point at this word)
+  here @ 1+       ( calculate size of name struct: string bytes + length byte)
+  allot           ( allocate dictionary space for the name)
+  >b >a           ( restore old values of a and b -> {old_a, T: old_b} -> {})
+;
+
+: :                ( Start defining a new vocabulary word)
+  here             ( push link address for updating dictionary pointers later)
+  create           ( read name to start dictionary entry)
+  T_OBJ ,          ( append type field: object code)
+  MODE_COM MODE !  ( set compile mode)
+  LASTWORD h!      ( set last defined word pointer for benefit of `immediate`)
+                   (  this uses the link address from the `here` above)
+;
+
+: update-mode        ( Clear compile mode, but only for final ; of definition)
+  NESTED? 0= if{     ( if block nesting level is 0:)
+    MODE_INT MODE !  (   clear compile mode)
+  }if
+;
+
+( --------------------------------------------------------------------------- )
+( Start of `;` and `;shdw` weirdness, see comment below for more details      )
+( --------------------------------------------------------------------------- )
+
+: ;shdw  ( -- )  ( shadow of ; to avoid recursion during self-hosting compile)
+  compiling? 0= if{     ( if not in compile mode:)
+    ;                   (   return)
+  }if
+  here 3 - LASTCALL h@  ( tail call optimizer...)
+  = if{                 ( if last compiled subroutine call was 3 bytes ago:)
+    JMP here 3 - !      (   change the JAL to a JMP)
+    update-mode ;       (   clear compile mode if needed, then return)
+  }if RET ,             ( else: compile a RET instruction)
+  update-mode           ( clear compile mode if needed)
+; immediate
+
+( --------------------------------------------------------------------------- )
+( CAUTION! This definition uses `;shdw` in place of `;` to avoid the problem  )
+( of compiling self-recursive calls when we need a `;` run in immediate mode. )
+( Just like with the definition of `(`, the problem is that the kernel can't  )
+( run this `;` as an immidiate word because its definition is incomplete and  )
+( it has not yet been marked as immediate. In this case, a workable solution  )
+( is to bootstrap through the `;shdw` shadow definition that does the same    )
+( thing as `;`. It's weird, but it works. Maybe there's a better way?         )
+( --------------------------------------------------------------------------- )
+: ;  ( -- )  ( Return from a word)
+  compiling? 0= if{     ( if not in compile mode:)
+    ;shdw               (   return)
+  }if
+  here 3 - LASTCALL h@  ( tail call optimizer...)
+  = if{                 ( if last compiled subroutine call was 3 bytes ago:)
+    JMP here 3 - !      (   change the JAL to a JMP)
+    update-mode ;shdw   (   clear compile mode if needed, then return)
+  }if RET ,             ( else: compile a RET instruction)
+  update-mode           ( clear compile mode if needed)
+;shdw immediate
+
+: c-number ( n -- )  ( Compile number from T into dictionary)
+  dup 0 < over 65535 > or if{  ( if n < 0 or n > 0xffff:)
+    I32 , w, ;                 (   compile as 32-bit signed, return)
+  }if dup 255 > if{            ( else if n > 0xff:)
+    U16 , h, ;                 (   compile as 16-bit unsigned, return)
+  }if U8 , ,                   ( else: compile as 8-bit unsigned)
+;
+
+: var  ( -- )  ( Add variable to dictionary)
+  create   ( append name as read from text input stream)
+  T_VAR ,  ( append .type=var)
+  0 w,     ( append .param = I32 initialized to 0)
+;
+
+: const  ( n -- )  ( Add constant to dictionary)
+  create     ( append name as read from text input stream)
+  T_CONST ,  ( append .type=const to dictionary)
+  w,         ( append .param = T as I32 literal)
+;
+
+: opcode  ( n -- )  ( Add opcode to dictionary)
+  create     ( append name as read from text input stream)
+  T_OP ,     ( append type=opcode)
+  , RET ,    ( append .param = opcode from T, then RET)
+;
+
+: qt.start  ( -- ptr )  ( start sequence for compiling a string with ")
+  compiling? if{  ( if starting a quoted string during a definition:)
+    JMP , 0 h,    ( compile a jump to skip string; address gets patched later)
+  }if
+  here            ( always push a pointer to the start of the string)
+;
+
+: qt.end  ( ptr a b -- [ptr] )  ( end sequence for compiling a string with ")
+  swap IN.aup       ( -> {ptr, T: old-b} update IN, restore old a)
+  swap b over !     ( -> {old-b, T: ptr} patch compiled string's length field)
+  swap >b           ( restore old value of b)
+  ( --------------------------------------------------------------------------)
+  ( This next bit is tricky. When " compiles a string to the dictionary, that )
+  ( may or may not be happening in the middle of the definition of some other )
+  ( word. So, my solution is to compile a jump around the string if " happens )
+  ( as part of a definition. The stuff below is:                              )
+  ( 1. Patching jump address that gets initially compiled above by `qt.start` )
+  ( 2. Compiling a U16 literal to push the string's address at runtime        )
+  ( 3. Cleaning the string pointer off the compile-time stack                 )
+  ( --------------------------------------------------------------------------)
+  compiling? if{    ( if compile mode is active, compile ptr as U16 literal:)
+    here            (   -> { ptr-str, T: ptr-U16} push jump target address)
+    U16 , over h,   (   -> { ptr-str, T: ptr-U16} compile str-ptr as U16 lit.)
+    over - 2 +      (   -> { ptr-str, T: rel-jump} compute relative jump dist)
+    swap 2 -        (   -> { jmp-rptr: T: jmp-addr-ptr} compute jump addr ptr)
+    h!              (   patch the jump address to skip string and jump to U16)
+  }if
+;
+
+( --------------------------------------------------------------------------- )
+( " compiles a string struct to the dictionary and pushes a pointer to the    )
+( start of the struct to the stack. The comment below with `( " ( ...` is to  )
+( keep my simple-minded syntax highlighting plugins from getting confused and )
+( making a mess. Strings end with the next `"`, like: " I'm a string"         )
+( Including a double quote in a string is not possible with this word, as it  )
+( lacks an escaping mechanism. To get a quote, just do `34 emit`. The stack   )
+( effect is different for " in compile mode vs " in interpret mode. For       )
+( details, see the comments above in `qt.start` and `qt.end`.                 )
+( --------------------------------------------------------------------------- )
+: "  ( " ( )  ( -- [ptr] )
+  qt.start        ( -> { T: ptr} push pointer to start of string struct)
+  0 ,             ( compile .length field = 0, expecting to patch it later)
+  IB.done? if{    ( end early with 0-length string if end of line without ")
+    ;
+  }if             ( otherwise, copy bytes to dictionary until the next " )
+  a=IB.next       ( -> { ptr, T: old-a})
+  b 0 >b          ( -> { ptr, old-a, T: old-b} save old b, b = 0)
+  IB.limit for{
+    @a+           ( -> {ptr, old-a, old-b, T: in-byte} load input byte)
+    dup 34 = if{  ( 34 is ASCII for " ; if input byte is ": )
+      drop        ( clean copy of input byte off stack)
+      qt.end      ( update IN, restore old a and b, patch length field)
+      rdrop ;     ( break out of loop, return)
+    }if b+ ,      ( else: increment length count and compile byte)
+  }for            ( {ptr, old-a, old-b} this is bad: end of line without ")
+  qt.end          ( update IN, restore old a and b, patch length field)
+; immediate
+
+( --------------------------------------------------------------------------- )
+( You could just do `" foo.mkb" load_`, but that would compile "foo.mkb" into )
+( the dictionary, which you probably don't want. Doing `load foo.mkb` is a    )
+( way to keep the filename from wasting dictionary space.                     )
+( CAUTION! This pretends like filenames never have spaces, which is kind of   )
+( unreasonable, but it's good enough for now. The intended use is like:       )
+(  `load mkb_autogen.mkb`                                                     )
+( --------------------------------------------------------------------------- )
+: load  ( -- )  ( Read filepath from IB and load it)
+  here word DP h!   ( copy next input word as string to DP)
+  okoff             ( turn off OK prompts)
+  LOADNEST+
+  here load_        ( push address of filepath string, invoke IOLOAD opcode)
+  LOADNEST-
+  LOADNEST? 0= if{  ( if this was the outermost load:)
+    okon ok         (   turn OK prompts back on, print ok)
+  }if
+;
+
+( Open a file: convenience wrapper for FOPEN, taking filepath from input stream)
+( Reading filepath from IB avoids compiling the string into the dictionary.)
+( This parses the filepath with `word`, so spaces in file or directry names)
+( will not work.)
+: fopen  ( -- )
+  here word DP h!    ( copy next input word as string to DP)
+  here               ( push address of filepath string)
+  fopen_             ( then open it by invoking the FOPEN opcode)
+;
+
+: if{ ( -- addr )  ( Start of if block)
+  BZ , here 0 , NEST+
+; immediate
+
+: }if ( addr -- )  ( End of if block)
+  here over -    ( calculate offset for forwards relative jump)
+  ( TODO: handle error condition of offset > 255)
+  swap !         ( patch the jump target address at start of the if block)
+  NEST-          ( update block nesting level)
+  0 LASTCALL h!  ( prevent tail call optimizer from peeking across block edge)
+; immediate
+
+: for{ ( -- addr )  ( Start of for-loop block)
+  MTR , here NEST+
+; immediate
+
+: }for ( addr -- )  ( End of for-loop block)
+  BFOR ,         ( compile Branch to FOR: dec r, conditional branch, etc.)
+  here swap -    ( calculate distance for backwards relative jump)
+  ,              ( compile the address for BFOR)
+  NEST-          ( update nesting level)
+  0 LASTCALL h!  ( prevent tail call optimizer from peeking across block edge)
+; immediate
+
+: inner-c  ( v.type -- )  ( Inner interpreter: compile code for one word)
+  dup @ swap 1+ swap     ( S: address of .type + 1, T: value of .type field)
+  dup T_VAR = if{        ( if type is variable:)
+    drop                 (   drop copy of .type value)
+    U16 , h,             (   compile T into a U16 literal)
+    ;                    (   return)
+  }if dup T_CONST = if{  ( else if type is constant:)
+    drop                 (   drop copy of .type value)
+    w@                   (   load value of constant as I32)
+    c-number ;           (   inline const by compiling as literal, return)
+  }if dup T_OP = if{     ( else if type is constant:)
+    drop                 (   drop copy of .type value)
+    @ ,                  (   compile opcode from .param[0])
+    ;                    (   return)
+  }if T_OBJ = if{        ( else if type is regular compiled word:)
+    here LASTCALL h!     (   save address of JAL for tail call optimizer)
+    JAL ,                (   compile JumpAndLink)
+    here - h,            (   compile PC-relative offset to .param address)
+    ;
+  }if                    ( else type should be immediate compiled word:)
+  call                   (   call into .param *which had better return!*)
+;
+
+( --------------------------------------------------------------------)
+( --- End Compiler ---------------------------------------------------)
+( --------------------------------------------------------------------)
+
+( --------------------------------------------------------------------)
+( NOTE: the Markab CPU will reset the stacks and transfer control to  )
+( the error handler vector, IRQERR, if any of this code triggers an   )
+( error condition. So, there aren't any error checks here.            )
+( --------------------------------------------------------------------)
+: dowords             ( Interpret words from a line of text input)
+  skip_ws             ( skip whitespace at start of unread bytes in IB)
+  IB.done? if{        ( if IB is empty:)
+    ok ;              ( print "  OK", return from dowords to end loop)
+  }if
+  here                ( save DP since next call will change it)
+  word                ( try to copy a word from IB to DP)
+  DP h!               ( put DP back where it was)
+  find if{            ( if word is in the dictionary:)
+    compiling? if{    (   if compile mode is active:)
+      inner-c         (     compile this word)
+      dowords ;       (     loop using tail recursion)
+    }if
+    inner             (   interpret word)
+    dowords ;         (   loop using tail recursion)
+  }if
+  number              ( else: try to parse and push word as a number)
+  if{                 ( if word is a number:)
+    compiling? if{    (   if compile mode is active:)
+      c-number        (     compile the number)
+    }if
+    dowords ;         (   loop using tail recursion)
+  }if
+  2 spaces 63 emit    ( else: print error message '  ? ')
+  space DP.print      ( print the unknown word)
+  ErrUnknown >err     ( this throws an error that will jump via to IRQERR)
+;
+
+: outer  ( Outer interpreter: interpret a line of text)
+  readline   ( get a line of text from stdin)
+  dowords    ( loop over all the words of the line)
+  ( ...)     ( return to wait for IRQRX to invoke outer again)
+;
+
+( ---------------------------------------------------------------------------)
+( CAUTION! Weird magic happens here. At the moment, the bootstrap compiler,  )
+( bootstrap.py, compiles a jump to the `boot` word's compiled code as part   )
+( of the bootloader at the start of the kernel. See Compiler::__init__ and   )
+( Compiler::create in bootstrap.py for details. Other magic words whose code )
+( addresses get patched into the bootloader include `outer` and `irqerr`.    )
+( ---------------------------------------------------------------------------)
+: boot    ( Initialize global vars, print version, start outer interpreter)
+  reset             ( clear stacks and errors: mainly useful for reboot)
+  0 IN w!           ( 1 byte,  aligned 4, so zero all 4)
+  0 LASTCALL w!     ( 2 bytes, aligned 4, so zero all 4)
+  0 LASTWORD w!     ( 2 bytes, aligned 4, so zero all 4)
+  0 LOADNEST w!     ( 1 byte, aligned 4, so zero all 4)
+  10 BASE w!        ( set number base to decimal)
+  false EOF w!      ( clear the end of input flag)
+  true OK_EN w!     ( enable OK prompts)
+  here EXT_V w!     ( set extensible vocab hashmap base pointer)
+  HashBins for{     ( loop to initialize hashmap for ext. vocab: )
+    0 h,            (   allocate and zero 2 bytes for this bin's pointer)
+  }for
+  ( ...)            ( return to wait for IRQRX to invoke outer interpreter)
+;

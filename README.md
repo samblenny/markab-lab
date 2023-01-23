@@ -47,17 +47,19 @@ using the tools to make stuff.
 
 ## Source Code Contents
 
-1. [repl2/](repl2): Work in progress on Markab VM emulator, Markab kernel rom,
-   and Markab compilers.
+1. [engine/](engine): Work in progress on a game engine with Markab scripting.
 
-2. [markab-language/](markab-language): Work in progress on Markab language
-   spec and text editor syntax highlighting plugins.
+2. [repl2/](repl2):  **[inactive]** Markab VM emulator, Markab kernel rom,
+   Markab compilers, and Markab language specification. The tools in this
+   directory are mostly written in Python, with a little C.
 
-3. [repl/](repl): Experimental Forth system with interpreters and compiler
-   running on top of a kernel written in amd64 assembly language for linux.
+3. [repl/](repl):  **[inactive]** Experimental Forth system with interpreters
+   and compiler running on top of a kernel written in amd64 assembly language
+   for linux.
 
-4. [asm/amd64/](asm/amd64): Several C and amd64 assembly language experiments
-   written to prepare for making the prototype Forth system in [repl/](repl).
+4. [asm/amd64/](asm/amd64): **[inactive]** Several C and amd64 assembly language
+   experiments written to prepare for making the prototype Forth system in
+   [repl/](repl).
 
 
 ## Conduct
