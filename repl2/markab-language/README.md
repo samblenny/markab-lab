@@ -75,8 +75,8 @@ The keywords and opcodes are still in a stage of evolving changes as I work to
 implement and debug the VM and compiler. I plan to document this better once
 things have stabilized. For now, the authoritative references are the VM source
 code and the tests:
-- [../repl2/markab_vm.py](../repl2/markab_vm.py)
-- [../repl2/test](../repl2/test)
+- [../markab_vm.py](../markab_vm.py)
+- [../test](../test)
 
 
 ## Markab File Extension
