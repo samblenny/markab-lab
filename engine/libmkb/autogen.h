@@ -153,8 +153,9 @@ typedef struct mk_voc_item {
 static const mk_voc_item_t mk_core_voc[MK_CORE_VOC_LEN];
 
 // VM context struct for holding state of registers and RAM
+#define MK_BufMax (256)
 typedef struct mk_context {
-	i32 err;               // Error register (don't confuse with ERR opcode!)
+	u8  err;               // Error register (don't confuse with ERR opcode!)
 	u8  base;              // number Base for debug printing
 	i32 A;                 // register for source address or scratch
 	i32 B;                 // register for destination addr or scratch
@@ -163,18 +164,18 @@ typedef struct mk_context {
 	i32 R;                 // top of Return stack
 	u16 PC;                // Program Counter
 	u8  DSDeep;            // Data Stack Depth (count include T and S)
-	u32 RSDeep;            // Return Stack Depth (count inlcudes R)
-	u32 DStack[16];        // Data Stack
-	u32 RStack[16];        // Return Stack
+	u8  RSDeep;            // Return Stack Depth (count inlcudes R)
+	i32 DStack[16];        // Data Stack
+	i32 RStack[16];        // Return Stack
 	u8  RAM[MK_MemMax+1];  // Random Access Memory
-	u8  InBuf[256];        // Input buffer
-	u8  OutBuf[256];       // Output buffer
+	u8  InBuf[MK_BufMax];  // Input buffer
+	u8  OutBuf[MK_BufMax]; // Output buffer
 	u8  echo;              // Echo depends on tty vs pip, etc.
 	u8  halted;            // Flag to track halt (used for `bye`)
 	u8  HoldStdout;        // Flag to use holding buffer for stdout
 	u8  IOLOAD_depth;      // Nesting level for io_load_file()
 	u8  IOLOAD_fail;       // Flag indicating an error during io_load_file()
-	u8  FOPEN_file;        // File (if any) that was opened by FOPEN 
+	u8  FOPEN_file;        // File (if any) that was opened by FOPEN
 	u8  DbgTraceEnable;    // Debug trace on/off
 } mk_context_t;
 

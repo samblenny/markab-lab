@@ -345,22 +345,23 @@ typedef struct mk_voc_item {{
 static const mk_voc_item_t mk_core_voc[MK_CORE_VOC_LEN];
 
 // VM context struct for holding state of registers and RAM
+#define MK_BufMax (256)
 typedef struct mk_context {{
-\ti32 err;               // Error register (don't confuse with ERR opcode!)
+\tu8  err;               // Error register (don't confuse with ERR opcode!)
 \tu8  base;              // number Base for debug printing
 \ti32 A;                 // register for source address or scratch
 \ti32 B;                 // register for destination addr or scratch
 \ti32 T;                 // Top of data stack
 \ti32 S;                 // Second on data stack
 \ti32 R;                 // top of Return stack
-\tu16 PC;                // Program Counter
+\tu32 PC;                // Program Counter
 \tu8  DSDeep;            // Data Stack Depth (count include T and S)
-\tu32 RSDeep;            // Return Stack Depth (count inlcudes R)
-\tu32 DStack[16];        // Data Stack
-\tu32 RStack[16];        // Return Stack
+\tu8  RSDeep;            // Return Stack Depth (count inlcudes R)
+\ti32 DStack[16];        // Data Stack
+\ti32 RStack[16];        // Return Stack
 \tu8  RAM[MK_MemMax+1];  // Random Access Memory
-\tu8  InBuf[256];        // Input buffer
-\tu8  OutBuf[256];       // Output buffer
+\tu8  InBuf[MK_BufMax];  // Input buffer
+\tu8  OutBuf[MK_BufMax]; // Output buffer
 \tu8  echo;              // Echo depends on tty vs pip, etc.
 \tu8  halted;            // Flag to track halt (used for `bye`)
 \tu8  HoldStdout;        // Flag to use holding buffer for stdout
