@@ -5,10 +5,13 @@
 // DO NOT MAKE EDITS HERE
 // See codegen.py for details
 //
-#include "mkb_autogen.h"
+#ifndef LIBMKB_AUTOGEN_C
+#define LIBMKB_AUTOGEN_C
+
+#include "autogen.h"
 
 // Markab VM opcode dictionary
-const char * const mk_opcodes[MK_OPCODES_LEN] = {
+static const char * const opcodes[MK_OPCODES_LEN] = {
 	"NOP",     //  0
 	"RESET",   //  1
 	"JMP",     //  2
@@ -90,7 +93,7 @@ const char * const mk_opcodes[MK_OPCODES_LEN] = {
 };
 
 // Markab language core vocabulary
-const mk_voc_item_t mk_core_voc[MK_CORE_VOC_LEN] = {
+static const mk_voc_item_t core_voc[MK_CORE_VOC_LEN] = {
 	{ {"Heap"},        MK_T_CONST, 0x0000    },
 	{ {"HeapRes"},     MK_T_CONST, 0xE000    },
 	{ {"HeapMax"},     MK_T_CONST, 0xE0FF    },
@@ -198,3 +201,261 @@ const mk_voc_item_t mk_core_voc[MK_CORE_VOC_LEN] = {
 	{ {"true"},        MK_T_OP,    MK_TRUE   },
 	{ {"false"},       MK_T_OP,    MK_FALSE  },
 };
+
+/*
+ * This is the bytecode interpreter. The for-loop here is a very, very hot code
+ * path, so we need to be careful to help the compiler optimize it well. With
+ * that in mind, this code expects to be #included into libmkb.c, which also
+ * #includes op.c. That arrangement allows the compiler to inline opcode
+ * implementations into the big switch statement.
+ */
+static void autogen_step(mk_context_t * ctx) {
+	for(int i=0; i<MK_MAX_CYCLES; i++) {
+		switch(vm_next_instruction(ctx)) {
+			case 0:
+				op_NOP(ctx);
+				break;
+			case 1:
+				op_RESET(ctx);
+				break;
+			case 2:
+				op_JMP(ctx);
+				break;
+			case 3:
+				op_JAL(ctx);
+				break;
+			case 4:
+				op_RET(ctx);
+				break;
+			case 5:
+				op_BZ(ctx);
+				break;
+			case 6:
+				op_BFOR(ctx);
+				break;
+			case 7:
+				op_U8(ctx);
+				break;
+			case 8:
+				op_U16(ctx);
+				break;
+			case 9:
+				op_I32(ctx);
+				break;
+			case 10:
+				op_HALT(ctx);
+				break;
+			case 11:
+				op_TRON(ctx);
+				break;
+			case 12:
+				op_TROFF(ctx);
+				break;
+			case 13:
+				op_IODUMP(ctx);
+				break;
+			case 14:
+				op_IOKEY(ctx);
+				break;
+			case 15:
+				op_IORH(ctx);
+				break;
+			case 16:
+				op_IOLOAD(ctx);
+				break;
+			case 17:
+				op_FOPEN(ctx);
+				break;
+			case 18:
+				op_FREAD(ctx);
+				break;
+			case 19:
+				op_FWRITE(ctx);
+				break;
+			case 20:
+				op_FSEEK(ctx);
+				break;
+			case 21:
+				op_FTELL(ctx);
+				break;
+			case 22:
+				op_FTRUNC(ctx);
+				break;
+			case 23:
+				op_FCLOSE(ctx);
+				break;
+			case 24:
+				op_MTR(ctx);
+				break;
+			case 25:
+				op_R(ctx);
+				break;
+			case 26:
+				op_CALL(ctx);
+				break;
+			case 27:
+				op_PC(ctx);
+				break;
+			case 28:
+				op_MTE(ctx);
+				break;
+			case 29:
+				op_LB(ctx);
+				break;
+			case 30:
+				op_SB(ctx);
+				break;
+			case 31:
+				op_LH(ctx);
+				break;
+			case 32:
+				op_SH(ctx);
+				break;
+			case 33:
+				op_LW(ctx);
+				break;
+			case 34:
+				op_SW(ctx);
+				break;
+			case 35:
+				op_ADD(ctx);
+				break;
+			case 36:
+				op_SUB(ctx);
+				break;
+			case 37:
+				op_MUL(ctx);
+				break;
+			case 38:
+				op_DIV(ctx);
+				break;
+			case 39:
+				op_MOD(ctx);
+				break;
+			case 40:
+				op_SLL(ctx);
+				break;
+			case 41:
+				op_SRL(ctx);
+				break;
+			case 42:
+				op_SRA(ctx);
+				break;
+			case 43:
+				op_INV(ctx);
+				break;
+			case 44:
+				op_XOR(ctx);
+				break;
+			case 45:
+				op_OR(ctx);
+				break;
+			case 46:
+				op_AND(ctx);
+				break;
+			case 47:
+				op_GT(ctx);
+				break;
+			case 48:
+				op_LT(ctx);
+				break;
+			case 49:
+				op_EQ(ctx);
+				break;
+			case 50:
+				op_NE(ctx);
+				break;
+			case 51:
+				op_ZE(ctx);
+				break;
+			case 52:
+				op_INC(ctx);
+				break;
+			case 53:
+				op_DEC(ctx);
+				break;
+			case 54:
+				op_IOEMIT(ctx);
+				break;
+			case 55:
+				op_IODOT(ctx);
+				break;
+			case 56:
+				op_IODH(ctx);
+				break;
+			case 57:
+				op_IOD(ctx);
+				break;
+			case 58:
+				op_RDROP(ctx);
+				break;
+			case 59:
+				op_DROP(ctx);
+				break;
+			case 60:
+				op_DUP(ctx);
+				break;
+			case 61:
+				op_OVER(ctx);
+				break;
+			case 62:
+				op_SWAP(ctx);
+				break;
+			case 63:
+				op_MTA(ctx);
+				break;
+			case 64:
+				op_LBA(ctx);
+				break;
+			case 65:
+				op_LBAI(ctx);
+				break;
+			case 66:
+				op_AINC(ctx);
+				break;
+			case 67:
+				op_ADEC(ctx);
+				break;
+			case 68:
+				op_A(ctx);
+				break;
+			case 69:
+				op_MTB(ctx);
+				break;
+			case 70:
+				op_LBB(ctx);
+				break;
+			case 71:
+				op_LBBI(ctx);
+				break;
+			case 72:
+				op_SBBI(ctx);
+				break;
+			case 73:
+				op_BINC(ctx);
+				break;
+			case 74:
+				op_BDEC(ctx);
+				break;
+			case 75:
+				op_B(ctx);
+				break;
+			case 76:
+				op_TRUE(ctx);
+				break;
+			case 77:
+				op_FALSE(ctx);
+				break;
+			default:
+				vm_irq_err(ctx, MK_ERR_BAD_INSTRUCTION);
+		};
+		if(ctx->halted) {
+			return;
+		}
+	}
+	// Making it this far means the MK_MAX_CYCLES limit was exceeded
+	vm_irq_err(ctx, MK_ERR_MAX_CYCLES);
+	autogen_step(ctx);
+};
+
+#endif /* LIBMKB_AUTOGEN_C */
