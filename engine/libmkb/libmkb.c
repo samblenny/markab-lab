@@ -39,32 +39,32 @@
 #include "autogen.c"
 
 int mk_load_rom(const u8 * code, u32 code_len_bytes) {
-	mk_context_t ctx = {
-		0,       // err
-		10,      // base
-		0,       // A
-		0,       // B
-		0,       // T
-		0,       // S
-		0,       // R
-		MK_Heap, // PC
-		0,       // DSDEEP
-		0,       // RSDEEP
-		{0},     // DSTACK[]
-		{0},     // RSTACK[]
-		{0},     // RAM
-		{0},     // InBuf
-		{0},     // OutBuf
-		0,       // echo
-		0,       // halted
-		0,       // HoldStdout
-		0,       // IOLOAD_depth
-		0,       // IOLOAD_fail
-		0,       // FOPEN_FILE
-		0,       // DbgTraceEnable
-	};
-	autogen_step(&ctx);
-	return 0;
+    mk_context_t ctx = {
+        0,       // err
+        10,      // base
+        0,       // A
+        0,       // B
+        0,       // T
+        0,       // S
+        0,       // R
+        MK_Heap, // PC
+        0,       // DSDEEP
+        0,       // RSDEEP
+        {0},     // DSTACK[]
+        {0},     // RSTACK[]
+        {0},     // RAM
+        {0},     // InBuf
+        {0},     // OutBuf
+        0,       // echo
+        0,       // halted
+        0,       // HoldStdout
+        0,       // IOLOAD_depth
+        0,       // IOLOAD_fail
+        0,       // FOPEN_FILE
+        0,       // DbgTraceEnable
+    };
+    autogen_step(&ctx);
+    return 0;
 }
 
 #endif /* LIBMKB_C */

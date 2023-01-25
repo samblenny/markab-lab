@@ -214,7 +214,7 @@ def c_opcode_dictionary():
   for (i, line) in enumerate(filter(OPCODES)):
     (name, opcode) = line.strip().split(" ")
     key = f'"{opcode.upper()}",'
-    ope += [f"\t{key:9}  // {i:>2}"]
+    ope += [f"    {key:9}  // {i:>2}"]
   return "\n".join(ope)
 
 def c_core_vocab_len():
@@ -231,28 +231,28 @@ def c_core_vocab():
   for line in filter(MEMORY_MAP):
     (addr, name) = line.split(" ")
     key = f"{{\"{name}\"}},"
-    cv += [f"""\t{{ {key:16} MK_T_CONST, 0x{addr:7} }},"""]
+    cv += [f"""    {{ {key:16} MK_T_CONST, 0x{addr:7} }},"""]
   for line in filter(CONSTANTS):
     (name, code) = line.split(" ")
     key = f"{{\"{name}\"}},"
-    cv += [f"""\t{{ {key:16} MK_T_CONST, {code:9} }},"""]
+    cv += [f"""    {{ {key:16} MK_T_CONST, {code:9} }},"""]
   for (i, line) in enumerate(filter(OPCODES)):
     (name, code) = line.strip().split(" ")
     if name == '<ASM>':
       continue
     key = f"{{\"{name}\"}},"
-    cv += [f"""\t{{ {key:16} MK_T_OP,    MK_{code:6} }},"""]
+    cv += [f"""    {{ {key:16} MK_T_OP,    MK_{code:6} }},"""]
   return "\n".join(cv)
 
 def c_bytecode_switch_guts():
   s = []
   for (i, line) in enumerate(filter(OPCODES)):
     (name, opcode) = line.strip().split(" ")
-    s += [f"\t\t\tcase {i}:"]
-    s += [f"\t\t\t\top_{opcode.upper()}(ctx);"]
-    s += [f"\t\t\t\tbreak;"]
-  s += ["\t\t\tdefault:"]
-  s += ["\t\t\t\tvm_irq_err(ctx, MK_ERR_BAD_INSTRUCTION);"]
+    s += [f"            case {i}:"]
+    s += [f"                op_{opcode.upper()}(ctx);"]
+    s += [f"                break;"]
+  s += ["            default:"]
+  s += ["                vm_irq_err(ctx, MK_ERR_BAD_INSTRUCTION);"]
   return "\n".join(s)
 
 def c_op_h():
@@ -338,37 +338,37 @@ static const char * const opcodes[MK_OPCODES_LEN];
 #define MK_CORE_VOC_LEN ({c_core_vocab_len()})
 #define MK_VOC_ITEM_NAME_LEN (16)
 typedef struct mk_voc_item {{
-\tconst char * const name[MK_VOC_ITEM_NAME_LEN];
-\tconst uint8_t type_code;
-\tconst u32 value;
+    const char * const name[MK_VOC_ITEM_NAME_LEN];
+    const uint8_t type_code;
+    const u32 value;
 }} mk_voc_item_t;
 static const mk_voc_item_t mk_core_voc[MK_CORE_VOC_LEN];
 
 // VM context struct for holding state of registers and RAM
 #define MK_BufMax (256)
 typedef struct mk_context {{
-\tu8  err;               // Error register (don't confuse with ERR opcode!)
-\tu8  base;              // number Base for debug printing
-\ti32 A;                 // register for source address or scratch
-\ti32 B;                 // register for destination addr or scratch
-\ti32 T;                 // Top of data stack
-\ti32 S;                 // Second on data stack
-\ti32 R;                 // top of Return stack
-\tu32 PC;                // Program Counter
-\tu8  DSDeep;            // Data Stack Depth (count include T and S)
-\tu8  RSDeep;            // Return Stack Depth (count inlcudes R)
-\ti32 DStack[16];        // Data Stack
-\ti32 RStack[16];        // Return Stack
-\tu8  RAM[MK_MemMax+1];  // Random Access Memory
-\tu8  InBuf[MK_BufMax];  // Input buffer
-\tu8  OutBuf[MK_BufMax]; // Output buffer
-\tu8  echo;              // Echo depends on tty vs pip, etc.
-\tu8  halted;            // Flag to track halt (used for `bye`)
-\tu8  HoldStdout;        // Flag to use holding buffer for stdout
-\tu8  IOLOAD_depth;      // Nesting level for io_load_file()
-\tu8  IOLOAD_fail;       // Flag indicating an error during io_load_file()
-\tu8  FOPEN_file;        // File (if any) that was opened by FOPEN 
-\tu8  DbgTraceEnable;    // Debug trace on/off
+    u8  err;               // Error register (don't confuse with ERR opcode!)
+    u8  base;              // number Base for debug printing
+    i32 A;                 // register for source address or scratch
+    i32 B;                 // register for destination addr or scratch
+    i32 T;                 // Top of data stack
+    i32 S;                 // Second on data stack
+    i32 R;                 // top of Return stack
+    u32 PC;                // Program Counter
+    u8  DSDeep;            // Data Stack Depth (count include T and S)
+    u8  RSDeep;            // Return Stack Depth (count inlcudes R)
+    i32 DStack[16];        // Data Stack
+    i32 RStack[16];        // Return Stack
+    u8  RAM[MK_MemMax+1];  // Random Access Memory
+    u8  InBuf[MK_BufMax];  // Input buffer
+    u8  OutBuf[MK_BufMax]; // Output buffer
+    u8  echo;              // Echo depends on tty vs pip, etc.
+    u8  halted;            // Flag to track halt (used for `bye`)
+    u8  HoldStdout;        // Flag to use holding buffer for stdout
+    u8  IOLOAD_depth;      // Nesting level for io_load_file()
+    u8  IOLOAD_fail;       // Flag indicating an error during io_load_file()
+    u8  FOPEN_file;        // File (if any) that was opened by FOPEN 
+    u8  DbgTraceEnable;    // Debug trace on/off
 }} mk_context_t;
 
 // Maximum number of cycles allowed before infinite loop error triggers
@@ -410,17 +410,17 @@ static const mk_voc_item_t core_voc[MK_CORE_VOC_LEN] = {{
  * implementations into the big switch statement.
  */
 static void autogen_step(mk_context_t * ctx) {{
-\tfor(int i=0; i<MK_MAX_CYCLES; i++) {{
-\t\tswitch(vm_next_instruction(ctx)) {{
+    for(int i=0; i<MK_MAX_CYCLES; i++) {{
+        switch(vm_next_instruction(ctx)) {{
 {c_bytecode_switch_guts()}
-\t\t}};
-\t\tif(ctx->halted) {{
-\t\t\treturn;
-\t\t}}
-\t}}
-\t// Making it this far means the MK_MAX_CYCLES limit was exceeded
-\tvm_irq_err(ctx, MK_ERR_MAX_CYCLES);
-\tautogen_step(ctx);
+        }};
+        if(ctx->halted) {{
+            return;
+        }}
+    }}
+    // Making it this far means the MK_MAX_CYCLES limit was exceeded
+    vm_irq_err(ctx, MK_ERR_MAX_CYCLES);
+    autogen_step(ctx);
 }};
 
 #endif /* LIBMKB_AUTOGEN_C */

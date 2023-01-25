@@ -12,194 +12,194 @@
 
 // Markab VM opcode dictionary
 static const char * const opcodes[MK_OPCODES_LEN] = {
-	"NOP",     //  0
-	"RESET",   //  1
-	"JMP",     //  2
-	"JAL",     //  3
-	"RET",     //  4
-	"BZ",      //  5
-	"BFOR",    //  6
-	"U8",      //  7
-	"U16",     //  8
-	"I32",     //  9
-	"HALT",    // 10
-	"TRON",    // 11
-	"TROFF",   // 12
-	"IODUMP",  // 13
-	"IOKEY",   // 14
-	"IORH",    // 15
-	"IOLOAD",  // 16
-	"FOPEN",   // 17
-	"FREAD",   // 18
-	"FWRITE",  // 19
-	"FSEEK",   // 20
-	"FTELL",   // 21
-	"FTRUNC",  // 22
-	"FCLOSE",  // 23
-	"MTR",     // 24
-	"R",       // 25
-	"CALL",    // 26
-	"PC",      // 27
-	"MTE",     // 28
-	"LB",      // 29
-	"SB",      // 30
-	"LH",      // 31
-	"SH",      // 32
-	"LW",      // 33
-	"SW",      // 34
-	"ADD",     // 35
-	"SUB",     // 36
-	"MUL",     // 37
-	"DIV",     // 38
-	"MOD",     // 39
-	"SLL",     // 40
-	"SRL",     // 41
-	"SRA",     // 42
-	"INV",     // 43
-	"XOR",     // 44
-	"OR",      // 45
-	"AND",     // 46
-	"GT",      // 47
-	"LT",      // 48
-	"EQ",      // 49
-	"NE",      // 50
-	"ZE",      // 51
-	"INC",     // 52
-	"DEC",     // 53
-	"IOEMIT",  // 54
-	"IODOT",   // 55
-	"IODH",    // 56
-	"IOD",     // 57
-	"RDROP",   // 58
-	"DROP",    // 59
-	"DUP",     // 60
-	"OVER",    // 61
-	"SWAP",    // 62
-	"MTA",     // 63
-	"LBA",     // 64
-	"LBAI",    // 65
-	"AINC",    // 66
-	"ADEC",    // 67
-	"A",       // 68
-	"MTB",     // 69
-	"LBB",     // 70
-	"LBBI",    // 71
-	"SBBI",    // 72
-	"BINC",    // 73
-	"BDEC",    // 74
-	"B",       // 75
-	"TRUE",    // 76
-	"FALSE",   // 77
+    "NOP",     //  0
+    "RESET",   //  1
+    "JMP",     //  2
+    "JAL",     //  3
+    "RET",     //  4
+    "BZ",      //  5
+    "BFOR",    //  6
+    "U8",      //  7
+    "U16",     //  8
+    "I32",     //  9
+    "HALT",    // 10
+    "TRON",    // 11
+    "TROFF",   // 12
+    "IODUMP",  // 13
+    "IOKEY",   // 14
+    "IORH",    // 15
+    "IOLOAD",  // 16
+    "FOPEN",   // 17
+    "FREAD",   // 18
+    "FWRITE",  // 19
+    "FSEEK",   // 20
+    "FTELL",   // 21
+    "FTRUNC",  // 22
+    "FCLOSE",  // 23
+    "MTR",     // 24
+    "R",       // 25
+    "CALL",    // 26
+    "PC",      // 27
+    "MTE",     // 28
+    "LB",      // 29
+    "SB",      // 30
+    "LH",      // 31
+    "SH",      // 32
+    "LW",      // 33
+    "SW",      // 34
+    "ADD",     // 35
+    "SUB",     // 36
+    "MUL",     // 37
+    "DIV",     // 38
+    "MOD",     // 39
+    "SLL",     // 40
+    "SRL",     // 41
+    "SRA",     // 42
+    "INV",     // 43
+    "XOR",     // 44
+    "OR",      // 45
+    "AND",     // 46
+    "GT",      // 47
+    "LT",      // 48
+    "EQ",      // 49
+    "NE",      // 50
+    "ZE",      // 51
+    "INC",     // 52
+    "DEC",     // 53
+    "IOEMIT",  // 54
+    "IODOT",   // 55
+    "IODH",    // 56
+    "IOD",     // 57
+    "RDROP",   // 58
+    "DROP",    // 59
+    "DUP",     // 60
+    "OVER",    // 61
+    "SWAP",    // 62
+    "MTA",     // 63
+    "LBA",     // 64
+    "LBAI",    // 65
+    "AINC",    // 66
+    "ADEC",    // 67
+    "A",       // 68
+    "MTB",     // 69
+    "LBB",     // 70
+    "LBBI",    // 71
+    "SBBI",    // 72
+    "BINC",    // 73
+    "BDEC",    // 74
+    "B",       // 75
+    "TRUE",    // 76
+    "FALSE",   // 77
 };
 
 // Markab language core vocabulary
 static const mk_voc_item_t core_voc[MK_CORE_VOC_LEN] = {
-	{ {"Heap"},        MK_T_CONST, 0x0000    },
-	{ {"HeapRes"},     MK_T_CONST, 0xE000    },
-	{ {"HeapMax"},     MK_T_CONST, 0xE0FF    },
-	{ {"DP"},          MK_T_CONST, 0xE100    },
-	{ {"IN"},          MK_T_CONST, 0xE104    },
-	{ {"CORE_V"},      MK_T_CONST, 0xE108    },
-	{ {"EXT_V"},       MK_T_CONST, 0xE10C    },
-	{ {"MODE"},        MK_T_CONST, 0xE110    },
-	{ {"LASTCALL"},    MK_T_CONST, 0xE118    },
-	{ {"NEST"},        MK_T_CONST, 0xE11C    },
-	{ {"BASE"},        MK_T_CONST, 0xE120    },
-	{ {"EOF"},         MK_T_CONST, 0xE124    },
-	{ {"LASTWORD"},    MK_T_CONST, 0xE128    },
-	{ {"IRQRX"},       MK_T_CONST, 0xE12C    },
-	{ {"OK_EN"},       MK_T_CONST, 0xE130    },
-	{ {"LOADNEST"},    MK_T_CONST, 0xE134    },
-	{ {"IRQERR"},      MK_T_CONST, 0xE138    },
-	{ {"IB"},          MK_T_CONST, 0xE200    },
-	{ {"Pad"},         MK_T_CONST, 0xE300    },
-	{ {"Scratch"},     MK_T_CONST, 0xE400    },
-	{ {"MemMax"},      MK_T_CONST, 0xFFFF    },
-	{ {"T_VAR"},       MK_T_CONST, 0         },
-	{ {"T_CONST"},     MK_T_CONST, 1         },
-	{ {"T_OP"},        MK_T_CONST, 2         },
-	{ {"T_OBJ"},       MK_T_CONST, 3         },
-	{ {"T_IMM"},       MK_T_CONST, 4         },
-	{ {"MODE_INT"},    MK_T_CONST, 0         },
-	{ {"MODE_COM"},    MK_T_CONST, 1         },
-	{ {"ErrUnknown"},  MK_T_CONST, 11        },
-	{ {"ErrNest"},     MK_T_CONST, 12        },
-	{ {"ErrFilepath"}, MK_T_CONST, 9         },
-	{ {"HashA"},       MK_T_CONST, 7         },
-	{ {"HashB"},       MK_T_CONST, 8         },
-	{ {"HashC"},       MK_T_CONST, 38335     },
-	{ {"HashBins"},    MK_T_CONST, 64        },
-	{ {"HashMask"},    MK_T_CONST, 63        },
-	{ {"nop"},         MK_T_OP,    MK_NOP    },
-	{ {"reset"},       MK_T_OP,    MK_RESET  },
-	{ {"halt"},        MK_T_OP,    MK_HALT   },
-	{ {"tron"},        MK_T_OP,    MK_TRON   },
-	{ {"troff"},       MK_T_OP,    MK_TROFF  },
-	{ {"dump"},        MK_T_OP,    MK_IODUMP },
-	{ {"key"},         MK_T_OP,    MK_IOKEY  },
-	{ {"iorh"},        MK_T_OP,    MK_IORH   },
-	{ {"load_"},       MK_T_OP,    MK_IOLOAD },
-	{ {"fopen_"},      MK_T_OP,    MK_FOPEN  },
-	{ {"fread"},       MK_T_OP,    MK_FREAD  },
-	{ {"fwrite"},      MK_T_OP,    MK_FWRITE },
-	{ {"fseek"},       MK_T_OP,    MK_FSEEK  },
-	{ {"ftell"},       MK_T_OP,    MK_FTELL  },
-	{ {"ftrunc"},      MK_T_OP,    MK_FTRUNC },
-	{ {"fclose"},      MK_T_OP,    MK_FCLOSE },
-	{ {">r"},          MK_T_OP,    MK_MTR    },
-	{ {"r"},           MK_T_OP,    MK_R      },
-	{ {"call"},        MK_T_OP,    MK_CALL   },
-	{ {"pc"},          MK_T_OP,    MK_PC     },
-	{ {">err"},        MK_T_OP,    MK_MTE    },
-	{ {"@"},           MK_T_OP,    MK_LB     },
-	{ {"!"},           MK_T_OP,    MK_SB     },
-	{ {"h@"},          MK_T_OP,    MK_LH     },
-	{ {"h!"},          MK_T_OP,    MK_SH     },
-	{ {"w@"},          MK_T_OP,    MK_LW     },
-	{ {"w!"},          MK_T_OP,    MK_SW     },
-	{ {"+"},           MK_T_OP,    MK_ADD    },
-	{ {"-"},           MK_T_OP,    MK_SUB    },
-	{ {"*"},           MK_T_OP,    MK_MUL    },
-	{ {"/"},           MK_T_OP,    MK_DIV    },
-	{ {"%"},           MK_T_OP,    MK_MOD    },
-	{ {"<<"},          MK_T_OP,    MK_SLL    },
-	{ {">>"},          MK_T_OP,    MK_SRL    },
-	{ {">>>"},         MK_T_OP,    MK_SRA    },
-	{ {"inv"},         MK_T_OP,    MK_INV    },
-	{ {"xor"},         MK_T_OP,    MK_XOR    },
-	{ {"or"},          MK_T_OP,    MK_OR     },
-	{ {"and"},         MK_T_OP,    MK_AND    },
-	{ {">"},           MK_T_OP,    MK_GT     },
-	{ {"<"},           MK_T_OP,    MK_LT     },
-	{ {"="},           MK_T_OP,    MK_EQ     },
-	{ {"!="},          MK_T_OP,    MK_NE     },
-	{ {"0="},          MK_T_OP,    MK_ZE     },
-	{ {"1+"},          MK_T_OP,    MK_INC    },
-	{ {"1-"},          MK_T_OP,    MK_DEC    },
-	{ {"emit"},        MK_T_OP,    MK_IOEMIT },
-	{ {"."},           MK_T_OP,    MK_IODOT  },
-	{ {"iodh"},        MK_T_OP,    MK_IODH   },
-	{ {"iod"},         MK_T_OP,    MK_IOD    },
-	{ {"rdrop"},       MK_T_OP,    MK_RDROP  },
-	{ {"drop"},        MK_T_OP,    MK_DROP   },
-	{ {"dup"},         MK_T_OP,    MK_DUP    },
-	{ {"over"},        MK_T_OP,    MK_OVER   },
-	{ {"swap"},        MK_T_OP,    MK_SWAP   },
-	{ {">a"},          MK_T_OP,    MK_MTA    },
-	{ {"@a"},          MK_T_OP,    MK_LBA    },
-	{ {"@a+"},         MK_T_OP,    MK_LBAI   },
-	{ {"a+"},          MK_T_OP,    MK_AINC   },
-	{ {"a-"},          MK_T_OP,    MK_ADEC   },
-	{ {"a"},           MK_T_OP,    MK_A      },
-	{ {">b"},          MK_T_OP,    MK_MTB    },
-	{ {"@b"},          MK_T_OP,    MK_LBB    },
-	{ {"@b+"},         MK_T_OP,    MK_LBBI   },
-	{ {"!b+"},         MK_T_OP,    MK_SBBI   },
-	{ {"b+"},          MK_T_OP,    MK_BINC   },
-	{ {"b-"},          MK_T_OP,    MK_BDEC   },
-	{ {"b"},           MK_T_OP,    MK_B      },
-	{ {"true"},        MK_T_OP,    MK_TRUE   },
-	{ {"false"},       MK_T_OP,    MK_FALSE  },
+    { {"Heap"},        MK_T_CONST, 0x0000    },
+    { {"HeapRes"},     MK_T_CONST, 0xE000    },
+    { {"HeapMax"},     MK_T_CONST, 0xE0FF    },
+    { {"DP"},          MK_T_CONST, 0xE100    },
+    { {"IN"},          MK_T_CONST, 0xE104    },
+    { {"CORE_V"},      MK_T_CONST, 0xE108    },
+    { {"EXT_V"},       MK_T_CONST, 0xE10C    },
+    { {"MODE"},        MK_T_CONST, 0xE110    },
+    { {"LASTCALL"},    MK_T_CONST, 0xE118    },
+    { {"NEST"},        MK_T_CONST, 0xE11C    },
+    { {"BASE"},        MK_T_CONST, 0xE120    },
+    { {"EOF"},         MK_T_CONST, 0xE124    },
+    { {"LASTWORD"},    MK_T_CONST, 0xE128    },
+    { {"IRQRX"},       MK_T_CONST, 0xE12C    },
+    { {"OK_EN"},       MK_T_CONST, 0xE130    },
+    { {"LOADNEST"},    MK_T_CONST, 0xE134    },
+    { {"IRQERR"},      MK_T_CONST, 0xE138    },
+    { {"IB"},          MK_T_CONST, 0xE200    },
+    { {"Pad"},         MK_T_CONST, 0xE300    },
+    { {"Scratch"},     MK_T_CONST, 0xE400    },
+    { {"MemMax"},      MK_T_CONST, 0xFFFF    },
+    { {"T_VAR"},       MK_T_CONST, 0         },
+    { {"T_CONST"},     MK_T_CONST, 1         },
+    { {"T_OP"},        MK_T_CONST, 2         },
+    { {"T_OBJ"},       MK_T_CONST, 3         },
+    { {"T_IMM"},       MK_T_CONST, 4         },
+    { {"MODE_INT"},    MK_T_CONST, 0         },
+    { {"MODE_COM"},    MK_T_CONST, 1         },
+    { {"ErrUnknown"},  MK_T_CONST, 11        },
+    { {"ErrNest"},     MK_T_CONST, 12        },
+    { {"ErrFilepath"}, MK_T_CONST, 9         },
+    { {"HashA"},       MK_T_CONST, 7         },
+    { {"HashB"},       MK_T_CONST, 8         },
+    { {"HashC"},       MK_T_CONST, 38335     },
+    { {"HashBins"},    MK_T_CONST, 64        },
+    { {"HashMask"},    MK_T_CONST, 63        },
+    { {"nop"},         MK_T_OP,    MK_NOP    },
+    { {"reset"},       MK_T_OP,    MK_RESET  },
+    { {"halt"},        MK_T_OP,    MK_HALT   },
+    { {"tron"},        MK_T_OP,    MK_TRON   },
+    { {"troff"},       MK_T_OP,    MK_TROFF  },
+    { {"dump"},        MK_T_OP,    MK_IODUMP },
+    { {"key"},         MK_T_OP,    MK_IOKEY  },
+    { {"iorh"},        MK_T_OP,    MK_IORH   },
+    { {"load_"},       MK_T_OP,    MK_IOLOAD },
+    { {"fopen_"},      MK_T_OP,    MK_FOPEN  },
+    { {"fread"},       MK_T_OP,    MK_FREAD  },
+    { {"fwrite"},      MK_T_OP,    MK_FWRITE },
+    { {"fseek"},       MK_T_OP,    MK_FSEEK  },
+    { {"ftell"},       MK_T_OP,    MK_FTELL  },
+    { {"ftrunc"},      MK_T_OP,    MK_FTRUNC },
+    { {"fclose"},      MK_T_OP,    MK_FCLOSE },
+    { {">r"},          MK_T_OP,    MK_MTR    },
+    { {"r"},           MK_T_OP,    MK_R      },
+    { {"call"},        MK_T_OP,    MK_CALL   },
+    { {"pc"},          MK_T_OP,    MK_PC     },
+    { {">err"},        MK_T_OP,    MK_MTE    },
+    { {"@"},           MK_T_OP,    MK_LB     },
+    { {"!"},           MK_T_OP,    MK_SB     },
+    { {"h@"},          MK_T_OP,    MK_LH     },
+    { {"h!"},          MK_T_OP,    MK_SH     },
+    { {"w@"},          MK_T_OP,    MK_LW     },
+    { {"w!"},          MK_T_OP,    MK_SW     },
+    { {"+"},           MK_T_OP,    MK_ADD    },
+    { {"-"},           MK_T_OP,    MK_SUB    },
+    { {"*"},           MK_T_OP,    MK_MUL    },
+    { {"/"},           MK_T_OP,    MK_DIV    },
+    { {"%"},           MK_T_OP,    MK_MOD    },
+    { {"<<"},          MK_T_OP,    MK_SLL    },
+    { {">>"},          MK_T_OP,    MK_SRL    },
+    { {">>>"},         MK_T_OP,    MK_SRA    },
+    { {"inv"},         MK_T_OP,    MK_INV    },
+    { {"xor"},         MK_T_OP,    MK_XOR    },
+    { {"or"},          MK_T_OP,    MK_OR     },
+    { {"and"},         MK_T_OP,    MK_AND    },
+    { {">"},           MK_T_OP,    MK_GT     },
+    { {"<"},           MK_T_OP,    MK_LT     },
+    { {"="},           MK_T_OP,    MK_EQ     },
+    { {"!="},          MK_T_OP,    MK_NE     },
+    { {"0="},          MK_T_OP,    MK_ZE     },
+    { {"1+"},          MK_T_OP,    MK_INC    },
+    { {"1-"},          MK_T_OP,    MK_DEC    },
+    { {"emit"},        MK_T_OP,    MK_IOEMIT },
+    { {"."},           MK_T_OP,    MK_IODOT  },
+    { {"iodh"},        MK_T_OP,    MK_IODH   },
+    { {"iod"},         MK_T_OP,    MK_IOD    },
+    { {"rdrop"},       MK_T_OP,    MK_RDROP  },
+    { {"drop"},        MK_T_OP,    MK_DROP   },
+    { {"dup"},         MK_T_OP,    MK_DUP    },
+    { {"over"},        MK_T_OP,    MK_OVER   },
+    { {"swap"},        MK_T_OP,    MK_SWAP   },
+    { {">a"},          MK_T_OP,    MK_MTA    },
+    { {"@a"},          MK_T_OP,    MK_LBA    },
+    { {"@a+"},         MK_T_OP,    MK_LBAI   },
+    { {"a+"},          MK_T_OP,    MK_AINC   },
+    { {"a-"},          MK_T_OP,    MK_ADEC   },
+    { {"a"},           MK_T_OP,    MK_A      },
+    { {">b"},          MK_T_OP,    MK_MTB    },
+    { {"@b"},          MK_T_OP,    MK_LBB    },
+    { {"@b+"},         MK_T_OP,    MK_LBBI   },
+    { {"!b+"},         MK_T_OP,    MK_SBBI   },
+    { {"b+"},          MK_T_OP,    MK_BINC   },
+    { {"b-"},          MK_T_OP,    MK_BDEC   },
+    { {"b"},           MK_T_OP,    MK_B      },
+    { {"true"},        MK_T_OP,    MK_TRUE   },
+    { {"false"},       MK_T_OP,    MK_FALSE  },
 };
 
 /*
@@ -210,252 +210,252 @@ static const mk_voc_item_t core_voc[MK_CORE_VOC_LEN] = {
  * implementations into the big switch statement.
  */
 static void autogen_step(mk_context_t * ctx) {
-	for(int i=0; i<MK_MAX_CYCLES; i++) {
-		switch(vm_next_instruction(ctx)) {
-			case 0:
-				op_NOP(ctx);
-				break;
-			case 1:
-				op_RESET(ctx);
-				break;
-			case 2:
-				op_JMP(ctx);
-				break;
-			case 3:
-				op_JAL(ctx);
-				break;
-			case 4:
-				op_RET(ctx);
-				break;
-			case 5:
-				op_BZ(ctx);
-				break;
-			case 6:
-				op_BFOR(ctx);
-				break;
-			case 7:
-				op_U8(ctx);
-				break;
-			case 8:
-				op_U16(ctx);
-				break;
-			case 9:
-				op_I32(ctx);
-				break;
-			case 10:
-				op_HALT(ctx);
-				break;
-			case 11:
-				op_TRON(ctx);
-				break;
-			case 12:
-				op_TROFF(ctx);
-				break;
-			case 13:
-				op_IODUMP(ctx);
-				break;
-			case 14:
-				op_IOKEY(ctx);
-				break;
-			case 15:
-				op_IORH(ctx);
-				break;
-			case 16:
-				op_IOLOAD(ctx);
-				break;
-			case 17:
-				op_FOPEN(ctx);
-				break;
-			case 18:
-				op_FREAD(ctx);
-				break;
-			case 19:
-				op_FWRITE(ctx);
-				break;
-			case 20:
-				op_FSEEK(ctx);
-				break;
-			case 21:
-				op_FTELL(ctx);
-				break;
-			case 22:
-				op_FTRUNC(ctx);
-				break;
-			case 23:
-				op_FCLOSE(ctx);
-				break;
-			case 24:
-				op_MTR(ctx);
-				break;
-			case 25:
-				op_R(ctx);
-				break;
-			case 26:
-				op_CALL(ctx);
-				break;
-			case 27:
-				op_PC(ctx);
-				break;
-			case 28:
-				op_MTE(ctx);
-				break;
-			case 29:
-				op_LB(ctx);
-				break;
-			case 30:
-				op_SB(ctx);
-				break;
-			case 31:
-				op_LH(ctx);
-				break;
-			case 32:
-				op_SH(ctx);
-				break;
-			case 33:
-				op_LW(ctx);
-				break;
-			case 34:
-				op_SW(ctx);
-				break;
-			case 35:
-				op_ADD(ctx);
-				break;
-			case 36:
-				op_SUB(ctx);
-				break;
-			case 37:
-				op_MUL(ctx);
-				break;
-			case 38:
-				op_DIV(ctx);
-				break;
-			case 39:
-				op_MOD(ctx);
-				break;
-			case 40:
-				op_SLL(ctx);
-				break;
-			case 41:
-				op_SRL(ctx);
-				break;
-			case 42:
-				op_SRA(ctx);
-				break;
-			case 43:
-				op_INV(ctx);
-				break;
-			case 44:
-				op_XOR(ctx);
-				break;
-			case 45:
-				op_OR(ctx);
-				break;
-			case 46:
-				op_AND(ctx);
-				break;
-			case 47:
-				op_GT(ctx);
-				break;
-			case 48:
-				op_LT(ctx);
-				break;
-			case 49:
-				op_EQ(ctx);
-				break;
-			case 50:
-				op_NE(ctx);
-				break;
-			case 51:
-				op_ZE(ctx);
-				break;
-			case 52:
-				op_INC(ctx);
-				break;
-			case 53:
-				op_DEC(ctx);
-				break;
-			case 54:
-				op_IOEMIT(ctx);
-				break;
-			case 55:
-				op_IODOT(ctx);
-				break;
-			case 56:
-				op_IODH(ctx);
-				break;
-			case 57:
-				op_IOD(ctx);
-				break;
-			case 58:
-				op_RDROP(ctx);
-				break;
-			case 59:
-				op_DROP(ctx);
-				break;
-			case 60:
-				op_DUP(ctx);
-				break;
-			case 61:
-				op_OVER(ctx);
-				break;
-			case 62:
-				op_SWAP(ctx);
-				break;
-			case 63:
-				op_MTA(ctx);
-				break;
-			case 64:
-				op_LBA(ctx);
-				break;
-			case 65:
-				op_LBAI(ctx);
-				break;
-			case 66:
-				op_AINC(ctx);
-				break;
-			case 67:
-				op_ADEC(ctx);
-				break;
-			case 68:
-				op_A(ctx);
-				break;
-			case 69:
-				op_MTB(ctx);
-				break;
-			case 70:
-				op_LBB(ctx);
-				break;
-			case 71:
-				op_LBBI(ctx);
-				break;
-			case 72:
-				op_SBBI(ctx);
-				break;
-			case 73:
-				op_BINC(ctx);
-				break;
-			case 74:
-				op_BDEC(ctx);
-				break;
-			case 75:
-				op_B(ctx);
-				break;
-			case 76:
-				op_TRUE(ctx);
-				break;
-			case 77:
-				op_FALSE(ctx);
-				break;
-			default:
-				vm_irq_err(ctx, MK_ERR_BAD_INSTRUCTION);
-		};
-		if(ctx->halted) {
-			return;
-		}
-	}
-	// Making it this far means the MK_MAX_CYCLES limit was exceeded
-	vm_irq_err(ctx, MK_ERR_MAX_CYCLES);
-	autogen_step(ctx);
+    for(int i=0; i<MK_MAX_CYCLES; i++) {
+        switch(vm_next_instruction(ctx)) {
+            case 0:
+                op_NOP(ctx);
+                break;
+            case 1:
+                op_RESET(ctx);
+                break;
+            case 2:
+                op_JMP(ctx);
+                break;
+            case 3:
+                op_JAL(ctx);
+                break;
+            case 4:
+                op_RET(ctx);
+                break;
+            case 5:
+                op_BZ(ctx);
+                break;
+            case 6:
+                op_BFOR(ctx);
+                break;
+            case 7:
+                op_U8(ctx);
+                break;
+            case 8:
+                op_U16(ctx);
+                break;
+            case 9:
+                op_I32(ctx);
+                break;
+            case 10:
+                op_HALT(ctx);
+                break;
+            case 11:
+                op_TRON(ctx);
+                break;
+            case 12:
+                op_TROFF(ctx);
+                break;
+            case 13:
+                op_IODUMP(ctx);
+                break;
+            case 14:
+                op_IOKEY(ctx);
+                break;
+            case 15:
+                op_IORH(ctx);
+                break;
+            case 16:
+                op_IOLOAD(ctx);
+                break;
+            case 17:
+                op_FOPEN(ctx);
+                break;
+            case 18:
+                op_FREAD(ctx);
+                break;
+            case 19:
+                op_FWRITE(ctx);
+                break;
+            case 20:
+                op_FSEEK(ctx);
+                break;
+            case 21:
+                op_FTELL(ctx);
+                break;
+            case 22:
+                op_FTRUNC(ctx);
+                break;
+            case 23:
+                op_FCLOSE(ctx);
+                break;
+            case 24:
+                op_MTR(ctx);
+                break;
+            case 25:
+                op_R(ctx);
+                break;
+            case 26:
+                op_CALL(ctx);
+                break;
+            case 27:
+                op_PC(ctx);
+                break;
+            case 28:
+                op_MTE(ctx);
+                break;
+            case 29:
+                op_LB(ctx);
+                break;
+            case 30:
+                op_SB(ctx);
+                break;
+            case 31:
+                op_LH(ctx);
+                break;
+            case 32:
+                op_SH(ctx);
+                break;
+            case 33:
+                op_LW(ctx);
+                break;
+            case 34:
+                op_SW(ctx);
+                break;
+            case 35:
+                op_ADD(ctx);
+                break;
+            case 36:
+                op_SUB(ctx);
+                break;
+            case 37:
+                op_MUL(ctx);
+                break;
+            case 38:
+                op_DIV(ctx);
+                break;
+            case 39:
+                op_MOD(ctx);
+                break;
+            case 40:
+                op_SLL(ctx);
+                break;
+            case 41:
+                op_SRL(ctx);
+                break;
+            case 42:
+                op_SRA(ctx);
+                break;
+            case 43:
+                op_INV(ctx);
+                break;
+            case 44:
+                op_XOR(ctx);
+                break;
+            case 45:
+                op_OR(ctx);
+                break;
+            case 46:
+                op_AND(ctx);
+                break;
+            case 47:
+                op_GT(ctx);
+                break;
+            case 48:
+                op_LT(ctx);
+                break;
+            case 49:
+                op_EQ(ctx);
+                break;
+            case 50:
+                op_NE(ctx);
+                break;
+            case 51:
+                op_ZE(ctx);
+                break;
+            case 52:
+                op_INC(ctx);
+                break;
+            case 53:
+                op_DEC(ctx);
+                break;
+            case 54:
+                op_IOEMIT(ctx);
+                break;
+            case 55:
+                op_IODOT(ctx);
+                break;
+            case 56:
+                op_IODH(ctx);
+                break;
+            case 57:
+                op_IOD(ctx);
+                break;
+            case 58:
+                op_RDROP(ctx);
+                break;
+            case 59:
+                op_DROP(ctx);
+                break;
+            case 60:
+                op_DUP(ctx);
+                break;
+            case 61:
+                op_OVER(ctx);
+                break;
+            case 62:
+                op_SWAP(ctx);
+                break;
+            case 63:
+                op_MTA(ctx);
+                break;
+            case 64:
+                op_LBA(ctx);
+                break;
+            case 65:
+                op_LBAI(ctx);
+                break;
+            case 66:
+                op_AINC(ctx);
+                break;
+            case 67:
+                op_ADEC(ctx);
+                break;
+            case 68:
+                op_A(ctx);
+                break;
+            case 69:
+                op_MTB(ctx);
+                break;
+            case 70:
+                op_LBB(ctx);
+                break;
+            case 71:
+                op_LBBI(ctx);
+                break;
+            case 72:
+                op_SBBI(ctx);
+                break;
+            case 73:
+                op_BINC(ctx);
+                break;
+            case 74:
+                op_BDEC(ctx);
+                break;
+            case 75:
+                op_B(ctx);
+                break;
+            case 76:
+                op_TRUE(ctx);
+                break;
+            case 77:
+                op_FALSE(ctx);
+                break;
+            default:
+                vm_irq_err(ctx, MK_ERR_BAD_INSTRUCTION);
+        };
+        if(ctx->halted) {
+            return;
+        }
+    }
+    // Making it this far means the MK_MAX_CYCLES limit was exceeded
+    vm_irq_err(ctx, MK_ERR_MAX_CYCLES);
+    autogen_step(ctx);
 };
 
 #endif /* LIBMKB_AUTOGEN_C */
