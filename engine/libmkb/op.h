@@ -1,14 +1,12 @@
-// Copyright (c) 2023 Sam Blenny
-// SPDX-License-Identifier: MIT
-//
+/* Copyright (c) 2023 Sam Blenny
+ * SPDX-License-Identifier: MIT
+ *
+ * These functions implement stack machine CPU opcodes for the Markab VM.
+ */
 #ifndef LIBMKB_OP_H
 #define LIBMKB_OP_H
 
 #include "autogen.h"
-
-/*
- * These functions implement stack machine CPU opcodes for the Markab VM.
- */
 
 static void op_NOP(mk_context_t * ctx);
 

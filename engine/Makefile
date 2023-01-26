@@ -8,6 +8,7 @@ AUTOGEN=mkb_autogen.mkb $(C_AUTOGEN)
 LIBMKB_C=libmkb/libmkb.c libmkb/op.c libmkb/vm.c
 LIBMKB_H=libmkb/libmkb.h libmkb/op.h libmkb/vm.h
 CC=clang
+CFLAGS=-ansi -Wall -Wno-unused-function -O3
 TEST_IN1=test/read_test_data.txt
 TEST_OUT1=test/vm_out.txt
 TEST_IN2=test/rom_test.mkb
@@ -15,11 +16,11 @@ TEST_OUT2=test/rom_out.txt
 
 all: kernel.rom mkbvm
 
-run: kernel.rom $(AUTOGEN)
-	@echo "TODO: mkbvm kernel.rom"
+run: kernel.rom mkbvm $(AUTOGEN)
+	mkbvm kernel.rom
 
-mkbvm: mkbvm.c mkbvm.h $(C_AUTOGEN) $(LIBMKB_C) $(LIBMKB_H)
-	$(CC) -std=c99 -Wall -Wno-unused-function -O3 -o $@ $< libmkb/libmkb.c
+mkbvm: mkbvm.c mkbvm.h $(C_AUTOGEN) $(LIBMKB_C) $(LIBMKB_H) Makefile
+	$(CC) $(CFLAGS) -o $@ $< libmkb/libmkb.c
 
 selfhost: kernel.rom mkbvm kernel.mkb self_host.mkb $(AUTOGEN)
 	@echo "TODO: echo 'load self_host.mkb' | ./mkbvm kernel.rom"
@@ -39,6 +40,6 @@ libmkb/autogen.c: codegen.py
 libmkb/autogen.h: codegen.py
 	@python3 codegen.py
 
-test: kernel.rom $(AUTOGEN)
+test: kernel.rom $(AUTOGEN) Makefile
 	@echo "TODO: cat $(TEST_IN2) | ./mkbvm kernel.rom | tee $(TEST_OUT2)"
 

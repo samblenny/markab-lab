@@ -1,6 +1,6 @@
-// Copyright (c) 2023 Sam Blenny
-// SPDX-License-Identifier: MIT
-//
+/* Copyright (c) 2023 Sam Blenny
+ * SPDX-License-Identifier: MIT
+ */
 #ifndef MKBVM_H
 #define MKBVM_H
 

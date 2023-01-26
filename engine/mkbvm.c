@@ -1,6 +1,6 @@
-// Copyright (c) 2023 Sam Blenny
-// SPDX-License-Identifier: MIT
-//
+/* Copyright (c) 2023 Sam Blenny
+ * SPDX-License-Identifier: MIT
+ */
 #include <stdio.h>
 #include "mkbvm.h"
 #include "libmkb/libmkb.h"
