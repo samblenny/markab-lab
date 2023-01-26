@@ -103,7 +103,7 @@
         ctx->DStack[ctx->DSDeep - 2 /* third on stack */] = ctx->S; \
     }                                                               \
     ctx->S = ctx->T;                                                \
-    ctx->T = N;                                                     \
+    ctx->T = (N);                                                   \
     ctx->DSDeep += 1;
 
 // Macro to push N onto the return stack as a 32-bit signed integer, without
@@ -114,7 +114,7 @@
     if(ctx->RSDeep > 0) {                                            \
         ctx->RStack[ctx->RSDeep - 1 /* second on stack */] = ctx->R; \
     }                                                                \
-    ctx->R = N;                                                      \
+    ctx->R = (N);                                                    \
     ctx->RSDeep += 1;
 
 
@@ -268,131 +268,168 @@ static void op_FTRUNC(mk_context_t * ctx) {
 static void op_FCLOSE(mk_context_t * ctx) {
 }
 
-// MTR ( -- )
+// MTR ( T -- ) Move T to R.
 static void op_MTR(mk_context_t * ctx) {
+    _assert_data_stack_depth_is_at_least(1)
+    _assert_return_stack_is_not_full()
+    _rpush_R_without_max_stack_depth_check(ctx->T)
+    _drop_T_without_minimum_stack_depth_check()
 }
 
-// R ( -- )
+// R ( -- r ) Push a copy of the top of the return stack (R) as T.
 static void op_R(mk_context_t * ctx) {
+    _assert_data_stack_is_not_full()
+    _push_T_without_max_stack_depth_check(ctx->R)
 }
 
 // CALL ( -- )
 static void op_CALL(mk_context_t * ctx) {
 }
 
-// PC ( -- )
+// PC ( -- pc ) Push value of program counter (PC) register as T.
 static void op_PC(mk_context_t * ctx) {
+    _assert_data_stack_is_not_full()
+    _push_T_without_max_stack_depth_check(ctx->PC)
 }
 
-// MTE ( -- )
+// MTE ( err -- ) Move value from T into the ERR register (raise an error).
 static void op_MTE(mk_context_t * ctx) {
+    _assert_data_stack_depth_is_at_least(1)
+    ctx->err = ctx->T;
+    _drop_T_without_minimum_stack_depth_check()
 }
 
-// LB ( -- )
+// LB ( addr -- i8 ) Load i8 (signed byte) at address T into T as an i32.
 static void op_LB(mk_context_t * ctx) {
 }
 
-// SB ( -- )
+// SB ( u8 addr -- ) Store u8 (unsigned byte) from S into address T.
 static void op_SB(mk_context_t * ctx) {
 }
 
-// LH ( -- )
+// LH ( addr -- i32 ) Load i16 (signed halfword) at address T into T as an i32.
 static void op_LH(mk_context_t * ctx) {
 }
 
-// SH ( -- )
+// SH ( i16 addr -- ) Store u16 (unsigned halfword) from S into address T.
 static void op_SH(mk_context_t * ctx) {
 }
 
-// LW ( -- )
+// LW ( addr -- i32 ) Load i32 (signed word) at address T into T.
 static void op_LW(mk_context_t * ctx) {
 }
 
-// SW ( -- )
+// SW ( u32 addr -- ) Store u32 (unsigned word) from S into address T.
 static void op_SW(mk_context_t * ctx) {
 }
 
-// ADD ( -- )
+// ADD ( S T -- S+T ) Store S+T in T, nip S.
 static void op_ADD(mk_context_t * ctx) {
+    _apply_lambda_ST(ctx->S + ctx->T)
 }
 
-// SUB ( -- )
+// SUB ( S T -- S-T ) Store S-T in T, nip S.
 static void op_SUB(mk_context_t * ctx) {
+    _apply_lambda_ST(ctx->S - ctx->T)
 }
 
-// MUL ( -- )
+// MUL ( S T -- S*T ) Store S*T in T, nip S.
 static void op_MUL(mk_context_t * ctx) {
+    _apply_lambda_ST(ctx->S * ctx->T)
 }
 
-// DIV ( -- )
+// DIV ( S T -- S/T ) Store S/T in T, nip S. (CAUTION! integer division)
 static void op_DIV(mk_context_t * ctx) {
+    _apply_lambda_ST(ctx->S / ctx->T)
 }
 
-// MOD ( -- )
+// MOD ( S T -- S%T ) Store S modulo T in T, nip S.
 static void op_MOD(mk_context_t * ctx) {
+    _apply_lambda_ST(ctx->S % ctx->T)
 }
 
-// SLL ( -- )
+// SLL ( S T -- S<<T ) Store S logical left-shifted by T bits in T, nip S.
 static void op_SLL(mk_context_t * ctx) {
+    _apply_lambda_ST(ctx->S << ctx->T)
 }
 
-// SRL ( -- )
+// SRL ( S T -- S>>T ) Store S logical right-shifted by T bits in T, nip S.
+//     This is the shift to use if you want zero-fill on the left.
 static void op_SRL(mk_context_t * ctx) {
+    _apply_lambda_ST(((u32)ctx->S) >> ctx->T)
 }
 
-// SRA ( -- )
+// SRA ( S T -- S>>>T ) Store S arithmetic-shifted by T bits in T, nip S.
+//     This is the shift to use if you want sign-bit-fill on the left.
+//     CAUTION! This seems to be a murky area of the C spec. Possible UB.
 static void op_SRA(mk_context_t * ctx) {
+    _apply_lambda_ST(((i32)ctx->S) >> ctx->T)
 }
 
-// INV ( -- )
+// INV ( n -- ~n ) Do a bitwise inversion of each bit in T.
 static void op_INV(mk_context_t * ctx) {
+    _apply_lambda_T(~ (ctx->T))
 }
 
-// XOR ( -- )
+// XOR ( S T -- S^T ) Calculate S bitwise_XOR T.
 static void op_XOR(mk_context_t * ctx) {
+    _apply_lambda_ST(ctx->S ^ ctx->T)
 }
 
-// OR ( -- )
+// OR ( S T -- S|T ) Calculate S bitwise_OR T, which, in Markab, is also a
+//     logical OR because we're using Forth-style truth values.
 static void op_OR(mk_context_t * ctx) {
+    _apply_lambda_ST(ctx->S | ctx->T)
 }
 
-// AND ( -- )
+// AND ( S T -- S&T ) Calculate S bitwise_AND T, which, in Markab, is also a
+//     logical AND because we're using Forth-style truth values.
 static void op_AND(mk_context_t * ctx) {
+    _apply_lambda_ST(ctx->S & ctx->T)
 }
 
-// GT ( -- )
+// GT ( S T -- S>T ) Test S>T with Forth-style truth value (true is -1).
 static void op_GT(mk_context_t * ctx) {
+    _apply_lambda_ST(ctx->S > ctx->T ? -1 : 0)
 }
 
-// LT ( -- )
+// LT ( S T -- S<T ) Test S<T with Forth-style truth value (true is -1).
 static void op_LT(mk_context_t * ctx) {
+    _apply_lambda_ST(ctx->S < ctx->T ? -1 : 0)
 }
 
-// EQ ( -- )
+// EQ ( S T -- S==T ) Test S==T with Forth-style truth value (true is -1).
 static void op_EQ(mk_context_t * ctx) {
+    _apply_lambda_ST(ctx->S != ctx->T ? -1 : 0)
 }
 
-// NE ( -- )
+// NE ( S T -- S!=T ) Test S!=T with Forth-style truth value (true is -1).
 static void op_NE(mk_context_t * ctx) {
+    _apply_lambda_ST(ctx->S != ctx->T ? -1 : 0)
 }
 
-// ZE ( -- )
+// ZE ( n -- n==0 ) Test T==0 with Forth-style truth value (true is -1).
 static void op_ZE(mk_context_t * ctx) {
+    _apply_lambda_T(ctx->T == 0 ? -1 : 0)
 }
 
-// INC ( -- )
+// INC ( n -- n+1 ) Increment the value in T.
 static void op_INC(mk_context_t * ctx) {
+    _assert_return_stack_depth_is_at_least(1)
+    ctx->T += 1;
 }
 
-// DEC ( -- )
+// DEC ( n -- n-1 ) Decrement the value in T.
 static void op_DEC(mk_context_t * ctx) {
+    _assert_return_stack_depth_is_at_least(1)
+    ctx->T -= 1;
 }
 
-// IOEMIT ( -- )
+// IOEMIT ( u8 -- )
 static void op_IOEMIT(mk_context_t * ctx) {
 }
 
-// IODOT ( -- )
+// IODOT ( i32 -- )
 static void op_IODOT(mk_context_t * ctx) {
 }
 
@@ -404,34 +441,45 @@ static void op_IODH(mk_context_t * ctx) {
 static void op_IOD(mk_context_t * ctx) {
 }
 
-// RDROP ( -- )
+// RDROP ( -- ) Drop R, the top item of the return stack.
 static void op_RDROP(mk_context_t * ctx) {
+    _assert_return_stack_depth_is_at_least(1)
+    _rdrop_R_without_minimum_stack_depth_check()
 }
 
-// DROP ( -- ) Drop T, the top item of the data stack.
+// DROP ( n -- ) Drop T, the top item of the data stack.
 static void op_DROP(mk_context_t * ctx) {
-    ctx->T = ctx->S;
-    if(ctx->DSDeep > 2) {
-        u8 third = ctx->DSDeep - 3;
-        ctx->S = ctx->DStack[third];
-    }
-    ctx->DSDeep -= 1;
+    _assert_data_stack_depth_is_at_least(1)
+    _drop_T_without_minimum_stack_depth_check()
 }
 
-// DUP ( -- )
+// DUP ( n1 -- n1 n1 ) Duplicate Top item of data stack (push a copy of T).
 static void op_DUP(mk_context_t * ctx) {
+    _assert_data_stack_depth_is_at_least(1)
+    _assert_data_stack_is_not_full()
+    _push_T_without_max_stack_depth_check(ctx->T)
 }
 
-// OVER ( -- )
+// OVER ( n1 n2 -- n1 n2 n1 ) Push a copy of Second data stack item.
 static void op_OVER(mk_context_t * ctx) {
+    _assert_data_stack_depth_is_at_least(2)
+    _assert_data_stack_is_not_full()
+    _push_T_without_max_stack_depth_check(ctx->S)
 }
 
-// SWAP ( -- )
+// SWAP ( n1 n2 -- n2 n1 ) Swap the Second and Top items on the data stack.
 static void op_SWAP(mk_context_t * ctx) {
+    _assert_data_stack_depth_is_at_least(2)
+    i32 n = ctx->T;
+    ctx->T = ctx->S;
+    ctx->S = n;
 }
 
-// MTA ( -- )
+// MTA ( T -- ) Move the value of T into the A register.
 static void op_MTA(mk_context_t * ctx) {
+    _assert_data_stack_depth_is_at_least(1)
+    ctx->A = ctx->T;
+    _drop_T_without_minimum_stack_depth_check()
 }
 
 // LBA ( -- )
@@ -442,20 +490,27 @@ static void op_LBA(mk_context_t * ctx) {
 static void op_LBAI(mk_context_t * ctx) {
 }
 
-// AINC ( -- )
+// AINC ( -- ) Increment the value of the A register.
 static void op_AINC(mk_context_t * ctx) {
+    ctx->A += 1;
 }
 
-// ADEC ( -- )
+// ADEC ( -- ) Decrement the value of the A register.
 static void op_ADEC(mk_context_t * ctx) {
+    ctx->A -= 1;
 }
 
-// A ( -- )
+// A ( -- a ) Push the value of the A register onto the data stack.
 static void op_A(mk_context_t * ctx) {
+    _assert_data_stack_is_not_full()
+    _push_T_without_max_stack_depth_check(ctx->A)
 }
 
-// MTB ( -- )
+// MTB ( T -- ) Move the value of T into the B register.
 static void op_MTB(mk_context_t * ctx) {
+    _assert_data_stack_depth_is_at_least(1)
+    ctx->B = ctx->T;
+    _drop_T_without_minimum_stack_depth_check()
 }
 
 // LBB ( -- )
@@ -470,24 +525,32 @@ static void op_LBBI(mk_context_t * ctx) {
 static void op_SBBI(mk_context_t * ctx) {
 }
 
-// BINC ( -- )
+// BINC ( -- ) Increment the value of the B register.
 static void op_BINC(mk_context_t * ctx) {
+    ctx->B += 1;
 }
 
-// BDEC ( -- )
+// BDEC ( -- ) Decrement the value of the B register.
 static void op_BDEC(mk_context_t * ctx) {
+    ctx->B -= 1;
 }
 
-// B ( -- )
+// B ( -- b ) Push the value of the B register onto the data stack.
 static void op_B(mk_context_t * ctx) {
+    _assert_data_stack_is_not_full()
+    _push_T_without_max_stack_depth_check(ctx->B)
 }
 
-// TRUE ( -- )
+// TRUE ( -- ) Push the Forth-style truth value, which is -1 (all bits set).
 static void op_TRUE(mk_context_t * ctx) {
+    _assert_data_stack_is_not_full()
+    _push_T_without_max_stack_depth_check(-1)
 }
 
-// FALSE ( -- )
+// FALSE ( -- ) Push the Forth-style false value, which is 0 (all bits clear).
 static void op_FALSE(mk_context_t * ctx) {
+    _assert_data_stack_is_not_full()
+    _push_T_without_max_stack_depth_check(0)
 }
 
 
