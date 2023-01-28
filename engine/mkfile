@@ -1,0 +1,21 @@
+# Copyright (c) 2023 Sam Blenny
+# SPDX-License-Identifier: MIT
+#
+# This is a plan 9 mkfile for use with mk.
+# Usage examples:
+#   term% mk
+#   term% mk clean
+#
+</$objtype/mkfile
+
+mkbvm_plan9: mkbvm_plan9.$O libmkb.$O
+    $LD $LDFLAGS -o mkbvm_plan9 mkbvm_plan9.$O libmkb.$O
+
+mkbvm_plan9.$O: mkbvm_plan9.c
+    $CC $CFLAGS -DPLAN_9 mkbvm_plan9.c
+
+libmkb.$O: libmkb/libmkb.c
+    $CC $CFLAGS -DPLAN_9 libmkb/libmkb.c
+
+clean:
+    rm mkbvm_plan9 mkbvm_plan9.$O libmkb.$O

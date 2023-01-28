@@ -6,7 +6,11 @@
 #ifndef LIBMKB_OP_H
 #define LIBMKB_OP_H
 
-#include "autogen.h"
+#ifdef PLAN_9
+#  include "libmkb/autogen.h"
+#else
+#  include "autogen.h"
+#endif
 
 static void op_NOP(mk_context_t * ctx);
 

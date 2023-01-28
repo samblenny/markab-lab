@@ -8,15 +8,25 @@
 #ifndef LIBMKB_AUTOGEN_H
 #define LIBMKB_AUTOGEN_H
 
-#include <stdint.h>
-
 /* Shorthand integer typedefs to save on typing */
-typedef  uint8_t  u8;
-typedef   int8_t  i8;
-typedef uint16_t u16;
-typedef  int16_t i16;
-typedef  int32_t i32;
-typedef uint32_t u32;
+#ifdef PLAN_9
+/* This is for Plan 9 */
+  typedef char i8;
+  typedef short i16;
+  typedef int i32;
+  typedef u8int u8;
+  typedef u16int u16;
+  typedef u32int u32;
+#else
+/* This is for POSIX systems */
+#  include <stdint.h>
+  typedef  uint8_t  u8;
+  typedef   int8_t  i8;
+  typedef uint16_t u16;
+  typedef  int16_t i16;
+  typedef  int32_t i32;
+  typedef uint32_t u32;
+#endif
 
 /* Markab VM opcode constants */
 #define MK_NOP    (0x00  /*  0 */)
@@ -147,7 +157,7 @@ static const char * const opcodes[MK_OPCODES_LEN];
 #define MK_VOC_ITEM_NAME_LEN (16)
 typedef struct mk_voc_item {
     const char * const name[MK_VOC_ITEM_NAME_LEN];
-    const uint8_t type_code;
+    const u8 type_code;
     const u32 value;
 } mk_voc_item_t;
 static const mk_voc_item_t mk_core_voc[MK_CORE_VOC_LEN];

@@ -4,8 +4,13 @@
 #ifndef LIBMKB_VM_H
 #define LIBMKB_VM_H
 
-#include "autogen.h"
-#include "vm.h"
+#ifdef PLAN_9
+#  include "libmkb/autogen.h"
+#  include "libmkb/vm.h"
+#else
+#  include "autogen.h"
+#  include "vm.h"
+#endif
 
 #define MK_ERR_D_OVER          (1  /* Data stack overflow */)
 #define MK_ERR_D_UNDER         (2  /* Data stack underflow */)

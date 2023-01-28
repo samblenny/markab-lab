@@ -32,6 +32,10 @@
 #ifndef LIBMKB_C
 #define LIBMKB_C
 
+#ifdef PLAN_9
+#  include <u.h>
+#endif
+
 #include "libmkb.h"
 #include "op.c"
 #include "vm.c"
