@@ -145,16 +145,16 @@
 #define _peek_u8(N)  ((u8) ctx->RAM[(u16)(N)])
 
 /* Macro to read u16 (halfword) little-endian integer from RAM */
-#define _peek_u16(N)  (                   \
-    (((u16) ctx->RAM[(u16)N + 1]) << 8) + \
-    ( (u16) ctx->RAM[(u16)N    ])         )
+#define _peek_u16(N)  (                     \
+    (((u16) ctx->RAM[(u16)(N) + 1]) << 8) + \
+    ( (u16) ctx->RAM[(u16)(N)    ])         )
 
 /* Macro to read u32 (word) little-endian integer from RAM */
-#define _peek_u32(N)  (                    \
-    (((u32) ctx->RAM[(u16)N + 3]) << 24) + \
-    (((u32) ctx->RAM[(u16)N + 2]) << 16) + \
-    (((u32) ctx->RAM[(u16)N + 1]) <<  8) + \
-    ( (u32) ctx->RAM[(u16)N    ])          )
+#define _peek_u32(N)  (                      \
+    (((u32) ctx->RAM[(u16)(N) + 3]) << 24) + \
+    (((u32) ctx->RAM[(u16)(N) + 2]) << 16) + \
+    (((u32) ctx->RAM[(u16)(N) + 1]) <<  8) + \
+    ( (u32) ctx->RAM[(u16)(N)    ])          )
 
 /* Macro to write u8 N into RAM address ADDR */
 #define _poke_u8(N, ADDR)  { ctx->RAM[(u16)(ADDR)] = (u8)(N); }
