@@ -68,6 +68,13 @@ int mk_load_rom(const u8 * code, u32 code_len_bytes) {
         0,       /* FOPEN_FILE */
         0,       /* DbgTraceEnable */
     };
+    /* Copy code to RAM */
+    int i;
+    int n = code_len_bytes <= MK_HeapMax ? code_len_bytes : MK_HeapMax;
+    for(i = 0; i <= n; i++) {
+        ctx.RAM[i] = code[i];
+    }
+    /* Start clocking the VM from the boot vector */
     autogen_step(&ctx);
     return 0;
 }

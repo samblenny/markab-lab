@@ -68,9 +68,17 @@ typedef struct mk_context {
 
 
 /*
- * Public Interface
+ * Public Interface: Functions provided by libmkb
  */
 
 int mk_load_rom(const u8 * code, u32 code_len_bytes);
+
+
+/*
+ * Public Interface: Functions libmkb expects its front end to export
+ */
+
+extern void mk_host_log_error(u8 error_code);
+
 
 #endif /* LIBMKB_H */
