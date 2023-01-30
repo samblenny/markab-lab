@@ -8,14 +8,14 @@
 #
 </$objtype/mkfile
 
-mkbvm_plan9: mkbvm_plan9.$O libmkb.$O
-    $LD $LDFLAGS -o mkbvm_plan9 mkbvm_plan9.$O libmkb.$O
+mkbvm_plan9: mkbvm_plan9.$O libmkb/libmkb.$O
+    $LD $LDFLAGS -o mkbvm_plan9 mkbvm_plan9.$O libmkb/libmkb.$O
 
 mkbvm_plan9.$O: mkbvm_plan9.c
     $CC $CFLAGS -DPLAN_9 mkbvm_plan9.c
 
-libmkb.$O: libmkb/libmkb.c
-    $CC $CFLAGS -DPLAN_9 libmkb/libmkb.c
+libmkb/libmkb.$O: libmkb/libmkb.c
+    cd libmkb; $CC $CFLAGS -DPLAN_9 libmkb.c
 
 clean:
-    rm mkbvm_plan9 mkbvm_plan9.$O libmkb.$O
+    rm mkbvm_plan9 mkbvm_plan9.$O libmkb/libmkb.$O

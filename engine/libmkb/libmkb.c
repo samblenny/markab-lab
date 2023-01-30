@@ -34,6 +34,8 @@
 
 #ifdef PLAN_9
 #  include <u.h>
+#else
+#  include <stdint.h>
 #endif
 
 #include "libmkb.h"

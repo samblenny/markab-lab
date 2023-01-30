@@ -19,8 +19,8 @@ all: kernel.rom mkbvm
 run: kernel.rom mkbvm $(AUTOGEN)
 	mkbvm kernel.rom
 
-mkbvm: mkbvm.c mkbvm.h $(C_AUTOGEN) $(LIBMKB_C) $(LIBMKB_H) Makefile
-	$(CC) $(CFLAGS) -o $@ $< libmkb/libmkb.c
+mkbvm: mkbvm.c $(C_AUTOGEN) $(LIBMKB_C) $(LIBMKB_H) Makefile
+	$(CC) $(CFLAGS) -o mkbvm mkbvm.c libmkb/libmkb.c
 
 selfhost: kernel.rom mkbvm kernel.mkb self_host.mkb $(AUTOGEN)
 	@echo "TODO: echo 'load self_host.mkb' | ./mkbvm kernel.rom"
@@ -43,3 +43,5 @@ libmkb/autogen.h: codegen.py
 test: kernel.rom $(AUTOGEN) Makefile
 	@echo "TODO: cat $(TEST_IN2) | ./mkbvm kernel.rom | tee $(TEST_OUT2)"
 
+clean:
+	@rm -f mkbvm

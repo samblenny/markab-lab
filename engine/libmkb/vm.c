@@ -4,7 +4,9 @@
 #ifndef LIBMKB_VM_C
 #define LIBMKB_VM_C
 
+#include "libmkb.h"
 #include "autogen.h"
+#include "vm.h"
 
 static u8 vm_next_instruction(mk_context_t * ctx) {
     /* TODO: make this work properly */

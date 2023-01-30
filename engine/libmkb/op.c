@@ -7,8 +7,10 @@
 #ifndef LIBMKB_OP_C
 #define LIBMKB_OP_C
 
+#include "libmkb.h"
 #include "autogen.h"
 #include "op.h"
+#include "vm.h"
 
 /* ============================================================================
  * These macros reduce repetition of boilerplate code in opcode functions:
