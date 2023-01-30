@@ -139,6 +139,13 @@ static const char * const opcodes[MK_OPCODES_LEN];
 
 /* Markab language core vocabulary */
 #define MK_CORE_VOC_LEN (114)
+#define MK_VOC_ITEM_NAME_LEN (16)
+typedef struct mk_voc_item {
+    const char * const name[MK_VOC_ITEM_NAME_LEN];
+    const u8 type_code;
+    const u32 value;
+} mk_voc_item_t;
+static const mk_voc_item_t mk_core_voc[MK_CORE_VOC_LEN];
 
 static void autogen_step(mk_context_t * ctx);
 

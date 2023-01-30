@@ -94,14 +94,6 @@ static const char * const opcodes[MK_OPCODES_LEN] = {
 };
 
 /* Markab language core vocabulary */
-#define MK_VOC_ITEM_NAME_LEN (16)
-typedef struct mk_voc_item {
-    const char * const name[MK_VOC_ITEM_NAME_LEN];
-    const u8 type_code;
-    const u32 value;
-} mk_voc_item_t;
-static const mk_voc_item_t mk_core_voc[MK_CORE_VOC_LEN];
-
 static const mk_voc_item_t core_voc[MK_CORE_VOC_LEN] = {
     { {"Heap"},        MK_T_CONST, 0x0000    },
     { {"HeapRes"},     MK_T_CONST, 0xE000    },
