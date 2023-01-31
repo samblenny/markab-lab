@@ -38,22 +38,6 @@ static void op_IOKEY(mk_context_t * ctx);
 
 static void op_IORH(mk_context_t * ctx);
 
-static void op_IOLOAD(mk_context_t * ctx);
-
-static void op_FOPEN(mk_context_t * ctx);
-
-static void op_FREAD(mk_context_t * ctx);
-
-static void op_FWRITE(mk_context_t * ctx);
-
-static void op_FSEEK(mk_context_t * ctx);
-
-static void op_FTELL(mk_context_t * ctx);
-
-static void op_FTRUNC(mk_context_t * ctx);
-
-static void op_FCLOSE(mk_context_t * ctx);
-
 static void op_MTR(mk_context_t * ctx);
 
 static void op_R(mk_context_t * ctx);

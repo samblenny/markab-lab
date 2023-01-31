@@ -413,46 +413,6 @@ static void op_IORH(mk_context_t * ctx) {
     /* TODO: Implement this */
 }
 
-/* IOLOAD ( -- ) */
-static void op_IOLOAD(mk_context_t * ctx) {
-    /* TODO: Implement this */
-}
-
-/* FOPEN ( -- ) */
-static void op_FOPEN(mk_context_t * ctx) {
-    /* TODO: Implement this */
-}
-
-/* FREAD ( -- ) */
-static void op_FREAD(mk_context_t * ctx) {
-    /* TODO: Implement this */
-}
-
-/* FWRITE ( -- ) */
-static void op_FWRITE(mk_context_t * ctx) {
-    /* TODO: Implement this */
-}
-
-/* FSEEK ( -- ) */
-static void op_FSEEK(mk_context_t * ctx) {
-    /* TODO: Implement this */
-}
-
-/* FTELL ( -- ) */
-static void op_FTELL(mk_context_t * ctx) {
-    /* TODO: Implement this */
-}
-
-/* FTRUNC ( -- ) */
-static void op_FTRUNC(mk_context_t * ctx) {
-    /* TODO: Implement this */
-}
-
-/* FCLOSE ( -- ) */
-static void op_FCLOSE(mk_context_t * ctx) {
-    /* TODO: Implement this */
-}
-
 /* MTR ( T -- ) Move T to R. */
 static void op_MTR(mk_context_t * ctx) {
     _assert_data_stack_depth_is_at_least(1);
