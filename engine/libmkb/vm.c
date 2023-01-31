@@ -32,7 +32,7 @@ static void vm_irq_err(mk_context_t * ctx, u8 error_code) {
 
 /* Write a buffer of bytes to whatever device serves as the VM's stdout */
 static void vm_stdout_write(const mk_str_t * str) {
-    mk_host_stdout_write((const char *)&str->buf, str->len);
+    mk_host_stdout_write((const void *)&str->buf, str->len);
     /* TODO: Should I verify the expected number of bytes were written? */
 }
 

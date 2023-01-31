@@ -89,7 +89,7 @@ int mk_load_rom(const u8 * code, u32 code_len_bytes);
 extern void mk_host_log_error(u8 error_code);
 
 /* Write length bytes from byte buffer buf to stdout */
-extern void mk_host_stdout_write(const char * buf, int length);
+extern void mk_host_stdout_write(const void * buf, int length);
 
 
 

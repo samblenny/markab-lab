@@ -39,6 +39,6 @@ void mk_host_log_error(u8 error_code) {
 }
 
 /* Write length bytes from byte buffer buf to stdout */
-void mk_host_stdout_write(const char * buf, int length) {
+void mk_host_stdout_write(const void * buf, int length) {
     write(STDOUT_FILENO, buf, length);
 }
