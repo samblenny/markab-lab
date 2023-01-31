@@ -280,6 +280,7 @@ static void op_BZ(mk_context_t * ctx) {
 
 /* BFOR ( -- ) */
 static void op_BFOR(mk_context_t * ctx) {
+    /* TODO: Implement this */
 }
 
 /* U8 ( -- ) Read uint8 byte literal, zero-extend it, push as T */
@@ -392,42 +393,52 @@ static void op_IODUMP(mk_context_t * ctx) {
 
 /* IOKEY ( -- ) */
 static void op_IOKEY(mk_context_t * ctx) {
+    /* TODO: Implement this */
 }
 
 /* IORH ( -- ) */
 static void op_IORH(mk_context_t * ctx) {
+    /* TODO: Implement this */
 }
 
 /* IOLOAD ( -- ) */
 static void op_IOLOAD(mk_context_t * ctx) {
+    /* TODO: Implement this */
 }
 
 /* FOPEN ( -- ) */
 static void op_FOPEN(mk_context_t * ctx) {
+    /* TODO: Implement this */
 }
 
 /* FREAD ( -- ) */
 static void op_FREAD(mk_context_t * ctx) {
+    /* TODO: Implement this */
 }
 
 /* FWRITE ( -- ) */
 static void op_FWRITE(mk_context_t * ctx) {
+    /* TODO: Implement this */
 }
 
 /* FSEEK ( -- ) */
 static void op_FSEEK(mk_context_t * ctx) {
+    /* TODO: Implement this */
 }
 
 /* FTELL ( -- ) */
 static void op_FTELL(mk_context_t * ctx) {
+    /* TODO: Implement this */
 }
 
 /* FTRUNC ( -- ) */
 static void op_FTRUNC(mk_context_t * ctx) {
+    /* TODO: Implement this */
 }
 
 /* FCLOSE ( -- ) */
 static void op_FCLOSE(mk_context_t * ctx) {
+    /* TODO: Implement this */
 }
 
 /* MTR ( T -- ) Move T to R. */
@@ -629,18 +640,22 @@ static void op_DEC(mk_context_t * ctx) {
 
 /* IOEMIT ( u8 -- ) */
 static void op_IOEMIT(mk_context_t * ctx) {
+    /* TODO: Implement this */
 }
 
 /* IODOT ( i32 -- ) */
 static void op_IODOT(mk_context_t * ctx) {
+    /* TODO: Implement this */
 }
 
 /* IODH ( -- ) */
 static void op_IODH(mk_context_t * ctx) {
+    /* TODO: Implement this */
 }
 
 /* IOD ( -- ) */
 static void op_IOD(mk_context_t * ctx) {
+    /* TODO: Implement this */
 }
 
 /* RDROP ( -- ) Drop R, the top item of the return stack. */
@@ -684,12 +699,19 @@ static void op_MTA(mk_context_t * ctx) {
     _drop_T();
 }
 
-/* LBA ( -- ) */
+/* LBA ( -- ) Load byte from RAM address in register A */
 static void op_LBA(mk_context_t * ctx) {
+    _assert_data_stack_is_not_full();
+    u16 address = ctx->A;
+    _assert_valid_address(address);
+    u32 data = (u32) _peek_u8(address);
+    _push_T(data);
 }
 
-/* LBAI ( -- ) */
+/* LBAI ( -- ) Load byte from RAM address in register A, increment A */
 static void op_LBAI(mk_context_t * ctx) {
+    op_LBA(ctx);
+    ctx->A += 1;
 }
 
 /* AINC ( -- ) Increment the value of the A register. */
@@ -715,16 +737,29 @@ static void op_MTB(mk_context_t * ctx) {
     _drop_T();
 }
 
-/* LBB ( -- ) */
+/* LBB ( -- ) Load byte from RAM address in register B */
 static void op_LBB(mk_context_t * ctx) {
+    _assert_data_stack_is_not_full();
+    u16 address = ctx->B;
+    _assert_valid_address(address);
+    u32 data = (u32) _peek_u8(address);
+    _push_T(data);
 }
 
-/* LBBI ( -- ) */
+/* LBBI ( -- ) Load byte from RAM address in register B, increment B */
 static void op_LBBI(mk_context_t * ctx) {
+    op_LBB(ctx);
+    ctx->B += 1;
 }
 
-/* SBBI ( -- ) */
+/* SBBI ( -- ) Store low byte of T to RAM address in register B, increment B */
 static void op_SBBI(mk_context_t * ctx) {
+    _assert_data_stack_depth_is_at_least(1);
+    u16 address = ctx->B;
+    u8 data = (u8) ctx->T;
+    _poke_u8_with_assert_valid_address(data, address);
+    _drop_T();
+    ctx->B += 1;
 }
 
 /* BINC ( -- ) Increment the value of the B register. */
