@@ -29,68 +29,60 @@ static const char * const opcodes[MK_OPCODES_LEN] = {
     "IODUMP",  /* 13 */
     "IOKEY",   /* 14 */
     "IORH",    /* 15 */
-    "IOLOAD",  /* 16 */
-    "FOPEN",   /* 17 */
-    "FREAD",   /* 18 */
-    "FWRITE",  /* 19 */
-    "FSEEK",   /* 20 */
-    "FTELL",   /* 21 */
-    "FTRUNC",  /* 22 */
-    "FCLOSE",  /* 23 */
-    "MTR",     /* 24 */
-    "R",       /* 25 */
-    "CALL",    /* 26 */
-    "PC",      /* 27 */
-    "MTE",     /* 28 */
-    "LB",      /* 29 */
-    "SB",      /* 30 */
-    "LH",      /* 31 */
-    "SH",      /* 32 */
-    "LW",      /* 33 */
-    "SW",      /* 34 */
-    "ADD",     /* 35 */
-    "SUB",     /* 36 */
-    "MUL",     /* 37 */
-    "DIV",     /* 38 */
-    "MOD",     /* 39 */
-    "SLL",     /* 40 */
-    "SRL",     /* 41 */
-    "SRA",     /* 42 */
-    "INV",     /* 43 */
-    "XOR",     /* 44 */
-    "OR",      /* 45 */
-    "AND",     /* 46 */
-    "GT",      /* 47 */
-    "LT",      /* 48 */
-    "EQ",      /* 49 */
-    "NE",      /* 50 */
-    "ZE",      /* 51 */
-    "INC",     /* 52 */
-    "DEC",     /* 53 */
-    "IOEMIT",  /* 54 */
-    "IODOT",   /* 55 */
-    "IODH",    /* 56 */
-    "IOD",     /* 57 */
-    "RDROP",   /* 58 */
-    "DROP",    /* 59 */
-    "DUP",     /* 60 */
-    "OVER",    /* 61 */
-    "SWAP",    /* 62 */
-    "MTA",     /* 63 */
-    "LBA",     /* 64 */
-    "LBAI",    /* 65 */
-    "AINC",    /* 66 */
-    "ADEC",    /* 67 */
-    "A",       /* 68 */
-    "MTB",     /* 69 */
-    "LBB",     /* 70 */
-    "LBBI",    /* 71 */
-    "SBBI",    /* 72 */
-    "BINC",    /* 73 */
-    "BDEC",    /* 74 */
-    "B",       /* 75 */
-    "TRUE",    /* 76 */
-    "FALSE",   /* 77 */
+    "MTR",     /* 16 */
+    "R",       /* 17 */
+    "CALL",    /* 18 */
+    "PC",      /* 19 */
+    "MTE",     /* 20 */
+    "LB",      /* 21 */
+    "SB",      /* 22 */
+    "LH",      /* 23 */
+    "SH",      /* 24 */
+    "LW",      /* 25 */
+    "SW",      /* 26 */
+    "ADD",     /* 27 */
+    "SUB",     /* 28 */
+    "MUL",     /* 29 */
+    "DIV",     /* 30 */
+    "MOD",     /* 31 */
+    "SLL",     /* 32 */
+    "SRL",     /* 33 */
+    "SRA",     /* 34 */
+    "INV",     /* 35 */
+    "XOR",     /* 36 */
+    "OR",      /* 37 */
+    "AND",     /* 38 */
+    "GT",      /* 39 */
+    "LT",      /* 40 */
+    "EQ",      /* 41 */
+    "NE",      /* 42 */
+    "ZE",      /* 43 */
+    "INC",     /* 44 */
+    "DEC",     /* 45 */
+    "IOEMIT",  /* 46 */
+    "IODOT",   /* 47 */
+    "IODH",    /* 48 */
+    "IOD",     /* 49 */
+    "RDROP",   /* 50 */
+    "DROP",    /* 51 */
+    "DUP",     /* 52 */
+    "OVER",    /* 53 */
+    "SWAP",    /* 54 */
+    "MTA",     /* 55 */
+    "LBA",     /* 56 */
+    "LBAI",    /* 57 */
+    "AINC",    /* 58 */
+    "ADEC",    /* 59 */
+    "A",       /* 60 */
+    "MTB",     /* 61 */
+    "LBB",     /* 62 */
+    "LBBI",    /* 63 */
+    "SBBI",    /* 64 */
+    "BINC",    /* 65 */
+    "BDEC",    /* 66 */
+    "B",       /* 67 */
+    "TRUE",    /* 68 */
+    "FALSE",   /* 69 */
 };
 
 /* Markab language core vocabulary */
@@ -110,8 +102,7 @@ static const mk_voc_item_t core_voc[MK_CORE_VOC_LEN] = {
     { {"LASTWORD"},    MK_T_CONST, 0xE128    },
     { {"IRQRX"},       MK_T_CONST, 0xE12C    },
     { {"OK_EN"},       MK_T_CONST, 0xE130    },
-    { {"LOADNEST"},    MK_T_CONST, 0xE134    },
-    { {"IRQERR"},      MK_T_CONST, 0xE138    },
+    { {"IRQERR"},      MK_T_CONST, 0xE134    },
     { {"IB"},          MK_T_CONST, 0xE200    },
     { {"Pad"},         MK_T_CONST, 0xE300    },
     { {"Scratch"},     MK_T_CONST, 0xE400    },
@@ -139,14 +130,6 @@ static const mk_voc_item_t core_voc[MK_CORE_VOC_LEN] = {
     { {"dump"},        MK_T_OP,    MK_IODUMP },
     { {"key"},         MK_T_OP,    MK_IOKEY  },
     { {"iorh"},        MK_T_OP,    MK_IORH   },
-    { {"load_"},       MK_T_OP,    MK_IOLOAD },
-    { {"fopen_"},      MK_T_OP,    MK_FOPEN  },
-    { {"fread"},       MK_T_OP,    MK_FREAD  },
-    { {"fwrite"},      MK_T_OP,    MK_FWRITE },
-    { {"fseek"},       MK_T_OP,    MK_FSEEK  },
-    { {"ftell"},       MK_T_OP,    MK_FTELL  },
-    { {"ftrunc"},      MK_T_OP,    MK_FTRUNC },
-    { {"fclose"},      MK_T_OP,    MK_FCLOSE },
     { {">r"},          MK_T_OP,    MK_MTR    },
     { {"r"},           MK_T_OP,    MK_R      },
     { {"call"},        MK_T_OP,    MK_CALL   },
@@ -263,189 +246,165 @@ static void autogen_step(mk_context_t * ctx) {
                 op_IORH(ctx);
                 break;
             case 16:
-                op_IOLOAD(ctx);
-                break;
-            case 17:
-                op_FOPEN(ctx);
-                break;
-            case 18:
-                op_FREAD(ctx);
-                break;
-            case 19:
-                op_FWRITE(ctx);
-                break;
-            case 20:
-                op_FSEEK(ctx);
-                break;
-            case 21:
-                op_FTELL(ctx);
-                break;
-            case 22:
-                op_FTRUNC(ctx);
-                break;
-            case 23:
-                op_FCLOSE(ctx);
-                break;
-            case 24:
                 op_MTR(ctx);
                 break;
-            case 25:
+            case 17:
                 op_R(ctx);
                 break;
-            case 26:
+            case 18:
                 op_CALL(ctx);
                 break;
-            case 27:
+            case 19:
                 op_PC(ctx);
                 break;
-            case 28:
+            case 20:
                 op_MTE(ctx);
                 break;
-            case 29:
+            case 21:
                 op_LB(ctx);
                 break;
-            case 30:
+            case 22:
                 op_SB(ctx);
                 break;
-            case 31:
+            case 23:
                 op_LH(ctx);
                 break;
-            case 32:
+            case 24:
                 op_SH(ctx);
                 break;
-            case 33:
+            case 25:
                 op_LW(ctx);
                 break;
-            case 34:
+            case 26:
                 op_SW(ctx);
                 break;
-            case 35:
+            case 27:
                 op_ADD(ctx);
                 break;
-            case 36:
+            case 28:
                 op_SUB(ctx);
                 break;
-            case 37:
+            case 29:
                 op_MUL(ctx);
                 break;
-            case 38:
+            case 30:
                 op_DIV(ctx);
                 break;
-            case 39:
+            case 31:
                 op_MOD(ctx);
                 break;
-            case 40:
+            case 32:
                 op_SLL(ctx);
                 break;
-            case 41:
+            case 33:
                 op_SRL(ctx);
                 break;
-            case 42:
+            case 34:
                 op_SRA(ctx);
                 break;
-            case 43:
+            case 35:
                 op_INV(ctx);
                 break;
-            case 44:
+            case 36:
                 op_XOR(ctx);
                 break;
-            case 45:
+            case 37:
                 op_OR(ctx);
                 break;
-            case 46:
+            case 38:
                 op_AND(ctx);
                 break;
-            case 47:
+            case 39:
                 op_GT(ctx);
                 break;
-            case 48:
+            case 40:
                 op_LT(ctx);
                 break;
-            case 49:
+            case 41:
                 op_EQ(ctx);
                 break;
-            case 50:
+            case 42:
                 op_NE(ctx);
                 break;
-            case 51:
+            case 43:
                 op_ZE(ctx);
                 break;
-            case 52:
+            case 44:
                 op_INC(ctx);
                 break;
-            case 53:
+            case 45:
                 op_DEC(ctx);
                 break;
-            case 54:
+            case 46:
                 op_IOEMIT(ctx);
                 break;
-            case 55:
+            case 47:
                 op_IODOT(ctx);
                 break;
-            case 56:
+            case 48:
                 op_IODH(ctx);
                 break;
-            case 57:
+            case 49:
                 op_IOD(ctx);
                 break;
-            case 58:
+            case 50:
                 op_RDROP(ctx);
                 break;
-            case 59:
+            case 51:
                 op_DROP(ctx);
                 break;
-            case 60:
+            case 52:
                 op_DUP(ctx);
                 break;
-            case 61:
+            case 53:
                 op_OVER(ctx);
                 break;
-            case 62:
+            case 54:
                 op_SWAP(ctx);
                 break;
-            case 63:
+            case 55:
                 op_MTA(ctx);
                 break;
-            case 64:
+            case 56:
                 op_LBA(ctx);
                 break;
-            case 65:
+            case 57:
                 op_LBAI(ctx);
                 break;
-            case 66:
+            case 58:
                 op_AINC(ctx);
                 break;
-            case 67:
+            case 59:
                 op_ADEC(ctx);
                 break;
-            case 68:
+            case 60:
                 op_A(ctx);
                 break;
-            case 69:
+            case 61:
                 op_MTB(ctx);
                 break;
-            case 70:
+            case 62:
                 op_LBB(ctx);
                 break;
-            case 71:
+            case 63:
                 op_LBBI(ctx);
                 break;
-            case 72:
+            case 64:
                 op_SBBI(ctx);
                 break;
-            case 73:
+            case 65:
                 op_BINC(ctx);
                 break;
-            case 74:
+            case 66:
                 op_BDEC(ctx);
                 break;
-            case 75:
+            case 67:
                 op_B(ctx);
                 break;
-            case 76:
+            case 68:
                 op_TRUE(ctx);
                 break;
-            case 77:
+            case 69:
                 op_FALSE(ctx);
                 break;
             default:

@@ -29,14 +29,6 @@ troff TROFF
 dump IODUMP
 key IOKEY
 iorh IORH
-load_ IOLOAD
-fopen_ FOPEN
-fread FREAD
-fwrite FWRITE
-fseek FSEEK
-ftell FTELL
-ftrunc FTRUNC
-fclose FCLOSE
 >r MTR
 r R
 call CALL
@@ -109,8 +101,7 @@ E124 EOF      # Flag to indicate end of input            1 byte  (align 4)
 E128 LASTWORD # Pointer to last defined word             2 bytes (align 4)
 E12C IRQRX    # IRQ vector for receiving input           2 bytes (align 4)
 E130 OK_EN    # OK prompt enable                         1 byte  (align 4)
-E134 LOADNEST # IOLOAD nesting level                     1 byte  (align 4)
-E138 IRQERR   # IRQ vector for error handler             2 bytes (align 4)
+E134 IRQERR   # IRQ vector for error handler             2 bytes (align 4)
 #...
 E200 IB       # Input Buffer       256 bytes
 E300 Pad      # Pad buffer         256 bytes
