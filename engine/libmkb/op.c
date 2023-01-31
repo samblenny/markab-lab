@@ -278,9 +278,22 @@ static void op_BZ(mk_context_t * ctx) {
     _drop_T();
 }
 
-/* BFOR ( -- ) */
+/* BFOR ( -- ) Decrement R and branch to start of loop if R > 0, drop R at end
+ *     of loop. PC-relative branch address allows for relocatable object code.
+ */
 static void op_BFOR(mk_context_t * ctx) {
-    /* TODO: Implement this */
+    _assert_return_stack_depth_is_at_least(1);
+    ctx->R -= 1;
+    if(ctx->R > 0) {
+        /* Keep looping: Branch backwards by subtracting byte literal from PC
+         * Maximum branch distance is -255
+         */
+        ctx->PC -= _peek_u8(ctx->PC);
+    } else {
+        /* End of loop: Advance PC past address literal, drop R */
+        ctx->PC += 1;
+        _drop_R();
+    }
 }
 
 /* U8 ( -- ) Read u8 byte literal, zero-extend it, push as T. */
