@@ -63,6 +63,13 @@ typedef struct mk_context {
     u8  DbgTraceEnable;    /* Debug trace on/off */
 } mk_context_t;
 
+/* Counted string buffer typedef */
+#define MK_StrBufSize (255)
+typedef struct mk_str {
+    u8 len;
+    u8 buf[MK_StrBufSize];
+} mk_str_t;
+
 /* Maximum number of cycles allowed before infinite loop error triggers */
 #define MK_MAX_CYCLES (65535)
 
@@ -78,7 +85,12 @@ int mk_load_rom(const u8 * code, u32 code_len_bytes);
  * Public Interface: Functions libmkb expects its front end to export
  */
 
+/* Write an error code to stderr */
 extern void mk_host_log_error(u8 error_code);
+
+/* Write length bytes from byte buffer buf to stdout */
+extern void mk_host_stdout_write(const char * buf, int length);
+
 
 
 #endif /* LIBMKB_H */

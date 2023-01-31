@@ -9,6 +9,7 @@
 
 #include "libmkb.h"
 #include "autogen.h"
+#include "fmt.h"
 #include "op.h"
 #include "vm.h"
 
@@ -320,16 +321,76 @@ static void op_HALT(mk_context_t * ctx) {
     ctx->halted = 1;
 }
 
-/* TRON ( -- ) */
+/* TRON ( -- ) Enable debug tracing */
 static void op_TRON(mk_context_t * ctx) {
+    ctx->DbgTraceEnable = 1;
 }
 
-/* TROFF ( -- ) */
+/* TROFF ( -- ) Disable debug tracing */
 static void op_TROFF(mk_context_t * ctx) {
+    ctx->DbgTraceEnable = 0;
 }
 
-/* IODUMP ( -- ) */
+/* IODUMP ( -- ) Hexdump S bytes of RAM starting at address T, drop S & T */
 static void op_IODUMP(mk_context_t * ctx) {
+    _assert_data_stack_depth_is_at_least(2);
+    u32 firstAddr = ctx->T;
+    u32 lastAddr = ctx->T + ctx->S - 1;
+    _assert_valid_address(lastAddr);
+    _drop_S_and_T();
+    u8 col = 0;
+    u32 addr;
+    mk_str_t left = {0, {0}};
+    mk_str_t right = {0, {0}};
+    /* Example: 0000  41414141 424242 43434343 44444444  AAAA BBBB CCCC DDDD */
+    for(addr = firstAddr; addr <= lastAddr; addr++) {
+        u8 data = _peek_u8(addr);
+        switch(col) {
+            case 0: /* Insert address before first data byte of the row */
+                fmt_hex_u16(&left, addr);
+                fmt_spaces(&left, 2);
+                break;
+            case 4:
+            case 8:
+            case 12: /* Add space before 4th, 8th, and 12th bytes of row */
+                fmt_spaces(&left, 1);
+                fmt_spaces(&right, 1);
+                break;
+        }
+        /* Append hex format to the left-side buffer */
+        fmt_hex_u8(&left, data);
+        /* Append ASCII format to right-side buffer       */
+        /* Non-printable characters get replaced with '.' */
+        if((data >= 32) && (data < 127)) {
+            fmt_raw_byte(&right, data);
+        } else {
+            fmt_raw_byte(&right, (u8) '.');
+        }
+        /* After 16th byte of each row, print then clear both buffers */
+        if(col == 15) {
+            fmt_spaces(&left, 2);
+            fmt_concat(&left, &right);
+            fmt_newline(&left);
+            vm_stdout_write(&left);
+            left.len = 0;
+            right.len = 0;
+        }
+        /* Advance the column counter (16 data columns per row) */
+        col = (col + 1) & 15;
+    }
+    /* If dump size was not an even multiple of 16, print the last partial  */
+    /* line with padding of spaces between left-side and right-side buffers */
+    if(col > 0) {
+        /* lookup table of padding widths accounting for 4,8,12 spacing */
+        u8 lut[16] = {
+            0, 33, 31, 29, 27, 24, 22, 20, 18, 15, 13, 11, 9, 6, 4, 2
+        };
+        u8 pad = lut[col & 0x0f];
+        fmt_spaces(&left, pad + 2);
+        fmt_concat(&left, &right);
+        fmt_newline(&left);
+        vm_stdout_write(&left);
+    }
 }
 
 /* IOKEY ( -- ) */
@@ -386,8 +447,13 @@ static void op_R(mk_context_t * ctx) {
     _push_T(ctx->R);
 }
 
-/* CALL ( -- ) */
+/* CALL ( -- ) Call subroutine at address T, pushing old PC to return stack */
 static void op_CALL(mk_context_t * ctx) {
+    _assert_return_stack_is_not_full();
+    _assert_data_stack_depth_is_at_least(1);
+    _push_R(ctx->PC);
+    ctx->PC = ctx->T;
+    _drop_T();
 }
 
 /* PC ( -- pc ) Push value of program counter (PC) register as T. */

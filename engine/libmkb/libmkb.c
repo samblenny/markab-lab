@@ -39,6 +39,7 @@
 #endif
 
 #include "libmkb.h"
+#include "fmt.c"
 #include "op.c"
 #include "vm.c"
 #include "autogen.c"
