@@ -380,13 +380,10 @@ static void op_IODUMP(mk_context_t * ctx) {
     }
     /* If dump size was not an even multiple of 16, print the last partial  */
     /* line with padding of spaces between left-side and right-side buffers */
-    if(col > 0) {
-        /* lookup table of padding widths accounting for 4,8,12 spacing */
-        u8 lut[16] = {
-            0, 33, 31, 29, 27, 24, 22, 20, 18, 15, 13, 11, 9, 6, 4, 2
-        };
-        u8 pad = lut[col & 0x0f];
-        fmt_spaces(&left, pad + 2);
+    if(left.len > 0) {
+        int pad = 41 - left.len + 2;
+        pad = pad < 0 ? 0 : pad;
+        fmt_spaces(&left, (u8) pad);
         fmt_concat(&left, &right);
         fmt_newline(&left);
         vm_stdout_write(&left);
