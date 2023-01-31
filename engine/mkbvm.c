@@ -8,8 +8,7 @@
 #include "libmkb/autogen.h"
 
 int main() {
-    size_t code_len = 32;
-    u8 code[32] = {
+    u8 code[47] = {
         MK_NOP,
         MK_U8, 32, MK_U8, 0, MK_IODUMP,
         MK_U8,  1, MK_U8, 0, MK_IODUMP,
@@ -17,9 +16,14 @@ int main() {
         MK_U8,  9, MK_U8, 0, MK_IODUMP,
         MK_U8, 13, MK_U8, 0, MK_IODUMP,
         MK_U8, 15, MK_U8, 0, MK_IODUMP,
+        MK_U8, 'E', MK_IOEMIT,
+        MK_U8, 'm', MK_IOEMIT,
+        MK_U8, 'i', MK_IOEMIT,
+        MK_U8, 't', MK_IOEMIT,
+        MK_U8, '\n', MK_IOEMIT,
         MK_HALT,
     };
-    printf("mk_load_rom() = %d\n", mk_load_rom(code, code_len));
+    printf("mk_load_rom() = %d\n", mk_load_rom(code, 47));
     return 0;
 }
 /* Output from main() looks like this:
@@ -30,6 +34,7 @@ int main() {
 0000  00072007 000d0701 07                 .. . .... .
 0000  00072007 000d0701 07000d07 05        .. . .... .... .
 0000  00072007 000d0701 07000d07 050700    .. . .... .... ...
+Emit
 mk_load_rom() = 0
 */
 
@@ -55,4 +60,10 @@ u8 mk_host_getchar(u8 * data) {
      * my purposes here, the distinction makes no difference.
      */
     return 1;
+}
+
+/* Write byte to stdout */
+void mk_host_putchar(u8 data) {
+    putchar(data);
+    /* TODO: Should I check for EOF? Is it more fun to just ignore it? */
 }

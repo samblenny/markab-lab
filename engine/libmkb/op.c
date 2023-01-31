@@ -630,9 +630,11 @@ static void op_DEC(mk_context_t * ctx) {
     ctx->T -= 1;
 }
 
-/* IOEMIT ( u8 -- ) */
+/* IOEMIT ( u8 -- ) Write the low byte of T to stdout. */
 static void op_IOEMIT(mk_context_t * ctx) {
-    /* TODO: Implement this */
+    _assert_data_stack_depth_is_at_least(1);
+    mk_host_putchar((u8)ctx->T);
+    _drop_T();
 }
 
 /* IODOT ( i32 -- ) */
