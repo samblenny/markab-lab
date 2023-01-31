@@ -243,7 +243,7 @@ def c_bytecode_switch_guts():
     s += [f"                op_{opcode.upper()}(ctx);"]
     s += [f"                break;"]
   s += ["            default:"]
-  s += ["                vm_irq_err(ctx, MK_ERR_BAD_INSTRUCTION);"]
+  s += ["                vm_irq_err(MK_ERR_BAD_INSTRUCTION);"]
   return "\n".join(s)
 
 def c_op_h():
@@ -377,7 +377,7 @@ static void autogen_step(mk_context_t * ctx) {{
         }}
     }}
     /* Making it this far means the MK_MAX_CYCLES limit was exceeded */
-    vm_irq_err(ctx, MK_ERR_MAX_CYCLES);
+    vm_irq_err(MK_ERR_MAX_CYCLES);
     autogen_step(ctx);
 }};
 

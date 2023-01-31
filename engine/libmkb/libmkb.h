@@ -91,6 +91,8 @@ extern void mk_host_log_error(u8 error_code);
 /* Write length bytes from byte buffer buf to stdout */
 extern void mk_host_stdout_write(const void * buf, int length);
 
+/* Read byte from stdin to *data, returning 0 for success or 1 for EOF */
+extern u8 mk_host_getchar(u8 * data);
 
 
 #endif /* LIBMKB_H */

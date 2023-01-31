@@ -408,14 +408,14 @@ static void autogen_step(mk_context_t * ctx) {
                 op_FALSE(ctx);
                 break;
             default:
-                vm_irq_err(ctx, MK_ERR_BAD_INSTRUCTION);
+                vm_irq_err(MK_ERR_BAD_INSTRUCTION);
         };
         if(ctx->halted) {
             return;
         }
     }
     /* Making it this far means the MK_MAX_CYCLES limit was exceeded */
-    vm_irq_err(ctx, MK_ERR_MAX_CYCLES);
+    vm_irq_err(MK_ERR_MAX_CYCLES);
     autogen_step(ctx);
 };
 

@@ -42,3 +42,17 @@ void mk_host_log_error(u8 error_code) {
 void mk_host_stdout_write(const void * buf, int length) {
     write(STDOUT_FILENO, buf, length);
 }
+
+/* Read byte from stdin to *data, returning 0 for success or 1 for EOF */
+u8 mk_host_getchar(u8 * data) {
+    int c = getchar();
+    if(c != EOF) {
+        *data = (u8) c;
+        return 0;
+    }
+    /* The getchar() docs say to check feof() and ferror() to learn whether
+     * the EOF code indicated a normal end of file or a file IO error. But, for
+     * my purposes here, the distinction makes no difference.
+     */
+    return 1;
+}

@@ -24,7 +24,7 @@
  */
 #define _assert_data_stack_depth_is_at_least(N) \
     if(ctx->DSDeep < N) {                       \
-        vm_irq_err(ctx, MK_ERR_D_UNDER);        \
+        vm_irq_err(MK_ERR_D_UNDER);             \
         return;                                 \
     }
 
@@ -34,7 +34,7 @@
  */
 #define _assert_data_stack_is_not_full() \
     if(ctx->DSDeep > 17) {               \
-        vm_irq_err(ctx, MK_ERR_D_OVER);  \
+        vm_irq_err(MK_ERR_D_OVER);       \
         return;                          \
     }
 
@@ -45,7 +45,7 @@
 #define _assert_return_stack_depth_is_at_least(N) \
     if(ctx->DSDeep < N) {                         \
         op_RESET(ctx);                            \
-        vm_irq_err(ctx, MK_ERR_D_UNDER);          \
+        vm_irq_err(MK_ERR_D_UNDER);               \
         return;                                   \
     }
 
@@ -56,7 +56,7 @@
 #define _assert_return_stack_is_not_full() \
     if(ctx->RSDeep > 16) {                 \
         op_RESET(ctx);                     \
-        vm_irq_err(ctx, MK_ERR_R_OVER);    \
+        vm_irq_err(MK_ERR_R_OVER);         \
         return;                            \
     }
 
@@ -144,10 +144,10 @@
 
 /* Macro to assert that ADDR is within the valid range of RAM addresses */
 /* CAUTION! This can cause the enclosing function to return. */
-#define _assert_valid_address(ADDR)          \
-    if((u32)(ADDR) > MK_RamMax) {            \
-        vm_irq_err(ctx, MK_ERR_BAD_ADDRESS); \
-        return;                              \
+#define _assert_valid_address(ADDR)     \
+    if((u32)(ADDR) > MK_RamMax) {       \
+        vm_irq_err(MK_ERR_BAD_ADDRESS); \
+        return;                         \
     }
 
 /* Macro to read u8 (byte) little-endian integer from RAM */
@@ -165,27 +165,32 @@
     (((u32) ctx->RAM[(u16)(N) + 1]) <<  8) + \
     ( (u32) ctx->RAM[(u16)(N)    ])          )
 
-/* Macro to write u8 N into RAM address ADDR */
-/* CAUTION! This can cause the enclosing function to return. */
-#define _poke_u8_with_assert_valid_address(N, ADDR) { \
-    _assert_valid_address(ADDR);                      \
-    ctx->RAM[(u16)(ADDR)] = (u8)(N);                  }
+/* Macro to write u8 N into RAM address ADDR
+ * CAUTION! The RAM[(u16)(...)] cast here avoids out of range memory access to
+ * protect against stack corruption or segfaulting, but it does not provide
+ * error detection. Use a separate assertion to handle that part.
+ */
+#define _poke_u8(N, ADDR) { ctx->RAM[(u16)(ADDR)] = (u8)(N); }
 
-/* Macro to write u16 N to RAM as little-endian integer at address ADDR */
-/* CAUTION! This can cause the enclosing function to return. */
-#define _poke_u16_with_assert_valid_address(N, ADDR) { \
-    _assert_valid_address(ADDR + 1);                   \
-    ctx->RAM[(u16)(ADDR)    ] = (u8)  (N)      ;       \
-    ctx->RAM[(u16)(ADDR) + 1] = (u8) ((N) >> 8);       }
+/* Macro to write u16 N to RAM as little-endian integer at address ADDR
+ * CAUTION! The RAM[(u16)(...)] casts here avoid out of range memory access to
+ * protect against stack corruption or segfaulting, but they do not provide
+ * error detection. Use a separate assertion to handle that part.
+ */
+#define _poke_u16(N, ADDR) {                       \
+    ctx->RAM[(u16) (ADDR)     ] = (u8)  (N)      ; \
+    ctx->RAM[(u16)((ADDR) + 1)] = (u8) ((N) >> 8); }
 
-/* Macro to write u32 N to RAM as little-endian integer at address ADDR */
-/* CAUTION! This can cause the enclosing function to return. */
-#define _poke_u32_with_assert_valid_address(N, ADDR) { \
-    _assert_valid_address(ADDR + 3);                   \
-    ctx->RAM[(u16)(ADDR)    ] = (u8)  (N)       ;      \
-    ctx->RAM[(u16)(ADDR) + 1] = (u8) ((N) >>  8);      \
-    ctx->RAM[(u16)(ADDR) + 2] = (u8) ((N) >> 16);      \
-    ctx->RAM[(u16)(ADDR) + 3] = (u8) ((N) >> 24);      }
+/* Macro to write u32 N to RAM as little-endian integer at address ADDR
+ * CAUTION! The RAM[(u16)(...)] casts here avoid out of range memory access to
+ * protect against stack corruption or segfaulting, but they do not provide
+ * error detection. Use a separate assertion to handle that part.
+ */
+#define _poke_u32(N, ADDR) {                        \
+    ctx->RAM[(u16) (ADDR)     ] = (u8)  (N)       ; \
+    ctx->RAM[(u16)((ADDR) + 1)] = (u8) ((N) >>  8); \
+    ctx->RAM[(u16)((ADDR) + 2)] = (u8) ((N) >> 16); \
+    ctx->RAM[(u16)((ADDR) + 3)] = (u8) ((N) >> 24); }
 
 /* Macro to read u8 (byte) literal from instruction stream */
 #define _u8_lit()  (_peek_u8(ctx->PC))
@@ -403,12 +408,24 @@ static void op_IODUMP(mk_context_t * ctx) {
     }
 }
 
-/* IOKEY ( -- ) */
+/* IOKEY ( -- [u8] bool ) Read the next byte from stdin.
+ *    Stack effects depend on whether an input byte was available or not:
+ *    1. Got a byte: ( -- u8 -1 ) S=u8, T=true means read was successful
+ *    2. End of file:    ( -- 0 ) T=false means end of file
+ */
 static void op_IOKEY(mk_context_t * ctx) {
-    /* TODO: Implement this */
+    u8 data;
+    u8 eof = mk_host_getchar(&data);
+    if(eof) {
+        op_FALSE(ctx);
+    } else {
+        _assert_data_stack_is_not_full();
+        _push_T(data);
+        op_TRUE(ctx);
+    }
 }
 
-/* IORH ( -- ) */
+/* IORH ( -- ) Hexdump the return stack */
 static void op_IORH(mk_context_t * ctx) {
     /* TODO: Implement this */
 }
@@ -452,8 +469,8 @@ static void op_MTE(mk_context_t * ctx) {
 /* LB ( addr -- i8 ) Load i8 (signed byte) at address T into T as an i32. */
 static void op_LB(mk_context_t * ctx) {
     _assert_data_stack_depth_is_at_least(1);
+    _assert_valid_address(ctx->T);
     u16 address = ctx->T;
-    _assert_valid_address(address);
     i32 data = (i32) _peek_u8(address);
     ctx->T = data;
 }
@@ -461,9 +478,10 @@ static void op_LB(mk_context_t * ctx) {
 /* SB ( u8 addr -- ) Store low byte of S (u8) into address T, drop S & T. */
 static void op_SB(mk_context_t * ctx) {
     _assert_data_stack_depth_is_at_least(2);
+    _assert_valid_address(ctx->T);
     u16 address = ctx->T;
     u8 data = (u8) ctx->S;
-    _poke_u8_with_assert_valid_address(data, address);
+    _poke_u8(data, address);
     _drop_S_and_T();
 }
 
@@ -480,9 +498,10 @@ static void op_LH(mk_context_t * ctx) {
 /* SH ( i16 addr -- ) Store u16 (unsigned halfword) from S into address T. */
 static void op_SH(mk_context_t * ctx) {
     _assert_data_stack_depth_is_at_least(2);
+    _assert_valid_address(ctx->T);
     u16 address = ctx->T;
     u32 data = (u16) ctx->S;
-    _poke_u16_with_assert_valid_address(data, address);
+    _poke_u16(data, address);
     _drop_S_and_T();
 }
 
@@ -498,9 +517,10 @@ static void op_LW(mk_context_t * ctx) {
 /* SW ( u32 addr -- ) Store u32 (unsigned word) from S into address T. */
 static void op_SW(mk_context_t * ctx) {
     _assert_data_stack_depth_is_at_least(2);
+    _assert_valid_address(ctx->T);
     u16 address = ctx->T;
     u32 data = (u32) ctx->S;
-    _poke_u32_with_assert_valid_address(data, address);
+    _poke_u32(data, address);
     _drop_S_and_T();
 }
 
@@ -674,8 +694,8 @@ static void op_MTA(mk_context_t * ctx) {
 /* LBA ( -- n ) Load byte from address in register A. */
 static void op_LBA(mk_context_t * ctx) {
     _assert_data_stack_is_not_full();
+    _assert_valid_address(ctx->A);
     u16 address = ctx->A;
-    _assert_valid_address(address);
     u32 data = (u32) _peek_u8(address);
     _push_T(data);
 }
@@ -712,8 +732,8 @@ static void op_MTB(mk_context_t * ctx) {
 /* LBB ( -- n ) Load byte from address in register B */
 static void op_LBB(mk_context_t * ctx) {
     _assert_data_stack_is_not_full();
+    _assert_valid_address(ctx->B);
     u16 address = ctx->B;
-    _assert_valid_address(address);
     u32 data = (u32) _peek_u8(address);
     _push_T(data);
 }
@@ -727,9 +747,10 @@ static void op_LBBI(mk_context_t * ctx) {
 /* SBBI ( n -- ) Store low byte of T to address in register B, increment B. */
 static void op_SBBI(mk_context_t * ctx) {
     _assert_data_stack_depth_is_at_least(1);
+    _assert_valid_address(ctx->B);
     u16 address = ctx->B;
     u8 data = (u8) ctx->T;
-    _poke_u8_with_assert_valid_address(data, address);
+    _poke_u8(data, address);
     _drop_T();
     ctx->B += 1;
 }
