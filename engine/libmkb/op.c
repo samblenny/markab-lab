@@ -283,7 +283,7 @@ static void op_BFOR(mk_context_t * ctx) {
     /* TODO: Implement this */
 }
 
-/* U8 ( -- ) Read uint8 byte literal, zero-extend it, push as T */
+/* U8 ( -- ) Read u8 byte literal, zero-extend it, push as T. */
 static void op_U8(mk_context_t * ctx) {
     _assert_data_stack_is_not_full();
     /* Read and push an 8-bit unsigned integer from instruction stream */
@@ -294,8 +294,7 @@ static void op_U8(mk_context_t * ctx) {
     _adjust_PC_by(1);
 }
 
-/* U16 ( -- ) Read uint16 halfword (2 bytes) literal, zero-extend it, push as T
- */
+/* U16 ( -- ) Read u16 halfword literal, zero-extend it, push as T. */
 static void op_U16(mk_context_t * ctx) {
     _assert_data_stack_is_not_full();
     /* Read and push 16-bit unsigned integer from instruction stream */
@@ -306,7 +305,7 @@ static void op_U16(mk_context_t * ctx) {
     _adjust_PC_by(2);
 }
 
-/* I32 ( -- ) Read int32 word (4 bytes) signed literal, push as T */
+/* I32 ( -- ) Read i32 word literal, push as T. */
 static void op_I32(mk_context_t * ctx) {
     _assert_data_stack_is_not_full()
     /* Read and push 32-bit signed integer from instruction stream */
@@ -317,22 +316,22 @@ static void op_I32(mk_context_t * ctx) {
     _adjust_PC_by(4);
 }
 
-/* HALT ( -- ) Halt the virtual CPU */
+/* HALT ( -- ) Halt the virtual CPU. */
 static void op_HALT(mk_context_t * ctx) {
     ctx->halted = 1;
 }
 
-/* TRON ( -- ) Enable debug tracing */
+/* TRON ( -- ) Enable debug tracing. */
 static void op_TRON(mk_context_t * ctx) {
     ctx->DbgTraceEnable = 1;
 }
 
-/* TROFF ( -- ) Disable debug tracing */
+/* TROFF ( -- ) Disable debug tracing. */
 static void op_TROFF(mk_context_t * ctx) {
     ctx->DbgTraceEnable = 0;
 }
 
-/* IODUMP ( -- ) Hexdump S bytes of RAM starting at address T, drop S & T */
+/* IODUMP ( -- ) Hexdump S bytes of RAM starting at address T, drop S & T. */
 static void op_IODUMP(mk_context_t * ctx) {
     _assert_data_stack_depth_is_at_least(2);
     u32 firstAddr = ctx->T;
@@ -455,7 +454,7 @@ static void op_R(mk_context_t * ctx) {
     _push_T(ctx->R);
 }
 
-/* CALL ( -- ) Call subroutine at address T, pushing old PC to return stack */
+/* CALL ( -- ) Call subroutine at address T, pushing old PC to return stack. */
 static void op_CALL(mk_context_t * ctx) {
     _assert_return_stack_is_not_full();
     _assert_data_stack_depth_is_at_least(1);
@@ -699,7 +698,7 @@ static void op_MTA(mk_context_t * ctx) {
     _drop_T();
 }
 
-/* LBA ( -- ) Load byte from RAM address in register A */
+/* LBA ( -- n ) Load byte from address in register A. */
 static void op_LBA(mk_context_t * ctx) {
     _assert_data_stack_is_not_full();
     u16 address = ctx->A;
@@ -708,7 +707,7 @@ static void op_LBA(mk_context_t * ctx) {
     _push_T(data);
 }
 
-/* LBAI ( -- ) Load byte from RAM address in register A, increment A */
+/* LBAI ( -- n ) Load byte from address in register A, increment A. */
 static void op_LBAI(mk_context_t * ctx) {
     op_LBA(ctx);
     ctx->A += 1;
@@ -737,7 +736,7 @@ static void op_MTB(mk_context_t * ctx) {
     _drop_T();
 }
 
-/* LBB ( -- ) Load byte from RAM address in register B */
+/* LBB ( -- n ) Load byte from address in register B */
 static void op_LBB(mk_context_t * ctx) {
     _assert_data_stack_is_not_full();
     u16 address = ctx->B;
@@ -746,13 +745,13 @@ static void op_LBB(mk_context_t * ctx) {
     _push_T(data);
 }
 
-/* LBBI ( -- ) Load byte from RAM address in register B, increment B */
+/* LBBI ( -- n ) Load byte from address in register B, increment B. */
 static void op_LBBI(mk_context_t * ctx) {
     op_LBB(ctx);
     ctx->B += 1;
 }
 
-/* SBBI ( -- ) Store low byte of T to RAM address in register B, increment B */
+/* SBBI ( n -- ) Store low byte of T to address in register B, increment B. */
 static void op_SBBI(mk_context_t * ctx) {
     _assert_data_stack_depth_is_at_least(1);
     u16 address = ctx->B;
@@ -778,14 +777,13 @@ static void op_B(mk_context_t * ctx) {
     _push_T(ctx->B);
 }
 
-/* TRUE ( -- ) Push the Forth-style truth value, which is -1 (all bits set). */
+/* TRUE ( -- -1 ) Push the Forth-style truth value, -1 (all bits set). */
 static void op_TRUE(mk_context_t * ctx) {
     _assert_data_stack_is_not_full();
     _push_T(-1);
 }
 
-/* FALSE ( -- ) Push the Forth-style false value, which is 0 (all bits clear).
- */
+/* FALSE ( -- 0 ) Push the Forth-style false value, 0 (all bits clear). */
 static void op_FALSE(mk_context_t * ctx) {
     _assert_data_stack_is_not_full();
     _push_T(0);
