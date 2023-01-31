@@ -141,6 +141,14 @@
     ctx->R = (N);                                                    \
     ctx->RSDeep += 1;                                                }
 
+/* Macro to assert that ADDR is within the valid range of RAM addresses */
+/* CAUTION! This can cause the enclosing function to return. */
+#define _assert_valid_address(ADDR)          \
+    if((u32)(ADDR) > MK_RamMax) {            \
+        vm_irq_err(ctx, MK_ERR_BAD_ADDRESS); \
+        return;                              \
+    }
+
 /* Macro to read u8 (byte) little-endian integer from RAM */
 #define _peek_u8(N)  ((u8) ctx->RAM[(u16)(N)])
 
@@ -157,19 +165,26 @@
     ( (u32) ctx->RAM[(u16)(N)    ])          )
 
 /* Macro to write u8 N into RAM address ADDR */
-#define _poke_u8(N, ADDR)  { ctx->RAM[(u16)(ADDR)] = (u8)(N); }
+/* CAUTION! This can cause the enclosing function to return. */
+#define _poke_u8_with_assert_valid_address(N, ADDR) { \
+    _assert_valid_address(ADDR);                      \
+    ctx->RAM[(u16)(ADDR)] = (u8)(N);                  }
 
 /* Macro to write u16 N to RAM as little-endian integer at address ADDR */
-#define _poke_u16(N, ADDR) {                     \
-    ctx->RAM[(u16)(ADDR)    ] = (u8)  (N)      ; \
-    ctx->RAM[(u16)(ADDR) + 1] = (u8) ((N) >> 8); }
+/* CAUTION! This can cause the enclosing function to return. */
+#define _poke_u16_with_assert_valid_address(N, ADDR) { \
+    _assert_valid_address(ADDR + 1);                   \
+    ctx->RAM[(u16)(ADDR)    ] = (u8)  (N)      ;       \
+    ctx->RAM[(u16)(ADDR) + 1] = (u8) ((N) >> 8);       }
 
 /* Macro to write u32 N to RAM as little-endian integer at address ADDR */
-#define _poke_u32(N, ADDR)  {                     \
-    ctx->RAM[(u16)(ADDR)    ] = (u8)  (N)       ; \
-    ctx->RAM[(u16)(ADDR) + 1] = (u8) ((N) >>  8); \
-    ctx->RAM[(u16)(ADDR) + 2] = (u8) ((N) >> 16); \
-    ctx->RAM[(u16)(ADDR) + 3] = (u8) ((N) >> 24); }
+/* CAUTION! This can cause the enclosing function to return. */
+#define _poke_u32_with_assert_valid_address(N, ADDR) { \
+    _assert_valid_address(ADDR + 3);                   \
+    ctx->RAM[(u16)(ADDR)    ] = (u8)  (N)       ;      \
+    ctx->RAM[(u16)(ADDR) + 1] = (u8) ((N) >>  8);      \
+    ctx->RAM[(u16)(ADDR) + 2] = (u8) ((N) >> 16);      \
+    ctx->RAM[(u16)(ADDR) + 3] = (u8) ((N) >> 24);      }
 
 /* Macro to read u8 (byte) literal from instruction stream */
 #define _u8_lit()  (_peek_u8(ctx->PC))
@@ -216,6 +231,7 @@ static void op_RESET(mk_context_t * ctx) {
  *     The jump address is PC-relative to allow for relocatable object code.
  */
 static void op_JMP(mk_context_t * ctx) {
+    _assert_valid_address(ctx->PC + 1);
     u16 n = _u16_lit();
     /* Add offset to program counter to compute destination address. */
     _adjust_PC_by(n);
@@ -229,6 +245,7 @@ static void op_JAL(mk_context_t * ctx) {
     /* Push the current Program Counter (PC) to return stack */
     _push_R(ctx->PC + 2);
     /* Read a 16-bit signed offset (relative to PC) from instruction stream */
+    _assert_valid_address(ctx->PC + 1);
     u16 n = _u16_lit();
     /* Change PC to the jump's destination address. */
     _adjust_PC_by(n);
@@ -250,6 +267,7 @@ static void op_BZ(mk_context_t * ctx) {
     if(ctx->T == 0) {
         /* Branch forward past conditional block: Add address literal from */
         /* instruction stream to PC. Maximum branch distance is +255. */
+        _assert_valid_address(ctx->PC);
         u8 n = _u8_lit();
         _adjust_PC_by(n);
     } else {
@@ -267,6 +285,7 @@ static void op_BFOR(mk_context_t * ctx) {
 static void op_U8(mk_context_t * ctx) {
     _assert_data_stack_is_not_full();
     /* Read and push an 8-bit unsigned integer from instruction stream */
+    _assert_valid_address(ctx->PC);
     i32 zero_extended = (i32) _u8_lit();
     _push_T(zero_extended);
     /* advance program counter past the literal */
@@ -278,6 +297,7 @@ static void op_U8(mk_context_t * ctx) {
 static void op_U16(mk_context_t * ctx) {
     _assert_data_stack_is_not_full();
     /* Read and push 16-bit unsigned integer from instruction stream */
+    _assert_valid_address(ctx->PC + 1);
     i32 zero_extended = (i32) _u16_lit();
     _push_T(zero_extended);
     /* advance program counter past literal */
@@ -288,6 +308,7 @@ static void op_U16(mk_context_t * ctx) {
 static void op_I32(mk_context_t * ctx) {
     _assert_data_stack_is_not_full()
     /* Read and push 32-bit signed integer from instruction stream */
+    _assert_valid_address(ctx->PC + 3);
     i32 n = (i32) _u32_lit();
     _push_T(n)
     /* advance program counter past literal */
@@ -386,6 +407,7 @@ static void op_MTE(mk_context_t * ctx) {
 static void op_LB(mk_context_t * ctx) {
     _assert_data_stack_depth_is_at_least(1);
     u16 address = ctx->T;
+    _assert_valid_address(address);
     i32 data = (i32) _peek_u8(address);
     ctx->T = data;
 }
@@ -395,7 +417,7 @@ static void op_SB(mk_context_t * ctx) {
     _assert_data_stack_depth_is_at_least(2);
     u16 address = ctx->T;
     u8 data = (u8) ctx->S;
-    _poke_u8(data, address);
+    _poke_u8_with_assert_valid_address(data, address);
     _drop_S_and_T();
 }
 
@@ -404,6 +426,7 @@ static void op_SB(mk_context_t * ctx) {
 static void op_LH(mk_context_t * ctx) {
     _assert_data_stack_depth_is_at_least(1);
     u16 address = ctx->T;
+    _assert_valid_address(address + 1);
     i32 data = (i32) ((i16) _peek_u16(address));
     ctx->T = data;
 }
@@ -413,7 +436,7 @@ static void op_SH(mk_context_t * ctx) {
     _assert_data_stack_depth_is_at_least(2);
     u16 address = ctx->T;
     u32 data = (u16) ctx->S;
-    _poke_u16(data, address);
+    _poke_u16_with_assert_valid_address(data, address);
     _drop_S_and_T();
 }
 
@@ -421,6 +444,7 @@ static void op_SH(mk_context_t * ctx) {
 static void op_LW(mk_context_t * ctx) {
     _assert_data_stack_depth_is_at_least(1);
     u16 address = ctx->T;
+    _assert_valid_address(address + 3);
     i32 data = (i32) _peek_u32(address);
     ctx->T = data;
 }
@@ -430,7 +454,7 @@ static void op_SW(mk_context_t * ctx) {
     _assert_data_stack_depth_is_at_least(2);
     u16 address = ctx->T;
     u32 data = (u32) ctx->S;
-    _poke_u32(data, address);
+    _poke_u32_with_assert_valid_address(data, address);
     _drop_S_and_T();
 }
 
