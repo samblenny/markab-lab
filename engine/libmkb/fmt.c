@@ -111,6 +111,38 @@ static void fmt_hex(mk_str_t * str, u32 data) {
     }
 }
 
+/* Format i32 into string buffer in variable width signed-decimal format. */
+static void fmt_decimal(mk_str_t * str, i32 n) {
+    /* If n is 0, skip all the fancy stuff */
+    if(n == 0) {
+        fmt_raw_byte(str, '0');
+        return;
+    }
+    /* If n is negative, append a '-' to str then negate n */
+    if(n < 0) {
+        fmt_raw_byte(str, '-');
+        n = -n;
+    }
+    /* Convert n to a list of base-10 digits. Maximum value of n should be
+     * about 2^31 = 2,147,483,648. So allow for up to 10 digits.
+     */
+    u8 digits[10];
+    u8 i;
+    for(i = 0; i < 10; i++) {
+        digits[9-i] = (u8) (n % 10);
+        n = (i32) (n / 10);
+    }
+    /* Then filter out the leading zeros and append what's left to str */
+    u8 skip_leading_zeros = 1;
+    for(i = 0; i < 10; i++) {
+        if(skip_leading_zeros && digits[i] == 0) {
+            continue;
+        }
+        skip_leading_zeros = 0;
+        fmt_raw_byte(str, '0' + digits[i]);
+    }
+}
+
 /* Append a copy of null-terminated cstring into string buffer str. */
 static void fmt_cstring(mk_str_t * str, const char * cstring) {
     /* Calculate the margin of bytes available to receive copied characters */

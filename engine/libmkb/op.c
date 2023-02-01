@@ -425,7 +425,7 @@ static void op_KEY(mk_context_t * ctx) {
     }
 }
 
-/* DOTRH ( -- ) Hexdump the return stack */
+/* DOTRH ( -- ) Non-destructively hexdump the return stack. */
 static void op_DOTRH(mk_context_t * ctx) {
     mk_str_t str = {0, {0}};
     if(ctx->RSDeep > 1) {
@@ -656,14 +656,56 @@ static void op_DOT(mk_context_t * ctx) {
     /* TODO: Implement this */
 }
 
-/* DOTSH ( -- ) */
+/* DOTSH ( -- ) Non-destructively hexdump the data stack. */
 static void op_DOTSH(mk_context_t * ctx) {
-    /* TODO: Implement this */
+    mk_str_t str = {0, {0}};
+    /* If at least 3 deep, format the array elements below S and T */
+    if(ctx->DSDeep > 2) {
+        int i;
+        for(i = 0; i < ctx->DSDeep - 2; i++) {
+            fmt_spaces(&str, 1);
+            fmt_hex(&str, (u32)ctx->DStack[i]);
+        }
+    }
+    /* If at least 2 deep, format S */
+    if(ctx->DSDeep > 1) {
+        fmt_spaces(&str, 1);
+        fmt_hex(&str, (u32)ctx->S);
+    }
+    /* If at least 1 deep, format T */
+    if(ctx->DSDeep > 0) {
+        fmt_spaces(&str, 1);
+        fmt_hex(&str, (u32)ctx->T);
+    } else {
+        fmt_cstring(&str, " Stack is empty");
+    }
+    vm_stdout_write(&str);
 }
 
-/* DOTS ( -- ) */
+/* DOTS ( -- ) Non-destructively dump the data stack in decimal format. */
 static void op_DOTS(mk_context_t * ctx) {
-    /* TODO: Implement this */
+    mk_str_t str = {0, {0}};
+    /* If at least 3 deep, format the array elements below S and T */
+    if(ctx->DSDeep > 2) {
+        int i;
+        for(i = 0; i < ctx->DSDeep - 2; i++) {
+            fmt_spaces(&str, 1);
+            fmt_decimal(&str, (u32)ctx->DStack[i]);
+        }
+    }
+    /* If at least 2 deep, format S */
+    if(ctx->DSDeep > 1) {
+        fmt_spaces(&str, 1);
+        fmt_decimal(&str, (u32)ctx->S);
+    }
+    /* If at least 1 deep, format T */
+    if(ctx->DSDeep > 0) {
+        fmt_spaces(&str, 1);
+        fmt_decimal(&str, (u32)ctx->T);
+    } else {
+        fmt_cstring(&str, " Stack is empty");
+    }
+    vm_stdout_write(&str);
 }
 
 /* RDROP ( -- ) Drop R, the top item of the return stack. */

@@ -10,7 +10,7 @@
 #include "libmkb/autogen.h"
 
 void main() {
-    u8 code[91] = {
+    u8 code[161] = {
         MK_NOP,
         MK_U8, 32, MK_U8, 0, MK_DUMP,
         MK_U8,  1, MK_U8, 0, MK_DUMP,
@@ -28,9 +28,19 @@ void main() {
         MK_I32, 0x01, 0x00, 0x00, 0x00, MK_MTR, MK_DOTRH, MK_U8, '\n', MK_EMIT,
         MK_I32, 0xef, 0xcd, 0xab, 0x01, MK_MTR, MK_DOTRH, MK_U8, '\n', MK_EMIT,
         MK_I32, 0xef, 0xcd, 0xab, 0xe1, MK_MTR, MK_DOTRH, MK_U8, '\n', MK_EMIT,
+        MK_U8, '\n', MK_EMIT, MK_DOTS, MK_U8, '\n', MK_EMIT,
+        MK_I32, 0x0f, 0x1f, 0x00, 0x00, MK_DOTS, MK_U8, '\n', MK_EMIT,
+        MK_I32, 0x01, 0x00, 0x00, 0x00, MK_DOTS, MK_U8, '\n', MK_EMIT,
+        MK_I32, 0xef, 0xcd, 0xab, 0x01, MK_DOTS, MK_U8, '\n', MK_EMIT,
+        MK_I32, 0xef, 0xcd, 0xab, 0xe1, MK_DOTS, MK_U8, '\n', MK_EMIT,
+        MK_U8, '\n', MK_EMIT, MK_DOTSH, MK_U8, '\n', MK_EMIT, MK_DROP,
+        MK_DOTSH, MK_U8, '\n', MK_EMIT, MK_DROP,
+        MK_DOTSH, MK_U8, '\n', MK_EMIT, MK_DROP,
+        MK_DOTSH, MK_U8, '\n', MK_EMIT, MK_DROP,
+        MK_DOTSH, MK_U8, '\n', MK_EMIT,
         MK_HALT,
     };
-    print("mk_load_rom() = %d\n", mk_load_rom(code, 91));
+    print("mk_load_rom() = %d\n", mk_load_rom(code, 161));
     exits(0);
 }
 /* Output from main() looks like this:
@@ -47,6 +57,18 @@ Emit
  1f0f 1
  1f0f 1 1abcdef
  1f0f 1 1abcdef e1abcdef
+
+ Stack is empty
+ 7951
+ 7951 1
+ 7951 1 28036591
+ 7951 1 28036591 -508834321
+
+ 1f0f 1 1abcdef e1abcdef
+ 1f0f 1 1abcdef
+ 1f0f 1
+ 1f0f
+ Stack is empty
 mk_load_rom() = 0
 */
 
