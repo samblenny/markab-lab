@@ -8,7 +8,7 @@
 #include "libmkb/autogen.h"
 
 int main() {
-    u8 code[47] = {
+    u8 code[91] = {
         MK_NOP,
         MK_U8, 32, MK_U8, 0, MK_DUMP,
         MK_U8,  1, MK_U8, 0, MK_DUMP,
@@ -21,9 +21,14 @@ int main() {
         MK_U8, 'i', MK_EMIT,
         MK_U8, 't', MK_EMIT,
         MK_U8, '\n', MK_EMIT,
+        MK_DOTRH, MK_U8, '\n', MK_EMIT,
+        MK_I32, 0x0f, 0x1f, 0x00, 0x00, MK_MTR, MK_DOTRH, MK_U8, '\n', MK_EMIT,
+        MK_I32, 0x01, 0x00, 0x00, 0x00, MK_MTR, MK_DOTRH, MK_U8, '\n', MK_EMIT,
+        MK_I32, 0xef, 0xcd, 0xab, 0x01, MK_MTR, MK_DOTRH, MK_U8, '\n', MK_EMIT,
+        MK_I32, 0xef, 0xcd, 0xab, 0xe1, MK_MTR, MK_DOTRH, MK_U8, '\n', MK_EMIT,
         MK_HALT,
     };
-    printf("mk_load_rom() = %d\n", mk_load_rom(code, 47));
+    printf("mk_load_rom() = %d\n", mk_load_rom(code, 91));
     return 0;
 }
 /* Output from main() looks like this:
@@ -35,6 +40,11 @@ int main() {
 0000  00072007 000d0701 07000d07 05        .. . .... .... .
 0000  00072007 000d0701 07000d07 050700    .. . .... .... ...
 Emit
+ R-Stack is empty
+ 1f0f
+ 1f0f 1
+ 1f0f 1 1abcdef
+ 1f0f 1 1abcdef e1abcdef
 mk_load_rom() = 0
 */
 

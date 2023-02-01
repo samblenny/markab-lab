@@ -78,4 +78,53 @@ static void fmt_hex_u16(mk_str_t * str, u16 data) {
     }
 }
 
+/* Hex-format i32 word in '%x' variable width format into string buffer.
+ * Example for R = 0x00001f0f: 1f0f
+ * Example for R = 0x00000001: 1
+ */
+static void fmt_hex(mk_str_t * str, u32 data) {
+    /* If the data byte is 0, skip all the fancy stuff */
+    if(data == 0) {
+        fmt_raw_byte(str, '0');
+        return;
+    }
+    /* Otherwise, compute the full 8-digit hex string */
+    u8 nibbles[8] = {
+        (data >> 28) & 0x0f,
+        (data >> 24) & 0x0f,
+        (data >> 20) & 0x0f,
+        (data >> 16) & 0x0f,
+        (data >> 12) & 0x0f,
+        (data >>  8) & 0x0f,
+        (data >>  4) & 0x0f,
+        (data      ) & 0x0f,
+    };
+    /* Then filter out the leading zeros and append what's left to str */
+    u8 skip_leading_zeros = 1;
+    u8 i;
+    for(i = 0; i < 8; i++) {
+        if(skip_leading_zeros && nibbles[i] == 0) {
+            continue;
+        }
+        skip_leading_zeros = 0;
+        fmt_raw_byte(str, HEX_ASCII[nibbles[i]]);
+    }
+}
+
+/* Append a copy of null-terminated cstring into string buffer str. */
+static void fmt_cstring(mk_str_t * str, const char * cstring) {
+    /* Calculate the margin of bytes available to receive copied characters */
+    i32 margin = MK_StrBufSize - str->len;
+    /* Copy bytes from ctring; stop for null or when margin is full */
+    int i;
+    for(i = 0; i < margin; i++) {
+        char c = cstring[i];
+        if(c == 0) {
+            break;
+        }
+        str->buf[str->len] = c;
+        str->len += 1;
+    }
+}
+
 #endif /* LIBMKB_FMT_C */

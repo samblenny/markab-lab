@@ -427,7 +427,21 @@ static void op_KEY(mk_context_t * ctx) {
 
 /* DOTRH ( -- ) Hexdump the return stack */
 static void op_DOTRH(mk_context_t * ctx) {
-    /* TODO: Implement this */
+    mk_str_t str = {0, {0}};
+    if(ctx->RSDeep > 1) {
+        int i;
+        for(i = 0; i < ctx->RSDeep - 1; i++) {
+            fmt_spaces(&str, 1);
+            fmt_hex(&str, (u32)ctx->RStack[i]);
+        }
+    }
+    if(ctx->RSDeep > 0) {
+        fmt_spaces(&str, 1);
+        fmt_hex(&str, (u32)ctx->R);
+    } else {
+        fmt_cstring(&str, " R-Stack is empty");
+    }
+    vm_stdout_write(&str);
 }
 
 /* MTR ( T -- ) Move T to R. */
