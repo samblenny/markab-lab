@@ -43,6 +43,7 @@
 #include "op.c"
 #include "vm.c"
 #include "autogen.c"
+#include "compile.c"
 
 int mk_load_rom(const u8 * code, u32 code_len_bytes) {
     mk_context_t ctx = {
