@@ -85,6 +85,7 @@ true TRUE
 false FALSE
 hex HEX
 decimal DECIMAL
+base BASE
 """
 
 MEMORY_MAP = """
@@ -241,7 +242,11 @@ def c_bytecode_switch_guts():
   for (i, line) in enumerate(filter(OPCODES)):
     (name, opcode) = line.strip().split(" ")
     s += [f"            case {i}:"]
-    s += [f"                op_{opcode.upper()}(ctx);"]
+    if opcode != 'NOP':
+      s += [f"                op_{opcode.upper()}(ctx);"]
+    else:
+      # Don't pass context to NOP; this stops a Plan 9 C compiler warning
+      s += [f"                op_{opcode.upper()}();"]
     s += [f"                break;"]
   s += ["            default:"]
   s += ["                vm_irq_err(MK_ERR_BAD_INSTRUCTION);"]
@@ -330,8 +335,6 @@ typedef struct mk_voc_item {{
     const u32 value;
 }} mk_voc_item_t;
 static const mk_voc_item_t mk_core_voc[MK_CORE_VOC_LEN];
-
-static void autogen_step(mk_context_t * ctx);
 
 #endif /* LIBMKB_AUTOGEN_H */
 """.strip()

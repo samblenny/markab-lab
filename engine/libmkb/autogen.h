@@ -86,9 +86,10 @@
 #define MK_FALSE  (0x45  /* 69 */)
 #define MK_HEX    (0x46  /* 70 */)
 #define MK_DECIMAL (0x47  /* 71 */)
+#define MK_BASE   (0x48  /* 72 */)
 
 /* Markab VM opcode dictionary */
-#define MK_OPCODES_LEN (72)
+#define MK_OPCODES_LEN (73)
 static const char * const opcodes[MK_OPCODES_LEN];
 
 /* Markab VM memory map */
@@ -130,7 +131,7 @@ static const char * const opcodes[MK_OPCODES_LEN];
 #define MK_HashMask    (63)
 
 /* Markab language core vocabulary */
-#define MK_CORE_VOC_LEN (106)
+#define MK_CORE_VOC_LEN (107)
 #define MK_VOC_ITEM_NAME_LEN (16)
 typedef struct mk_voc_item {
     const char * const name[MK_VOC_ITEM_NAME_LEN];
@@ -138,7 +139,5 @@ typedef struct mk_voc_item {
     const u32 value;
 } mk_voc_item_t;
 static const mk_voc_item_t mk_core_voc[MK_CORE_VOC_LEN];
-
-static void autogen_step(mk_context_t * ctx);
 
 #endif /* LIBMKB_AUTOGEN_H */

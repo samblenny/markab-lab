@@ -101,6 +101,7 @@ hex
 45 opcode false
 46 opcode hex
 47 opcode decimal
+48 opcode base
 
 ( Memory map)
 ( 0000..00FF belongs to VM)

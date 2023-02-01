@@ -85,6 +85,7 @@ static const char * const opcodes[MK_OPCODES_LEN] = {
     "FALSE",   /* 69 */
     "HEX",     /* 70 */
     "DECIMAL",  /* 71 */
+    "BASE",    /* 72 */
 };
 
 /* Markab language core vocabulary */
@@ -187,6 +188,7 @@ static const mk_voc_item_t core_voc[MK_CORE_VOC_LEN] = {
     { {"false"},       MK_T_OP,    MK_FALSE  },
     { {"hex"},         MK_T_OP,    MK_HEX    },
     { {"decimal"},     MK_T_OP,    MK_DECIMAL },
+    { {"base"},        MK_T_OP,    MK_BASE   },
 };
 
 /*
@@ -201,7 +203,7 @@ static void autogen_step(mk_context_t * ctx) {
     for(i=0; i<MK_MAX_CYCLES; i++) {
         switch(vm_next_instruction(ctx)) {
             case 0:
-                op_NOP(ctx);
+                op_NOP();
                 break;
             case 1:
                 op_RESET(ctx);
@@ -415,6 +417,9 @@ static void autogen_step(mk_context_t * ctx) {
                 break;
             case 71:
                 op_DECIMAL(ctx);
+                break;
+            case 72:
+                op_BASE(ctx);
                 break;
             default:
                 vm_irq_err(MK_ERR_BAD_INSTRUCTION);

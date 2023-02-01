@@ -12,7 +12,7 @@
 :syntax keyword mkbOpcode DOTS DOTSH DOTRH KEY EMIT DOT DUMP TRON TROFF
 :syntax keyword mkbOpcode MTA LBA LBAI      AINC ADEC A
 :syntax keyword mkbOpcode MTB LBB LBBI SBBI BINC BDEC B
-:syntax keyword mkbOpcode HEX DECIMAL
+:syntax keyword mkbOpcode HEX DECIMAL BASE
 :syntax match mkbComment /( [^)]*)/
 
 " Extend the characters that vim considers acceptable for keywords.
@@ -27,7 +27,7 @@
 :syntax keyword mkbCoreVocab .S .Sh .Rh key emit . dump tron troff
 :syntax keyword mkbCoreVocab >a @a @a+     a+ a- a
 :syntax keyword mkbCoreVocab >b @b @b+ !b+ b+ b- b >x x >y y
-:syntax keyword mkbCoreVocab hex decimal
+:syntax keyword mkbCoreVocab hex decimal base
 :syntax keyword mkbCoreVocab : ; var const opcode
 :syntax keyword mkbCoreVocab if{ }if for{ }for
 

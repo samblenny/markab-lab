@@ -20,7 +20,7 @@
     "DOTS" "DOTSH" "DOTRH" "KEY" "EMIT" "DOT" "DUMP" "TRON" "TROFF"
     "MTA" "LBA" "LBAI"        "AINC" "ADEC" "A"
     "MTB" "LBB" "LBBI" "SBBI" "BINC" "BDEC" "B"
-    "HEX" "DECIMAL"
+    "HEX" "DECIMAL" "BASE"
 
     ;; Core Words
     "nop" "+" "-" "1+" "1-" "*" "/" "%" "and" "inv" "or" "xor"
@@ -31,7 +31,7 @@
     ".S" ".Sh" ".Rh" "key" "emit" "." "dump" "tron" "troff"
     ">a" "@a" "@a+"       "a+" "a-" "a"
     ">b" "@b" "@b+" "!b+" "b+" "b-" "b"
-    "hex" "decimal"
+    "hex" "decimal" "base"
     ":" ";" "var" "const" "opcode"
     "if{" "}if" "for{" "}for"))
 

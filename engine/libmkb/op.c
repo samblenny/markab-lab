@@ -217,7 +217,7 @@
  */
 
 /* NOP ( -- ) Spend one virtual CPU clock cycle doing nothing. */
-static void op_NOP(mk_context_t * ctx) {
+static void op_NOP(void) {
     /* Do nothing. On purpose. */
 }
 
@@ -858,6 +858,12 @@ static void op_HEX(mk_context_t * ctx) {
 /* DECIMAL ( -- ) Set number base to 10 */
 static void op_DECIMAL(mk_context_t * ctx) {
     ctx->base = 10;
+}
+
+/* BASE ( -- n ) Push current number base: 10 (decimal) or 16 (hex). */
+static void op_BASE(mk_context_t * ctx) {
+    _assert_data_stack_is_not_full();
+    _push_T(ctx->base);
 }
 
 #endif /* LIBMKB_OP_C */

@@ -6,7 +6,7 @@
 #ifndef LIBMKB_OP_H
 #define LIBMKB_OP_H
 
-static void op_NOP(mk_context_t * ctx);
+static void op_NOP(void);
 
 static void op_RESET(mk_context_t * ctx);
 
@@ -145,5 +145,11 @@ static void op_B(mk_context_t * ctx);
 static void op_TRUE(mk_context_t * ctx);
 
 static void op_FALSE(mk_context_t * ctx);
+
+static void op_HEX(mk_context_t * ctx);
+
+static void op_DECIMAL(mk_context_t * ctx);
+
+static void op_BASE(mk_context_t * ctx);
 
 #endif /* LIBMKB_OP_H */

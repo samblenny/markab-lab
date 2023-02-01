@@ -38,7 +38,7 @@ U8 U16 I32 LB SB LH SH LW SW RESET
 DOTS DOTSH DOTRH KEY EMIT DOT DUMP IOLOAD TRON TROFF
 MTA LBA LBAI      AINC ADEC A
 MTB LBB LBBI SBBI BINC BDEC B
-HEX DECIMAL
+HEX DECIMAL BASE
 ```
 
 These are keywords of the Markab programming language core vocabulary:
@@ -52,7 +52,7 @@ nop + - 1+ 1- * / % and inv or xor
 .S .Sh .Rh key emit . dump tron troff
 >a @a @a+     a+ a- a
 >b @b @b+ !b+ b+ b- b
-hex decimal
+hex decimal base
 : ; var const opcode
 if{ }if for{ }for
 ```
@@ -207,6 +207,7 @@ Notes on the table of opcodes below:
 | AINC   | a+   | Add 1 to register A |
 | AND    | and  | Store bitwise AND of S with T into S, then drop T |
 | B      | b    | Push a copy of register B to the data stack |
+| BASE   | base | Push the current number base: 10 (decimal) or 16 (hex) |
 | BDEC   | b-   | Subtract 1 from register B |
 | BFOR   |      | Decrement R and branch to start of for-loop if R > 0. Branch offset is read from instruction stream as 8-bit unsigned int to be subtracted from PC (branch direction is always backwards). |
 | BINC   | b+   | Add 1 to register B |
@@ -314,7 +315,6 @@ usable. I don't expect these words to change much:
 | Word   | Description |
 |--------|-------------|
 | DP     | Dictionary Pointer: variable holding a pointer to the first free byte after the end of the dictionary. Many kernel words use this as a scratch buffer for string operations. Don't use DP directly, instead invoke `here`. |
-| BASE   | Variable holding the number base (10 or 16). Set this with `hex` or `decimal`. |
 | :      | Begin compiling new word into dictionary, reading name from input stream |
 | ;      | Finish compiling a word, *OR*, inside of `if{...}if` or `for{...}for`, conditionally return from a word |
 | var    | Compile space for a 32-bit variable into dictionary, reading name from input stream. Size can be increased with `allot`. Usage: `var foo` |
