@@ -12,17 +12,17 @@
 void main() {
     u8 code[47] = {
         MK_NOP,
-        MK_U8, 32, MK_U8, 0, MK_IODUMP,
-        MK_U8,  1, MK_U8, 0, MK_IODUMP,
-        MK_U8,  5, MK_U8, 0, MK_IODUMP,
-        MK_U8,  9, MK_U8, 0, MK_IODUMP,
-        MK_U8, 13, MK_U8, 0, MK_IODUMP,
-        MK_U8, 15, MK_U8, 0, MK_IODUMP,
-        MK_U8, 'E', MK_IOEMIT,
-        MK_U8, 'm', MK_IOEMIT,
-        MK_U8, 'i', MK_IOEMIT,
-        MK_U8, 't', MK_IOEMIT,
-        MK_U8, '\n', MK_IOEMIT,
+        MK_U8, 32, MK_U8, 0, MK_DUMP,
+        MK_U8,  1, MK_U8, 0, MK_DUMP,
+        MK_U8,  5, MK_U8, 0, MK_DUMP,
+        MK_U8,  9, MK_U8, 0, MK_DUMP,
+        MK_U8, 13, MK_U8, 0, MK_DUMP,
+        MK_U8, 15, MK_U8, 0, MK_DUMP,
+        MK_U8, 'E', MK_EMIT,
+        MK_U8, 'm', MK_EMIT,
+        MK_U8, 'i', MK_EMIT,
+        MK_U8, 't', MK_EMIT,
+        MK_U8, '\n', MK_EMIT,
         MK_HALT,
     };
     print("mk_load_rom() = %d\n", mk_load_rom(code, 47));

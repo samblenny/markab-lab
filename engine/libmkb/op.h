@@ -32,9 +32,9 @@ static void op_TRON(mk_context_t * ctx);
 
 static void op_TROFF(mk_context_t * ctx);
 
-static void op_IODUMP(mk_context_t * ctx);
+static void op_DUMP(mk_context_t * ctx);
 
-static void op_IOKEY(mk_context_t * ctx);
+static void op_KEY(mk_context_t * ctx);
 
 static void op_IORH(mk_context_t * ctx);
 
@@ -98,9 +98,9 @@ static void op_INC(mk_context_t * ctx);
 
 static void op_DEC(mk_context_t * ctx);
 
-static void op_IOEMIT(mk_context_t * ctx);
+static void op_EMIT(mk_context_t * ctx);
 
-static void op_IODOT(mk_context_t * ctx);
+static void op_DOT(mk_context_t * ctx);
 
 static void op_IODH(mk_context_t * ctx);
 

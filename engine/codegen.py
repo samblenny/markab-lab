@@ -26,8 +26,8 @@ reset RESET
 halt HALT
 tron TRON
 troff TROFF
-dump IODUMP
-key IOKEY
+dump DUMP
+key KEY
 iorh IORH
 >r MTR
 r R
@@ -59,10 +59,10 @@ and AND
 0= ZE
 1+ INC
 1- DEC
-emit IOEMIT
-. IODOT
-iodh IODH
-iod IOD
+emit EMIT
+. DOT
+.Sh IODH
+.S IOD
 rdrop RDROP
 drop DROP
 dup DUP

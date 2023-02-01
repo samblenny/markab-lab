@@ -349,8 +349,8 @@ static void op_TROFF(mk_context_t * ctx) {
     ctx->DbgTraceEnable = 0;
 }
 
-/* IODUMP ( -- ) Hexdump S bytes of RAM starting at address T, drop S & T. */
-static void op_IODUMP(mk_context_t * ctx) {
+/* DUMP ( -- ) Hexdump S bytes of RAM starting at address T, drop S & T. */
+static void op_DUMP(mk_context_t * ctx) {
     _assert_data_stack_depth_is_at_least(2);
     u32 firstAddr = ctx->T;
     u32 lastAddr = ctx->T + ctx->S - 1;
@@ -408,12 +408,12 @@ static void op_IODUMP(mk_context_t * ctx) {
     }
 }
 
-/* IOKEY ( -- [u8] bool ) Read the next byte from stdin.
+/* KEY ( -- [u8] bool ) Read the next byte from stdin.
  *    Stack effects depend on whether an input byte was available or not:
  *    1. Got a byte: ( -- u8 -1 ) S=u8, T=true means read was successful
  *    2. End of file:    ( -- 0 ) T=false means end of file
  */
-static void op_IOKEY(mk_context_t * ctx) {
+static void op_KEY(mk_context_t * ctx) {
     u8 data;
     u8 eof = mk_host_getchar(&data);
     if(eof) {
@@ -630,15 +630,15 @@ static void op_DEC(mk_context_t * ctx) {
     ctx->T -= 1;
 }
 
-/* IOEMIT ( u8 -- ) Write the low byte of T to stdout. */
-static void op_IOEMIT(mk_context_t * ctx) {
+/* EMIT ( u8 -- ) Write the low byte of T to stdout. */
+static void op_EMIT(mk_context_t * ctx) {
     _assert_data_stack_depth_is_at_least(1);
     mk_host_putchar((u8)ctx->T);
     _drop_T();
 }
 
-/* IODOT ( i32 -- ) */
-static void op_IODOT(mk_context_t * ctx) {
+/* DOT ( i32 -- ) */
+static void op_DOT(mk_context_t * ctx) {
     /* TODO: Implement this */
 }
 

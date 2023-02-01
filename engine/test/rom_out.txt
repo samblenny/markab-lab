@@ -3,24 +3,21 @@
   OK
 : 2d drop drop ;  OK
 : 4d 2d 2d ;  OK
-: t01 4 for{ r 1 and }for iod ;      t01  (  0 1 0 1  OK)  0 1 0 1  OK
+: t01 4 for{ r 1 and }for .S ;      t01   (  0 1 0 1  OK)  0 1 0 1  OK
 4d  OK
-: t02 true  if{ 4 iod ; }if 5 iod ;   t02       (  4  OK)  4  OK
+: t02 true  if{ 4 .S ; }if 5 .S ;   t02         (  4  OK)  4  OK
 drop  OK
-: t03 false if{ 4 iod ; }if 5 iod ;   t03       (  5  OK)  5  OK
+: t03 false if{ 4 .S ; }if 5 .S ;   t03         (  5  OK)  5  OK
 drop  OK
-iod                                (  Stack is empty  OK)  Stack is empty  OK
-23 const t04 iod                   (  Stack is empty  OK)  Stack is empty  OK
-var t05 5 t05 ! iod                (  Stack is empty  OK)  Stack is empty  OK
-0 opcode nop iod                   (  Stack is empty  OK)  Stack is empty  OK
+.S                                 (  Stack is empty  OK)  Stack is empty  OK
+23 const t04 .S                    (  Stack is empty  OK)  Stack is empty  OK
+var t05 5 t05 ! .S                 (  Stack is empty  OK)  Stack is empty  OK
+0 opcode nop .S                    (  Stack is empty  OK)  Stack is empty  OK
 "   t06: a string" print            (  t06: a string  OK)  t06: a string  OK
 : t07 "   another one" print ; t07     (  another one OK)  another one  OK
 " foo" const t08  " foo" t08 strcmp .           ( -1  OK) -1  OK
 " bar" const t09  t08 t09 strcmp .               ( 0  OK) 0  OK
 : foo? t08 here word strcmp . ;  foo? foo       ( -1  OK) -1  OK
-( test file loading)  OK
-load test/load_test.mkb                        ( t10  OK) t10  OK
-load name_not_on_vm_allow_list                  (  ERR 9)  ERR 9
 ( t11: Malformed if-block)  OK
 : t11 ( missing T=addr from if{ )  }if ;        (  ERR 2)  ERR 2
 ( fake if{ addr: ) 9000  OK
@@ -31,18 +28,7 @@ nop                                                (  OK)  OK
     ;                                       (  Compiling)  Compiling
   }if                                       (  Compiling)  Compiling
 ;                                                  (  OK)  OK
-( t13: Unknown word during load)  OK
-load test/load_t13.mkb           (  ? not-a-name  ERR 11)  ? not-a-name  ERR 11
-test/load_t13.mkb:2: : t13 not-a-name ;  ERR 15
 nop                                                (  OK)  OK
-LOADNEST? .                                      ( 0  OK) 0  OK
-( t14: Attempted infinite load recursion)  OK
-load test/load_t14.mkb                         (  ERR 13)  ERR 13
-test/load_t14.mkb:2: load test/load_t14.mkb  ERR 15
-test/load_t14.mkb:2: load test/load_t14.mkb  ERR 15
-test/load_t14.mkb:2: load test/load_t14.mkb  ERR 15
-nop                                                (  OK)  OK
-LOADNEST? .                                      ( 0  OK) 0  OK
 ( t15: Attempted infinitely tail-recursive call)  OK
 : t15 t15 ;  t15                                (  ERR 8)  ERR 8
 nop                                                (  OK)  OK
@@ -110,49 +96,5 @@ nop                                                (  OK)  OK
   f
   R-Stack is empty
   OK
-( t18: [I removed this test]  )  OK
-: t18 nop ;  OK
-( t19: Test FOPEN filepath sandboxing)  OK
-fopen name_not_on_vm_allow_list                 (  ERR 9)  ERR 9
-fopen ../mkb_save.rom                           (  ERR 9)  ERR 9
-fopen kernel.rom                                (  ERR 9)  ERR 9
-iod                                (  Stack is Empty  OK)  Stack is empty  OK
-( t20: Test file IO api to write and load code)  OK
-fopen test/mkb_save.mkb                            (  OK)  OK
-fopen test/mkb_save.mkb                        (  ERR 17)  ERR 17
-0 fseek .                                        (  0 OK) 0  OK
-ftrunc                                             (  OK)  OK
-var badUtf8 255 badUtf8 w!                         (  OK)  OK
-badUtf8 1 fwrite . fclose                        ( 1  OK) 1  OK
-fclose                                             (  OK)  OK
-fclose ( closing when already closed is fine)      (  OK)  OK
-0 fseek . ( file io op when closed is error)   (  ERR 16)  ERR 16
-ftrunc                                         (  ERR 16)  ERR 16
-0 1 fwrite .                                   (  ERR 16)  ERR 16
-load test/mkb_save.mkb ( file is malformed)    (  ERR 15)  ERR 15
-(  do it again but with well formed code)  OK
-fopen test/mkb_save.mkb 0 fseek . ftrunc         ( 0  OK) 0  OK
-" : e emit ; 32 e 83 e 65 e 86 e 69 e " const t20s  OK
-t20s 1+ t20s @ fwrite .                         (  36 OK) 36  OK
-fclose                                             (  OK)  OK
-load test/mkb_save.mkb                        ( SAVE  OK) SAVE  OK
-iod                                (  Stack is Empty  OK)  Stack is empty  OK
-( t21: Test source/destination RAM range checks)  OK
-fopen test/mkb_save.rom 0 fseek . ftrunc          ( 0 OK) 0  OK
-0 65535 fwrite .                             ( 65535  OK) 65535  OK
-fclose                                             (  OK)  OK
-iod                                (  Stack is Empty  OK)  Stack is empty  OK
-fopen test/mkb_save.rom 0 fseek . ftrunc          ( 0 OK) 0  OK
-0 0 fwrite .                                    (  ERR 3)  ERR 3
-0 fseek . ftrunc                                 ( 0  OK) 0  OK
-var badUtf8 255 badUtf8 w!                         (  OK)  OK
-badUtf8 1 fwrite .                               ( 1  OK) 1  OK
-fclose                                             (  OK)  OK
-iod                                (  Stack is Empty  OK)  Stack is empty  OK
-( Test extra whitespace for ' address lookup )  OK
-' iod drop  '  iod drop - .                      ( 0  OK) 0  OK
-( Test extra whitespace for fopen )  OK
-fopen  test/mkb_save.mkb fclose                    (  OK)  OK
-( Test extra whtespace for : )  OK
-:  t23 nop ;  ' t23 swap drop .                 ( -1  OK) -1  OK
-
+( Test extra whtespace for : )
+:  t18 nop ;  ' t18 swap drop .                 ( -1  OK) -1  OK

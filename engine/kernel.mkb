@@ -78,8 +78,8 @@ hex
 2d opcode 1-
 2e opcode emit
 2f opcode .
-30 opcode iodh
-31 opcode iod
+30 opcode .Sh
+31 opcode .S
 32 opcode rdrop
 33 opcode drop
 34 opcode dup

@@ -26,8 +26,8 @@ static const char * const opcodes[MK_OPCODES_LEN] = {
     "HALT",    /* 10 */
     "TRON",    /* 11 */
     "TROFF",   /* 12 */
-    "IODUMP",  /* 13 */
-    "IOKEY",   /* 14 */
+    "DUMP",    /* 13 */
+    "KEY",     /* 14 */
     "IORH",    /* 15 */
     "MTR",     /* 16 */
     "R",       /* 17 */
@@ -59,8 +59,8 @@ static const char * const opcodes[MK_OPCODES_LEN] = {
     "ZE",      /* 43 */
     "INC",     /* 44 */
     "DEC",     /* 45 */
-    "IOEMIT",  /* 46 */
-    "IODOT",   /* 47 */
+    "EMIT",    /* 46 */
+    "DOT",     /* 47 */
     "IODH",    /* 48 */
     "IOD",     /* 49 */
     "RDROP",   /* 50 */
@@ -127,8 +127,8 @@ static const mk_voc_item_t core_voc[MK_CORE_VOC_LEN] = {
     { {"halt"},        MK_T_OP,    MK_HALT   },
     { {"tron"},        MK_T_OP,    MK_TRON   },
     { {"troff"},       MK_T_OP,    MK_TROFF  },
-    { {"dump"},        MK_T_OP,    MK_IODUMP },
-    { {"key"},         MK_T_OP,    MK_IOKEY  },
+    { {"dump"},        MK_T_OP,    MK_DUMP   },
+    { {"key"},         MK_T_OP,    MK_KEY    },
     { {"iorh"},        MK_T_OP,    MK_IORH   },
     { {">r"},          MK_T_OP,    MK_MTR    },
     { {"r"},           MK_T_OP,    MK_R      },
@@ -160,10 +160,10 @@ static const mk_voc_item_t core_voc[MK_CORE_VOC_LEN] = {
     { {"0="},          MK_T_OP,    MK_ZE     },
     { {"1+"},          MK_T_OP,    MK_INC    },
     { {"1-"},          MK_T_OP,    MK_DEC    },
-    { {"emit"},        MK_T_OP,    MK_IOEMIT },
-    { {"."},           MK_T_OP,    MK_IODOT  },
-    { {"iodh"},        MK_T_OP,    MK_IODH   },
-    { {"iod"},         MK_T_OP,    MK_IOD    },
+    { {"emit"},        MK_T_OP,    MK_EMIT   },
+    { {"."},           MK_T_OP,    MK_DOT    },
+    { {".Sh"},         MK_T_OP,    MK_IODH   },
+    { {".S"},          MK_T_OP,    MK_IOD    },
     { {"rdrop"},       MK_T_OP,    MK_RDROP  },
     { {"drop"},        MK_T_OP,    MK_DROP   },
     { {"dup"},         MK_T_OP,    MK_DUP    },
@@ -237,10 +237,10 @@ static void autogen_step(mk_context_t * ctx) {
                 op_TROFF(ctx);
                 break;
             case 13:
-                op_IODUMP(ctx);
+                op_DUMP(ctx);
                 break;
             case 14:
-                op_IOKEY(ctx);
+                op_KEY(ctx);
                 break;
             case 15:
                 op_IORH(ctx);
@@ -336,10 +336,10 @@ static void autogen_step(mk_context_t * ctx) {
                 op_DEC(ctx);
                 break;
             case 46:
-                op_IOEMIT(ctx);
+                op_EMIT(ctx);
                 break;
             case 47:
-                op_IODOT(ctx);
+                op_DOT(ctx);
                 break;
             case 48:
                 op_IODH(ctx);
