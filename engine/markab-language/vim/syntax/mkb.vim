@@ -9,7 +9,7 @@
 :syntax keyword mkbOpcode EQ GT LT NE ZE TRUE FALSE JMP JAL CALL RET HALT
 :syntax keyword mkbOpcode BZ BFOR MTR RDROP R PC MTE DROP DUP OVER SWAP
 :syntax keyword mkbOpcode U8 U16 I32 LB SB LH SH LW SW RESET
-:syntax keyword mkbOpcode IOD IODH IORH KEY EMIT DOT DUMP TRON TROFF
+:syntax keyword mkbOpcode DOTS DOTSH DOTRH KEY EMIT DOT DUMP TRON TROFF
 :syntax keyword mkbOpcode MTA LBA LBAI      AINC ADEC A
 :syntax keyword mkbOpcode MTB LBB LBBI SBBI BINC BDEC B
 :syntax match mkbComment /( [^)]*)/
@@ -23,7 +23,7 @@
 :syntax keyword mkbCoreVocab = > < != 0= true false call halt
 :syntax keyword mkbCoreVocab >r rdrop r pc >err drop dup over swap
 :syntax keyword mkbCoreVocab @ ! h@ h! w@ w! reset
-:syntax keyword mkbCoreVocab .S .Sh iorh key emit . dump tron troff
+:syntax keyword mkbCoreVocab .S .Sh .Rh key emit . dump tron troff
 :syntax keyword mkbCoreVocab >a @a @a+     a+ a- a
 :syntax keyword mkbCoreVocab >b @b @b+ !b+ b+ b- b >x x >y y
 :syntax keyword mkbCoreVocab : ; var const opcode

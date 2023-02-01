@@ -28,7 +28,7 @@ tron TRON
 troff TROFF
 dump DUMP
 key KEY
-iorh IORH
+.Rh DOTRH
 >r MTR
 r R
 call CALL
@@ -61,8 +61,8 @@ and AND
 1- DEC
 emit EMIT
 . DOT
-.Sh IODH
-.S IOD
+.Sh DOTSH
+.S DOTS
 rdrop RDROP
 drop DROP
 dup DUP

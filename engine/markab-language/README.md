@@ -35,7 +35,7 @@ SLL SRL SRA
 EQ GT LT NE ZE TRUE FALSE JMP JAL CALL RET HALT
 BZ BFOR MTR RDROP R PC MTE DROP DUP OVER SWAP
 U8 U16 I32 LB SB LH SH LW SW RESET
-IOD IODH IORH KEY EMIT DOT DUMP IOLOAD TRON TROFF
+DOTS DOTSH DOTRH KEY EMIT DOT DUMP IOLOAD TRON TROFF
 MTA LBA LBAI      AINC ADEC A
 MTB LBB LBBI SBBI BINC BDEC B
 ```
@@ -48,7 +48,7 @@ nop + - 1+ 1- * / % and inv or xor
 = > < != 0= true false call halt
 >r rdrop r pc >err drop dup over swap
 @ ! h@ h! w@ w! reset
-.S .Sh iorh key emit . dump tron troff
+.S .Sh .Rh key emit . dump tron troff
 >a @a @a+     a+ a- a
 >b @b @b+ !b+ b+ b- b
 : ; var const opcode
@@ -221,13 +221,13 @@ Notes on the table of opcodes below:
 | I32    |      | Read int32 word (4 bytes) signed literal from instruction stream, push as T |
 | INC    | 1+   | Add 1 to T |
 | INV    | inv  | Invert the bits of T (ones' complement negation) |
-| IOD    | .S   | Debug dump data stack in decimal format |
-| IODH   | .Sh  | Debug dump data stack in hexadecimal format |
+| DOTS   | .S   | Debug dump data stack in decimal format |
+| DOTSH  | .Sh  | Debug dump data stack in hexadecimal format |
 | DOT    | .    | Print T to standard output, then drop T |
 | DUMP   | dump | Hexdump S bytes of memory starting from address T, then drop S and T |
 | EMIT   | emit | Buffer the low byte of T for stdout. |
 | KEY    | key  | Push the next byte from Standard Input to the data stack. Stack effect depends on whether a byte was available. When byte is available, push the data byte, then push true (-1): result is T=-1 (true), S=data-byte. When no data is available, push false (0): result is T=0 (false). |
-| IORH   | iorh | Debug dump return stack in hexadecimal format |
+| DOTRH  | .Rh  | Debug dump return stack in hexadecimal format |
 | JAL    |      | Jump to 16-bit address (from instruction stream) after pushing old value of PC to return stack. The jump address is PC-relative to allow for relocatable object code. |
 | JMP    |      | Jump to 16-bit address (from instruction stream). The jump address is PC-relative to allow for relocatable object code. |
 | LB     | @    | Load a uint8 (1 byte) from memory address T, saving result in T |

@@ -41,8 +41,8 @@ nop                                                (  OK)  OK
 (      change each time I modify the kernel code)  OK
 : t17  ( n -- )  Compiling
   dup r >a rdrop r >b rdrop cr   ( pop addresses)  Compiling
-  ( n) for{ r iorh >r cr }for                 ( )  Compiling
-  ( n) for{ r rdrop rdrop iorh >r cr }for     ( )  Compiling
+  ( n) for{ r .Rh >r cr }for                  ( )  Compiling
+  ( n) for{ r rdrop rdrop .Rh >r cr }for      ( )  Compiling
   b >r a >r                  ( restore addresses)  Compiling
 ;  OK
 ( 16 items is too much)  OK

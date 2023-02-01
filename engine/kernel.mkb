@@ -45,7 +45,7 @@ hex
 0c opcode troff
 0d opcode dump
 0e opcode key
-0f opcode iorh
+0f opcode .Rh
 10 opcode >r
 11 opcode r
 12 opcode call

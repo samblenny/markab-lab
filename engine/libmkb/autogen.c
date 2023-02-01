@@ -28,7 +28,7 @@ static const char * const opcodes[MK_OPCODES_LEN] = {
     "TROFF",   /* 12 */
     "DUMP",    /* 13 */
     "KEY",     /* 14 */
-    "IORH",    /* 15 */
+    "DOTRH",   /* 15 */
     "MTR",     /* 16 */
     "R",       /* 17 */
     "CALL",    /* 18 */
@@ -61,8 +61,8 @@ static const char * const opcodes[MK_OPCODES_LEN] = {
     "DEC",     /* 45 */
     "EMIT",    /* 46 */
     "DOT",     /* 47 */
-    "IODH",    /* 48 */
-    "IOD",     /* 49 */
+    "DOTSH",   /* 48 */
+    "DOTS",    /* 49 */
     "RDROP",   /* 50 */
     "DROP",    /* 51 */
     "DUP",     /* 52 */
@@ -129,7 +129,7 @@ static const mk_voc_item_t core_voc[MK_CORE_VOC_LEN] = {
     { {"troff"},       MK_T_OP,    MK_TROFF  },
     { {"dump"},        MK_T_OP,    MK_DUMP   },
     { {"key"},         MK_T_OP,    MK_KEY    },
-    { {"iorh"},        MK_T_OP,    MK_IORH   },
+    { {".Rh"},         MK_T_OP,    MK_DOTRH  },
     { {">r"},          MK_T_OP,    MK_MTR    },
     { {"r"},           MK_T_OP,    MK_R      },
     { {"call"},        MK_T_OP,    MK_CALL   },
@@ -162,8 +162,8 @@ static const mk_voc_item_t core_voc[MK_CORE_VOC_LEN] = {
     { {"1-"},          MK_T_OP,    MK_DEC    },
     { {"emit"},        MK_T_OP,    MK_EMIT   },
     { {"."},           MK_T_OP,    MK_DOT    },
-    { {".Sh"},         MK_T_OP,    MK_IODH   },
-    { {".S"},          MK_T_OP,    MK_IOD    },
+    { {".Sh"},         MK_T_OP,    MK_DOTSH  },
+    { {".S"},          MK_T_OP,    MK_DOTS   },
     { {"rdrop"},       MK_T_OP,    MK_RDROP  },
     { {"drop"},        MK_T_OP,    MK_DROP   },
     { {"dup"},         MK_T_OP,    MK_DUP    },
@@ -243,7 +243,7 @@ static void autogen_step(mk_context_t * ctx) {
                 op_KEY(ctx);
                 break;
             case 15:
-                op_IORH(ctx);
+                op_DOTRH(ctx);
                 break;
             case 16:
                 op_MTR(ctx);
@@ -342,10 +342,10 @@ static void autogen_step(mk_context_t * ctx) {
                 op_DOT(ctx);
                 break;
             case 48:
-                op_IODH(ctx);
+                op_DOTSH(ctx);
                 break;
             case 49:
-                op_IOD(ctx);
+                op_DOTS(ctx);
                 break;
             case 50:
                 op_RDROP(ctx);

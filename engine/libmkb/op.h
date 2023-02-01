@@ -36,7 +36,7 @@ static void op_DUMP(mk_context_t * ctx);
 
 static void op_KEY(mk_context_t * ctx);
 
-static void op_IORH(mk_context_t * ctx);
+static void op_DOTRH(mk_context_t * ctx);
 
 static void op_MTR(mk_context_t * ctx);
 
@@ -102,9 +102,9 @@ static void op_EMIT(mk_context_t * ctx);
 
 static void op_DOT(mk_context_t * ctx);
 
-static void op_IODH(mk_context_t * ctx);
+static void op_DOTSH(mk_context_t * ctx);
 
-static void op_IOD(mk_context_t * ctx);
+static void op_DOTS(mk_context_t * ctx);
 
 static void op_RDROP(mk_context_t * ctx);
 
