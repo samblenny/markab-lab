@@ -651,9 +651,18 @@ static void op_EMIT(mk_context_t * ctx) {
     _drop_T();
 }
 
-/* DOT ( i32 -- ) */
+/* DOT ( i32 -- ) Format T in current number base to stdout, drop T. */
 static void op_DOT(mk_context_t * ctx) {
-    /* TODO: Implement this */
+    _assert_data_stack_depth_is_at_least(1);
+    mk_str_t str = {0, {0}};
+    fmt_spaces(&str, 1);
+    if(ctx->base == 10) {
+        fmt_decimal(&str, ctx->T);
+    } else {
+        fmt_hex(&str, ctx->T);
+    }
+    vm_stdout_write(&str);
+    _drop_T();
 }
 
 /* DOTSH ( -- ) Non-destructively hexdump the data stack. */
@@ -841,5 +850,14 @@ static void op_FALSE(mk_context_t * ctx) {
     _push_T(0);
 }
 
+/* HEX ( -- ) Set number base to 16 */
+static void op_HEX(mk_context_t * ctx) {
+    ctx->base = 16;
+}
+
+/* DECIMAL ( -- ) Set number base to 10 */
+static void op_DECIMAL(mk_context_t * ctx) {
+    ctx->base = 10;
+}
 
 #endif /* LIBMKB_OP_C */

@@ -83,6 +83,8 @@ static const char * const opcodes[MK_OPCODES_LEN] = {
     "B",       /* 67 */
     "TRUE",    /* 68 */
     "FALSE",   /* 69 */
+    "HEX",     /* 70 */
+    "DECIMAL",  /* 71 */
 };
 
 /* Markab language core vocabulary */
@@ -97,12 +99,11 @@ static const mk_voc_item_t core_voc[MK_CORE_VOC_LEN] = {
     { {"MODE"},        MK_T_CONST, 0xE110    },
     { {"LASTCALL"},    MK_T_CONST, 0xE118    },
     { {"NEST"},        MK_T_CONST, 0xE11C    },
-    { {"BASE"},        MK_T_CONST, 0xE120    },
-    { {"EOF"},         MK_T_CONST, 0xE124    },
-    { {"LASTWORD"},    MK_T_CONST, 0xE128    },
-    { {"IRQRX"},       MK_T_CONST, 0xE12C    },
-    { {"OK_EN"},       MK_T_CONST, 0xE130    },
-    { {"IRQERR"},      MK_T_CONST, 0xE134    },
+    { {"EOF"},         MK_T_CONST, 0xE120    },
+    { {"LASTWORD"},    MK_T_CONST, 0xE124    },
+    { {"IRQRX"},       MK_T_CONST, 0xE128    },
+    { {"OK_EN"},       MK_T_CONST, 0xE12C    },
+    { {"IRQERR"},      MK_T_CONST, 0xE130    },
     { {"IB"},          MK_T_CONST, 0xE200    },
     { {"Pad"},         MK_T_CONST, 0xE300    },
     { {"Scratch"},     MK_T_CONST, 0xE400    },
@@ -184,6 +185,8 @@ static const mk_voc_item_t core_voc[MK_CORE_VOC_LEN] = {
     { {"b"},           MK_T_OP,    MK_B      },
     { {"true"},        MK_T_OP,    MK_TRUE   },
     { {"false"},       MK_T_OP,    MK_FALSE  },
+    { {"hex"},         MK_T_OP,    MK_HEX    },
+    { {"decimal"},     MK_T_OP,    MK_DECIMAL },
 };
 
 /*
@@ -406,6 +409,12 @@ static void autogen_step(mk_context_t * ctx) {
                 break;
             case 69:
                 op_FALSE(ctx);
+                break;
+            case 70:
+                op_HEX(ctx);
+                break;
+            case 71:
+                op_DECIMAL(ctx);
                 break;
             default:
                 vm_irq_err(MK_ERR_BAD_INSTRUCTION);

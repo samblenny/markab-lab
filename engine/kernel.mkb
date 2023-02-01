@@ -100,6 +100,8 @@ hex
 43 opcode b
 44 opcode true
 45 opcode false
+46 opcode hex
+47 opcode decimal
 
 ( Memory map)
 ( 0000..00FF belongs to VM)
@@ -114,12 +116,11 @@ E10C const EXT_V
 E110 const MODE
 E118 const LASTCALL
 E11C const NEST
-E120 const BASE
-E124 const EOF
-E128 const LASTWORD
-E12C const IRQRX
-E130 const OK_EN
-E134 const IRQERR
+E120 const EOF
+E124 const LASTWORD
+E128 const IRQRX
+E12C const OK_EN
+E130 const IRQERR
 E200 const IB
 E300 const Pad
 E400 const Scratch
@@ -132,9 +133,6 @@ decimal
 : here DP h@ ;       ( address for next writable dictionary location)
 : corv CORE_V h@ ;   ( base address of core vocabulary hashmap)
 : extv EXT_V h@ ;    ( base address of extensible vocab hashmap)
-
-: hex 16 BASE w! ;
-: decimal 10 BASE w! ;
 
 : cr     10 emit ;  ( Emit newline, but call it by the traditional CR name)
 : quote  34 emit ;  ( Emit quote: " )
@@ -433,6 +431,9 @@ decimal
 
 : @a_atoi?  ( ascii -- [n] bool )  ( Try to convert ascii digit to integer)
   @a 0-9?             ( try simple decimal conversion first)
+( ***************************************************** )
+( BASE is broken now... leaving this here for reference )
+( ***************************************************** )
   BASE @ 16 = if{     ( if base is 16:)
     dup 0= if{        (   if decimal conversion fails:)
       drop @a a-f?    (     try to convert as lowercase hex digit)
@@ -457,6 +458,9 @@ decimal
     a+ 1-            (   skip the '-': increment a, decrement loop limit)
   }if
   for{               ( loop over each byte of word at DP)
+( ***************************************************** )
+( BASE is broken now... leaving this here for reference )
+( ***************************************************** )
     BASE @ *         (   scale n up by base)
     @a_atoi?         (   try to convert ASCII to integer in current base)
     0= if{           (   if byte was not an ASCII digit in current base:)
@@ -795,7 +799,6 @@ decimal
   0 IN w!           ( 1 byte,  aligned 4, so zero all 4)
   0 LASTCALL w!     ( 2 bytes, aligned 4, so zero all 4)
   0 LASTWORD w!     ( 2 bytes, aligned 4, so zero all 4)
-  10 BASE w!        ( set number base to decimal)
   false EOF w!      ( clear the end of input flag)
   true OK_EN w!     ( enable OK prompts)
   here EXT_V w!     ( set extensible vocab hashmap base pointer)

@@ -38,6 +38,7 @@ U8 U16 I32 LB SB LH SH LW SW RESET
 DOTS DOTSH DOTRH KEY EMIT DOT DUMP IOLOAD TRON TROFF
 MTA LBA LBAI      AINC ADEC A
 MTB LBB LBBI SBBI BINC BDEC B
+HEX DECIMAL
 ```
 
 These are keywords of the Markab programming language core vocabulary:
@@ -51,6 +52,7 @@ nop + - 1+ 1- * / % and inv or xor
 .S .Sh .Rh key emit . dump tron troff
 >a @a @a+     a+ a- a
 >b @b @b+ !b+ b+ b- b
+hex decimal
 : ; var const opcode
 if{ }if for{ }for
 ```
@@ -221,6 +223,7 @@ Notes on the table of opcodes below:
 | I32    |      | Read int32 word (4 bytes) signed literal from instruction stream, push as T |
 | INC    | 1+   | Add 1 to T |
 | INV    | inv  | Invert the bits of T (ones' complement negation) |
+| DECIMAL | decimal | Set number base to 10 |
 | DOTS   | .S   | Debug dump data stack in decimal format |
 | DOTSH  | .Sh  | Debug dump data stack in hexadecimal format |
 | DOT    | .    | Print T to standard output, then drop T |
@@ -228,6 +231,7 @@ Notes on the table of opcodes below:
 | EMIT   | emit | Buffer the low byte of T for stdout. |
 | KEY    | key  | Push the next byte from Standard Input to the data stack. Stack effect depends on whether a byte was available. When byte is available, push the data byte, then push true (-1): result is T=-1 (true), S=data-byte. When no data is available, push false (0): result is T=0 (false). |
 | DOTRH  | .Rh  | Debug dump return stack in hexadecimal format |
+| HEX    | hex  | Set number base to 16 |
 | JAL    |      | Jump to 16-bit address (from instruction stream) after pushing old value of PC to return stack. The jump address is PC-relative to allow for relocatable object code. |
 | JMP    |      | Jump to 16-bit address (from instruction stream). The jump address is PC-relative to allow for relocatable object code. |
 | LB     | @    | Load a uint8 (1 byte) from memory address T, saving result in T |

@@ -84,9 +84,11 @@
 #define MK_B      (0x43  /* 67 */)
 #define MK_TRUE   (0x44  /* 68 */)
 #define MK_FALSE  (0x45  /* 69 */)
+#define MK_HEX    (0x46  /* 70 */)
+#define MK_DECIMAL (0x47  /* 71 */)
 
 /* Markab VM opcode dictionary */
-#define MK_OPCODES_LEN (70)
+#define MK_OPCODES_LEN (72)
 static const char * const opcodes[MK_OPCODES_LEN];
 
 /* Markab VM memory map */
@@ -100,12 +102,11 @@ static const char * const opcodes[MK_OPCODES_LEN];
 #define MK_MODE      (0xE110)
 #define MK_LASTCALL  (0xE118)
 #define MK_NEST      (0xE11C)
-#define MK_BASE      (0xE120)
-#define MK_EOF       (0xE124)
-#define MK_LASTWORD  (0xE128)
-#define MK_IRQRX     (0xE12C)
-#define MK_OK_EN     (0xE130)
-#define MK_IRQERR    (0xE134)
+#define MK_EOF       (0xE120)
+#define MK_LASTWORD  (0xE124)
+#define MK_IRQRX     (0xE128)
+#define MK_OK_EN     (0xE12C)
+#define MK_IRQERR    (0xE130)
 #define MK_IB        (0xE200)
 #define MK_Pad       (0xE300)
 #define MK_Scratch   (0xE400)
@@ -129,7 +130,7 @@ static const char * const opcodes[MK_OPCODES_LEN];
 #define MK_HashMask    (63)
 
 /* Markab language core vocabulary */
-#define MK_CORE_VOC_LEN (105)
+#define MK_CORE_VOC_LEN (106)
 #define MK_VOC_ITEM_NAME_LEN (16)
 typedef struct mk_voc_item {
     const char * const name[MK_VOC_ITEM_NAME_LEN];

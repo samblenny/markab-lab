@@ -99,6 +99,8 @@ hex
 43 opcode b
 44 opcode true
 45 opcode false
+46 opcode hex
+47 opcode decimal
 
 ( Memory map)
 ( 0000..00FF belongs to VM)
@@ -113,12 +115,11 @@ E10C const EXT_V
 E110 const MODE
 E118 const LASTCALL
 E11C const NEST
-E120 const BASE
-E124 const EOF
-E128 const LASTWORD
-E12C const IRQRX
-E130 const OK_EN
-E134 const IRQERR
+E120 const EOF
+E124 const LASTWORD
+E128 const IRQRX
+E12C const OK_EN
+E130 const IRQERR
 E200 const IB
 E300 const Pad
 E400 const Scratch

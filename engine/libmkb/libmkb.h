@@ -40,7 +40,7 @@
 #define MK_RamMax (65535)
 typedef struct mk_context {
     u8  err;               /* Error register (don't confuse with ERR opcode!) */
-    u8  base;              /* number Base for debug printing */
+    u8  base;              /* Number base for parsing and print formatting */
     i32 A;                 /* register for source address or scratch */
     i32 B;                 /* register for destination addr or scratch */
     i32 T;                 /* Top of data stack */

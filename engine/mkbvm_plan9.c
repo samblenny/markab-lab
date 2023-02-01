@@ -10,7 +10,7 @@
 #include "libmkb/autogen.h"
 
 void main() {
-    u8 code[161] = {
+    u8 code[194] = {
         MK_NOP,
         MK_U8, 32, MK_U8, 0, MK_DUMP,
         MK_U8,  1, MK_U8, 0, MK_DUMP,
@@ -38,9 +38,14 @@ void main() {
         MK_DOTSH, MK_U8, '\n', MK_EMIT, MK_DROP,
         MK_DOTSH, MK_U8, '\n', MK_EMIT, MK_DROP,
         MK_DOTSH, MK_U8, '\n', MK_EMIT,
+        MK_U8, '\n', MK_EMIT, MK_U8, 17, MK_I32, 0xef, 0xff, 0xff, 0xff,
+        MK_DOT, MK_DOT, MK_U8, '\n', MK_EMIT,
+        MK_U8, 17, MK_I32, 0xef, 0xff, 0xff, 0xff,
+        MK_HEX, MK_DOT, MK_DOT, MK_DECIMAL, MK_U8, '\n', MK_EMIT,
+        MK_DOTSH, MK_U8, '\n', MK_EMIT,
         MK_HALT,
     };
-    print("mk_load_rom() = %d\n", mk_load_rom(code, 161));
+    print("mk_load_rom() = %d\n", mk_load_rom(code, 194));
     exits(0);
 }
 /* Output from main() looks like this:
@@ -68,6 +73,10 @@ Emit
  1f0f 1 1abcdef
  1f0f 1
  1f0f
+ Stack is empty
+
+ -17 17
+ ffffffef 11
  Stack is empty
 mk_load_rom() = 0
 */
