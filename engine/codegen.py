@@ -18,7 +18,6 @@ reset RESET
 <ASM> JAL
 <ASM> RET
 <ASM> BZ
-<ASM> BFOR
 <ASM> U8
 <ASM> U16
 <ASM> I32
@@ -26,7 +25,6 @@ halt HALT
 tron TRON
 troff TROFF
 dump DUMP
-key KEY
 .Rh DOTRH
 >r MTR
 r R
@@ -67,19 +65,6 @@ drop DROP
 dup DUP
 over OVER
 swap SWAP
->a MTA
-@a LBA
-@a+ LBAI
-a+ AINC
-a- ADEC
-a A
->b MTB
-@b LBB
-@b+ LBBI
-!b+ SBBI
-b+ BINC
-b- BDEC
-b B
 true TRUE
 false FALSE
 hex HEX
@@ -92,22 +77,6 @@ MEMORY_MAP = """
 E000 HeapRes  # Heap Reserve buffer                      256 bytes
 E0FF HeapMax  # Heap: end of reserve buffer
 E100 DP       # Dictionary Pointer                       2 bytes (align 4)
-E104 IN       # INput buffer index                       1 byte  (align 4)
-E108 CORE_V   # Pointer to core vocab hashmap            2 bytes (align 4)
-E10C EXT_V    # Pointer to extensible vocab hashmap      2 bytes (align 4)
-E110 MODE     # Current interpreting/compiling mode      1 byte  (align 4)
-E118 LASTCALL # Pointer to last compiled call instr.     2 bytes (align 4)
-E11C NEST     # Block Nesting level for if{ and for{     1 byte  (align 4)
-E120 EOF      # Flag to indicate end of input            1 byte  (align 4)
-E124 LASTWORD # Pointer to last defined word             2 bytes (align 4)
-E128 IRQRX    # IRQ vector for receiving input           2 bytes (align 4)
-E12C OK_EN    # OK prompt enable                         1 byte  (align 4)
-E130 IRQERR   # IRQ vector for error handler             2 bytes (align 4)
-#...
-E200 IB       # Input Buffer       256 bytes
-E300 Pad      # Pad buffer         256 bytes
-E400 Scratch  # Scratch buffer     256 bytes
-#E4FF           end of fmt buffer
 #...
 FFFF MemMax
 """
@@ -119,22 +88,6 @@ T_CONST  1   # Constant
 T_OP     2   # Single opcode for a simple word
 T_OBJ    3   # Object code for regular compiled word
 T_IMM    4   # Object code for immediate compiled word
-
-# Codes for interpreter Modes
-MODE_INT  0   # Interpret mode
-MODE_COM  1   # Compiling mode
-
-# Error codes (most errors get set internally by the VM)
-ErrUnknown 11  # Unknown word
-ErrNest    12  # Compiler encountered unbalanced nesting of }if or }for
-ErrFilepath 9  # Filepath error while opening file
-
-# Parameters for multiply-with-carry (mwc) string hashing function
-HashA 7
-HashB 8
-HashC 38335
-HashBins 64
-HashMask 63
 """
 
 def filter(src):

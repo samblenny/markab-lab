@@ -7,7 +7,7 @@
 /* Plan 9 inlcudes */
 #  include <u.h>              /* u8int, u16int, u32int, ... */
 #  include <libc.h>           /* print(), exits(), ... */
-#  include <stdio.h>          /* getchar(), putchar() */
+#  include <stdio.h>          /* putchar() */
 #else
 /* POSIX includes */
 #  include <stdint.h>         /* uint8_t, uint16_t, int32_t, ... */
@@ -64,16 +64,6 @@ void mk_host_stdout_write(const void * buf, int length) {
 #else
     write(STDOUT_FILENO, buf, length);
 #endif
-}
-
-/* Read byte from stdin to *data, returning 0 for success or 1 for EOF */
-u8 mk_host_getchar(u8 * data) {
-    int c = getchar();
-    if(c != EOF) {
-        *data = (u8) c;
-        return 0;
-    }
-    return 1;
 }
 
 /* Write byte to stdout */

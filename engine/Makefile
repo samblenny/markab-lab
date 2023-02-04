@@ -10,8 +10,8 @@ CFLAGS=-ansi -Wall -O3
 
 AUTOGEN=libmkb/autogen.h libmkb/autogen.c
 CLEAN_RM=markab mkb_test
-LIBMKB_C=libmkb/libmkb.c libmkb/op.c libmkb/vm.c libmkb/fmt.c libmkb/compile.c
-LIBMKB_H=libmkb/libmkb.h libmkb/op.h libmkb/vm.h libmkb/fmt.h libmkb/compile.h
+LIBMKB_C=libmkb/libmkb.c libmkb/op.c libmkb/vm.c libmkb/fmt.c libmkb/comp.c
+LIBMKB_H=libmkb/libmkb.h libmkb/op.h libmkb/vm.h libmkb/fmt.h libmkb/comp.h
 
 markab: markab.c $(AUTOGEN) $(LIBMKB_C) $(LIBMKB_H) Makefile
 	$(CC) $(CFLAGS) -o markab markab.c libmkb/libmkb.c

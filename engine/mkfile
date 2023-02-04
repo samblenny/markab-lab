@@ -8,6 +8,10 @@
 #
 </$objtype/mkfile
 
+AUTOGEN=libmkb/autogen.h libmkb/autogen.c
+LIBMKB_C=libmkb/libmkb.c libmkb/op.c libmkb/vm.c libmkb/fmt.c libmkb/comp.c
+LIBMKB_H=libmkb/libmkb.h libmkb/op.h libmkb/vm.h libmkb/fmt.h libmkb/comp.h
+
 markab: markab.$O libmkb/libmkb.$O
     $LD $LDFLAGS -o markab markab.$O libmkb/libmkb.$O
 
@@ -22,7 +26,7 @@ test:V: mkb_test
 	mkb_test
 
 clean:V:
-    rm -f markab markab.$O mkb_test mkb_test.$0 libmkb/libmkb.$O
+    rm -f markab mkb_test markab.$O mkb_test.$0 libmkb/libmkb.$O
 
 markab.$O: markab.c
     $CC $CFLAGS -DPLAN_9 markab.c
@@ -30,5 +34,5 @@ markab.$O: markab.c
 mkb_test.$O: mkb_test.c
     $CC $CFLAGS -DPLAN_9 mkb_test.c
 
-libmkb/libmkb.$O: libmkb/libmkb.c
+libmkb/libmkb.$O: $AUTOGEN $LIBMKB_C $LIBMKB_H
     cd libmkb; $CC $CFLAGS -DPLAN_9 libmkb.c

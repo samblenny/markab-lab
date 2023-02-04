@@ -19,73 +19,58 @@ static const char * const opcodes[MK_OPCODES_LEN] = {
     "JAL",     /*  3 */
     "RET",     /*  4 */
     "BZ",      /*  5 */
-    "BFOR",    /*  6 */
-    "U8",      /*  7 */
-    "U16",     /*  8 */
-    "I32",     /*  9 */
-    "HALT",    /* 10 */
-    "TRON",    /* 11 */
-    "TROFF",   /* 12 */
-    "DUMP",    /* 13 */
-    "KEY",     /* 14 */
-    "DOTRH",   /* 15 */
-    "MTR",     /* 16 */
-    "R",       /* 17 */
-    "CALL",    /* 18 */
-    "PC",      /* 19 */
-    "MTE",     /* 20 */
-    "LB",      /* 21 */
-    "SB",      /* 22 */
-    "LH",      /* 23 */
-    "SH",      /* 24 */
-    "LW",      /* 25 */
-    "SW",      /* 26 */
-    "ADD",     /* 27 */
-    "SUB",     /* 28 */
-    "MUL",     /* 29 */
-    "DIV",     /* 30 */
-    "MOD",     /* 31 */
-    "SLL",     /* 32 */
-    "SRL",     /* 33 */
-    "SRA",     /* 34 */
-    "INV",     /* 35 */
-    "XOR",     /* 36 */
-    "OR",      /* 37 */
-    "AND",     /* 38 */
-    "GT",      /* 39 */
-    "LT",      /* 40 */
-    "EQ",      /* 41 */
-    "NE",      /* 42 */
-    "ZE",      /* 43 */
-    "INC",     /* 44 */
-    "DEC",     /* 45 */
-    "EMIT",    /* 46 */
-    "DOT",     /* 47 */
-    "DOTSH",   /* 48 */
-    "DOTS",    /* 49 */
-    "RDROP",   /* 50 */
-    "DROP",    /* 51 */
-    "DUP",     /* 52 */
-    "OVER",    /* 53 */
-    "SWAP",    /* 54 */
-    "MTA",     /* 55 */
-    "LBA",     /* 56 */
-    "LBAI",    /* 57 */
-    "AINC",    /* 58 */
-    "ADEC",    /* 59 */
-    "A",       /* 60 */
-    "MTB",     /* 61 */
-    "LBB",     /* 62 */
-    "LBBI",    /* 63 */
-    "SBBI",    /* 64 */
-    "BINC",    /* 65 */
-    "BDEC",    /* 66 */
-    "B",       /* 67 */
-    "TRUE",    /* 68 */
-    "FALSE",   /* 69 */
-    "HEX",     /* 70 */
-    "DECIMAL",  /* 71 */
-    "BASE",    /* 72 */
+    "U8",      /*  6 */
+    "U16",     /*  7 */
+    "I32",     /*  8 */
+    "HALT",    /*  9 */
+    "TRON",    /* 10 */
+    "TROFF",   /* 11 */
+    "DUMP",    /* 12 */
+    "DOTRH",   /* 13 */
+    "MTR",     /* 14 */
+    "R",       /* 15 */
+    "CALL",    /* 16 */
+    "PC",      /* 17 */
+    "MTE",     /* 18 */
+    "LB",      /* 19 */
+    "SB",      /* 20 */
+    "LH",      /* 21 */
+    "SH",      /* 22 */
+    "LW",      /* 23 */
+    "SW",      /* 24 */
+    "ADD",     /* 25 */
+    "SUB",     /* 26 */
+    "MUL",     /* 27 */
+    "DIV",     /* 28 */
+    "MOD",     /* 29 */
+    "SLL",     /* 30 */
+    "SRL",     /* 31 */
+    "SRA",     /* 32 */
+    "INV",     /* 33 */
+    "XOR",     /* 34 */
+    "OR",      /* 35 */
+    "AND",     /* 36 */
+    "GT",      /* 37 */
+    "LT",      /* 38 */
+    "EQ",      /* 39 */
+    "NE",      /* 40 */
+    "ZE",      /* 41 */
+    "INC",     /* 42 */
+    "DEC",     /* 43 */
+    "EMIT",    /* 44 */
+    "DOT",     /* 45 */
+    "DOTSH",   /* 46 */
+    "DOTS",    /* 47 */
+    "RDROP",   /* 48 */
+    "DROP",    /* 49 */
+    "DUP",     /* 50 */
+    "OVER",    /* 51 */
+    "SWAP",    /* 52 */
+    "TRUE",    /* 53 */
+    "FALSE",   /* 54 */
+    "HEX",     /* 55 */
+    "DECIMAL",  /* 56 */
+    "BASE",    /* 57 */
 };
 
 /* Markab language core vocabulary */
@@ -94,43 +79,18 @@ static const mk_voc_item_t core_voc[MK_CORE_VOC_LEN] = {
     { {"HeapRes"},     MK_T_CONST, 0xE000    },
     { {"HeapMax"},     MK_T_CONST, 0xE0FF    },
     { {"DP"},          MK_T_CONST, 0xE100    },
-    { {"IN"},          MK_T_CONST, 0xE104    },
-    { {"CORE_V"},      MK_T_CONST, 0xE108    },
-    { {"EXT_V"},       MK_T_CONST, 0xE10C    },
-    { {"MODE"},        MK_T_CONST, 0xE110    },
-    { {"LASTCALL"},    MK_T_CONST, 0xE118    },
-    { {"NEST"},        MK_T_CONST, 0xE11C    },
-    { {"EOF"},         MK_T_CONST, 0xE120    },
-    { {"LASTWORD"},    MK_T_CONST, 0xE124    },
-    { {"IRQRX"},       MK_T_CONST, 0xE128    },
-    { {"OK_EN"},       MK_T_CONST, 0xE12C    },
-    { {"IRQERR"},      MK_T_CONST, 0xE130    },
-    { {"IB"},          MK_T_CONST, 0xE200    },
-    { {"Pad"},         MK_T_CONST, 0xE300    },
-    { {"Scratch"},     MK_T_CONST, 0xE400    },
     { {"MemMax"},      MK_T_CONST, 0xFFFF    },
     { {"T_VAR"},       MK_T_CONST, 0         },
     { {"T_CONST"},     MK_T_CONST, 1         },
     { {"T_OP"},        MK_T_CONST, 2         },
     { {"T_OBJ"},       MK_T_CONST, 3         },
     { {"T_IMM"},       MK_T_CONST, 4         },
-    { {"MODE_INT"},    MK_T_CONST, 0         },
-    { {"MODE_COM"},    MK_T_CONST, 1         },
-    { {"ErrUnknown"},  MK_T_CONST, 11        },
-    { {"ErrNest"},     MK_T_CONST, 12        },
-    { {"ErrFilepath"}, MK_T_CONST, 9         },
-    { {"HashA"},       MK_T_CONST, 7         },
-    { {"HashB"},       MK_T_CONST, 8         },
-    { {"HashC"},       MK_T_CONST, 38335     },
-    { {"HashBins"},    MK_T_CONST, 64        },
-    { {"HashMask"},    MK_T_CONST, 63        },
     { {"nop"},         MK_T_OP,    MK_NOP    },
     { {"reset"},       MK_T_OP,    MK_RESET  },
     { {"halt"},        MK_T_OP,    MK_HALT   },
     { {"tron"},        MK_T_OP,    MK_TRON   },
     { {"troff"},       MK_T_OP,    MK_TROFF  },
     { {"dump"},        MK_T_OP,    MK_DUMP   },
-    { {"key"},         MK_T_OP,    MK_KEY    },
     { {".Rh"},         MK_T_OP,    MK_DOTRH  },
     { {">r"},          MK_T_OP,    MK_MTR    },
     { {"r"},           MK_T_OP,    MK_R      },
@@ -171,19 +131,6 @@ static const mk_voc_item_t core_voc[MK_CORE_VOC_LEN] = {
     { {"dup"},         MK_T_OP,    MK_DUP    },
     { {"over"},        MK_T_OP,    MK_OVER   },
     { {"swap"},        MK_T_OP,    MK_SWAP   },
-    { {">a"},          MK_T_OP,    MK_MTA    },
-    { {"@a"},          MK_T_OP,    MK_LBA    },
-    { {"@a+"},         MK_T_OP,    MK_LBAI   },
-    { {"a+"},          MK_T_OP,    MK_AINC   },
-    { {"a-"},          MK_T_OP,    MK_ADEC   },
-    { {"a"},           MK_T_OP,    MK_A      },
-    { {">b"},          MK_T_OP,    MK_MTB    },
-    { {"@b"},          MK_T_OP,    MK_LBB    },
-    { {"@b+"},         MK_T_OP,    MK_LBBI   },
-    { {"!b+"},         MK_T_OP,    MK_SBBI   },
-    { {"b+"},          MK_T_OP,    MK_BINC   },
-    { {"b-"},          MK_T_OP,    MK_BDEC   },
-    { {"b"},           MK_T_OP,    MK_B      },
     { {"true"},        MK_T_OP,    MK_TRUE   },
     { {"false"},       MK_T_OP,    MK_FALSE  },
     { {"hex"},         MK_T_OP,    MK_HEX    },
@@ -221,204 +168,159 @@ static void autogen_step(mk_context_t * ctx) {
                 op_BZ(ctx);
                 break;
             case 6:
-                op_BFOR(ctx);
-                break;
-            case 7:
                 op_U8(ctx);
                 break;
-            case 8:
+            case 7:
                 op_U16(ctx);
                 break;
-            case 9:
+            case 8:
                 op_I32(ctx);
                 break;
-            case 10:
+            case 9:
                 op_HALT(ctx);
                 break;
-            case 11:
+            case 10:
                 op_TRON(ctx);
                 break;
-            case 12:
+            case 11:
                 op_TROFF(ctx);
                 break;
-            case 13:
+            case 12:
                 op_DUMP(ctx);
                 break;
-            case 14:
-                op_KEY(ctx);
-                break;
-            case 15:
+            case 13:
                 op_DOTRH(ctx);
                 break;
-            case 16:
+            case 14:
                 op_MTR(ctx);
                 break;
-            case 17:
+            case 15:
                 op_R(ctx);
                 break;
-            case 18:
+            case 16:
                 op_CALL(ctx);
                 break;
-            case 19:
+            case 17:
                 op_PC(ctx);
                 break;
-            case 20:
+            case 18:
                 op_MTE(ctx);
                 break;
-            case 21:
+            case 19:
                 op_LB(ctx);
                 break;
-            case 22:
+            case 20:
                 op_SB(ctx);
                 break;
-            case 23:
+            case 21:
                 op_LH(ctx);
                 break;
-            case 24:
+            case 22:
                 op_SH(ctx);
                 break;
-            case 25:
+            case 23:
                 op_LW(ctx);
                 break;
-            case 26:
+            case 24:
                 op_SW(ctx);
                 break;
-            case 27:
+            case 25:
                 op_ADD(ctx);
                 break;
-            case 28:
+            case 26:
                 op_SUB(ctx);
                 break;
-            case 29:
+            case 27:
                 op_MUL(ctx);
                 break;
-            case 30:
+            case 28:
                 op_DIV(ctx);
                 break;
-            case 31:
+            case 29:
                 op_MOD(ctx);
                 break;
-            case 32:
+            case 30:
                 op_SLL(ctx);
                 break;
-            case 33:
+            case 31:
                 op_SRL(ctx);
                 break;
-            case 34:
+            case 32:
                 op_SRA(ctx);
                 break;
-            case 35:
+            case 33:
                 op_INV(ctx);
                 break;
-            case 36:
+            case 34:
                 op_XOR(ctx);
                 break;
-            case 37:
+            case 35:
                 op_OR(ctx);
                 break;
-            case 38:
+            case 36:
                 op_AND(ctx);
                 break;
-            case 39:
+            case 37:
                 op_GT(ctx);
                 break;
-            case 40:
+            case 38:
                 op_LT(ctx);
                 break;
-            case 41:
+            case 39:
                 op_EQ(ctx);
                 break;
-            case 42:
+            case 40:
                 op_NE(ctx);
                 break;
-            case 43:
+            case 41:
                 op_ZE(ctx);
                 break;
-            case 44:
+            case 42:
                 op_INC(ctx);
                 break;
-            case 45:
+            case 43:
                 op_DEC(ctx);
                 break;
-            case 46:
+            case 44:
                 op_EMIT(ctx);
                 break;
-            case 47:
+            case 45:
                 op_DOT(ctx);
                 break;
-            case 48:
+            case 46:
                 op_DOTSH(ctx);
                 break;
-            case 49:
+            case 47:
                 op_DOTS(ctx);
                 break;
-            case 50:
+            case 48:
                 op_RDROP(ctx);
                 break;
-            case 51:
+            case 49:
                 op_DROP(ctx);
                 break;
-            case 52:
+            case 50:
                 op_DUP(ctx);
                 break;
-            case 53:
+            case 51:
                 op_OVER(ctx);
                 break;
-            case 54:
+            case 52:
                 op_SWAP(ctx);
                 break;
-            case 55:
-                op_MTA(ctx);
-                break;
-            case 56:
-                op_LBA(ctx);
-                break;
-            case 57:
-                op_LBAI(ctx);
-                break;
-            case 58:
-                op_AINC(ctx);
-                break;
-            case 59:
-                op_ADEC(ctx);
-                break;
-            case 60:
-                op_A(ctx);
-                break;
-            case 61:
-                op_MTB(ctx);
-                break;
-            case 62:
-                op_LBB(ctx);
-                break;
-            case 63:
-                op_LBBI(ctx);
-                break;
-            case 64:
-                op_SBBI(ctx);
-                break;
-            case 65:
-                op_BINC(ctx);
-                break;
-            case 66:
-                op_BDEC(ctx);
-                break;
-            case 67:
-                op_B(ctx);
-                break;
-            case 68:
+            case 53:
                 op_TRUE(ctx);
                 break;
-            case 69:
+            case 54:
                 op_FALSE(ctx);
                 break;
-            case 70:
+            case 55:
                 op_HEX(ctx);
                 break;
-            case 71:
+            case 56:
                 op_DECIMAL(ctx);
                 break;
-            case 72:
+            case 57:
                 op_BASE(ctx);
                 break;
             default:

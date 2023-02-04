@@ -18,8 +18,6 @@ static void op_RET(mk_context_t * ctx);
 
 static void op_BZ(mk_context_t * ctx);
 
-static void op_BFOR(mk_context_t * ctx);
-
 static void op_U8(mk_context_t * ctx);
 
 static void op_U16(mk_context_t * ctx);
@@ -33,8 +31,6 @@ static void op_TRON(mk_context_t * ctx);
 static void op_TROFF(mk_context_t * ctx);
 
 static void op_DUMP(mk_context_t * ctx);
-
-static void op_KEY(mk_context_t * ctx);
 
 static void op_DOTRH(mk_context_t * ctx);
 
@@ -115,32 +111,6 @@ static void op_DUP(mk_context_t * ctx);
 static void op_OVER(mk_context_t * ctx);
 
 static void op_SWAP(mk_context_t * ctx);
-
-static void op_MTA(mk_context_t * ctx);
-
-static void op_LBA(mk_context_t * ctx);
-
-static void op_LBAI(mk_context_t * ctx);
-
-static void op_AINC(mk_context_t * ctx);
-
-static void op_ADEC(mk_context_t * ctx);
-
-static void op_A(mk_context_t * ctx);
-
-static void op_MTB(mk_context_t * ctx);
-
-static void op_LBB(mk_context_t * ctx);
-
-static void op_LBBI(mk_context_t * ctx);
-
-static void op_SBBI(mk_context_t * ctx);
-
-static void op_BINC(mk_context_t * ctx);
-
-static void op_BDEC(mk_context_t * ctx);
-
-static void op_B(mk_context_t * ctx);
 
 static void op_TRUE(mk_context_t * ctx);
 

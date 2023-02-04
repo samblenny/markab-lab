@@ -283,24 +283,6 @@ static void op_BZ(mk_context_t * ctx) {
     _drop_T();
 }
 
-/* BFOR ( -- ) Decrement R and branch to start of loop if R > 0, drop R at end
- *     of loop. PC-relative branch address allows for relocatable object code.
- */
-static void op_BFOR(mk_context_t * ctx) {
-    _assert_return_stack_depth_is_at_least(1);
-    ctx->R -= 1;
-    if(ctx->R > 0) {
-        /* Keep looping: Branch backwards by subtracting byte literal from PC
-         * Maximum branch distance is -255
-         */
-        ctx->PC -= _peek_u8(ctx->PC);
-    } else {
-        /* End of loop: Advance PC past address literal, drop R */
-        ctx->PC += 1;
-        _drop_R();
-    }
-}
-
 /* U8 ( -- ) Read u8 byte literal, zero-extend it, push as T. */
 static void op_U8(mk_context_t * ctx) {
     _assert_data_stack_is_not_full();
@@ -405,23 +387,6 @@ static void op_DUMP(mk_context_t * ctx) {
         fmt_concat(&left, &right);
         fmt_newline(&left);
         vm_stdout_write(&left);
-    }
-}
-
-/* KEY ( -- [u8] bool ) Read the next byte from stdin.
- *    Stack effects depend on whether an input byte was available or not:
- *    1. Got a byte: ( -- u8 -1 ) S=u8, T=true means read was successful
- *    2. End of file:    ( -- 0 ) T=false means end of file
- */
-static void op_KEY(mk_context_t * ctx) {
-    u8 data;
-    u8 eof = mk_host_getchar(&data);
-    if(eof) {
-        op_FALSE(ctx);
-    } else {
-        _assert_data_stack_is_not_full();
-        _push_T(data);
-        op_TRUE(ctx);
     }
 }
 
@@ -749,93 +714,6 @@ static void op_SWAP(mk_context_t * ctx) {
     i32 n = ctx->T;
     ctx->T = ctx->S;
     ctx->S = n;
-}
-
-/* MTA ( T -- ) Move the value of T into the A register. */
-static void op_MTA(mk_context_t * ctx) {
-    _assert_data_stack_depth_is_at_least(1);
-    ctx->A = ctx->T;
-    _drop_T();
-}
-
-/* LBA ( -- n ) Load byte from address in register A. */
-static void op_LBA(mk_context_t * ctx) {
-    _assert_data_stack_is_not_full();
-    _assert_valid_address(ctx->A);
-    u16 address = ctx->A;
-    u32 data = (u32) _peek_u8(address);
-    _push_T(data);
-}
-
-/* LBAI ( -- n ) Load byte from address in register A, increment A. */
-static void op_LBAI(mk_context_t * ctx) {
-    op_LBA(ctx);
-    ctx->A += 1;
-}
-
-/* AINC ( -- ) Increment the value of the A register. */
-static void op_AINC(mk_context_t * ctx) {
-    ctx->A += 1;
-}
-
-/* ADEC ( -- ) Decrement the value of the A register. */
-static void op_ADEC(mk_context_t * ctx) {
-    ctx->A -= 1;
-}
-
-/* A ( -- a ) Push the value of the A register onto the data stack. */
-static void op_A(mk_context_t * ctx) {
-    _assert_data_stack_is_not_full();
-    _push_T(ctx->A);
-}
-
-/* MTB ( T -- ) Move the value of T into the B register. */
-static void op_MTB(mk_context_t * ctx) {
-    _assert_data_stack_depth_is_at_least(1);
-    ctx->B = ctx->T;
-    _drop_T();
-}
-
-/* LBB ( -- n ) Load byte from address in register B */
-static void op_LBB(mk_context_t * ctx) {
-    _assert_data_stack_is_not_full();
-    _assert_valid_address(ctx->B);
-    u16 address = ctx->B;
-    u32 data = (u32) _peek_u8(address);
-    _push_T(data);
-}
-
-/* LBBI ( -- n ) Load byte from address in register B, increment B. */
-static void op_LBBI(mk_context_t * ctx) {
-    op_LBB(ctx);
-    ctx->B += 1;
-}
-
-/* SBBI ( n -- ) Store low byte of T to address in register B, increment B. */
-static void op_SBBI(mk_context_t * ctx) {
-    _assert_data_stack_depth_is_at_least(1);
-    _assert_valid_address(ctx->B);
-    u16 address = ctx->B;
-    u8 data = (u8) ctx->T;
-    _poke_u8(data, address);
-    _drop_T();
-    ctx->B += 1;
-}
-
-/* BINC ( -- ) Increment the value of the B register. */
-static void op_BINC(mk_context_t * ctx) {
-    ctx->B += 1;
-}
-
-/* BDEC ( -- ) Decrement the value of the B register. */
-static void op_BDEC(mk_context_t * ctx) {
-    ctx->B -= 1;
-}
-
-/* B ( -- b ) Push the value of the B register onto the data stack. */
-static void op_B(mk_context_t * ctx) {
-    _assert_data_stack_is_not_full();
-    _push_T(ctx->B);
 }
 
 /* TRUE ( -- -1 ) Push the Forth-style truth value, -1 (all bits set). */

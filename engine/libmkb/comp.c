@@ -3,11 +3,15 @@
  *
  * Compile source code to bytecode for the Markab bytecode interpreter.
  */
-#ifndef LIBMKB_COMPILE_H
-#define LIBMKB_COMPILE_H
+#ifndef LIBMKB_COMP_C
+#define LIBMKB_COMP_C
+
+#include "libmkb.h"
+#include "autogen.h"
+#include "comp.h"
 
 /*
  * TODO: Write a compiler
  */
 
-#endif /* LIBMKB_COMPILE_H */
+#endif /* LIBMKB_COMP_C */
