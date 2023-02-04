@@ -27,11 +27,11 @@ $ make clean   # remove all the build files
 For Plan 9 (9front):
 
 ```
-$ mk         # build the CLI demo
+term% mk         # build the CLI demo
 ...
-$ mk run     # build and run the CLI demo
+term% mk run     # build and run the CLI demo
 ...
-$ mk test    # build and run the tests
+term% test    # build and run the tests
 ...
-$ mk clean   # remove all the build files
+term% clean   # remove all the build files
 ```
