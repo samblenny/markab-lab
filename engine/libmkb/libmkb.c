@@ -34,8 +34,10 @@
 
 #ifdef PLAN_9
 #  include <u.h>
+#  include <libc.h>    /* memcpy() */
 #else
 #  include <stdint.h>
+#  include <string.h>  /* memcpy() */
 #endif
 
 #include "libmkb.h"
@@ -45,40 +47,38 @@
 #include "autogen.c"
 #include "comp.c"
 
+/* Load and run a markab VM ROM image.
+ * Returns: value of VM err register (0 means OK, see vm.h for other codes)
+ */
 int mk_load_rom(const u8 * code, u32 code_len_bytes) {
     mk_context_t ctx = {
-        0,       /* err */
-        10,      /* base */
-        0,       /* A */
-        0,       /* B */
+        0,       /* DSDEEP */
         0,       /* T */
         0,       /* S */
-        0,       /* R */
-        MK_Heap, /* PC */
-        0,       /* DSDEEP */
-        0,       /* RSDEEP */
         {0},     /* DSTACK[] */
+        0,       /* RSDEEP */
+        0,       /* R */
         {0},     /* RSTACK[] */
-        {0},     /* RAM */
-        {0},     /* InBuf */
-        {0},     /* OutBuf */
-        0,       /* echo */
+        MK_Heap, /* PC */
         0,       /* halted */
-        0,       /* HoldStdout */
-        0,       /* IOLOAD_depth */
-        0,       /* IOLOAD_fail */
-        0,       /* FOPEN_FILE */
+        10,      /* base */
+        {0},     /* RAM */
+        0,       /* err */
         0,       /* DbgTraceEnable */
     };
-    /* Copy code to RAM */
-    int i;
+    /* Copy code from ROM to RAM, truncating whatever doesn't fit. This is
+     * meant to allow for the possibility of a ROM file containing code
+     * followed by images, fonts, audio samples, etc which can be paged into
+     * ROM.
+     *
+     * TODO: Implement paging opcodes to access the high-area of large ROMs.
+     */
     int n = code_len_bytes <= MK_HeapMax ? code_len_bytes : MK_HeapMax;
-    for(i = 0; i <= n; i++) {
-        ctx.RAM[i] = code[i];
-    }
+    memcpy((void *)ctx.RAM, (void *)code, n);
     /* Start clocking the VM from the boot vector */
     autogen_step(&ctx);
-    return 0;
+    /* Return value of the VM's error register */
+    return ctx.err;
 }
 
 #endif /* LIBMKB_C */

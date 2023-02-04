@@ -227,10 +227,6 @@ static void op_RESET(mk_context_t * ctx) {
     ctx->DSDeep = 0;
     ctx->RSDeep = 0;
     ctx->err = 0;
-    int i; /* declare outside of for loop for ANSI C compatibility */
-    for(i=0; i<MK_BufMax; i++) {
-        ctx->InBuf[i] = 0;
-    }
 }
 
 /* JMP ( -- ) Jump to subroutine at address read from instruction stream.

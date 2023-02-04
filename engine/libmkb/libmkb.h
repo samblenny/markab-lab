@@ -39,28 +39,19 @@
 #define MK_BufMax (256)
 #define MK_RamMax (65535)
 typedef struct mk_context {
-    u8  err;               /* Error register (don't confuse with ERR opcode!) */
-    u8  base;              /* Number base for parsing and print formatting */
-    i32 A;                 /* register for source address or scratch */
-    i32 B;                 /* register for destination addr or scratch */
+    u32 DSDeep;            /* Data Stack Depth (count includes T and S) */
     i32 T;                 /* Top of data stack */
     i32 S;                 /* Second on data stack */
-    i32 R;                 /* top of Return stack */
-    u32 PC;                /* Program Counter */
-    u8  DSDeep;            /* Data Stack Depth (count include T and S) */
-    u8  RSDeep;            /* Return Stack Depth (count inlcudes R) */
     i32 DStack[16];        /* Data Stack */
+    u32 RSDeep;            /* Return Stack Depth (count inlcudes R) */
+    i32 R;                 /* Top of Return stack */
     i32 RStack[16];        /* Return Stack */
-    u8  RAM[MK_RamMax+1];  /* Random Access Memory */
-    u8  InBuf[MK_BufMax];  /* Input buffer */
-    u8  OutBuf[MK_BufMax]; /* Output buffer */
-    u8  echo;              /* Echo depends on tty vs pip, etc. */
+    u32 PC;                /* Program Counter */
     u8  halted;            /* Flag to track halt (used for `bye`) */
-    u8  HoldStdout;        /* Flag to use holding buffer for stdout */
-    u8  IOLOAD_depth;      /* Nesting level for io_load_file() */
-    u8  IOLOAD_fail;       /* Flag indicating an error during io_load_file() */
-    u8  FOPEN_file;        /* File (if any) that was opened by FOPEN  */
-    u8  DbgTraceEnable;    /* Debug trace on/off */
+    u8  base;              /* Number base for parsing and print formatting */
+    u8  RAM[MK_RamMax+1];  /* Random Access Memory */
+    u8  err;               /* Error code register */
+    u8  DbgTraceEnable;    /* Debug trace on/off status */
 } mk_context_t;
 
 /* Counted string buffer typedef */
