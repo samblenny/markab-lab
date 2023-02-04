@@ -28,10 +28,10 @@ test:V: mkb_test
 clean:V:
     rm -f markab mkb_test markab.$O mkb_test.$O libmkb/libmkb.$O
 
-markab.$O: markab.c
+markab.$O: markab.c $AUTOGEN $LIBMKB_C $LIBMKB_H
     $CC $CFLAGS -DPLAN_9 markab.c
 
-mkb_test.$O: mkb_test.c
+mkb_test.$O: mkb_test.c $AUTOGEN $LIBMKB_C $LIBMKB_H
     $CC $CFLAGS -DPLAN_9 mkb_test.c
 
 libmkb/libmkb.$O: $AUTOGEN $LIBMKB_C $LIBMKB_H

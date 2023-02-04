@@ -118,19 +118,27 @@ static void fmt_decimal(mk_str_t * str, i32 n) {
         fmt_raw_byte(str, '0');
         return;
     }
-    /* If n is negative, append a '-' to str then negate n */
-    if(n < 0) {
+    /* If n's is negative (sign bit set), append a '-' to str then negate n
+     * CAUTION: Initially, I thought it might be fine to negate n as i32 with
+     *          (-n). That worked okay on macOS at first glance. But, the
+     *          conversion for 0x80000000 went haywire on Plan 9. Taking a
+     *          closer look at edge-case behavior for 0x80000000 = -2147483648,
+     *          it seems better to do `u32 x=n;` and negate with `(~x) + 1`.
+     */
+    u32 x = (u32) n;
+    if(x >> 31) {
         fmt_raw_byte(str, '-');
-        n = -n;
+        x = (~x) + 1;
     }
-    /* Convert n to a list of base-10 digits. Maximum value of n should be
-     * about 2^31 = 2,147,483,648. So allow for up to 10 digits.
+    /* Convert x to a list of base-10 digits. Range of n is -2,147,483,648 to
+     * 2,147,483,647. Range of x = abs(n) is 0 to 2,147,483,648. So, allow for
+     * up to 10 digits.
      */
     u8 digits[10];
     u8 i;
     for(i = 0; i < 10; i++) {
-        digits[9-i] = (u8) (n % 10);
-        n = (i32) (n / 10);
+        digits[9-i] = (u8) (x % 10);
+        x = (i32) (x / 10);
     }
     /* Then filter out the leading zeros and append what's left to str */
     u8 skip_leading_zeros = 1;

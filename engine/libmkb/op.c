@@ -45,7 +45,7 @@
 #define _assert_return_stack_depth_is_at_least(N) \
     if(ctx->DSDeep < N) {                         \
         op_RESET(ctx);                            \
-        vm_irq_err(MK_ERR_D_UNDER);               \
+        vm_irq_err(MK_ERR_R_UNDER);               \
         return;                                   \
     }
 
