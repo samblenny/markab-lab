@@ -256,6 +256,7 @@ static void op_MTE(mk_context_t * ctx) {
     _assert_data_stack_depth_is_at_least(1);
     ctx->err = ctx->T;
     _drop_T();
+    vm_irq_err(ctx->err);
 }
 
 
@@ -743,7 +744,7 @@ static void op_DOTRH(mk_context_t * ctx) {
         fmt_spaces(&str, 1);
         fmt_hex(&str, (u32)ctx->R);
     } else {
-        fmt_cstring(&str, " R-Stack is empty");
+        fmt_cstring(&str, " Return stack is empty");
     }
     vm_stdout_write(&str);
 }

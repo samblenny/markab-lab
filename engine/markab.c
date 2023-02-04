@@ -48,12 +48,12 @@ int main() {
 #endif
 }
 
-/* Write an error code to stderr */
+/* Log an error code to stdout */
 void mk_host_log_error(u8 error_code) {
 #ifdef PLAN_9
-    print("mk_host_log_code(%d)\n", error_code);
+    print("mk_host_log_error(%d)\n", error_code);
 #else
-    printf("mk_host_log_code(%d)\n", error_code);
+    printf("mk_host_log_error(%d)\n", error_code);
 #endif
 }
 

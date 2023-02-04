@@ -95,14 +95,23 @@ static void score_fail(const char * name) {
 /* == Libmkb Host API implementation functions == */
 /* ============================================== */
 
-/* Write an error code to stderr */
+/* Log an error code to stdout */
 void mk_host_log_error(u8 error_code) {
-    const char * fmt = "mk_host_log_code(%d)\n";
+    /* First write to real stdout */
+    const char * fmt = "mk_host_log_error(%d)\n";
 #ifdef PLAN_9
     print(fmt, error_code);
 #else
     printf(fmt, error_code);
 #endif
+    /* Then append a copy to the TEST_STDOUT */
+    char buf[64];
+    snprintf(buf, 64, fmt, error_code);
+    int length = strlen(buf);
+    if(TEST_STDOUT.len + length < MKB_TEST_StrBufSize) {
+        memcpy((void *)&(TEST_STDOUT.buf[TEST_STDOUT.len]), buf, length);
+        TEST_STDOUT.len += length;
+    }
 }
 
 /* Write length bytes from byte buffer buf to real stdout and TEST_STDOUT */
@@ -175,46 +184,76 @@ static void test_NOP(void) {
 /* Test RESET opcode */
 static void test_RESET(void) {
     u8 code[TEST_ROM_SIZE] = {
+        MK_U8, 255, MK_DUP, MK_DUP, MK_MTR,
+        MK_DOTSH, MK_U8, '\n', MK_EMIT,
+        MK_DOTRH, MK_U8, '\n', MK_EMIT,
+        MK_U8, 255, MK_MTE,  /* Raise an error to be cleared by RESET */
+        MK_RESET,
+        MK_DOTSH, MK_U8, '\n', MK_EMIT,
+        MK_DOTRH, MK_U8, '\n', MK_EMIT,
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
+    char * expected =
+        " ff ff\n"
+        " ff\n"
+        "mk_host_log_error(255)\n"
+        " Stack is empty\n"
+        " Return stack is empty\n";
     _score("test_RESET", code, expected, MK_ERR_OK);
 }
 
 /* Test HALT opcode */
 static void test_HALT(void) {
     u8 code[TEST_ROM_SIZE] = {
+        MK_U8, 'A', MK_EMIT,
+        MK_U8, '\n', MK_EMIT,
         MK_HALT,
+        MK_U8, 'B', MK_EMIT,
+        MK_U8, '\n', MK_EMIT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
+    char * expected = "A\n";
     _score("test_HALT", code, expected, MK_ERR_OK);
 }
 
 /* Test TRON opcode */
 static void test_TRON(void) {
     u8 code[TEST_ROM_SIZE] = {
+        MK_TRON, MK_NOP,
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
+    /* TODO: Make a better test once tracing is implemented */
+    char * expected = "";
     _score("test_TRON", code, expected, MK_ERR_OK);
 }
 
 /* Test TROFF opcode */
 static void test_TROFF(void) {
     u8 code[TEST_ROM_SIZE] = {
+        MK_TROFF, MK_NOP,
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
+    /* TODO: Make a better test once tracing is implemented */
+    char * expected = "";
     _score("test_TROFF", code, expected, MK_ERR_OK);
 }
 
 /* Test MTE opcode */
 static void test_MTE(void) {
     u8 code[TEST_ROM_SIZE] = {
+        MK_U8, 255, MK_DOT,
+        MK_U8, ' ', MK_EMIT,
+        MK_U8, '>', MK_EMIT,
+        MK_U8, 'e', MK_EMIT,
+        MK_U8, 'r', MK_EMIT,
+        MK_U8, 'r', MK_EMIT,
+        MK_U8, '\n', MK_EMIT,
+        MK_U8, 255, MK_MTE,
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
-    _score("test_MTE", code, expected, MK_ERR_OK);
+    char * expected =
+        " 255 >err\n"
+        "mk_host_log_error(255)\n";
+    _score("test_MTE", code, expected, 255);
 }
 
 
@@ -784,7 +823,7 @@ static void test_DOTRH(void) {
         MK_HALT,
     };
     char * expected =
-        " R-Stack is empty\n"
+        " Return stack is empty\n"
         " 1f0f\n"
         " 1f0f 1\n"
         " 1f0f 1 1abcdef\n"
