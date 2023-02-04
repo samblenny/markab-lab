@@ -26,7 +26,7 @@ test:V: mkb_test
 	mkb_test
 
 clean:V:
-    rm -f markab mkb_test markab.$O mkb_test.$0 libmkb/libmkb.$O
+    rm -f markab mkb_test markab.$O mkb_test.$O libmkb/libmkb.$O
 
 markab.$O: markab.c
     $CC $CFLAGS -DPLAN_9 markab.c
