@@ -118,7 +118,8 @@ static void fmt_decimal(mk_str_t * str, i32 n) {
         fmt_raw_byte(str, '0');
         return;
     }
-    /* If n's is negative (sign bit set), append a '-' to str then negate n
+    /* If n is negative (sign bit set), append a '-' to str then negate n
+     *
      * CAUTION: Initially, I thought it might be fine to negate n as i32 with
      *          (-n). That worked okay on macOS at first glance. But, the
      *          conversion for 0x80000000 went haywire on Plan 9. Taking a
