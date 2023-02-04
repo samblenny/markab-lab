@@ -8,14 +8,27 @@
 #
 </$objtype/mkfile
 
-mkbvm_plan9: mkbvm_plan9.$O libmkb/libmkb.$O
-    $LD $LDFLAGS -o mkbvm_plan9 mkbvm_plan9.$O libmkb/libmkb.$O
+markab: markab.$O libmkb/libmkb.$O
+    $LD $LDFLAGS -o markab markab.$O libmkb/libmkb.$O
 
-mkbvm_plan9.$O: mkbvm_plan9.c
-    $CC $CFLAGS -DPLAN_9 mkbvm_plan9.c
+mkb_test: mkb_test.$O libmkb/libmkb.$O
+    $LD $LDFLAGS -o mkb_test mkb_test.$O libmkb/libmkb.$O
+
+# The 'V:' suffix indicates a Virtual Rule. Similar to .PHONY: on POSIX make.
+run:V: markab
+	markab
+
+test:V: mkb_test
+	mkb_test
+
+clean:V:
+    rm -f markab markab.$O mkb_test mkb_test.$0 libmkb/libmkb.$O
+
+markab.$O: markab.c
+    $CC $CFLAGS -DPLAN_9 markab.c
+
+mkb_test.$O: mkb_test.c
+    $CC $CFLAGS -DPLAN_9 mkb_test.c
 
 libmkb/libmkb.$O: libmkb/libmkb.c
     cd libmkb; $CC $CFLAGS -DPLAN_9 libmkb.c
-
-clean:
-    rm mkbvm_plan9 mkbvm_plan9.$O libmkb/libmkb.$O

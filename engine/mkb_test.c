@@ -1,13 +1,25 @@
 /* Copyright (c) 2023 Sam Blenny
  * SPDX-License-Identifier: MIT
  */
-#include <stdint.h>
-#include <stdio.h>
-#include <unistd.h>
+#ifdef PLAN_9
+/* Plan 9 inlcudes */
+#  include <u.h>              /* u8int, u16int, u32int, ... */
+#  include <libc.h>           /* print(), exits(), ... */
+#  include <stdio.h>          /* getchar(), putchar() */
+#else
+/* POSIX includes */
+#  include <stdint.h>         /* uint8_t, uint16_t, int32_t, ... */
+#  include <stdio.h>          /* printf(), getchar(), putchar(), ... */
+#  include <unistd.h>         /* STDOUT_FILENO */
+#endif
 #include "libmkb/libmkb.h"
 #include "libmkb/autogen.h"
 
+#ifdef PLAN_9
+void main() {
+#else
 int main() {
+#endif
     u8 code[194] = {
         MK_NOP,
         MK_U8, 32, MK_U8, 0, MK_DUMP,
@@ -43,8 +55,14 @@ int main() {
         MK_DOTSH, MK_U8, '\n', MK_EMIT,
         MK_HALT,
     };
-    printf("mk_load_rom() = %d\n", mk_load_rom(code, 194));
+    int rom_size = sizeof(code) / sizeof(code[0]);
+#ifdef PLAN_9
+    print("mk_load_rom() = %d\n", mk_load_rom(code, rom_size));
+    exits(0);
+#else
+    printf("mk_load_rom() = %d\n", mk_load_rom(code, rom_size));
     return 0;
+#endif
 }
 /* Output from main() looks like this:
 0000  00072007 000d0701 07000d07 0507000d  .. . .... .... ....
@@ -81,12 +99,20 @@ mk_load_rom() = 0
 
 /* Write an error code to stderr */
 void mk_host_log_error(u8 error_code) {
+#ifdef PLAN_9
+    print("mk_host_log_code(%d)\n", error_code);
+#else
     printf("mk_host_log_code(%d)\n", error_code);
+#endif
 }
 
 /* Write length bytes from byte buffer buf to stdout */
 void mk_host_stdout_write(const void * buf, int length) {
+#ifdef PLAN_9
+    write(1 /* STDOUT */, buf, length);
+#else
     write(STDOUT_FILENO, buf, length);
+#endif
 }
 
 /* Read byte from stdin to *data, returning 0 for success or 1 for EOF */
@@ -96,15 +122,10 @@ u8 mk_host_getchar(u8 * data) {
         *data = (u8) c;
         return 0;
     }
-    /* The getchar() docs say to check feof() and ferror() to learn whether
-     * the EOF code indicated a normal end of file or a file IO error. But, for
-     * my purposes here, the distinction makes no difference.
-     */
     return 1;
 }
 
 /* Write byte to stdout */
 void mk_host_putchar(u8 data) {
     putchar(data);
-    /* TODO: Should I check for EOF? Is it more fun to just ignore it? */
 }

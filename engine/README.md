@@ -8,3 +8,30 @@ about a game engine with Markab scripting.
 
 This is like a laboratory. Things you encounter here may change suddenly, or
 they may be stable for a long time. It just depends on how the work unfolds.
+
+
+## Running Demos and Tests
+
+For macOS and Debian (may also work on other POSIX systems, YMMV):
+
+```
+$ make         # build the CLI demo
+...
+$ make run     # build and run the CLI demo
+...
+$ make test    # build and run the tests
+...
+$ make clean   # remove all the build files
+```
+
+For Plan 9 (9front):
+
+```
+$ mk         # build the CLI demo
+...
+$ mk run     # build and run the CLI demo
+...
+$ mk test    # build and run the tests
+...
+$ mk clean   # remove all the build files
+```
