@@ -19,10 +19,9 @@
 #include "libmkb/autogen.h"
 
 
-/* ========================
- * Test scoring global vars
- * ========================
- */
+/* ============================== */
+/* == Test scoring global vars == */
+/* ============================== */
 
 /* Typedef for a jumbo-size counted string buffer */
 #define MKB_TEST_StrBufSize (65536)
@@ -41,10 +40,9 @@ static int TEST_SCORE_PASS = 0;
 static int TEST_SCORE_FAIL = 0;
 
 
-/* ==============================
- * Test scoring utility functions
- * ==============================
- */
+/* ==================================== */
+/* == Test scoring utility functions == */
+/* ==================================== */
 
 /* Clear the buffer which captures VM writes to stdout during each test. */
 static void test_stdout_reset(void) {
@@ -93,10 +91,9 @@ static void score_fail(const char * name) {
 }
 
 
-/* ========================================
- * Libmkb Host API implementation functions
- * ========================================
- */
+/* ============================================== */
+/* == Libmkb Host API implementation functions == */
+/* ============================================== */
 
 /* Write an error code to stderr */
 void mk_host_log_error(u8 error_code) {
@@ -135,10 +132,9 @@ void mk_host_putchar(u8 data) {
 }
 
 
-/* ===========================================
- * And, finally... the actual tests start here
- * ===========================================
- */
+/* ================================================= */
+/* == And, finally... the actual tests start here == */
+/* ================================================= */
 
 #define TEST_ROM_SIZE (300)
 
@@ -155,6 +151,11 @@ void mk_host_putchar(u8 data) {
     }                                                   \
     test_stdout_reset();                                }
 
+
+/* =========== */
+/* === NOP === */
+/* =========== */
+
 /* Test NOP opcode */
 static void test_NOP(void) {
     u8 code[TEST_ROM_SIZE] = {
@@ -166,115 +167,60 @@ static void test_NOP(void) {
     _score("test_NOP", code, expected, MK_ERR_OK);
 }
 
-/* Test DUMP opcode */
-static void test_DUMP(void) {
-    u8 n = 128;
+
+/* ================== */
+/* === VM Control === */
+/* ================== */
+
+/* Test RESET opcode */
+static void test_RESET(void) {
     u8 code[TEST_ROM_SIZE] = {
-        MK_U8, '0', MK_U8, n+ 0, MK_SB,
-        MK_U8, '1', MK_U8, n+ 1, MK_SB,
-        MK_U8, '2', MK_U8, n+ 2, MK_SB,
-        MK_U8, '3', MK_U8, n+ 3, MK_SB,
-        MK_U8, '4', MK_U8, n+ 4, MK_SB,
-        MK_U8, '5', MK_U8, n+ 5, MK_SB,
-        MK_U8, '6', MK_U8, n+ 6, MK_SB,
-        MK_U8, '7', MK_U8, n+ 7, MK_SB,
-        MK_U8, '8', MK_U8, n+ 8, MK_SB,
-        MK_U8, '9', MK_U8, n+ 9, MK_SB,
-        MK_U8, 'A', MK_U8, n+10, MK_SB,
-        MK_U8, 'B', MK_U8, n+11, MK_SB,
-        MK_U8, 'C', MK_U8, n+12, MK_SB,
-        MK_U8, 'D', MK_U8, n+13, MK_SB,
-        MK_U8, 'E', MK_U8, n+14, MK_SB,
-        MK_U8, 'F', MK_U8, n+15, MK_SB,
-        MK_U8,  32, MK_U8, n,    MK_DUMP,
-        MK_U8,   1, MK_U8, n,    MK_DUMP,
-        MK_U8,   5, MK_U8, n,    MK_DUMP,
-        MK_U8,   9, MK_U8, n,    MK_DUMP,
-        MK_U8,  13, MK_U8, n,    MK_DUMP,
-        MK_U8,  15, MK_U8, n,    MK_DUMP,
         MK_HALT,
     };
-    char * expected =
-        "0080  30313233 34353637 38394142 43444546  0123 4567 89AB CDEF\n"
-        "0090  00000000 00000000 00000000 00000000  .... .... .... ....\n"
-        "0080  30                                   0\n"
-        "0080  30313233 34                          0123 4\n"
-        "0080  30313233 34353637 38                 0123 4567 8\n"
-        "0080  30313233 34353637 38394142 43        0123 4567 89AB C\n"
-        "0080  30313233 34353637 38394142 434445    0123 4567 89AB CDE\n";
-    _score("test_DUMP", code, expected, MK_ERR_OK);
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_RESET", code, expected, MK_ERR_OK);
 }
 
-/* Test EMIT opcode */
-static void test_EMIT(void) {
+/* Test HALT opcode */
+static void test_HALT(void) {
     u8 code[TEST_ROM_SIZE] = {
-        MK_U8, 'E', MK_EMIT,
-        MK_U8, 'm', MK_EMIT,
-        MK_U8, 'i', MK_EMIT,
-        MK_U8, 't', MK_EMIT,
-        MK_U8, '\n', MK_EMIT,
         MK_HALT,
     };
-    char * expected = "Emit\n";
-    _score("test_EMIT", code, expected, MK_ERR_OK);
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_HALT", code, expected, MK_ERR_OK);
 }
 
-/* Test DOTRH opcode */
-static void test_DOTRH(void) {
+/* Test TRON opcode */
+static void test_TRON(void) {
     u8 code[TEST_ROM_SIZE] = {
-        MK_DOTRH, MK_U8, '\n', MK_EMIT,
-        MK_I32, 0x0f, 0x1f, 0x00, 0x00, MK_MTR, MK_DOTRH, MK_U8, '\n', MK_EMIT,
-        MK_I32, 0x01, 0x00, 0x00, 0x00, MK_MTR, MK_DOTRH, MK_U8, '\n', MK_EMIT,
-        MK_I32, 0xef, 0xcd, 0xab, 0x01, MK_MTR, MK_DOTRH, MK_U8, '\n', MK_EMIT,
-        MK_I32, 0xef, 0xcd, 0xab, 0xe1, MK_MTR, MK_DOTRH, MK_U8, '\n', MK_EMIT,
         MK_HALT,
     };
-    char * expected =
-        " R-Stack is empty\n"
-        " 1f0f\n"
-        " 1f0f 1\n"
-        " 1f0f 1 1abcdef\n"
-        " 1f0f 1 1abcdef e1abcdef\n";
-    _score("test_DOTRH", code, expected, MK_ERR_OK);
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_TRON", code, expected, MK_ERR_OK);
 }
 
-/* Test DOTS opcode */
-static void test_DOTS(void) {
+/* Test TROFF opcode */
+static void test_TROFF(void) {
     u8 code[TEST_ROM_SIZE] = {
-        MK_DOTS, MK_U8, '\n', MK_EMIT,
-        MK_I32, 0x0f, 0x1f, 0x00, 0x00, MK_DOTS, MK_U8, '\n', MK_EMIT,
-        MK_I32, 0x01, 0x00, 0x00, 0x00, MK_DOTS, MK_U8, '\n', MK_EMIT,
-        MK_I32, 0xef, 0xcd, 0xab, 0x01, MK_DOTS, MK_U8, '\n', MK_EMIT,
-        MK_I32, 0xef, 0xcd, 0xab, 0xe1, MK_DOTS, MK_U8, '\n', MK_EMIT,
         MK_HALT,
     };
-    char * expected =
-        " Stack is empty\n"
-        " 7951\n"
-        " 7951 1\n"
-        " 7951 1 28036591\n"
-        " 7951 1 28036591 -508834321\n";
-    _score("test_DOTS", code, expected, MK_ERR_OK);
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_TROFF", code, expected, MK_ERR_OK);
 }
 
-/* Test DOTSH opcode */
-static void test_DOTSH(void) {
+/* Test MTE opcode */
+static void test_MTE(void) {
     u8 code[TEST_ROM_SIZE] = {
-        MK_DOTSH, MK_U8, '\n', MK_EMIT,
-        MK_I32, 0x0f, 0x1f, 0x00, 0x00, MK_DOTSH, MK_U8, '\n', MK_EMIT,
-        MK_I32, 0x01, 0x00, 0x00, 0x00, MK_DOTSH, MK_U8, '\n', MK_EMIT,
-        MK_I32, 0xef, 0xcd, 0xab, 0x01, MK_DOTSH, MK_U8, '\n', MK_EMIT,
-        MK_I32, 0xef, 0xcd, 0xab, 0xe1, MK_DOTSH, MK_U8, '\n', MK_EMIT,
         MK_HALT,
     };
-    char * expected =
-        " Stack is empty\n"
-        " 1f0f\n"
-        " 1f0f 1\n"
-        " 1f0f 1 1abcdef\n"
-        " 1f0f 1 1abcdef e1abcdef\n";
-    _score("test_DOTSH", code, expected, MK_ERR_OK);
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_MTE", code, expected, MK_ERR_OK);
 }
+
+
+/* ======================== */
+/* === Integer Literals === */
+/* ======================== */
 
 /* Test U8 opcode */
 static void test_U8(void) {
@@ -324,6 +270,569 @@ static void test_I32(void) {
     _score("test_I32", code, expected, MK_ERR_OK);
 }
 
+
+/* ================================== */
+/* === Branch, Jump, Call, Return === */
+/* ================================== */
+
+/* Test BZ opcode */
+static void test_BZ(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_BZ", code, expected, MK_ERR_OK);
+}
+
+/* Test JMP opcode */
+static void test_JMP(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_JMP", code, expected, MK_ERR_OK);
+}
+
+/* Test JAL opcode */
+static void test_JAL(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_JAL", code, expected, MK_ERR_OK);
+}
+
+/* Test RET opcode */
+static void test_RET(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_RET", code, expected, MK_ERR_OK);
+}
+
+/* Test CALL opcode */
+static void test_CALL(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_CALL", code, expected, MK_ERR_OK);
+}
+
+
+/* ======================================= */
+/* === Memory Access: Loads and Stores === */
+/* ======================================= */
+
+/* Test LB opcode */
+static void test_LB(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_LB", code, expected, MK_ERR_OK);
+}
+
+/* Test SB opcode */
+static void test_SB(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_SB", code, expected, MK_ERR_OK);
+}
+
+/* Test LH opcode */
+static void test_LH(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_LH", code, expected, MK_ERR_OK);
+}
+
+/* Test SH opcode */
+static void test_SH(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_SH", code, expected, MK_ERR_OK);
+}
+
+/* Test LW opcode */
+static void test_LW(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_LW", code, expected, MK_ERR_OK);
+}
+
+/* Test SW opcode */
+static void test_SW(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_SW", code, expected, MK_ERR_OK);
+}
+
+
+/* ================== */
+/* === Arithmetic === */
+/* ================== */
+
+/* Test INC opcode */
+static void test_INC(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_INC", code, expected, MK_ERR_OK);
+}
+
+/* Test DEC opcode */
+static void test_DEC(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_DEC", code, expected, MK_ERR_OK);
+}
+
+/* Test ADD opcode */
+static void test_ADD(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_ADD", code, expected, MK_ERR_OK);
+}
+
+/* Test SUB opcode */
+static void test_SUB(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_SUB", code, expected, MK_ERR_OK);
+}
+
+/* Test MUL opcode */
+static void test_MUL(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_MUL", code, expected, MK_ERR_OK);
+}
+
+/* Test DIV opcode */
+static void test_DIV(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_DIV", code, expected, MK_ERR_OK);
+}
+
+/* Test MOD opcode */
+static void test_MOD(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_MOD", code, expected, MK_ERR_OK);
+}
+
+
+/* ============== */
+/* === Shifts === */
+/* ============== */
+
+/* Test SLL opcode */
+static void test_SLL(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_SLL", code, expected, MK_ERR_OK);
+}
+
+/* Test SRL opcode */
+static void test_SRL(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_SRL", code, expected, MK_ERR_OK);
+}
+
+/* Test SRA opcode */
+static void test_SRA(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_SRA", code, expected, MK_ERR_OK);
+}
+
+
+/* ======================== */
+/* === Logic Operations === */
+/* ======================== */
+
+/* Test INV opcode */
+static void test_INV(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_INV", code, expected, MK_ERR_OK);
+}
+
+/* Test XOR opcode */
+static void test_XOR(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_XOR", code, expected, MK_ERR_OK);
+}
+
+/* Test OR opcode */
+static void test_OR(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_OR", code, expected, MK_ERR_OK);
+}
+
+/* Test AND opcode */
+static void test_AND(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_AND", code, expected, MK_ERR_OK);
+}
+
+
+/* =================== */
+/* === Comparisons === */
+/* =================== */
+
+/* Test GT opcode */
+static void test_GT(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_GT", code, expected, MK_ERR_OK);
+}
+
+/* Test LT opcode */
+static void test_LT(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_LT", code, expected, MK_ERR_OK);
+}
+
+/* Test EQ opcode */
+static void test_EQ(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_EQ", code, expected, MK_ERR_OK);
+}
+
+/* Test NE opcode */
+static void test_NE(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_NE", code, expected, MK_ERR_OK);
+}
+
+/* Test ZE opcode */
+static void test_ZE(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_ZE", code, expected, MK_ERR_OK);
+}
+
+
+/* ============================= */
+/* === Truth Value Constants === */
+/* ============================= */
+
+/* Test TRUE opcode */
+static void test_TRUE(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_TRUE", code, expected, MK_ERR_OK);
+}
+
+/* Test FALSE opcode */
+static void test_FALSE(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_FALSE", code, expected, MK_ERR_OK);
+}
+
+
+/* ============================= */
+/* === Data Stack Operations === */
+/* ============================= */
+
+/* Test DROP opcode */
+static void test_DROP(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_DROP", code, expected, MK_ERR_OK);
+}
+
+/* Test DUP opcode */
+static void test_DUP(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_DUP", code, expected, MK_ERR_OK);
+}
+
+/* Test OVER opcode */
+static void test_OVER(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_OVER", code, expected, MK_ERR_OK);
+}
+
+/* Test SWAP opcode */
+static void test_SWAP(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_SWAP", code, expected, MK_ERR_OK);
+}
+
+/* Test PC opcode */
+static void test_PC(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_PC", code, expected, MK_ERR_OK);
+}
+
+
+/* =============================== */
+/* === Return Stack Operations === */
+/* =============================== */
+
+/* Test R opcode */
+static void test_R(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_R", code, expected, MK_ERR_OK);
+}
+
+/* Test MTR opcode */
+static void test_MTR(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_MTR", code, expected, MK_ERR_OK);
+}
+
+/* Test RDROP opcode */
+static void test_RDROP(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_RDROP", code, expected, MK_ERR_OK);
+}
+
+
+/* ================== */
+/* === Console IO === */
+/* ================== */
+
+/* Test EMIT opcode */
+static void test_EMIT(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_U8, 'E', MK_EMIT,
+        MK_U8, 'm', MK_EMIT,
+        MK_U8, 'i', MK_EMIT,
+        MK_U8, 't', MK_EMIT,
+        MK_U8, '\n', MK_EMIT,
+        MK_HALT,
+    };
+    char * expected = "Emit\n";
+    _score("test_EMIT", code, expected, MK_ERR_OK);
+}
+
+/* Test HEX opcode */
+static void test_HEX(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_HEX", code, expected, MK_ERR_OK);
+}
+
+/* Test DECIMAL opcode */
+static void test_DECIMAL(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_DECIMAL", code, expected, MK_ERR_OK);
+}
+
+/* Test BASE opcode */
+static void test_BASE(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_BASE", code, expected, MK_ERR_OK);
+}
+
+
+/* ========================================= */
+/* === Debug Dumps for Stacks and Memory === */
+/* ========================================= */
+
+/* Test DOT opcode */
+static void test_DOT(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_HALT,
+    };
+    char * expected = "TODO: IMPLEMENT THIS";
+    _score("test_DOT", code, expected, MK_ERR_OK);
+}
+
+/* Test DOTS opcode */
+static void test_DOTS(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_DOTS, MK_U8, '\n', MK_EMIT,
+        MK_I32, 0x0f, 0x1f, 0x00, 0x00, MK_DOTS, MK_U8, '\n', MK_EMIT,
+        MK_I32, 0x01, 0x00, 0x00, 0x00, MK_DOTS, MK_U8, '\n', MK_EMIT,
+        MK_I32, 0xef, 0xcd, 0xab, 0x01, MK_DOTS, MK_U8, '\n', MK_EMIT,
+        MK_I32, 0xef, 0xcd, 0xab, 0xe1, MK_DOTS, MK_U8, '\n', MK_EMIT,
+        MK_HALT,
+    };
+    char * expected =
+        " Stack is empty\n"
+        " 7951\n"
+        " 7951 1\n"
+        " 7951 1 28036591\n"
+        " 7951 1 28036591 -508834321\n";
+    _score("test_DOTS", code, expected, MK_ERR_OK);
+}
+
+/* Test DOTSH opcode */
+static void test_DOTSH(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_DOTSH, MK_U8, '\n', MK_EMIT,
+        MK_I32, 0x0f, 0x1f, 0x00, 0x00, MK_DOTSH, MK_U8, '\n', MK_EMIT,
+        MK_I32, 0x01, 0x00, 0x00, 0x00, MK_DOTSH, MK_U8, '\n', MK_EMIT,
+        MK_I32, 0xef, 0xcd, 0xab, 0x01, MK_DOTSH, MK_U8, '\n', MK_EMIT,
+        MK_I32, 0xef, 0xcd, 0xab, 0xe1, MK_DOTSH, MK_U8, '\n', MK_EMIT,
+        MK_HALT,
+    };
+    char * expected =
+        " Stack is empty\n"
+        " 1f0f\n"
+        " 1f0f 1\n"
+        " 1f0f 1 1abcdef\n"
+        " 1f0f 1 1abcdef e1abcdef\n";
+    _score("test_DOTSH", code, expected, MK_ERR_OK);
+}
+
+/* Test DOTRH opcode */
+static void test_DOTRH(void) {
+    u8 code[TEST_ROM_SIZE] = {
+        MK_DOTRH, MK_U8, '\n', MK_EMIT,
+        MK_I32, 0x0f, 0x1f, 0x00, 0x00, MK_MTR, MK_DOTRH, MK_U8, '\n', MK_EMIT,
+        MK_I32, 0x01, 0x00, 0x00, 0x00, MK_MTR, MK_DOTRH, MK_U8, '\n', MK_EMIT,
+        MK_I32, 0xef, 0xcd, 0xab, 0x01, MK_MTR, MK_DOTRH, MK_U8, '\n', MK_EMIT,
+        MK_I32, 0xef, 0xcd, 0xab, 0xe1, MK_MTR, MK_DOTRH, MK_U8, '\n', MK_EMIT,
+        MK_HALT,
+    };
+    char * expected =
+        " R-Stack is empty\n"
+        " 1f0f\n"
+        " 1f0f 1\n"
+        " 1f0f 1 1abcdef\n"
+        " 1f0f 1 1abcdef e1abcdef\n";
+    _score("test_DOTRH", code, expected, MK_ERR_OK);
+}
+
+/* Test DUMP opcode */
+static void test_DUMP(void) {
+    u8 n = 128;
+    u8 code[TEST_ROM_SIZE] = {
+        MK_U8, '0', MK_U8, n+ 0, MK_SB,
+        MK_U8, '1', MK_U8, n+ 1, MK_SB,
+        MK_U8, '2', MK_U8, n+ 2, MK_SB,
+        MK_U8, '3', MK_U8, n+ 3, MK_SB,
+        MK_U8, '4', MK_U8, n+ 4, MK_SB,
+        MK_U8, '5', MK_U8, n+ 5, MK_SB,
+        MK_U8, '6', MK_U8, n+ 6, MK_SB,
+        MK_U8, '7', MK_U8, n+ 7, MK_SB,
+        MK_U8, '8', MK_U8, n+ 8, MK_SB,
+        MK_U8, '9', MK_U8, n+ 9, MK_SB,
+        MK_U8, 'A', MK_U8, n+10, MK_SB,
+        MK_U8, 'B', MK_U8, n+11, MK_SB,
+        MK_U8, 'C', MK_U8, n+12, MK_SB,
+        MK_U8, 'D', MK_U8, n+13, MK_SB,
+        MK_U8, 'E', MK_U8, n+14, MK_SB,
+        MK_U8, 'F', MK_U8, n+15, MK_SB,
+        MK_U8,  32, MK_U8, n,    MK_DUMP,
+        MK_U8,   1, MK_U8, n,    MK_DUMP,
+        MK_U8,   5, MK_U8, n,    MK_DUMP,
+        MK_U8,   9, MK_U8, n,    MK_DUMP,
+        MK_U8,  13, MK_U8, n,    MK_DUMP,
+        MK_U8,  15, MK_U8, n,    MK_DUMP,
+        MK_HALT,
+    };
+    char * expected =
+        "0080  30313233 34353637 38394142 43444546  0123 4567 89AB CDEF\n"
+        "0090  00000000 00000000 00000000 00000000  .... .... .... ....\n"
+        "0080  30                                   0\n"
+        "0080  30313233 34                          0123 4\n"
+        "0080  30313233 34353637 38                 0123 4567 8\n"
+        "0080  30313233 34353637 38394142 43        0123 4567 89AB C\n"
+        "0080  30313233 34353637 38394142 434445    0123 4567 89AB CDE\n";
+    _score("test_DUMP", code, expected, MK_ERR_OK);
+}
+
+
+
 /* Test opcode
 static void test_() {
     u8 code[TEST_ROM_SIZE] = {
@@ -349,15 +858,93 @@ int main() {
     /* Clear the buffer used to capture the VM's stdout writes during tests */
     test_stdout_reset();
     /* Run opcode tests */
+
+    /* NOP */
     test_NOP();
-    test_DUMP();
-    test_EMIT();
-    test_DOTRH();
-    test_DOTS();
-    test_DOTSH();
+
+    /* VM Control */
+    test_RESET();
+    test_HALT();
+    test_TRON();
+    test_TROFF();
+    test_MTE();
+
+    /* Integer Literals */
     test_U8();
     test_U16();
     test_I32();
+
+    /* Branch, Jump, Call, Return */
+    test_BZ();
+    test_JMP();
+    test_JAL();
+    test_RET();
+    test_CALL();
+
+    /* Memory Access: Loads and Stores */
+    test_LB();
+    test_SB();
+    test_LH();
+    test_SH();
+    test_LW();
+    test_SW();
+
+    /* Arithmetic */
+    test_INC();
+    test_DEC();
+    test_ADD();
+    test_SUB();
+    test_MUL();
+    test_DIV();
+    test_MOD();
+
+    /* Shifts */
+    test_SLL();
+    test_SRL();
+    test_SRA();
+
+    /* Locic Operations */
+    test_INV();
+    test_XOR();
+    test_OR();
+    test_AND();
+
+    /* Comparisons */
+    test_GT();
+    test_LT();
+    test_EQ();
+    test_NE();
+    test_ZE();
+
+    /* Truth Value Constants */
+    test_TRUE();
+    test_FALSE();
+
+    /* Data Stack Operations */
+    test_DROP();
+    test_DUP();
+    test_OVER();
+    test_SWAP();
+    test_PC();
+
+    /* Return Stack Operations */
+    test_R();
+    test_MTR();
+    test_RDROP();
+
+    /* Console IO */
+    test_EMIT();
+    test_HEX();
+    test_DECIMAL();
+    test_BASE();
+
+    /* Debug Dumps for Stacks and Memory */
+    test_DOT();
+    test_DOTS();
+    test_DOTSH();
+    test_DOTRH();
+    test_DUMP();
+
     /* Summarize scores */
     char * fmt =
         "[==============]\n"
