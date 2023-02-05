@@ -741,19 +741,100 @@ static void test_FALSE(void) {
 /* Test DROP opcode */
 static void test_DROP(void) {
     u8 code[] = {
+        MK_U8,  1, MK_DOTSH, MK_CR,
+        MK_U8,  2, MK_DOTSH, MK_CR,
+        MK_U8,  3, MK_DOTSH, MK_CR,
+        MK_U8,  4, MK_DOTSH, MK_CR,
+        MK_U8,  5, MK_DOTSH, MK_CR,
+        MK_U8,  6, MK_DOTSH, MK_CR,
+        MK_U8,  7, MK_DOTSH, MK_CR,
+        MK_U8,  8, MK_DOTSH, MK_CR,
+        MK_U8,  9, MK_DOTSH, MK_CR,
+        MK_U8, 10, MK_DOTSH, MK_CR,
+        MK_U8, 11, MK_DOTSH, MK_CR,
+        MK_U8, 12, MK_DOTSH, MK_CR,
+        MK_U8, 13, MK_DOTSH, MK_CR,
+        MK_U8, 14, MK_DOTSH, MK_CR,
+        MK_U8, 15, MK_DOTSH, MK_CR,
+        MK_U8, 16, MK_DOTSH, MK_CR,
+        MK_U8, 17, MK_DOTSH, MK_CR,
+        MK_U8, 18, MK_DOTSH, MK_CR,
+        MK_DROP, MK_DOTSH, MK_CR,
+        MK_DROP, MK_DOTSH, MK_CR,
+        MK_DROP, MK_DOTSH, MK_CR,
+        MK_DROP, MK_DOTSH, MK_CR,
+        MK_DROP, MK_DOTSH, MK_CR,
+        MK_DROP, MK_DOTSH, MK_CR,
+        MK_DROP, MK_DOTSH, MK_CR,
+        MK_DROP, MK_DOTSH, MK_CR,
+        MK_DROP, MK_DOTSH, MK_CR,
+        MK_DROP, MK_DOTSH, MK_CR,
+        MK_DROP, MK_DOTSH, MK_CR,
+        MK_DROP, MK_DOTSH, MK_CR,
+        MK_DROP, MK_DOTSH, MK_CR,
+        MK_DROP, MK_DOTSH, MK_CR,
+        MK_DROP, MK_DOTSH, MK_CR,
+        MK_DROP, MK_DOTSH, MK_CR,
+        MK_DROP, MK_DOTSH, MK_CR,
+        MK_DROP, MK_DOTSH, MK_CR,
+        MK_DROP, MK_DOTSH, MK_CR,  /* This one will raise an error */
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
-    _score("test_DROP", code, expected, MK_ERR_OK);
+    char * expected =
+        " 1\n"
+        " 1 2\n"
+        " 1 2 3\n"
+        " 1 2 3 4\n"
+        " 1 2 3 4 5\n"
+        " 1 2 3 4 5 6\n"
+        " 1 2 3 4 5 6 7\n"
+        " 1 2 3 4 5 6 7 8\n"
+        " 1 2 3 4 5 6 7 8 9\n"
+        " 1 2 3 4 5 6 7 8 9 a\n"
+        " 1 2 3 4 5 6 7 8 9 a b\n"
+        " 1 2 3 4 5 6 7 8 9 a b c\n"
+        " 1 2 3 4 5 6 7 8 9 a b c d\n"
+        " 1 2 3 4 5 6 7 8 9 a b c d e\n"
+        " 1 2 3 4 5 6 7 8 9 a b c d e f\n"
+        " 1 2 3 4 5 6 7 8 9 a b c d e f 10\n"
+        " 1 2 3 4 5 6 7 8 9 a b c d e f 10 11\n"
+        " 1 2 3 4 5 6 7 8 9 a b c d e f 10 11 12\n"
+        " 1 2 3 4 5 6 7 8 9 a b c d e f 10 11\n"
+        " 1 2 3 4 5 6 7 8 9 a b c d e f 10\n"
+        " 1 2 3 4 5 6 7 8 9 a b c d e f\n"
+        " 1 2 3 4 5 6 7 8 9 a b c d e\n"
+        " 1 2 3 4 5 6 7 8 9 a b c d\n"
+        " 1 2 3 4 5 6 7 8 9 a b c\n"
+        " 1 2 3 4 5 6 7 8 9 a b\n"
+        " 1 2 3 4 5 6 7 8 9 a\n"
+        " 1 2 3 4 5 6 7 8 9\n"
+        " 1 2 3 4 5 6 7 8\n"
+        " 1 2 3 4 5 6 7\n"
+        " 1 2 3 4 5 6\n"
+        " 1 2 3 4 5\n"
+        " 1 2 3 4\n"
+        " 1 2 3\n"
+        " 1 2\n"
+        " 1\n"
+        " Stack is empty\n"
+        "ERROR: Stack underflow\n"  ;
+    _score("test_DROP", code, expected, MK_ERR_D_UNDER);
 }
 
 /* Test DUP opcode */
 static void test_DUP(void) {
     u8 code[] = {
+        MK_U8, 1,
+        MK_DOTS, MK_CR,                  /*  1 */
+        MK_DUP, MK_DUP, MK_DOTS, MK_CR,  /*  1 1 1 */
+        MK_RESET, MK_DUP,                /* This one will raise an error */
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
-    _score("test_DUP", code, expected, MK_ERR_OK);
+    char * expected =
+        " 1\n"
+        " 1 1 1\n"
+        "ERROR: Stack underflow\n";
+    _score("test_DUP", code, expected, MK_ERR_D_UNDER);
 }
 
 /* Test OVER opcode */
@@ -848,6 +929,7 @@ static void test_RDROP(void) {
         MK_RDROP, MK_DOTRH, MK_CR,
         MK_RDROP, MK_DOTRH, MK_CR,
         MK_RDROP, MK_DOTRH, MK_CR,
+        MK_RDROP, MK_DOTRH, MK_CR,  /* This one will raise an error */
         MK_HALT,
     };
     char * expected =
@@ -884,8 +966,9 @@ static void test_RDROP(void) {
         " 1 2 3\n"
         " 1 2\n"
         " 1\n"
-        " Return stack is empty\n";
-    _score("test_RDROP", code, expected, MK_ERR_OK);
+        " Return stack is empty\n"
+        "ERROR: Return stack underflow\n";
+    _score("test_RDROP", code, expected, MK_ERR_R_UNDER);
 }
 
 

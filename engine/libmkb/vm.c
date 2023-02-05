@@ -26,7 +26,11 @@ static u8 vm_next_instruction(mk_context_t * ctx) {
 
 /* Log an error code to whatever device serves as the VM's stderr */
 static void vm_irq_err(mk_context_t * ctx, u8 error_code) {
+    /* Log the code using the Host API */
     mk_host_log_error(error_code);
+    /* Remember the code in VM context struct */
+    ctx->err = error_code;
+    /* Decide if the VM needs to be halted */
     switch(error_code) {
         case MK_ERR_OK:
             /* Ignore the OK code */
