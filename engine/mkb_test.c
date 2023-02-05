@@ -791,27 +791,100 @@ static void test_PC(void) {
 /* Test R opcode */
 static void test_R(void) {
     u8 code[] = {
+        MK_U8,  1, MK_MTR, MK_DOTRH, MK_CR,
+        MK_R, MK_INC, MK_DOTS, MK_CR,
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
+    char * expected =
+        " 1\n"
+        " 2\n";
     _score("test_R", code, expected, MK_ERR_OK);
 }
 
 /* Test MTR opcode */
 static void test_MTR(void) {
     u8 code[] = {
+        MK_U8,  1, MK_MTR, MK_DOTRH, MK_CR,
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
+    char * expected = " 1\n";
     _score("test_MTR", code, expected, MK_ERR_OK);
 }
 
 /* Test RDROP opcode */
 static void test_RDROP(void) {
     u8 code[] = {
+        MK_U8,  1, MK_MTR, MK_DOTRH, MK_CR,
+        MK_U8,  2, MK_MTR, MK_DOTRH, MK_CR,
+        MK_U8,  3, MK_MTR, MK_DOTRH, MK_CR,
+        MK_U8,  4, MK_MTR, MK_DOTRH, MK_CR,
+        MK_U8,  5, MK_MTR, MK_DOTRH, MK_CR,
+        MK_U8,  6, MK_MTR, MK_DOTRH, MK_CR,
+        MK_U8,  7, MK_MTR, MK_DOTRH, MK_CR,
+        MK_U8,  8, MK_MTR, MK_DOTRH, MK_CR,
+        MK_U8,  9, MK_MTR, MK_DOTRH, MK_CR,
+        MK_U8, 10, MK_MTR, MK_DOTRH, MK_CR,
+        MK_U8, 11, MK_MTR, MK_DOTRH, MK_CR,
+        MK_U8, 12, MK_MTR, MK_DOTRH, MK_CR,
+        MK_U8, 13, MK_MTR, MK_DOTRH, MK_CR,
+        MK_U8, 14, MK_MTR, MK_DOTRH, MK_CR,
+        MK_U8, 15, MK_MTR, MK_DOTRH, MK_CR,
+        MK_U8, 16, MK_MTR, MK_DOTRH, MK_CR,
+        MK_U8, 17, MK_MTR, MK_DOTRH, MK_CR,
+        MK_RDROP, MK_DOTRH, MK_CR,
+        MK_RDROP, MK_DOTRH, MK_CR,
+        MK_RDROP, MK_DOTRH, MK_CR,
+        MK_RDROP, MK_DOTRH, MK_CR,
+        MK_RDROP, MK_DOTRH, MK_CR,
+        MK_RDROP, MK_DOTRH, MK_CR,
+        MK_RDROP, MK_DOTRH, MK_CR,
+        MK_RDROP, MK_DOTRH, MK_CR,
+        MK_RDROP, MK_DOTRH, MK_CR,
+        MK_RDROP, MK_DOTRH, MK_CR,
+        MK_RDROP, MK_DOTRH, MK_CR,
+        MK_RDROP, MK_DOTRH, MK_CR,
+        MK_RDROP, MK_DOTRH, MK_CR,
+        MK_RDROP, MK_DOTRH, MK_CR,
+        MK_RDROP, MK_DOTRH, MK_CR,
+        MK_RDROP, MK_DOTRH, MK_CR,
+        MK_RDROP, MK_DOTRH, MK_CR,
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
+    char * expected =
+        " 1\n"
+        " 1 2\n"
+        " 1 2 3\n"
+        " 1 2 3 4\n"
+        " 1 2 3 4 5\n"
+        " 1 2 3 4 5 6\n"
+        " 1 2 3 4 5 6 7\n"
+        " 1 2 3 4 5 6 7 8\n"
+        " 1 2 3 4 5 6 7 8 9\n"
+        " 1 2 3 4 5 6 7 8 9 a\n"
+        " 1 2 3 4 5 6 7 8 9 a b\n"
+        " 1 2 3 4 5 6 7 8 9 a b c\n"
+        " 1 2 3 4 5 6 7 8 9 a b c d\n"
+        " 1 2 3 4 5 6 7 8 9 a b c d e\n"
+        " 1 2 3 4 5 6 7 8 9 a b c d e f\n"
+        " 1 2 3 4 5 6 7 8 9 a b c d e f 10\n"
+        " 1 2 3 4 5 6 7 8 9 a b c d e f 10 11\n"
+        " 1 2 3 4 5 6 7 8 9 a b c d e f 10\n"
+        " 1 2 3 4 5 6 7 8 9 a b c d e f\n"
+        " 1 2 3 4 5 6 7 8 9 a b c d e\n"
+        " 1 2 3 4 5 6 7 8 9 a b c d\n"
+        " 1 2 3 4 5 6 7 8 9 a b c\n"
+        " 1 2 3 4 5 6 7 8 9 a b\n"
+        " 1 2 3 4 5 6 7 8 9 a\n"
+        " 1 2 3 4 5 6 7 8 9\n"
+        " 1 2 3 4 5 6 7 8\n"
+        " 1 2 3 4 5 6 7\n"
+        " 1 2 3 4 5 6\n"
+        " 1 2 3 4 5\n"
+        " 1 2 3 4\n"
+        " 1 2 3\n"
+        " 1 2\n"
+        " 1\n"
+        " Return stack is empty\n";
     _score("test_RDROP", code, expected, MK_ERR_OK);
 }
 
@@ -898,9 +971,24 @@ static void test_CR(void) {
 /* Test DOT opcode */
 static void test_DOT(void) {
     u8 code[] = {
+        MK_DOTS, MK_CR,
+        MK_U8,    0,
+        MK_U8,    1,
+        MK_U8,  255,
+        MK_U16, 255, 255,
+        MK_I32, 255, 255, 255, 127,
+        MK_I32,   0,   0,   0, 128,
+        MK_I32, 255, 255, 255, 255,
+        MK_DOTS, MK_CR,
+        MK_DOT, MK_DOT, MK_DOT, MK_DOT, MK_DOT, MK_DOT, MK_DOT, MK_CR,
+        MK_DOTS, MK_CR,
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
+    char * expected =
+        " Stack is empty\n"
+        " 0 1 255 65535 2147483647 -2147483648 -1\n"
+        " -1 -2147483648 2147483647 65535 255 1 0\n"
+        " Stack is empty\n";
     _score("test_DOT", code, expected, MK_ERR_OK);
 }
 
