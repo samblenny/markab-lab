@@ -46,7 +46,7 @@ typedef struct mk_context {
     u32 RSDeep;            /* Return Stack Depth (count inlcudes R) */
     i32 R;                 /* Top of Return stack */
     i32 RStack[16];        /* Return Stack */
-    u32 PC;                /* Program Counter */
+    u16 PC;                /* Program Counter   CAUTION!  MUST BE u16!!!  */
     u8  halted;            /* Flag to track halt (used for `bye`) */
     u8  base;              /* Number base for parsing and print formatting */
     u8  RAM[MK_RamMax+1];  /* Random Access Memory */
@@ -69,16 +69,14 @@ typedef struct mk_str {
  * VM Error status codes
  */
 
-#define MK_ERR_OK              (0  /* OK: No errors */)
-#define MK_ERR_D_OVER          (1  /* Data stack overflow */)
-#define MK_ERR_D_UNDER         (2  /* Data stack underflow */)
-#define MK_ERR_R_OVER          (3  /* Return stack overflow */)
-#define MK_ERR_R_UNDER         (4  /* Return stack underflow */)
-#define MK_ERR_BAD_ADDRESS     (5  /* Expected vaild address */)
-#define MK_ERR_BAD_INSTRUCTION (6  /* Expected a valid opcode */)
-#define MK_ERR_MAX_CYCLES      (7  /* Code ran for too many clock cycles */)
-#define MK_ERR_UNKNOWN         (8  /* Outer interpreter found unknown word */)
-#define MK_ERR_NEST            (9  /* Unbalanced }if or }for */)
+#define MK_ERR_OK           (0  /* OK: No errors */)
+#define MK_ERR_D_OVER       (1  /* Stack overflow */)
+#define MK_ERR_D_UNDER      (2  /* Stack underflow */)
+#define MK_ERR_R_OVER       (3  /* Return stack overflow */)
+#define MK_ERR_R_UNDER      (4  /* Return stack underflow */)
+#define MK_ERR_BAD_ADDRESS  (5  /* Bad address */)
+#define MK_ERR_BAD_OPCODE   (6  /* Bad opcode */)
+#define MK_ERR_CPU_HOG      (7  /* Code was hogging CPU */)
 
 
 /*

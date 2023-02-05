@@ -207,6 +207,9 @@
  * doing a self-hosted compile of the kernel and compiler into a new rom file.
  * NOTE: N can be u8, i8, u16, or i16. The typecast will make it work out.
  */
+/* CAUTION! CAUTION! CAUTION!                                            */
+/* Don't randomly mess with the (u16) cast here. Yes, this is a "signed" */
+/* addition, but no, it doesn't need i16. See notes above.               */
 #define _adjust_PC_by(N)  { ctx->PC = (ctx->PC + (u16)(N)); }
 
 
@@ -268,7 +271,8 @@ static void op_MTE(mk_context_t * ctx) {
 static void op_U8(mk_context_t * ctx) {
     _assert_data_stack_is_not_full();
     /* Read and push an 8-bit unsigned integer from instruction stream */
-    _assert_valid_address(ctx->PC);
+    /* NOTE: Putting a _assert_valid_address(ctx->PC) here would give  */
+    /*       a compiler warning on Plan 9 (useless comparison).        */
     i32 zero_extended = (i32) _u8_lit();
     _push_T(zero_extended);
     /* advance program counter past the literal */
@@ -309,8 +313,9 @@ static void op_BZ(mk_context_t * ctx) {
     _assert_data_stack_depth_is_at_least(1);
     if(ctx->T == 0) {
         /* Branch forward past conditional block: Add address literal from */
-        /* instruction stream to PC. Maximum branch distance is +255. */
-        _assert_valid_address(ctx->PC);
+        /* instruction stream to PC. Maximum branch distance is +255.      */
+        /* NOTE: Putting a _assert_valid_address(ctx->PC) here would give  */
+        /*       a compiler warning on Plan 9 (useless comparison).        */
         u8 n = _u8_lit();
         _adjust_PC_by(n);
     } else {

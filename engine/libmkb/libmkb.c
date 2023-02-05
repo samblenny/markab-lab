@@ -75,6 +75,10 @@ int mk_load_rom(const u8 * code, u32 code_len_bytes) {
      */
     int n = code_len_bytes <= MK_HeapMax ? code_len_bytes : MK_HeapMax;
     memcpy((void *)ctx.RAM, (void *)code, n);
+    /* For small ROMs, fill rest of RAM with NOP instructions */
+    if(n < sizeof(ctx.RAM)) {
+        memset((void *)(&ctx.RAM[n]), MK_NOP, sizeof(ctx.RAM) - n);
+    }
     /* Start clocking the VM from the boot vector */
     autogen_step(&ctx);
     /* Return value of the VM's error register */
