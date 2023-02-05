@@ -607,7 +607,8 @@ static void op_DUP(mk_context_t * ctx) {
 static void op_OVER(mk_context_t * ctx) {
     _assert_data_stack_depth_is_at_least(2);
     _assert_data_stack_is_not_full();
-    _push_T(ctx->S);
+    i32 tmp = ctx->S;  /* Note that _push_T(ctx->S) would stomp on ctx->S */
+    _push_T(tmp);
 }
 
 /* SWAP ( n1 n2 -- n2 n1 ) Swap the Second and Top items on the data stack. */

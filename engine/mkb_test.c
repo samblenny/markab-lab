@@ -840,19 +840,31 @@ static void test_DUP(void) {
 /* Test OVER opcode */
 static void test_OVER(void) {
     u8 code[] = {
+        MK_U8, 1, MK_U8, 2, MK_DOTS, MK_CR,  /*  1 2 */
+        MK_OVER, MK_OVER,   MK_DOTS, MK_CR,  /*  1 2 1 2 */
+        MK_RESET, MK_U8, 1, MK_OVER,         /* This will raise an error */
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
-    _score("test_OVER", code, expected, MK_ERR_OK);
+    char * expected =
+        " 1 2\n"
+        " 1 2 1 2\n"
+        "ERROR: Stack underflow\n";
+    _score("test_OVER", code, expected, MK_ERR_D_UNDER);
 }
 
 /* Test SWAP opcode */
 static void test_SWAP(void) {
     u8 code[] = {
+        MK_U8, 1, MK_U8, 2, MK_DOTS, MK_CR,  /*  1 2 */
+        MK_SWAP,            MK_DOTS, MK_CR,  /*  2 1 */
+        MK_DROP, MK_SWAP,                    /* This will raise an error */
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
-    _score("test_SWAP", code, expected, MK_ERR_OK);
+    char * expected =
+        " 1 2\n"
+        " 2 1\n"
+        "ERROR: Stack underflow\n";
+    _score("test_SWAP", code, expected, MK_ERR_D_UNDER);
 }
 
 /* Test PC opcode */
