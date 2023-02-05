@@ -10,6 +10,13 @@
 #  include <stdio.h>          /* getchar(), putchar() */
 #else
 /* POSIX includes */
+#  ifndef __MACH__
+/*   This unlocks snprintf() powers on Debian since I'm using `clang -ansi`. */
+/*   Conversely, on macOS, this actually makes clang mad. I hesitate to just */
+/*   crank up the _XOPEN_SOURCE level even higher because I want to be       */
+/*   warned if I try to use C99 features that might cause trouble on Plan 9. */
+#    define _XOPEN_SOURCE 500
+#  endif
 #  include <stdint.h>         /* uint8_t, uint16_t, int32_t, ... */
 #  include <stdio.h>          /* printf(), putchar(), ... */
 #  include <string.h>         /* memset() */
@@ -98,45 +105,45 @@ static void score_fail(const char * name) {
 /* Log an error code to stdout and TEST_STDOUT */
 void mk_host_log_error(u8 error_code) {
     /* Translate the error code into a more useful description */
-    char label_buf[99];
+    char tag[64];
     switch(error_code) {
         case MK_ERR_OK:
-            snprintf(label_buf, 99, "OK, no error");
+            snprintf(tag, sizeof(tag), "OK, no error");
             break;
         case MK_ERR_D_OVER:
-            snprintf(label_buf, 99, "Stack overflow");
+            snprintf(tag, sizeof(tag), "Stack overflow");
             break;
         case MK_ERR_D_UNDER:
-            snprintf(label_buf, 99, "Stack underflow");
+            snprintf(tag, sizeof(tag), "Stack underflow");
             break;
         case MK_ERR_R_OVER:
-            snprintf(label_buf, 99, "Return stack overflow");
+            snprintf(tag, sizeof(tag), "Return stack overflow");
             break;
         case MK_ERR_R_UNDER:
-            snprintf(label_buf, 99, "Return stack underflow");
+            snprintf(tag, sizeof(tag), "Return stack underflow");
             break;
         case MK_ERR_BAD_ADDRESS:
-            snprintf(label_buf, 99, "Bad address");
+            snprintf(tag, sizeof(tag), "Bad address");
             break;
         case MK_ERR_BAD_OPCODE:
-            snprintf(label_buf, 99, "Bad opcode");
+            snprintf(tag, sizeof(tag), "Bad opcode");
             break;
         case MK_ERR_CPU_HOG:
-            snprintf(label_buf, 99, "Code was hogging CPU");
+            snprintf(tag, sizeof(tag), "Code was hogging CPU");
             break;
         default:
-            snprintf(label_buf, 99, "%d", error_code);
+            snprintf(tag, sizeof(tag), "%d", error_code);
     }
     /* Log the error message to real stdout */
     const char * fmt = "ERROR: %s\n";
 #ifdef PLAN_9
-    print(fmt, label_buf);
+    print(fmt, tag);
 #else
-    printf(fmt, label_buf);
+    printf(fmt, tag);
 #endif
     /* Log the error message to TEST_STDOUT */
-    char buf[64];
-    snprintf(buf, 64, fmt, label_buf);
+    char buf[128];
+    snprintf(buf, sizeof(buf), fmt, tag);
     int length = strlen(buf);
     if(TEST_STDOUT.len + length < MKB_TEST_StrBufSize) {
         memcpy((void *)&(TEST_STDOUT.buf[TEST_STDOUT.len]), buf, length);
