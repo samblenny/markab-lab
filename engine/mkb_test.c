@@ -806,27 +806,34 @@ static void test_EMIT(void) {
 /* Test HEX opcode */
 static void test_HEX(void) {
     u8 code[] = {
+        MK_U8, 255, MK_HEX, MK_DOT,
+        MK_U8, '\n', MK_EMIT,
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
+    char * expected = " ff\n";
     _score("test_HEX", code, expected, MK_ERR_OK);
 }
 
 /* Test DECIMAL opcode */
 static void test_DECIMAL(void) {
     u8 code[] = {
+        MK_U8, 255, MK_DECIMAL, MK_DOT,
+        MK_U8, '\n', MK_EMIT,
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
+    char * expected = " 255\n";
     _score("test_DECIMAL", code, expected, MK_ERR_OK);
 }
 
 /* Test BASE opcode */
 static void test_BASE(void) {
     u8 code[] = {
+        /* hex base decimal base .S */
+        MK_HEX, MK_BASE, MK_DECIMAL, MK_BASE,
+        MK_DOTS, MK_U8, '\n', MK_EMIT,
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
+    char * expected = " 16 10\n";
     _score("test_BASE", code, expected, MK_ERR_OK);
 }
 
