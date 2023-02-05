@@ -86,6 +86,7 @@ static void op_HEX(mk_context_t * ctx);
 static void op_DECIMAL(mk_context_t * ctx);
 static void op_BASE(mk_context_t * ctx);
 static void op_PRINT(mk_context_t * ctx);
+static void op_CR(void);
 
 /* Debug Dumps for Stacks and Memory */
 static void op_DOT(mk_context_t * ctx);

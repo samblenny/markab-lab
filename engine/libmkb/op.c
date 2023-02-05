@@ -691,6 +691,11 @@ static void op_PRINT(mk_context_t * ctx) {
     _drop_T();
 }
 
+/* CR ( -- ) Write newline to stdout. (call it CR though by Forth traditon) */
+static void op_CR(void) {
+    mk_host_putchar('\n');
+}
+
 
 /* ========================================= */
 /* === Debug Dumps for Stacks and Memory === */

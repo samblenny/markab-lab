@@ -276,12 +276,7 @@ static void test_TROFF(void) {
 static void test_MTE(void) {
     u8 code[] = {
         MK_U8, 255, MK_DOT,
-        MK_U8, ' ', MK_EMIT,
-        MK_U8, '>', MK_EMIT,
-        MK_U8, 'e', MK_EMIT,
-        MK_U8, 'r', MK_EMIT,
-        MK_U8, 'r', MK_EMIT,
-        MK_U8, '\n', MK_EMIT,
+        MK_STR, 6, ' ', '>', 'e', 'r', 'r', '\n', MK_PRINT,
         MK_U8, 255, MK_MTE,
         MK_HALT,
     };
@@ -300,7 +295,7 @@ static void test_MTE(void) {
 static void test_U8(void) {
     u8 code[] = {
         MK_U8, 0, MK_U8, 1, MK_U8, 127, MK_U8, 128, MK_U8, 255,
-        MK_DOTS, MK_U8, '\n', MK_EMIT,
+        MK_DOTS, MK_CR,
         MK_HALT,
     };
     char * expected = " 0 1 127 128 255\n";
@@ -319,7 +314,7 @@ static void test_U16(void) {
         MK_U16,   0, 127,
         MK_U16,   0, 128,
         MK_U16, 255, 255,
-        MK_DOTS, MK_U8, '\n', MK_EMIT,
+        MK_DOTS, MK_CR,
         MK_HALT,
     };
     char * expected = " 0 1 127 128 255 256 32512 32768 65535\n";
@@ -334,8 +329,8 @@ static void test_I32(void) {
         MK_I32, 255, 255, 255, 127,
         MK_I32,   0,   0,   0, 128,
         MK_I32, 255, 255, 255, 255,
-        MK_DOTSH, MK_U8, '\n', MK_EMIT,
-        MK_DOTS, MK_U8, '\n', MK_EMIT,
+        MK_DOTSH, MK_CR,
+        MK_DOTS, MK_CR,
         MK_HALT,
     };
     char * expected =
@@ -365,15 +360,15 @@ static void test_STR(void) {
 /* Test BZ opcode */
 static void test_BZ(void) {
     u8 code[] = {
-        MK_U8, 'A', MK_EMIT, MK_U8, '\n', MK_EMIT,
-        MK_U8, 0, MK_BZ, 7,                         /* skip the "B\n" */
-        MK_U8, 'B', MK_EMIT, MK_U8, '\n', MK_EMIT,
-        MK_U8, 'C', MK_EMIT, MK_U8, '\n', MK_EMIT,
-        MK_U8, 1, MK_BZ, 7,                         /* don't skip the "D\n" */
-        MK_U8, 'D', MK_EMIT, MK_U8, '\n', MK_EMIT,
-        MK_I32, 255, 255, 255, 255, MK_BZ, 7,       /* don't skip the "E\n" */
-        MK_U8, 'E', MK_EMIT, MK_U8, '\n', MK_EMIT,
-        MK_DOTS, MK_U8, '\n', MK_EMIT,
+        MK_STR, 2, 'A', '\n', MK_PRINT,
+        MK_U8, 0, MK_BZ, 6,                    /* skip the "B\n" */
+        MK_STR, 2, 'B', '\n', MK_PRINT,
+        MK_STR, 2, 'C', '\n', MK_PRINT,
+        MK_U8, 1, MK_BZ, 6,                    /* don't skip the "D\n" */
+        MK_STR, 2, 'D', '\n', MK_PRINT,
+        MK_I32, 255, 255, 255, 255, MK_BZ, 6,  /* don't skip the "E\n" */
+        MK_STR, 2, 'E', '\n', MK_PRINT,
+        MK_DOTS, MK_CR,
         MK_HALT,
     };
     char * expected =
@@ -388,11 +383,11 @@ static void test_BZ(void) {
 /* Test JMP opcode */
 static void test_JMP(void) {
     u8 code[] = {
-        MK_JMP, 9, 0,                               /* PC + 9 -> "B\n" */
-        MK_U8, 'A', MK_EMIT, MK_U8, '\n', MK_EMIT,
+        MK_JMP, 7, 0,                /* PC + 7 -> "B\n" */
+        MK_U8, 'A', MK_EMIT, MK_CR,
         MK_HALT,
-        MK_U8, 'B', MK_EMIT, MK_U8, '\n', MK_EMIT,
-        MK_JMP, 242, 255,                           /* PC + (-14) -> "A\n" */
+        MK_U8, 'B', MK_EMIT, MK_CR,
+        MK_JMP, 246, 255,            /* PC + (-10) -> "A\n" */
         MK_HALT,
     };
     char * expected =
@@ -796,7 +791,7 @@ static void test_EMIT(void) {
         MK_U8, 'm', MK_EMIT,
         MK_U8, 'i', MK_EMIT,
         MK_U8, 't', MK_EMIT,
-        MK_U8, '\n', MK_EMIT,
+        MK_CR,
         MK_HALT,
     };
     char * expected = "Emit\n";
@@ -806,8 +801,7 @@ static void test_EMIT(void) {
 /* Test HEX opcode */
 static void test_HEX(void) {
     u8 code[] = {
-        MK_U8, 255, MK_HEX, MK_DOT,
-        MK_U8, '\n', MK_EMIT,
+        MK_U8, 255, MK_HEX, MK_DOT, MK_CR,
         MK_HALT,
     };
     char * expected = " ff\n";
@@ -817,8 +811,7 @@ static void test_HEX(void) {
 /* Test DECIMAL opcode */
 static void test_DECIMAL(void) {
     u8 code[] = {
-        MK_U8, 255, MK_DECIMAL, MK_DOT,
-        MK_U8, '\n', MK_EMIT,
+        MK_U8, 255, MK_DECIMAL, MK_DOT, MK_CR,
         MK_HALT,
     };
     char * expected = " 255\n";
@@ -830,7 +823,7 @@ static void test_BASE(void) {
     u8 code[] = {
         /* hex base decimal base .S */
         MK_HEX, MK_BASE, MK_DECIMAL, MK_BASE,
-        MK_DOTS, MK_U8, '\n', MK_EMIT,
+        MK_DOTS, MK_CR,
         MK_HALT,
     };
     char * expected = " 16 10\n";
@@ -847,6 +840,18 @@ static void test_PRINT(void) {
     };
     char * expected = "print print\n";
     _score("test_PRINT", code, expected, MK_ERR_OK);
+}
+
+/* Test CR opcode */
+static void test_CR(void) {
+    u8 code[] = {
+        MK_STR, 2, 'c', 'r',
+        MK_PRINT,
+        MK_CR,
+        MK_HALT,
+    };
+    char * expected = "cr\n";
+    _score("test_CR", code, expected, MK_ERR_OK);
 }
 
 
@@ -960,23 +965,9 @@ static void test_DUMP(void) {
 }
 
 
-
-/* Test opcode
-static void test_() {
-    u8 code[] = {
-        MK_HALT,
-    };
-    char * expected =
-        ;
-    _score("test_", code, expected, MK_ERR_OK);
-}
-*/
-
-
-/* ===================================================
- * == main() =========================================
- * ===================================================
- */
+/* ========================================================================= */
+/* === main() ============================================================== */
+/* ========================================================================= */
 
 #ifdef PLAN_9
 void main() {
@@ -1067,6 +1058,7 @@ int main() {
     test_DECIMAL();
     test_BASE();
     test_PRINT();
+    test_CR();
 
     /* Debug Dumps for Stacks and Memory */
     test_DOT();

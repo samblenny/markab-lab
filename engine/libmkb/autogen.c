@@ -68,11 +68,12 @@ static const char * const opcodes[MK_OPCODES_LEN] = {
     "DECIMAL",  /* 52 */
     "BASE",    /* 53 */
     "PRINT",   /* 54 */
-    "DOT",     /* 55 */
-    "DOTS",    /* 56 */
-    "DOTSH",   /* 57 */
-    "DOTRH",   /* 58 */
-    "DUMP",    /* 59 */
+    "CR",      /* 55 */
+    "DOT",     /* 56 */
+    "DOTS",    /* 57 */
+    "DOTSH",   /* 58 */
+    "DOTRH",   /* 59 */
+    "DUMP",    /* 60 */
 };
 
 /* Markab language core vocabulary */
@@ -134,6 +135,7 @@ static const mk_voc_item_t core_voc[MK_CORE_VOC_LEN] = {
     { {"decimal"},     MK_T_OP,    MK_DECIMAL },
     { {"base"},        MK_T_OP,    MK_BASE   },
     { {"print"},       MK_T_OP,    MK_PRINT  },
+    { {"cr"},          MK_T_OP,    MK_CR     },
     { {"."},           MK_T_OP,    MK_DOT    },
     { {".S"},          MK_T_OP,    MK_DOTS   },
     { {".Sh"},         MK_T_OP,    MK_DOTSH  },
@@ -318,18 +320,21 @@ static void autogen_step(mk_context_t * ctx) {
                 op_PRINT(ctx);
                 break;
             case 55:
-                op_DOT(ctx);
+                op_CR();
                 break;
             case 56:
-                op_DOTS(ctx);
+                op_DOT(ctx);
                 break;
             case 57:
-                op_DOTSH(ctx);
+                op_DOTS(ctx);
                 break;
             case 58:
-                op_DOTRH(ctx);
+                op_DOTSH(ctx);
                 break;
             case 59:
+                op_DOTRH(ctx);
+                break;
+            case 60:
                 op_DUMP(ctx);
                 break;
             default:

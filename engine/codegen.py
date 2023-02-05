@@ -67,6 +67,7 @@ hex HEX
 decimal DECIMAL
 base BASE
 print PRINT
+cr CR
 . DOT
 .S DOTS
 .Sh DOTSH
@@ -162,10 +163,10 @@ def c_bytecode_switch_guts():
   for (i, line) in enumerate(filter(OPCODES)):
     (name, opcode) = line.strip().split(" ")
     s += [f"            case {i}:"]
-    if opcode != 'NOP':
+    if not (opcode in ['NOP', 'CR']):
       s += [f"                op_{opcode.upper()}(ctx);"]
     else:
-      # Don't pass context to NOP; this stops a Plan 9 C compiler warning
+      # Don't pass context to NOP, CR, etc to avoid Plan 9 compiler warnings
       s += [f"                op_{opcode.upper()}();"]
     s += [f"                break;"]
   s += ["            default:"]
