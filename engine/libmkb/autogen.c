@@ -338,7 +338,7 @@ static void autogen_step(mk_context_t * ctx) {
                 op_DUMP(ctx);
                 break;
             default:
-                vm_irq_err(MK_ERR_BAD_OPCODE);
+                vm_irq_err(ctx, MK_ERR_BAD_OPCODE);
                 ctx->halted = 1;
         };
         if(ctx->halted) {
@@ -346,7 +346,7 @@ static void autogen_step(mk_context_t * ctx) {
         }
     }
     /* Making it this far means the MK_MAX_CYCLES limit was exceeded */
-    vm_irq_err(MK_ERR_CPU_HOG);
+    vm_irq_err(ctx, MK_ERR_CPU_HOG);
     autogen_step(ctx);
 };
 

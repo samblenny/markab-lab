@@ -25,9 +25,27 @@ static u8 vm_next_instruction(mk_context_t * ctx) {
 }
 
 /* Log an error code to whatever device serves as the VM's stderr */
-static void vm_irq_err(u8 error_code) {
+static void vm_irq_err(mk_context_t * ctx, u8 error_code) {
     mk_host_log_error(error_code);
-    /* TODO: Do I need to halt the VM here? */
+    switch(error_code) {
+        case MK_ERR_OK:
+            /* Ignore the OK code */
+            break;
+        case MK_ERR_D_UNDER:
+        case MK_ERR_D_OVER:
+        case MK_ERR_R_UNDER:
+        case MK_ERR_R_OVER:
+        case MK_ERR_BAD_ADDRESS:
+        case MK_ERR_BAD_OPCODE:
+        case MK_ERR_CPU_HOG:
+            /* Halt for VM errors to prevent cascading chaos */
+            ctx->halted = 1;
+            break;
+        default:
+            /* Don't halt for other codes that come from MTE */
+            /* This is useful for things like testing RESET  */
+            break;
+    }
 }
 
 /* Write a buffer of bytes to whatever device serves as the VM's stdout */

@@ -23,7 +23,7 @@
  */
 #define _assert_data_stack_depth_is_at_least(N) \
     if(ctx->DSDeep < N) {                       \
-        vm_irq_err(MK_ERR_D_UNDER);             \
+        vm_irq_err(ctx, MK_ERR_D_UNDER);        \
         return;                                 \
     }
 
@@ -33,7 +33,7 @@
  */
 #define _assert_data_stack_is_not_full() \
     if(ctx->DSDeep > 17) {               \
-        vm_irq_err(MK_ERR_D_OVER);       \
+        vm_irq_err(ctx, MK_ERR_D_OVER);  \
         return;                          \
     }
 
@@ -42,9 +42,9 @@
  * function to return. Enclosing function must declare `mk_context_t * ctx`.
  */
 #define _assert_return_stack_depth_is_at_least(N) \
-    if(ctx->DSDeep < N) {                         \
+    if(ctx->RSDeep < N) {                         \
         op_RESET(ctx);                            \
-        vm_irq_err(MK_ERR_R_UNDER);               \
+        vm_irq_err(ctx, MK_ERR_R_UNDER);          \
         return;                                   \
     }
 
@@ -55,7 +55,7 @@
 #define _assert_return_stack_is_not_full() \
     if(ctx->RSDeep > 16) {                 \
         op_RESET(ctx);                     \
-        vm_irq_err(MK_ERR_R_OVER);         \
+        vm_irq_err(ctx, MK_ERR_R_OVER);    \
         return;                            \
     }
 
@@ -143,10 +143,10 @@
 
 /* Macro to assert that ADDR is within the valid range of RAM addresses */
 /* CAUTION! This can cause the enclosing function to return. */
-#define _assert_valid_address(ADDR)     \
-    if((u32)(ADDR) > MK_RamMax) {       \
-        vm_irq_err(MK_ERR_BAD_ADDRESS); \
-        return;                         \
+#define _assert_valid_address(ADDR)          \
+    if((u32)(ADDR) > MK_RamMax) {            \
+        vm_irq_err(ctx, MK_ERR_BAD_ADDRESS); \
+        return;                              \
     }
 
 /* Macro to read u8 (byte) little-endian integer from RAM */
@@ -259,7 +259,7 @@ static void op_MTE(mk_context_t * ctx) {
     _assert_data_stack_depth_is_at_least(1);
     ctx->err = ctx->T;
     _drop_T();
-    vm_irq_err(ctx->err);
+    vm_irq_err(ctx, ctx->err);
 }
 
 

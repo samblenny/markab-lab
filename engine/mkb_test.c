@@ -399,10 +399,28 @@ static void test_JMP(void) {
 /* Test JAL opcode */
 static void test_JAL(void) {
     u8 code[] = {
+        MK_U8, 'A', MK_EMIT, MK_CR,
+        /* call subroutine D at offset (+12) */
+        MK_JAL, 12, 0,
+        MK_U8, 'B', MK_EMIT, MK_CR,
         MK_HALT,
-
+        /* subroutine C: */
+            MK_U8, 'C', MK_EMIT, MK_CR,
+            MK_RET,
+        /* subroutine B: */
+            MK_U8, 'D', MK_EMIT, MK_CR,
+            /* call subroutine C at offset (-10) */
+            MK_JAL, 246, 255,
+            MK_RET,
+        /* This should not be reachable */
+        MK_STR, 5, 'o', 'h', ' ', 'n', 'o', '!', '\n', MK_PRINT,
+        MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
+    char * expected =
+        "A\n"
+        "D\n"
+        "C\n"
+        "B\n";
     _score("test_JAL", code, expected, MK_ERR_OK);
 }
 
@@ -872,10 +890,10 @@ static void test_DOT(void) {
 static void test_DOTS(void) {
     u8 code[] = {
         MK_DOTS, MK_U8, '\n', MK_EMIT,
-        MK_I32, 0x0f, 0x1f, 0x00, 0x00, MK_DOTS, MK_U8, '\n', MK_EMIT,
-        MK_I32, 0x01, 0x00, 0x00, 0x00, MK_DOTS, MK_U8, '\n', MK_EMIT,
-        MK_I32, 0xef, 0xcd, 0xab, 0x01, MK_DOTS, MK_U8, '\n', MK_EMIT,
-        MK_I32, 0xef, 0xcd, 0xab, 0xe1, MK_DOTS, MK_U8, '\n', MK_EMIT,
+        MK_I32, 0x0f, 0x1f, 0x00, 0x00, MK_DOTS, MK_CR,
+        MK_I32, 0x01, 0x00, 0x00, 0x00, MK_DOTS, MK_CR,
+        MK_I32, 0xef, 0xcd, 0xab, 0x01, MK_DOTS, MK_CR,
+        MK_I32, 0xef, 0xcd, 0xab, 0xe1, MK_DOTS, MK_CR,
         MK_HALT,
     };
     char * expected =
@@ -891,10 +909,14 @@ static void test_DOTS(void) {
 static void test_DOTSH(void) {
     u8 code[] = {
         MK_DOTSH, MK_U8, '\n', MK_EMIT,
-        MK_I32, 0x0f, 0x1f, 0x00, 0x00, MK_DOTSH, MK_U8, '\n', MK_EMIT,
-        MK_I32, 0x01, 0x00, 0x00, 0x00, MK_DOTSH, MK_U8, '\n', MK_EMIT,
-        MK_I32, 0xef, 0xcd, 0xab, 0x01, MK_DOTSH, MK_U8, '\n', MK_EMIT,
-        MK_I32, 0xef, 0xcd, 0xab, 0xe1, MK_DOTSH, MK_U8, '\n', MK_EMIT,
+        MK_I32, 0x0f, 0x1f, 0x00, 0x00, MK_DOTSH, MK_CR,
+        MK_I32, 0x01, 0x00, 0x00, 0x00, MK_DOTSH, MK_CR,
+        MK_I32, 0xef, 0xcd, 0xab, 0x01, MK_DOTSH, MK_CR,
+        MK_I32, 0xef, 0xcd, 0xab, 0xe1, MK_DOTSH, MK_CR,
+        MK_DROP, MK_DOTSH, MK_CR,
+        MK_DROP, MK_DOTSH, MK_CR,
+        MK_DROP, MK_DOTSH, MK_CR,
+        MK_DROP, MK_DOTSH, MK_CR,
         MK_HALT,
     };
     char * expected =
@@ -902,7 +924,11 @@ static void test_DOTSH(void) {
         " 1f0f\n"
         " 1f0f 1\n"
         " 1f0f 1 1abcdef\n"
-        " 1f0f 1 1abcdef e1abcdef\n";
+        " 1f0f 1 1abcdef e1abcdef\n"
+        " 1f0f 1 1abcdef\n"
+        " 1f0f 1\n"
+        " 1f0f\n"
+        " Stack is empty\n";
     _score("test_DOTSH", code, expected, MK_ERR_OK);
 }
 
@@ -910,10 +936,14 @@ static void test_DOTSH(void) {
 static void test_DOTRH(void) {
     u8 code[] = {
         MK_DOTRH, MK_U8, '\n', MK_EMIT,
-        MK_I32, 0x0f, 0x1f, 0x00, 0x00, MK_MTR, MK_DOTRH, MK_U8, '\n', MK_EMIT,
-        MK_I32, 0x01, 0x00, 0x00, 0x00, MK_MTR, MK_DOTRH, MK_U8, '\n', MK_EMIT,
-        MK_I32, 0xef, 0xcd, 0xab, 0x01, MK_MTR, MK_DOTRH, MK_U8, '\n', MK_EMIT,
-        MK_I32, 0xef, 0xcd, 0xab, 0xe1, MK_MTR, MK_DOTRH, MK_U8, '\n', MK_EMIT,
+        MK_I32, 0x0f, 0x1f, 0x00, 0x00, MK_MTR, MK_DOTRH, MK_CR,
+        MK_I32, 0x01, 0x00, 0x00, 0x00, MK_MTR, MK_DOTRH, MK_CR,
+        MK_I32, 0xef, 0xcd, 0xab, 0x01, MK_MTR, MK_DOTRH, MK_CR,
+        MK_I32, 0xef, 0xcd, 0xab, 0xe1, MK_MTR, MK_DOTRH, MK_CR,
+        MK_RDROP, MK_DOTRH, MK_CR,
+        MK_RDROP, MK_DOTRH, MK_CR,
+        MK_RDROP, MK_DOTRH, MK_CR,
+        MK_RDROP, MK_DOTRH, MK_CR,
         MK_HALT,
     };
     char * expected =
@@ -921,7 +951,11 @@ static void test_DOTRH(void) {
         " 1f0f\n"
         " 1f0f 1\n"
         " 1f0f 1 1abcdef\n"
-        " 1f0f 1 1abcdef e1abcdef\n";
+        " 1f0f 1 1abcdef e1abcdef\n"
+        " 1f0f 1 1abcdef\n"
+        " 1f0f 1\n"
+        " 1f0f\n"
+        " Return stack is empty\n";
     _score("test_DOTRH", code, expected, MK_ERR_OK);
 }
 
