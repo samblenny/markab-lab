@@ -31,7 +31,7 @@
 /* ============================== */
 
 /* Typedef for a jumbo-size counted string buffer */
-#define MKB_TEST_StrBufSize (65536)
+#define MKB_TEST_StrBufSize (1024 * 16)
 typedef struct mkb_test_str {
     u16 len;
     u8 buf[MKB_TEST_StrBufSize];
@@ -39,6 +39,9 @@ typedef struct mkb_test_str {
 
 /* Global buffer used for capturing the VM's writes to stdout during tests */
 static mkb_test_str_t TEST_STDOUT;
+
+/* Global buffer to hold names of failing tests */
+mkb_test_str_t FAIL_LOG = {0, {0}};
 
 /* Global var for counting passed tests */
 static int TEST_SCORE_PASS = 0;
@@ -90,11 +93,20 @@ static void score_pass(const char * name) {
 static void score_fail(const char * name) {
     TEST_SCORE_FAIL += 1;
     const char * fmt = "[%s: FAIL]\n\n";
+    /* First log the message to stdout */
 #ifdef PLAN_9
     print(fmt, name);
 #else
     printf(fmt, name);
 #endif
+    /* Then append the message to FAIL_LOG */
+    char buf[128];
+    snprintf(buf, sizeof(buf), "[  %-20s ]\n", name);
+    int length = strlen(buf);
+    if(FAIL_LOG.len + length < sizeof(FAIL_LOG.buf)) {
+        memcpy((void *)&(FAIL_LOG.buf[FAIL_LOG.len]), buf, length);
+        FAIL_LOG.len += length;
+    }
 }
 
 
@@ -145,7 +157,7 @@ void mk_host_log_error(u8 error_code) {
     char buf[128];
     snprintf(buf, sizeof(buf), fmt, tag);
     int length = strlen(buf);
-    if(TEST_STDOUT.len + length < MKB_TEST_StrBufSize) {
+    if(TEST_STDOUT.len + length < sizeof(TEST_STDOUT.buf)) {
         memcpy((void *)&(TEST_STDOUT.buf[TEST_STDOUT.len]), buf, length);
         TEST_STDOUT.len += length;
     }
@@ -154,13 +166,9 @@ void mk_host_log_error(u8 error_code) {
 /* Write length bytes from byte buffer buf to real stdout and TEST_STDOUT */
 void mk_host_stdout_write(const void * buf, int length) {
     /* First write to real stdout */
-#ifdef PLAN_9
     write(1 /* STDOUT */, buf, length);
-#else
-    write(STDOUT_FILENO, buf, length);
-#endif
     /* Then append a copy to the TEST_STDOUT */
-    if(TEST_STDOUT.len + length < MKB_TEST_StrBufSize) {
+    if(TEST_STDOUT.len + length < sizeof(TEST_STDOUT.buf)) {
         memcpy((void *)&(TEST_STDOUT.buf[TEST_STDOUT.len]), buf, length);
         TEST_STDOUT.len += length;
     }
@@ -171,7 +179,7 @@ void mk_host_putchar(u8 data) {
     /* First write to real stdout */
     putchar(data);
     /* Then append a copy to the TEST_STDOUT */
-    if(TEST_STDOUT.len + 1 < MKB_TEST_StrBufSize) {
+    if(TEST_STDOUT.len + 1 < sizeof(TEST_STDOUT.buf)) {
         TEST_STDOUT.buf[TEST_STDOUT.len] = data;
         TEST_STDOUT.len += 1;
     }
@@ -1020,6 +1028,7 @@ int main() {
 #endif
     /* Clear the buffer used to capture the VM's stdout writes during tests */
     test_stdout_reset();
+
     /* Run opcode tests */
 
     /* NOP */
@@ -1111,6 +1120,16 @@ int main() {
     test_DOTRH();
     test_DUMP();
 
+    /* If any tests failed, print the failed test log */
+    if(TEST_SCORE_FAIL > 0) {
+        char * fail_header =
+            "[=======================]\n"
+            "[ List of Failing Tests ]\n";
+        char * fail_footer = "[=======================]\n";
+        write(1 /* STDOUT */, fail_header, strlen(fail_header));
+        write(1 /* STDOUT */, FAIL_LOG.buf, FAIL_LOG.len);
+        write(1 /* STDOUT */, fail_footer, strlen(fail_footer));
+    }
     /* Summarize scores */
     char * fmt =
         "[==============]\n"
