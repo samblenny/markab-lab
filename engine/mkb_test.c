@@ -292,9 +292,9 @@ static void test_MTE(void) {
 }
 
 
-/* ======================== */
-/* === Integer Literals === */
-/* ======================== */
+/* ================ */
+/* === Literals === */
+/* ================ */
 
 /* Test U8 opcode */
 static void test_U8(void) {
@@ -342,6 +342,19 @@ static void test_I32(void) {
         " 0 1 7fffffff 80000000 ffffffff\n"
         " 0 1 2147483647 -2147483648 -1\n";
     _score("test_I32", code, expected, MK_ERR_OK);
+}
+
+/* Test STR opcode */
+static void test_STR(void) {
+    u8 code[] = {
+        MK_STR, 13,
+        'h', 'e', 'l', 'l', 'o', ',', ' ', 'w', 'o', 'r', 'l', 'd', '\n',
+        MK_NOP,
+        MK_PRINT,
+        MK_HALT,
+    };
+    char * expected = "hello, world\n";
+    _score("test_STR", code, expected, MK_ERR_OK);
 }
 
 
@@ -392,6 +405,7 @@ static void test_JMP(void) {
 static void test_JAL(void) {
     u8 code[] = {
         MK_HALT,
+
     };
     char * expected = "TODO: IMPLEMENT THIS";
     _score("test_JAL", code, expected, MK_ERR_OK);
@@ -816,6 +830,18 @@ static void test_BASE(void) {
     _score("test_BASE", code, expected, MK_ERR_OK);
 }
 
+/* Test PRINT opcode */
+static void test_PRINT(void) {
+    u8 code[] = {
+        MK_STR, 12,
+        'p', 'r', 'i', 'n', 't', ' ', 'p', 'r', 'i', 'n', 't', '\n',
+        MK_PRINT,
+        MK_HALT,
+    };
+    char * expected = "print print\n";
+    _score("test_PRINT", code, expected, MK_ERR_OK);
+}
+
 
 /* ========================================= */
 /* === Debug Dumps for Stacks and Memory === */
@@ -968,6 +994,7 @@ int main() {
     test_U8();
     test_U16();
     test_I32();
+    test_STR();
 
     /* Branch, Jump, Call, Return */
     test_BZ();
@@ -1032,6 +1059,7 @@ int main() {
     test_HEX();
     test_DECIMAL();
     test_BASE();
+    test_PRINT();
 
     /* Debug Dumps for Stacks and Memory */
     test_DOT();

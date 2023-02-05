@@ -16,10 +16,11 @@ static void op_TRON(mk_context_t * ctx);
 static void op_TROFF(mk_context_t * ctx);
 static void op_MTE(mk_context_t * ctx);
 
-/* Integer Literals */
+/* Literals */
 static void op_U8(mk_context_t * ctx);
 static void op_U16(mk_context_t * ctx);
 static void op_I32(mk_context_t * ctx);
+static void op_STR(mk_context_t * ctx);
 
 /* Branch, Jump, Call, Return */
 static void op_BZ(mk_context_t * ctx);
@@ -84,6 +85,7 @@ static void op_EMIT(mk_context_t * ctx);
 static void op_HEX(mk_context_t * ctx);
 static void op_DECIMAL(mk_context_t * ctx);
 static void op_BASE(mk_context_t * ctx);
+static void op_PRINT(mk_context_t * ctx);
 
 /* Debug Dumps for Stacks and Memory */
 static void op_DOT(mk_context_t * ctx);

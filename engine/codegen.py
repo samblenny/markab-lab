@@ -21,6 +21,7 @@ troff TROFF
 <ASM> U8
 <ASM> U16
 <ASM> I32
+<ASM> STR
 <ASM> BZ
 <ASM> JMP
 <ASM> JAL
@@ -65,6 +66,7 @@ emit EMIT
 hex HEX
 decimal DECIMAL
 base BASE
+print PRINT
 . DOT
 .S DOTS
 .Sh DOTSH

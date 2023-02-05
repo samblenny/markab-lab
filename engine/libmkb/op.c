@@ -263,11 +263,11 @@ static void op_MTE(mk_context_t * ctx) {
 }
 
 
-/* ======================== */
-/* === Integer Literals === */
-/* ======================== */
+/* ================ */
+/* === Literals === */
+/* ================ */
 
-/* U8 ( -- ) Read u8 byte literal, zero-extend it, push as T. */
+/* U8 ( -- u8 ) Read u8 byte literal, zero-extend it, push as T. */
 static void op_U8(mk_context_t * ctx) {
     _assert_data_stack_is_not_full();
     /* Read and push an 8-bit unsigned integer from instruction stream */
@@ -279,7 +279,7 @@ static void op_U8(mk_context_t * ctx) {
     _adjust_PC_by(1);
 }
 
-/* U16 ( -- ) Read u16 halfword literal, zero-extend it, push as T. */
+/* U16 ( -- u16 ) Read u16 halfword literal, zero-extend it, push as T. */
 static void op_U16(mk_context_t * ctx) {
     _assert_data_stack_is_not_full();
     /* Read and push 16-bit unsigned integer from instruction stream */
@@ -290,7 +290,7 @@ static void op_U16(mk_context_t * ctx) {
     _adjust_PC_by(2);
 }
 
-/* I32 ( -- ) Read i32 word literal, push as T. */
+/* I32 ( -- i32 ) Read i32 word literal, push as T. */
 static void op_I32(mk_context_t * ctx) {
     _assert_data_stack_is_not_full()
     /* Read and push 32-bit signed integer from instruction stream */
@@ -299,6 +299,19 @@ static void op_I32(mk_context_t * ctx) {
     _push_T(n)
     /* advance program counter past literal */
     _adjust_PC_by(4);
+}
+
+/* STR ( -- addr ) Push address of string literal as T, advance PC to skip. */
+static void op_STR(mk_context_t * ctx) {
+    _assert_data_stack_is_not_full();
+    /* This is the address of the start of the string */
+    _push_T(ctx->PC);
+    /* Check how long the string is and advance the PC to get past it */
+    u8 length = _u8_lit();
+    u32 skip = length + 1;
+    _assert_valid_address(ctx->PC + skip);
+    /* Advance program counter past string literal */
+    _adjust_PC_by(skip);
 }
 
 
@@ -662,6 +675,20 @@ static void op_DECIMAL(mk_context_t * ctx) {
 static void op_BASE(mk_context_t * ctx) {
     _assert_data_stack_is_not_full();
     _push_T(ctx->base);
+}
+
+/* PRINT ( addr -- ) Print counted string at address T to stdout. */
+static void op_PRINT(mk_context_t * ctx) {
+    _assert_data_stack_depth_is_at_least(1);
+    /* Check the address of counted string (first byte is length) */
+    u32 addr = (u32)ctx->T;
+    _assert_valid_address(addr);
+    u8 length = _peek_u8((u16)addr);
+    /* Check if length of string is valid (fits in RAM) */
+    _assert_valid_address(addr + 1 + length);
+    /* Write the string to stdout using the host API */
+    mk_host_stdout_write((void *)(&ctx->RAM[addr+1]), length);
+    _drop_T();
 }
 
 
