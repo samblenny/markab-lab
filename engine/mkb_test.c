@@ -427,9 +427,19 @@ static void test_JAL(void) {
 /* Test RET opcode */
 static void test_RET(void) {
     u8 code[] = {
+        MK_STR, 2, 'A', '\n', MK_PRINT,
+        MK_U16, 16, 0, MK_MTR, MK_RET,   /* Return to the future! */
+        MK_STR, 2, 'B', '\n', MK_PRINT,
+        MK_HALT,
+        MK_STR, 10, 's', 'u', 'r', 'p', 'r', 'i', 's', 'e', '!', '\n',
+        MK_PRINT,
+        MK_U16, 10, 0, MK_MTR, MK_RET,  /* Return to the past */
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
+    char * expected =
+        "A\n"
+        "surprise!\n"
+        "B\n";
     _score("test_RET", code, expected, MK_ERR_OK);
 }
 
