@@ -149,6 +149,24 @@
         return;                              \
     }
 
+/* Macro to assert that divisor N is not zero */
+/* CAUTION! This can cause the enclosing function to return. */
+#define _assert_divisor_is_not_zero(N)       \
+    if((N) == 0) {                           \
+        vm_irq_err(ctx, MK_ERR_DIV_BY_ZERO); \
+        return;                              \
+    }
+
+/* Macro to assert that quotient of DIVIDEND / DIVISOR fits in range of i32. */
+/* Fun fact: `uint32_t n = -2147483648 / -1;` will kill your process on some */
+/* platforms with a mysterious "floating point exception" error. Ouch!       */
+/* CAUTION! This can cause the enclosing function to return.                 */
+#define _assert_quotient_wont_overflow(DIVIDEND, DIVISOR)  \
+    if(((DIVISOR) == -1) && ((DIVIDEND) < -2147483647)) {  \
+        vm_irq_err(ctx, MK_ERR_DIV_OVERFLOW);              \
+        return;                                            \
+    }
+
 /* Macro to read u8 (byte) little-endian integer from RAM */
 #define _peek_u8(N)  ((u8) ctx->RAM[(u16)(N)])
 
@@ -474,13 +492,23 @@ static void op_MUL(mk_context_t * ctx) {
     _apply_lambda_ST(ctx->S * ctx->T);
 }
 
-/* DIV ( S T -- S/T ) Store S/T in T, nip S. (CAUTION! integer division) */
+/* DIV ( S T -- S/T ) Store S/T in T, nip S.                              */
+/*  CAUTION! Integer division has weird edge case behavior. Be careful.   */
+/*  CAUTION! Some divisor/dividend combinations can cause hardware traps! */
+/*  CAUTION! Divide by zero is bad, but so is -2147483648 / -1.           */
 static void op_DIV(mk_context_t * ctx) {
+    _assert_divisor_is_not_zero(ctx->T);
+    _assert_quotient_wont_overflow(ctx->S, ctx->T);
     _apply_lambda_ST(ctx->S / ctx->T);
 }
 
-/* MOD ( S T -- S%T ) Store S modulo T in T, nip S. */
+/* MOD ( S T -- S%T ) Store S modulo T in T, nip S.                       */
+/*  CAUTION! Integer division has weird edge case behavior. Be careful.   */
+/*  CAUTION! Some divisor/dividend combinations can cause hardware traps! */
+/*  CAUTION! Divide by zero is bad, but so is -2147483648 / -1.           */
 static void op_MOD(mk_context_t * ctx) {
+    _assert_divisor_is_not_zero(ctx->T);
+    _assert_quotient_wont_overflow(ctx->S, ctx->T);
     _apply_lambda_ST(ctx->S % ctx->T);
 }
 

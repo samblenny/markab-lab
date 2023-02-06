@@ -77,6 +77,8 @@ typedef struct mk_str {
 #define MK_ERR_BAD_ADDRESS  (5  /* Bad address */)
 #define MK_ERR_BAD_OPCODE   (6  /* Bad opcode */)
 #define MK_ERR_CPU_HOG      (7  /* Code was hogging CPU */)
+#define MK_ERR_DIV_BY_ZERO  (8  /* Divide by zero */)
+#define MK_ERR_DIV_OVERFLOW (9  /* Quotient would overflow */)
 
 
 /*

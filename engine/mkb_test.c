@@ -143,6 +143,12 @@ void mk_host_log_error(u8 error_code) {
         case MK_ERR_CPU_HOG:
             snprintf(tag, sizeof(tag), "Code was hogging CPU");
             break;
+        case MK_ERR_DIV_BY_ZERO:
+            snprintf(tag, sizeof(tag), "Divide by zero");
+            break;
+        case MK_ERR_DIV_OVERFLOW:
+            snprintf(tag, sizeof(tag), "Quotient would overflow");
+            break;
         default:
             snprintf(tag, sizeof(tag), "%d", error_code);
     }
@@ -571,46 +577,245 @@ static void test_DEC(void) {
 /* Test ADD opcode */
 static void test_ADD(void) {
     u8 code[] = {
+        MK_U8,    0,
+        MK_U8,    1,
+        MK_DOTS, MK_ADD, MK_DOT, MK_CR,  /*  0 1 1 */
+        MK_I32, 255, 255, 255, 255,
+        MK_U8,    1,
+        MK_DOTS, MK_ADD, MK_DOT, MK_CR,  /*  -1 1 0 */
+        MK_U8,    5,
+        MK_I32, 246, 255, 255, 255,
+        MK_DOTS, MK_ADD, MK_DOT, MK_CR,  /*  5 -10 -5 */
+        MK_I32, 255, 255, 255, 127,
+        MK_U8,   1,
+        MK_DOTS, MK_ADD, MK_DOT, MK_CR,  /*  2147483647 1 -2147483648 */
+        MK_DOTS, MK_CR,                  /*  Stack is empty */
+        MK_ADD,                          /* This will raise an error */
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
-    _score("test_ADD", code, expected, MK_ERR_OK);
+    char * expected =
+        " 0 1 1\n"
+        " -1 1 0\n"
+        " 5 -10 -5\n"                  /* Adding negative is like subtract */
+        " 2147483647 1 -2147483648\n"  /* DANGER! Overflow! Beware of this! */
+        " Stack is empty\n"
+        "ERROR: Stack underflow\n";
+    _score("test_ADD", code, expected, MK_ERR_D_UNDER);
 }
 
 /* Test SUB opcode */
 static void test_SUB(void) {
     u8 code[] = {
+        MK_U8,    1,
+        MK_U8,    1,
+        MK_DOTS, MK_SUB, MK_DOT, MK_CR,  /*  1 1 0 */
+        MK_U8,    0,
+        MK_U8,    1,
+        MK_DOTS, MK_SUB, MK_DOT, MK_CR,  /*  0 1 -1 */
+        MK_U8,    5,
+        MK_I32, 246, 255, 255, 255,
+        MK_DOTS, MK_SUB, MK_DOT, MK_CR,  /*  5 -10 15 */
+        MK_I32,   0,   0,   0, 128,
+        MK_U8,    1,
+        MK_DOTS, MK_SUB, MK_DOT, MK_CR,  /*  -2147483648 1 2147483647 */
+        MK_DOTS, MK_CR,                  /*  Stack is empty */
+        MK_SUB,                          /* This will raise an error */
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
-    _score("test_SUB", code, expected, MK_ERR_OK);
+    char * expected =
+        " 1 1 0\n"
+        " 0 1 -1\n"
+        " 5 -10 15\n"                  /* Subracting a negative is like add */
+        " -2147483648 1 2147483647\n"  /* DANGER! Overflow! Beware of this! */
+        " Stack is empty\n"
+        "ERROR: Stack underflow\n";
+    _score("test_SUB", code, expected, MK_ERR_D_UNDER);
 }
 
 /* Test MUL opcode */
 static void test_MUL(void) {
     u8 code[] = {
+        MK_U8,    1,
+        MK_U8,    1,
+        MK_DOTS, MK_MUL, MK_DOT, MK_CR,  /*  1 1 1 */
+        MK_U8,    1,
+        MK_U8,    0,
+        MK_DOTS, MK_MUL, MK_DOT, MK_CR,  /*  1 0 0 */
+        MK_U8,    5,
+        MK_U8,    5,
+        MK_DOTS, MK_MUL, MK_DOT, MK_CR,  /*  5 5 25 */
+        MK_U8,    5,
+        MK_I32, 246, 255, 255, 255,
+        MK_DOTS, MK_MUL, MK_DOT, MK_CR,  /*  5 -10 -50 */
+        MK_I32, 246, 255, 255, 255,
+        MK_I32, 246, 255, 255, 255,
+        MK_DOTS, MK_MUL, MK_DOT, MK_CR,  /*  -10 -10 100 */
+        MK_I32, 255, 255, 255, 127,
+        MK_I32, 255, 255, 255, 127,
+        MK_DOTS, MK_MUL, MK_DOT, MK_CR,  /*  2147483647 2147483647 1 */
+        MK_I32,   0,   0,   0, 128,
+        MK_I32,   0,   0,   0, 128,
+        MK_DOTS, MK_MUL, MK_DOT, MK_CR,  /*  -2147483648 -2147483648 0 */
+        MK_U8,    1,
+        MK_DOTS, MK_CR,                  /*  1 */
+        MK_MUL,                          /* This will raise an error */
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
-    _score("test_MUL", code, expected, MK_ERR_OK);
+    char * expected =
+        " 1 1 1\n"
+        " 1 0 0\n"
+        " 5 5 25\n"
+        " 5 -10 -50\n"                  /* (+) * (-) = (-) */
+        " -10 -10 100\n"                /* (-) * (-) = (+) */
+        " 2147483647 2147483647 1\n"    /* DANGER! Overflow! Beware of this! */
+        " -2147483648 -2147483648 0\n"  /* DANGER! Overflow! Beware of this! */
+        " 1\n"
+        "ERROR: Stack underflow\n";
+    _score("test_MUL", code, expected, MK_ERR_D_UNDER);
 }
 
 /* Test DIV opcode */
+/* CAUTION! Some divisor / dividend combinations can cause hardware traps! */
+/*
+ * Notes on testing dividends and divisors on macOS with this ANSI C test code:
+ *     uint32_t a = ...;
+ *     uint32_t b = ...;
+ *     uint32_t c = a / b;
+ *     printf("%d / %d = %d, a, b, c);
+ *
+ * Results:
+ *     -2147483647 / -1 = 2147483647
+ *     -2147483648 / -2147483648 = 1
+ *     -2147483648 / -1 => process exits with "floating point exception"
+ *       anything  /  0 => process exits with "floating point exception"
+ *
+ * The problem with -2147483648 / -1 is that, if implemented with an amd64
+ * opcode for 32-bit signed division, the quotient will overflow. 2147483648
+ * fits in uint32_t, but not in int32_t. The quotient overflow triggers a CPU
+ * hardware trap, similar to what happens with a divide by zero. Allowing the
+ * hardware trap to happen would result in the process for the markab bytecode
+ * interpreter getting killed by the OS. That would be _BAD_, so we can't let
+ * that happen.
+ */
 static void test_DIV(void) {
+    /* Round 1: This ends by checking for a divide by zero error */
     u8 code[] = {
+        MK_U8,    1,
+        MK_U8,    1,
+        MK_DOTS, MK_DIV, MK_DOT, MK_CR,  /*  1 1 1 */
+        MK_U8,    0,
+        MK_U8,    1,
+        MK_DOTS, MK_DIV, MK_DOT, MK_CR,  /*  0 1 0 */
+        MK_U8,   25,
+        MK_U8,    5,
+        MK_DOTS, MK_DIV, MK_DOT, MK_CR,  /*  25 5 5 */
+        MK_I32, 246, 255, 255, 255,
+        MK_U8,    5,
+        MK_DOTS, MK_DIV, MK_DOT, MK_CR,  /*  -10 5 -2 */
+        MK_I32, 246, 255, 255, 255,
+        MK_I32, 251, 255, 255, 255,
+        MK_DOTS, MK_DIV, MK_DOT, MK_CR,  /*  -10 -5 2 */
+        MK_U8,   50,
+        MK_I32, 246, 255, 255, 255,
+        MK_DOTS, MK_DIV, MK_DOT, MK_CR,  /*  50 -10 -5 */
+        MK_I32, 255, 255, 255, 127,
+        MK_I32, 255, 255, 255, 127,
+        MK_DOTS, MK_DIV, MK_DOT, MK_CR,  /*  2147483647 2147483647 1 */
+        MK_I32,   0,   0,   0, 128,
+        MK_I32,   0,   0,   0, 128,
+        MK_DOTS, MK_DIV, MK_DOT, MK_CR,  /*  -2147483648 -2147483648 1 */
+        MK_U8,    1,
+        MK_U8,    0,
+        MK_DOTS, MK_CR,                 /* 1 0 */
+        MK_DIV,                         /* This will raise an error */
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
-    _score("test_DIV", code, expected, MK_ERR_OK);
+    char * expected =
+        " 1 1 1\n"
+        " 0 1 0\n"
+        " 25 5 5\n"
+        " -10 5 -2\n"
+        " -10 -5 2\n"
+        " 50 -10 -5\n"
+        " 2147483647 2147483647 1\n"
+        " -2147483648 -2147483648 1\n"
+        " 1 0\n"
+        "ERROR: Divide by zero\n";
+    _score("test_DIV", code, expected, MK_ERR_DIV_BY_ZERO);
+
+    /* Round 2: This ends by checking for a quotient overflow error */
+    u8 code2[] = {
+        MK_I32,   0,   0,   0, 128,
+        MK_I32, 255, 255, 255, 255,
+        MK_DOTS, MK_CR,              /*  -2147483648 -1 */
+        MK_DIV,                      /* This will raise an error */
+        MK_HALT,
+    };
+    char * expected2 =
+        " -2147483648 -1\n"
+        "ERROR: Quotient would overflow\n";
+    _score("test_DIV_overflow", code2, expected2, MK_ERR_DIV_OVERFLOW);
 }
 
 /* Test MOD opcode */
 static void test_MOD(void) {
+    /* Round 1: This ends by checking for a divide by zero error */
     u8 code[] = {
+        MK_U8,    1,
+        MK_U8,    1,
+        MK_DOTS, MK_MOD, MK_DOT, MK_CR,  /*  1 1 0 */
+        MK_U8,    0,
+        MK_U8,    1,
+        MK_DOTS, MK_MOD, MK_DOT, MK_CR,  /*  0 1 0 */
+        MK_U8,   25,
+        MK_U8,    3,
+        MK_DOTS, MK_MOD, MK_DOT, MK_CR,  /*  25 3 1 */
+        MK_I32, 246, 255, 255, 255,
+        MK_U8,    3,
+        MK_DOTS, MK_MOD, MK_DOT, MK_CR,  /*  -10 3 -1 */
+        MK_I32, 246, 255, 255, 255,
+        MK_I32, 253, 255, 255, 255,
+        MK_DOTS, MK_MOD, MK_DOT, MK_CR,  /*  -10 -3 -1 */
+        MK_U8,   50,
+        MK_I32, 248, 255, 255, 255,
+        MK_DOTS, MK_MOD, MK_DOT, MK_CR,  /*  50 -8 2 */
+        MK_I32, 255, 255, 255, 127,
+        MK_I32, 255, 255, 255, 127,
+        MK_DOTS, MK_MOD, MK_DOT, MK_CR,  /*  2147483647 2147483647 0 */
+        MK_I32,   0,   0,   0, 128,
+        MK_I32,   0,   0,   0, 128,
+        MK_DOTS, MK_MOD, MK_DOT, MK_CR,  /*  -2147483648 -2147483648 0 */
+        MK_U8,    1,
+        MK_U8,    0,
+        MK_DOTS, MK_CR,                 /* 1 0 */
+        MK_MOD,                         /* This will raise an error */
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
-    _score("test_MOD", code, expected, MK_ERR_OK);
+    char * expected =
+        " 1 1 0\n"
+        " 0 1 0\n"
+        " 25 3 1\n"
+        " -10 3 -1\n"
+        " -10 -3 -1\n"
+        " 50 -8 2\n"
+        " 2147483647 2147483647 0\n"
+        " -2147483648 -2147483648 0\n"
+        " 1 0\n"
+        "ERROR: Divide by zero\n";
+    _score("test_MOD", code, expected, MK_ERR_DIV_BY_ZERO);
+
+    /* Round 2: This ends by checking for a quotient overflow error */
+    u8 code2[] = {
+        MK_I32,   0,   0,   0, 128,
+        MK_I32, 255, 255, 255, 255,
+        MK_DOTS, MK_CR,              /*  -2147483648 -1 */
+        MK_MOD,                      /* This will raise an error */
+        MK_HALT,
+    };
+    char * expected2 =
+        " -2147483648 -1\n"
+        "ERROR: Quotient would overflow\n";
+    _score("test_MOD_overflow", code2, expected2, MK_ERR_DIV_OVERFLOW);
 }
 
 
