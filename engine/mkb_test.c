@@ -595,28 +595,72 @@ static void test_MOD(void) {
 /* Test SLL opcode */
 static void test_SLL(void) {
     u8 code[] = {
+        MK_HEX,
+        MK_U8, 1,
+        MK_U8, 31,
+        MK_DOTSH, MK_SLL, MK_DOT, MK_CR,  /*  1 1e 80000000 */
+        MK_DECIMAL,
+        MK_U8, 5,
+        MK_U8, 2,
+        MK_DOTSH, MK_SLL, MK_DOT, MK_CR,  /*  5 2 20 */
+        MK_SLL,                           /* This will raise an error */
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
-    _score("test_SLL", code, expected, MK_ERR_OK);
+    char * expected =
+        " 1 1f 80000000\n"
+        " 5 2 20\n"         /* 5*pow(2,2) = 5*4 = 20 */
+        "ERROR: Stack underflow\n";
+    _score("test_SLL", code, expected, MK_ERR_D_UNDER);
 }
 
 /* Test SRL opcode */
 static void test_SRL(void) {
     u8 code[] = {
+        MK_HEX,
+        MK_I32, 255, 255, 255, 255,
+        MK_U8, 30,
+        MK_DOTSH, MK_SRL, MK_DOT, MK_CR,  /*  ffffffff 1e 3 */
+        MK_I32, 255, 255, 255, 127,
+        MK_U8, 30,
+        MK_DOTSH, MK_SRL, MK_DOT, MK_CR,  /*  7fffffff 1e 1 */
+        MK_U8, 20,
+        MK_U8, 2,
+        MK_DECIMAL,
+        MK_DOTS,  MK_SRL, MK_DOT, MK_CR,  /*  20 2 5 */
+        MK_SRL,                           /* This will raise an error */
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
-    _score("test_SRL", code, expected, MK_ERR_OK);
+    char * expected =
+        " ffffffff 1e 3\n"  /* sign bit is 1, fill is 0 */
+        " 7fffffff 1e 1\n"  /* sign bit is 0, fill is 0 */
+        " 20 2 5\n"         /* 20/pow(2,2) = 20/4 = 5 */
+        "ERROR: Stack underflow\n";
+    _score("test_SRL", code, expected, MK_ERR_D_UNDER);
 }
 
 /* Test SRA opcode */
 static void test_SRA(void) {
     u8 code[] = {
+        MK_HEX,
+        MK_I32, 255, 255, 255, 255,
+        MK_U8, 30,
+        MK_DOTSH, MK_SRA, MK_DOT, MK_CR,  /*  ffffffff 1e ffffffff */
+        MK_I32, 255, 255, 255, 127,
+        MK_U8, 30,
+        MK_DOTSH, MK_SRA, MK_DOT, MK_CR,  /*  7fffffff 1e 1 */
+        MK_U8, 20,
+        MK_U8, 2,
+        MK_DECIMAL,
+        MK_DOTS,  MK_SRA, MK_DOT, MK_CR,  /*  20 2 5 */
+        MK_SRA,                           /* This will raise an error */
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
-    _score("test_SRA", code, expected, MK_ERR_OK);
+    char * expected =
+        " ffffffff 1e ffffffff\n"  /* sign bit is 1, fill is 1 */
+        " 7fffffff 1e 1\n"         /* sign bit is 0, fill is 0 */
+        " 20 2 5\n"                /* 20/pow(2,2) = 20/4 = 5 */
+        "ERROR: Stack underflow\n";
+    _score("test_SRA", code, expected, MK_ERR_D_UNDER);
 }
 
 
