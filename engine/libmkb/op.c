@@ -449,13 +449,13 @@ static void op_SW(mk_context_t * ctx) {
 
 /* INC ( n -- n+1 ) Increment the value in T. */
 static void op_INC(mk_context_t * ctx) {
-    _assert_return_stack_depth_is_at_least(1);
+    _assert_data_stack_depth_is_at_least(1);
     ctx->T += 1;
 }
 
 /* DEC ( n -- n-1 ) Decrement the value in T. */
 static void op_DEC(mk_context_t * ctx) {
-    _assert_return_stack_depth_is_at_least(1);
+    _assert_data_stack_depth_is_at_least(1);
     ctx->T -= 1;
 }
 

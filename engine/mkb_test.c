@@ -527,19 +527,45 @@ static void test_SW(void) {
 /* Test INC opcode */
 static void test_INC(void) {
     u8 code[] = {
+        MK_U8, 0,
+        MK_DOTS, MK_INC, MK_DOT, MK_CR,  /*  0 1 */
+        MK_I32, 255, 255, 255, 255,
+        MK_DOTS, MK_INC, MK_DOT, MK_CR,  /*  -1 0 */
+        MK_I32, 255, 255, 255, 127,
+        MK_DOTS, MK_INC, MK_DOT, MK_CR,  /*  2147483647 -2147483648 */
+        MK_DOTS, MK_CR,                  /*  Stack is empty */
+        MK_INC,                          /* This will raise an error */
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
-    _score("test_INC", code, expected, MK_ERR_OK);
+    char * expected =
+        " 0 1\n"
+        " -1 0\n"
+        " 2147483647 -2147483648\n"  /* DANGER! Overflow! Beware of this! */
+        " Stack is empty\n"
+        "ERROR: Stack underflow\n";
+    _score("test_INC", code, expected, MK_ERR_D_UNDER);
 }
 
 /* Test DEC opcode */
 static void test_DEC(void) {
     u8 code[] = {
+        MK_U8, 1,
+        MK_DOTS, MK_DEC, MK_DOT, MK_CR,  /*  1 0 */
+        MK_U8, 0,
+        MK_DOTS, MK_DEC, MK_DOT, MK_CR,  /*  0 -1 */
+        MK_I32, 0, 0, 0, 128,
+        MK_DOTS, MK_DEC, MK_DOT, MK_CR,  /*  -2147483648 2147483647 */
+        MK_DOTS, MK_CR,                  /*  Stack is empty */
+        MK_DEC,                          /* This will raise an error */
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
-    _score("test_DEC", code, expected, MK_ERR_OK);
+    char * expected =
+        " 1 0\n"
+        " 0 -1\n"
+        " -2147483648 2147483647\n"  /* DANGER! Overflow! Beware of this! */
+        " Stack is empty\n"
+        "ERROR: Stack underflow\n";
+    _score("test_DEC", code, expected, MK_ERR_D_UNDER);
 }
 
 /* Test ADD opcode */
