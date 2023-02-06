@@ -555,7 +555,7 @@ static void op_LT(mk_context_t * ctx) {
 
 /* EQ ( S T -- S==T ) Test S==T with Forth-style truth value (true is -1). */
 static void op_EQ(mk_context_t * ctx) {
-    _apply_lambda_ST(ctx->S != ctx->T ? -1 : 0);
+    _apply_lambda_ST(ctx->S == ctx->T ? -1 : 0);
 }
 
 /* NE ( S T -- S!=T ) Test S!=T with Forth-style truth value (true is -1). */

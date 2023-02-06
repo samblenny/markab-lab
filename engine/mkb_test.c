@@ -711,46 +711,164 @@ static void test_AND(void) {
 /* Test GT opcode */
 static void test_GT(void) {
     u8 code[] = {
+        MK_U8, 0, MK_U8, 0, MK_DOTS, MK_CR,  /*  0 0 */
+        MK_GT,              MK_DOTS, MK_CR,  /*  0 */
+        MK_DROP,
+        MK_U8, 0, MK_U8, 1, MK_DOTS, MK_CR,  /*  0 1 */
+        MK_GT,              MK_DOTS, MK_CR,  /*  0 */
+        MK_DROP,
+        MK_U8, 0, MK_TRUE,  MK_DOTS, MK_CR,  /*  0 -1 */
+        MK_GT,              MK_DOTS, MK_CR,  /*  -1 */
+        MK_DROP,
+        MK_TRUE,  MK_TRUE,  MK_DOTS, MK_CR,  /*  -1 -1 */
+        MK_GT,              MK_DOTS, MK_CR,  /*  0 */
+        MK_DROP,
+        MK_TRUE, MK_U8, 0,  MK_DOTS, MK_CR,  /*  -1 0 */
+        MK_GT,              MK_DOTS, MK_CR,  /*  0 */
+        MK_DROP,
+        MK_I32, 255, 255, 255, 127,
+        MK_I32,   0,   0,   0, 128,
+        MK_DOTS, MK_CR,                      /*  2147483647 -2147483648 */
+        MK_GT,              MK_DOTS, MK_CR,  /*  -1 */
+        MK_DROP,
+        MK_I32,   0,   0,   0, 128,
+        MK_I32, 255, 255, 255, 127,
+        MK_DOTS, MK_CR,                      /*  -2147483648 2147483647 */
+        MK_GT,              MK_DOTS, MK_CR,  /*  0 */
+        MK_GT,                               /* This will raise an error */
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
-    _score("test_GT", code, expected, MK_ERR_OK);
+    char * expected =
+        " 0 0\n"
+        " 0\n"
+        " 0 1\n"
+        " 0\n"
+        " 0 -1\n"
+        " -1\n"
+        " -1 -1\n"
+        " 0\n"
+        " -1 0\n"
+        " 0\n"
+        " 2147483647 -2147483648\n"
+        " -1\n"
+        " -2147483648 2147483647\n"
+        " 0\n"
+        "ERROR: Stack underflow\n";
+    _score("test_GT", code, expected, MK_ERR_D_UNDER);
 }
 
 /* Test LT opcode */
 static void test_LT(void) {
     u8 code[] = {
+        MK_U8, 0, MK_U8, 0, MK_DOTS, MK_CR,  /*  0 0 */
+        MK_LT,              MK_DOTS, MK_CR,  /*  0 */
+        MK_DROP,
+        MK_U8, 0, MK_U8, 1, MK_DOTS, MK_CR,  /*  0 1 */
+        MK_LT,              MK_DOTS, MK_CR,  /*  -1 */
+        MK_DROP,
+        MK_U8, 0, MK_TRUE,  MK_DOTS, MK_CR,  /*  0 -1 */
+        MK_LT,              MK_DOTS, MK_CR,  /*  0 */
+        MK_DROP,
+        MK_TRUE,  MK_TRUE,  MK_DOTS, MK_CR,  /*  -1 -1 */
+        MK_LT,              MK_DOTS, MK_CR,  /*  0 */
+        MK_DROP,
+        MK_TRUE, MK_U8, 0,  MK_DOTS, MK_CR,  /*  -1 0 */
+        MK_LT,              MK_DOTS, MK_CR,  /*  -1 */
+        MK_DROP,
+        MK_I32, 255, 255, 255, 127,
+        MK_I32,   0,   0,   0, 128,
+        MK_DOTS, MK_CR,                      /*  2147483647 -2147483648 */
+        MK_LT,              MK_DOTS, MK_CR,  /*  0 */
+        MK_DROP,
+        MK_I32,   0,   0,   0, 128,
+        MK_I32, 255, 255, 255, 127,
+        MK_DOTS, MK_CR,                      /*  -2147483648 2147483647 */
+        MK_LT,              MK_DOTS, MK_CR,  /*  -1 */
+        MK_LT,                               /* This will raise an error */
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
-    _score("test_LT", code, expected, MK_ERR_OK);
+    char * expected =
+        " 0 0\n"
+        " 0\n"
+        " 0 1\n"
+        " -1\n"
+        " 0 -1\n"
+        " 0\n"
+        " -1 -1\n"
+        " 0\n"
+        " -1 0\n"
+        " -1\n"
+        " 2147483647 -2147483648\n"
+        " 0\n"
+        " -2147483648 2147483647\n"
+        " -1\n"
+        "ERROR: Stack underflow\n";
+    _score("test_LT", code, expected, MK_ERR_D_UNDER);
 }
 
 /* Test EQ opcode */
 static void test_EQ(void) {
     u8 code[] = {
+        MK_TRUE,   MK_TRUE, MK_DOTS, MK_EQ, MK_DOT, MK_CR,  /*  -1 -1 -1 */
+        MK_TRUE,  MK_FALSE, MK_DOTS, MK_EQ, MK_DOT, MK_CR,  /*  -1 0 0 */
+        MK_FALSE,  MK_TRUE, MK_DOTS, MK_EQ, MK_DOT, MK_CR,  /*  0 -1 0 */
+        MK_FALSE, MK_FALSE, MK_DOTS, MK_EQ, MK_DOT, MK_CR,  /*  0 0 -1 */
+        MK_U8, 0, MK_U8, 5, MK_DOTS, MK_EQ, MK_DOT, MK_CR,  /*  0 5 0 */
+        MK_U8, 5, MK_U8, 5, MK_DOTS, MK_EQ, MK_DOT, MK_CR,  /*  5 5 -1 */
+        MK_EQ,                                /* This will raise an error */
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
-    _score("test_EQ", code, expected, MK_ERR_OK);
+    char * expected =
+        " -1 -1 -1\n"
+        " -1 0 0\n"
+        " 0 -1 0\n"
+        " 0 0 -1\n"
+        " 0 5 0\n"
+        " 5 5 -1\n"
+        "ERROR: Stack underflow\n";
+    _score("test_EQ", code, expected, MK_ERR_D_UNDER);
 }
 
 /* Test NE opcode */
 static void test_NE(void) {
     u8 code[] = {
+        MK_TRUE,   MK_TRUE, MK_DOTS, MK_NE, MK_DOT, MK_CR,  /*  -1 -1 0 */
+        MK_TRUE,  MK_FALSE, MK_DOTS, MK_NE, MK_DOT, MK_CR,  /*  -1 0 -1 */
+        MK_FALSE,  MK_TRUE, MK_DOTS, MK_NE, MK_DOT, MK_CR,  /*  0 -1 -1 */
+        MK_FALSE, MK_FALSE, MK_DOTS, MK_NE, MK_DOT, MK_CR,  /*  0 0 0 */
+        MK_U8, 0, MK_U8, 5, MK_DOTS, MK_NE, MK_DOT, MK_CR,  /*  0 5 -1 */
+        MK_U8, 5, MK_U8, 5, MK_DOTS, MK_NE, MK_DOT, MK_CR,  /*  5 5 0 */
+        MK_NE,                                /* This will raise an error */
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
-    _score("test_NE", code, expected, MK_ERR_OK);
+    char * expected =
+        " -1 -1 0\n"
+        " -1 0 -1\n"
+        " 0 -1 -1\n"
+        " 0 0 0\n"
+        " 0 5 -1\n"
+        " 5 5 0\n"
+        "ERROR: Stack underflow\n";
+    _score("test_NE", code, expected, MK_ERR_D_UNDER);
 }
 
 /* Test ZE opcode */
 static void test_ZE(void) {
     u8 code[] = {
+        MK_U8, 0, MK_DOTS, MK_ZE, MK_DOT, MK_CR,  /*  0 -1 */
+        MK_TRUE,  MK_DOTS, MK_ZE, MK_DOT, MK_CR,  /*  -1 0 */
+        MK_U8, 1, MK_DOTS, MK_ZE, MK_DOT, MK_CR,  /*  1 0 */
+        MK_U8, 5, MK_DOTS, MK_ZE, MK_DOT, MK_CR,  /*  5 0 */
+        MK_ZE,                                 /* This will raise an error */
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
-    _score("test_ZE", code, expected, MK_ERR_OK);
+    char * expected =
+        " 0 -1\n"
+        " -1 0\n"
+        " 1 0\n"
+        " 5 0\n"
+        "ERROR: Stack underflow\n";
+    _score("test_ZE", code, expected, MK_ERR_D_UNDER);
 }
 
 
