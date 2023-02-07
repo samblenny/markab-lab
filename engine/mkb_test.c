@@ -472,57 +472,232 @@ static void test_CALL(void) {
 /* ======================================= */
 
 /* Test LB opcode */
+/* LB ( addr -- u8 ) Load u8 (byte) at address T into T as zero-filled i32. */
 static void test_LB(void) {
+    /* Round 1: This ends by checking for a bad address error */
     u8 code[] = {
+        MK_U8, 45, MK_LB, MK_DOT, MK_CR,  /*  0 */
+        MK_U8, 46, MK_LB, MK_DOT, MK_CR,  /*  5 */
+        MK_U8, 47, MK_LB, MK_DOT, MK_CR,  /*  127 */
+        MK_U8, 48, MK_LB, MK_DOT, MK_CR,  /*  128 */
+        MK_U8, 49, MK_LB, MK_DOT, MK_CR,  /*  133 */
+        MK_U8, 50, MK_LB, MK_DOT, MK_CR,  /*  255 */
+        MK_I32, 255, 255, 0, 0,           /* address 65535=ffff is valid */
+        MK_LB, MK_DOT, MK_CR,             /*  0 */
+        MK_I32, 0, 0, 1, 0, MK_LB,        /* This will raise an error */
+        MK_HALT,
+        0,    /* <- address 45 */
+        5,
+        127,
+        128,
+        133,
+        255,
+    };
+    char * expected =
+        " 0\n"
+        " 5\n"
+        " 127\n"
+        " 128\n"
+        " 133\n"
+        " 255\n"
+        " 0\n"
+        "ERROR: Bad address\n";
+    _score("test_LB", code, expected, MK_ERR_BAD_ADDRESS);
+
+    /* Round 2: This ends by checking for a stack underflow error */
+    u8 code2[] = {
+        MK_LB,      /* This will raise an error */
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
-    _score("test_LB", code, expected, MK_ERR_OK);
+    char * expected2 =
+        "ERROR: Stack underflow\n";
+    _score("test_LB_underflow", code2, expected2, MK_ERR_D_UNDER);
 }
 
 /* Test SB opcode */
+/* SB ( u8 addr -- ) Store low byte of S (u8) into address T, drop S & T. */
 static void test_SB(void) {
+    /* Round 1: This ends by checking for a bad address error */
     u8 code[] = {
+        MK_U8,   11, MK_U8, 128, MK_SB,
+        MK_U8,  's', MK_U8, 129, MK_SB,
+        MK_U8,  't', MK_U8, 130, MK_SB,
+        MK_U8,  'o', MK_U8, 131, MK_SB,
+        MK_U8,  'r', MK_U8, 132, MK_SB,
+        MK_U8,  'e', MK_U8, 133, MK_SB,
+        MK_U8,  ' ', MK_U8, 134, MK_SB,
+        MK_U8,  'b', MK_U8, 135, MK_SB,
+        MK_U8,  'y', MK_U8, 136, MK_SB,
+        MK_U8,  't', MK_U8, 137, MK_SB,
+        MK_U8,  'e', MK_U8, 138, MK_SB,
+        MK_U8, '\n', MK_U8, 139, MK_SB,
+        MK_U8, 128, MK_PRINT,
+        MK_U8, 0,
+        MK_I32, 255, 255, 0, 0, MK_SB,        /* address 65535=ffff is valid */
+        MK_U8, 5, MK_I32, 0, 0, 1, 0, MK_SB,  /* This will raise an error */
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
-    _score("test_SB", code, expected, MK_ERR_OK);
+    char * expected =
+        "store byte\n"
+        "ERROR: Bad address\n";
+    _score("test_SB", code, expected, MK_ERR_BAD_ADDRESS);
+
+    /* Round 2: This ends by checking for a stack underflow error */
+    u8 code2[] = {
+        MK_U8, 50,
+        MK_SB,      /* This will raise an error */
+        MK_HALT,
+    };
+    char * expected2 =
+        "ERROR: Stack underflow\n";
+    _score("test_SB_underflow", code2, expected2, MK_ERR_D_UNDER);
 }
 
 /* Test LH opcode */
+/* LH ( addr -- u16 ) Load u16 (halfword) at address T, zero fill, push to T */
 static void test_LH(void) {
     u8 code[] = {
+        MK_U8, 40, MK_LH, MK_DOT, MK_CR,  /*  0 */
+        MK_U8, 42, MK_LH, MK_DOT, MK_CR,  /*  5 */
+        MK_U8, 44, MK_LH, MK_DOT, MK_CR,  /*  32767 */
+        MK_U8, 46, MK_LH, MK_DOT, MK_CR,  /*  32767 */
+        MK_U8, 48, MK_LH, MK_DOT, MK_CR,  /*  65535 */
+        MK_I32, 254, 255, 0, 0,           /* address 65534=fffe is valid */
+        MK_LH, MK_DOT, MK_CR,             /*  0 */
+        MK_I32, 255, 255, 0, 0, MK_LH,    /* This will raise an error */
+        MK_HALT,
+          0,   0,  /* 0 */
+          5,   0,  /* 5 */
+        255, 127,  /* 32767 */
+          0, 128,  /* 32768 */
+        255, 255,  /* 65535 */
+    };
+    char * expected =
+        " 0\n"
+        " 5\n"
+        " 32767\n"
+        " 32768\n"
+        " 65535\n"
+        " 0\n"
+        "ERROR: Bad address\n";
+    _score("test_LH", code, expected, MK_ERR_BAD_ADDRESS);
+
+    /* Round 2: This ends by checking for a stack underflow error */
+    u8 code2[] = {
+        MK_LH,      /* This will raise an error */
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
-    _score("test_LH", code, expected, MK_ERR_OK);
+    char * expected2 =
+        "ERROR: Stack underflow\n";
+    _score("test_LH_underflow", code2, expected2, MK_ERR_D_UNDER);
 }
 
 /* Test SH opcode */
+/* SH ( u16 addr -- ) Store low halfword of S (u16) into address T. */
 static void test_SH(void) {
     u8 code[] = {
+        MK_U16,  15,  's', MK_U8, 128, MK_SH,
+        MK_U16, 't',  'o', MK_U8, 130, MK_SH,
+        MK_U16, 'r',  'e', MK_U8, 132, MK_SH,
+        MK_U16, ' ',  'h', MK_U8, 134, MK_SH,
+        MK_U16, 'a',  'l', MK_U8, 136, MK_SH,
+        MK_U16, 'f',  'w', MK_U8, 138, MK_SH,
+        MK_U16, 'o',  'r', MK_U8, 140, MK_SH,
+        MK_U16, 'd', '\n', MK_U8, 142, MK_SH,
+        MK_U8, 128, MK_PRINT,
+        MK_U8, 0,
+        MK_I32, 254, 255, 0, 0,
+        MK_DOTS, MK_CR, MK_SH,            /* address 65534=fffe is valid */
+        MK_U8, 0,
+        MK_I32, 255, 255, 0, 0, MK_SH,    /* This will raise an error */
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
-    _score("test_SH", code, expected, MK_ERR_OK);
+    char * expected =
+        "store halfword\n"
+        " 0 65534\n"
+        "ERROR: Bad address\n";
+    _score("test_SH", code, expected, MK_ERR_BAD_ADDRESS);
+
+    /* Round 2: This ends by checking for a stack underflow error */
+    u8 code2[] = {
+        MK_U8, 50,
+        MK_SH,      /* This will raise an error */
+        MK_HALT,
+    };
+    char * expected2 =
+        "ERROR: Stack underflow\n";
+    _score("test_SH_underflow", code2, expected2, MK_ERR_D_UNDER);
 }
 
 /* Test LW opcode */
+/* LW ( addr -- i32 ) Load i32 (signed word) at address T into T. */
 static void test_LW(void) {
     u8 code[] = {
+        MK_U8, 40, MK_LW, MK_DOT, MK_CR,  /*  0 */
+        MK_U8, 44, MK_LW, MK_DOT, MK_CR,  /*  5 */
+        MK_U8, 48, MK_LW, MK_DOT, MK_CR,  /*  2147483647 */
+        MK_U8, 52, MK_LW, MK_DOT, MK_CR,  /*  -2147483648 */
+        MK_U8, 56, MK_LW, MK_DOT, MK_CR,  /*  -1 */
+        MK_I32, 252, 255, 0, 0,           /* address 65532=fffc is valid */
+        MK_LW, MK_DOT, MK_CR,             /*  0 */
+        MK_I32, 253, 255, 0, 0, MK_LW,    /* This will raise an error */
+        MK_HALT,
+          0,   0,   0,   0,
+          5,   0,   0,   0,
+        255, 255, 255, 127,
+          0,   0,   0, 128,
+        255, 255, 255, 255,
+    };
+    char * expected =
+        " 0\n"
+        " 5\n"
+        " 2147483647\n"
+        " -2147483648\n"
+        " -1\n"
+        " 0\n"
+        "ERROR: Bad address\n";
+    _score("test_LW", code, expected, MK_ERR_BAD_ADDRESS);
+
+    /* Round 2: This ends by checking for a stack underflow error */
+    u8 code2[] = {
+        MK_LW,      /* This will raise an error */
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
-    _score("test_LW", code, expected, MK_ERR_OK);
+    char * expected2 =
+        "ERROR: Stack underflow\n";
+    _score("test_LW_underflow", code2, expected2, MK_ERR_D_UNDER);
 }
 
 /* Test SW opcode */
+/* SW ( u32 addr -- ) Store full word (u32) from S into address T. */
 static void test_SW(void) {
     u8 code[] = {
+        MK_I32,  11, 's', 't',  'o', MK_U8, 128, MK_SW,
+        MK_I32, 'r', 'e', ' ',  'w', MK_U8, 132, MK_SW,
+        MK_I32, 'o', 'r', 'd', '\n', MK_U8, 136, MK_SW,
+        MK_U8, 128, MK_PRINT,
+        MK_U8, 0,
+        MK_I32, 252, 255, 0, 0,
+        MK_DOTS, MK_CR, MK_SW,            /* address 65532=fffc is valid */
+        MK_U8, 0,
+        MK_I32, 253, 255, 0, 0, MK_SW,    /* This will raise an error */
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
-    _score("test_SW", code, expected, MK_ERR_OK);
+    char * expected =
+        "store word\n"
+        " 0 65532\n"
+        "ERROR: Bad address\n";
+    _score("test_SW", code, expected, MK_ERR_BAD_ADDRESS);
+
+    /* Round 2: This ends by checking for a stack underflow error */
+    u8 code2[] = {
+        MK_U8, 50,
+        MK_SW,      /* This will raise an error */
+        MK_HALT,
+    };
+    char * expected2 =
+        "ERROR: Stack underflow\n";
+    _score("test_SW_underflow", code2, expected2, MK_ERR_D_UNDER);
 }
 
 
@@ -676,6 +851,7 @@ static void test_MUL(void) {
 
 /* Test DIV opcode */
 /* CAUTION! Some divisor / dividend combinations can cause hardware traps! */
+/* CAUTION! Divide by zero is bad, but so is -2147483648 / -1.             */
 /*
  * Notes on testing dividends and divisors on macOS with this ANSI C test code:
  *     uint32_t a = ...;
@@ -758,6 +934,8 @@ static void test_DIV(void) {
 }
 
 /* Test MOD opcode */
+/* CAUTION! Some divisor / dividend combinations can cause hardware traps! */
+/* CAUTION! Divide by zero is bad, but so is -2147483648 % -1.             */
 static void test_MOD(void) {
     /* Round 1: This ends by checking for a divide by zero error */
     u8 code[] = {

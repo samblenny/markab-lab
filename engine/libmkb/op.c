@@ -402,7 +402,7 @@ static void op_CALL(mk_context_t * ctx) {
 /* === Memory Access: Loads and Stores === */
 /* ======================================= */
 
-/* LB ( addr -- i8 ) Load i8 (signed byte) at address T into T as an i32. */
+/* LB ( addr -- u8 ) Load u8 (byte) at address T into T as zero-filled i32. */
 static void op_LB(mk_context_t * ctx) {
     _assert_data_stack_depth_is_at_least(1);
     _assert_valid_address(ctx->T);
@@ -421,20 +421,19 @@ static void op_SB(mk_context_t * ctx) {
     _drop_S_and_T();
 }
 
-/* LH ( addr -- i32 ) Load i16 (signed halfword) at address T into T as an i32.
- */
+/* LH ( addr -- u16 ) Load u16 (halfword) at address T, zero fill, push to T */
 static void op_LH(mk_context_t * ctx) {
     _assert_data_stack_depth_is_at_least(1);
+    _assert_valid_address(ctx->T + 1);
     u16 address = ctx->T;
-    _assert_valid_address(address + 1);
-    i32 data = (i32) ((i16) _peek_u16(address));
+    i32 data = (i32) _peek_u16(address);
     ctx->T = data;
 }
 
-/* SH ( i16 addr -- ) Store u16 (unsigned halfword) from S into address T. */
+/* SH ( u16 addr -- ) Store low halfword of S (u16) into address T. */
 static void op_SH(mk_context_t * ctx) {
     _assert_data_stack_depth_is_at_least(2);
-    _assert_valid_address(ctx->T);
+    _assert_valid_address(ctx->T + 1);
     u16 address = ctx->T;
     u32 data = (u16) ctx->S;
     _poke_u16(data, address);
@@ -444,16 +443,16 @@ static void op_SH(mk_context_t * ctx) {
 /* LW ( addr -- i32 ) Load i32 (signed word) at address T into T. */
 static void op_LW(mk_context_t * ctx) {
     _assert_data_stack_depth_is_at_least(1);
+    _assert_valid_address(ctx->T + 3);
     u16 address = ctx->T;
-    _assert_valid_address(address + 3);
     i32 data = (i32) _peek_u32(address);
     ctx->T = data;
 }
 
-/* SW ( u32 addr -- ) Store u32 (unsigned word) from S into address T. */
+/* SW ( u32 addr -- ) Store full word (u32) from S into address T. */
 static void op_SW(mk_context_t * ctx) {
     _assert_data_stack_depth_is_at_least(2);
-    _assert_valid_address(ctx->T);
+    _assert_valid_address(ctx->T + 3);
     u16 address = ctx->T;
     u32 data = (u32) ctx->S;
     _poke_u32(data, address);
@@ -505,7 +504,7 @@ static void op_DIV(mk_context_t * ctx) {
 /* MOD ( S T -- S%T ) Store S modulo T in T, nip S.                       */
 /*  CAUTION! Integer division has weird edge case behavior. Be careful.   */
 /*  CAUTION! Some divisor/dividend combinations can cause hardware traps! */
-/*  CAUTION! Divide by zero is bad, but so is -2147483648 / -1.           */
+/*  CAUTION! Divide by zero is bad, but so is -2147483648 % -1.           */
 static void op_MOD(mk_context_t * ctx) {
     _assert_divisor_is_not_zero(ctx->T);
     _assert_quotient_wont_overflow(ctx->S, ctx->T);
