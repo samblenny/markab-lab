@@ -101,7 +101,7 @@ static void score_fail(const char * name) {
 #endif
     /* Then append the message to FAIL_LOG */
     char buf[128];
-    snprintf(buf, sizeof(buf), "[  %-20s ]\n", name);
+    snprintf(buf, sizeof(buf), "[  %-22s ]\n", name);
     int length = strlen(buf);
     if(FAIL_LOG.len + length < sizeof(FAIL_LOG.buf)) {
         memcpy((void *)&(FAIL_LOG.buf[FAIL_LOG.len]), buf, length);
@@ -1820,6 +1820,220 @@ static void test_DUMP(void) {
 }
 
 
+/* ======================== */
+/* === Error Conditions === */
+/* ======================== */
+
+/* Test ERR_OK (error code indicating no errors) */
+static void test_ERR_OK(void) {
+    u8 code[] = {
+        MK_STR, 3, 'O', 'K', '\n', MK_PRINT,
+        MK_HALT,
+    };
+    char * expected = "OK\n";
+    _score("test_ERR_OK", code, expected, MK_ERR_OK);
+}
+
+/* Test ERR_D_OVER error (stack overflow) */
+static void test_ERR_D_OVER(void) {
+    u8 code[] = {
+        MK_U8,  1, MK_DOTSH, MK_CR,
+        MK_U8,  2, MK_DOTSH, MK_CR,
+        MK_U8,  3, MK_DOTSH, MK_CR,
+        MK_U8,  4, MK_DOTSH, MK_CR,
+        MK_U8,  5, MK_DOTSH, MK_CR,
+        MK_U8,  6, MK_DOTSH, MK_CR,
+        MK_U8,  7, MK_DOTSH, MK_CR,
+        MK_U8,  8, MK_DOTSH, MK_CR,
+        MK_U8,  9, MK_DOTSH, MK_CR,
+        MK_U8, 10, MK_DOTSH, MK_CR,
+        MK_U8, 11, MK_DOTSH, MK_CR,
+        MK_U8, 12, MK_DOTSH, MK_CR,
+        MK_U8, 13, MK_DOTSH, MK_CR,
+        MK_U8, 14, MK_DOTSH, MK_CR,
+        MK_U8, 15, MK_DOTSH, MK_CR,
+        MK_U8, 16, MK_DOTSH, MK_CR,
+        MK_U8, 17, MK_DOTSH, MK_CR,
+        MK_U8, 18, MK_DOTSH, MK_CR,
+        MK_U8, 19, MK_DOTSH, MK_CR,
+        MK_HALT,
+    };
+    char * expected =
+        " 1\n"
+        " 1 2\n"
+        " 1 2 3\n"
+        " 1 2 3 4\n"
+        " 1 2 3 4 5\n"
+        " 1 2 3 4 5 6\n"
+        " 1 2 3 4 5 6 7\n"
+        " 1 2 3 4 5 6 7 8\n"
+        " 1 2 3 4 5 6 7 8 9\n"
+        " 1 2 3 4 5 6 7 8 9 a\n"
+        " 1 2 3 4 5 6 7 8 9 a b\n"
+        " 1 2 3 4 5 6 7 8 9 a b c\n"
+        " 1 2 3 4 5 6 7 8 9 a b c d\n"
+        " 1 2 3 4 5 6 7 8 9 a b c d e\n"
+        " 1 2 3 4 5 6 7 8 9 a b c d e f\n"
+        " 1 2 3 4 5 6 7 8 9 a b c d e f 10\n"
+        " 1 2 3 4 5 6 7 8 9 a b c d e f 10 11\n"
+        " 1 2 3 4 5 6 7 8 9 a b c d e f 10 11 12\n"
+        "ERROR: Stack overflow\n";
+    _score("test_ERR_D_OVER", code, expected, MK_ERR_D_OVER);
+}
+
+/* Test ERR_D_UNDER error (stack underflow) */
+static void test_ERR_D_UNDER(void) {
+    u8 code[] = {
+        MK_DUP,
+        MK_HALT,
+    };
+    char * expected = "ERROR: Stack underflow\n";
+    _score("test_ERR_D_UNDER", code, expected, MK_ERR_D_UNDER);
+}
+
+/* Test ERR_R_OVER error (return stack overflow) */
+static void test_ERR_R_OVER(void) {
+    u8 code[] = {
+        MK_U8,  1, MK_MTR, MK_DOTRH, MK_CR,
+        MK_U8,  2, MK_MTR, MK_DOTRH, MK_CR,
+        MK_U8,  3, MK_MTR, MK_DOTRH, MK_CR,
+        MK_U8,  4, MK_MTR, MK_DOTRH, MK_CR,
+        MK_U8,  5, MK_MTR, MK_DOTRH, MK_CR,
+        MK_U8,  6, MK_MTR, MK_DOTRH, MK_CR,
+        MK_U8,  7, MK_MTR, MK_DOTRH, MK_CR,
+        MK_U8,  8, MK_MTR, MK_DOTRH, MK_CR,
+        MK_U8,  9, MK_MTR, MK_DOTRH, MK_CR,
+        MK_U8, 10, MK_MTR, MK_DOTRH, MK_CR,
+        MK_U8, 11, MK_MTR, MK_DOTRH, MK_CR,
+        MK_U8, 12, MK_MTR, MK_DOTRH, MK_CR,
+        MK_U8, 13, MK_MTR, MK_DOTRH, MK_CR,
+        MK_U8, 14, MK_MTR, MK_DOTRH, MK_CR,
+        MK_U8, 15, MK_MTR, MK_DOTRH, MK_CR,
+        MK_U8, 16, MK_MTR, MK_DOTRH, MK_CR,
+        MK_U8, 17, MK_MTR, MK_DOTRH, MK_CR,
+        MK_U8, 18, MK_MTR, MK_DOTRH, MK_CR,
+        MK_U8, 19, MK_MTR, MK_DOTRH, MK_CR,
+        MK_HALT,
+    };
+    char * expected =
+        " 1\n"
+        " 1 2\n"
+        " 1 2 3\n"
+        " 1 2 3 4\n"
+        " 1 2 3 4 5\n"
+        " 1 2 3 4 5 6\n"
+        " 1 2 3 4 5 6 7\n"
+        " 1 2 3 4 5 6 7 8\n"
+        " 1 2 3 4 5 6 7 8 9\n"
+        " 1 2 3 4 5 6 7 8 9 a\n"
+        " 1 2 3 4 5 6 7 8 9 a b\n"
+        " 1 2 3 4 5 6 7 8 9 a b c\n"
+        " 1 2 3 4 5 6 7 8 9 a b c d\n"
+        " 1 2 3 4 5 6 7 8 9 a b c d e\n"
+        " 1 2 3 4 5 6 7 8 9 a b c d e f\n"
+        " 1 2 3 4 5 6 7 8 9 a b c d e f 10\n"
+        " 1 2 3 4 5 6 7 8 9 a b c d e f 10 11\n"
+        "ERROR: Return stack overflow\n";
+    _score("test_ERR_R_OVER", code, expected, MK_ERR_R_OVER);
+}
+
+/* Test ERR_R_UNDER error (return stack underflow */
+static void test_ERR_R_UNDER(void) {
+    u8 code[] = {
+        MK_RDROP,
+        MK_HALT,
+    };
+    char * expected = "ERROR: Return stack underflow\n";
+    _score("test_ERR_R_UNDER", code, expected, MK_ERR_R_UNDER);
+}
+
+/* Test ERR_BAD_ADDRESS error */
+static void test_ERR_BAD_ADDRESS(void) {
+    u8 code[] = {
+        MK_I32, 0, 0, 1, 0, MK_LB,  /* 65536 = 0x00010000 */
+        MK_HALT,
+    };
+    char * expected = "ERROR: Bad address\n";
+    _score("test_ERR_BAD_ADDRESS", code, expected, MK_ERR_BAD_ADDRESS);
+}
+
+/* Test ERR_BAD_OPCODE error */
+static void test_ERR_BAD_OPCODE(void) {
+    u8 code[] = {
+        255,
+        MK_HALT,
+    };
+    char * expected = "ERROR: Bad opcode\n";
+    _score("test_ERR_BAD_OPCODE", code, expected, MK_ERR_BAD_OPCODE);
+}
+
+/* Test ERR_CPU_HOG error (code was hogging CPU) */
+static void test_ERR_CPU_HOG(void) {
+    /* This loop attempts to run forever. */
+    u8 code[] = {
+        MK_U8, 0,                      /* 1: initialize counter to zero     */
+        MK_DUP, MK_U16, 0, 2, MK_MOD,  /* 2: compute counter % 512          */
+        MK_ZE, MK_BZ, 3,               /* 3: if result != 0, jump to line 5 */
+        MK_DOTS, MK_CR,                /* 4:   print the counter            */
+        MK_INC,                        /* 5: increment counter              */
+        MK_JMP, 244, 255,              /* 6: jump back to line 2 (-12 ops)  */
+        MK_HALT,
+    };
+    char * expected =
+        " 0\n"
+        " 512\n"
+        " 1024\n"
+        " 1536\n"
+        " 2048\n"
+        " 2560\n"
+        " 3072\n"
+        " 3584\n"
+        " 4096\n"
+        " 4608\n"
+        " 5120\n"
+        " 5632\n"
+        " 6144\n"
+        " 6656\n"
+        " 7168\n"
+        " 7680\n"
+        " 8192\n"
+        " 8704\n"
+        " 9216\n"
+        "ERROR: Code was hogging CPU\n";
+    _score("test_ERR_CPU_HOG", code, expected, MK_ERR_CPU_HOG);
+}
+
+/* Test ERR_DIV_BY_ZERO error */
+static void test_ERR_DIV_BY_ZERO(void) {
+    u8 code[] = {
+        MK_U8, 1,
+        MK_U8, 0,
+        MK_DOTS, MK_CR,                 /* 1 0 */
+        MK_DIV,                         /* This will raise an error */
+        MK_HALT,
+    };
+    char * expected =
+        " 1 0\n"
+        "ERROR: Divide by zero\n";
+    _score("test_ERR_DIV_BY_ZERO", code, expected, MK_ERR_DIV_BY_ZERO);
+}
+
+/* Test ERR_DIV_OVERFLOW error */
+static void test_ERR_DIV_OVERFLOW(void) {
+    u8 code[] = {
+        MK_I32,   0,   0,   0, 128,
+        MK_I32, 255, 255, 255, 255,
+        MK_DOTS, MK_CR,              /*  -2147483648 -1 */
+        MK_DIV,                      /* This will raise an error */
+        MK_HALT,
+    };
+    char * expected =
+        " -2147483648 -1\n"
+        "ERROR: Quotient would overflow\n";
+    _score("test_ERR_DIV_OVERFLOW", code, expected, MK_ERR_DIV_OVERFLOW);
+}
+
+
 /* ========================================================================= */
 /* === main() ============================================================== */
 /* ========================================================================= */
@@ -1923,12 +2137,24 @@ int main() {
     test_DOTRH();
     test_DUMP();
 
+    /*  Error Conditions */
+    test_ERR_OK();
+    test_ERR_D_OVER();
+    test_ERR_D_UNDER();
+    test_ERR_R_OVER();
+    test_ERR_R_UNDER();
+    test_ERR_BAD_ADDRESS();
+    test_ERR_BAD_OPCODE();
+    test_ERR_CPU_HOG();
+    test_ERR_DIV_BY_ZERO();
+    test_ERR_DIV_OVERFLOW();
+
     /* If any tests failed, print the failed test log */
     if(TEST_SCORE_FAIL > 0) {
         char * fail_header =
-            "[=======================]\n"
-            "[ List of Failing Tests ]\n";
-        char * fail_footer = "[=======================]\n";
+            "[=========================]\n"
+            "[ List of Failing Tests   ]\n";
+        char * fail_footer = "[=========================]\n";
         write(1 /* STDOUT */, fail_header, strlen(fail_header));
         write(1 /* STDOUT */, FAIL_LOG.buf, FAIL_LOG.len);
         write(1 /* STDOUT */, fail_footer, strlen(fail_footer));

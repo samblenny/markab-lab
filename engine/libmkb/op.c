@@ -337,9 +337,8 @@ static void op_STR(mk_context_t * ctx) {
 /* === Branch, Jump, Call, Return === */
 /* ================================== */
 
-/* BZ ( T -- ) Branch to PC-relative address if T == 0, drop T.
- *    The branch address is PC-relative to allow for relocatable object code.
- */
+/* BZ ( T -- ) Branch to PC-relative address if T == 0, drop T.            */
+/* The branch address is PC-relative to allow for relocatable object code. */
 static void op_BZ(mk_context_t * ctx) {
     _assert_data_stack_depth_is_at_least(1);
     if(ctx->T == 0) {
@@ -356,9 +355,8 @@ static void op_BZ(mk_context_t * ctx) {
     _drop_T();
 }
 
-/* JMP ( -- ) Jump to subroutine at address read from instruction stream.
- *     The jump address is PC-relative to allow for relocatable object code.
- */
+/* JMP ( -- ) Jump to subroutine at address read from instruction stream. */
+/* The jump address is PC-relative to allow for relocatable object code.  */
 static void op_JMP(mk_context_t * ctx) {
     _assert_valid_address(ctx->PC + 1);
     u16 n = _u16_lit();
@@ -366,9 +364,8 @@ static void op_JMP(mk_context_t * ctx) {
     _adjust_PC_by(n);
 }
 
-/* JAL ( -- ) Jump to subroutine after pushing old value of PC to return stack.
- *     The jump address is PC-relative to allow for relocatable object code.
- */
+/* JAL ( -- ) Push PC to R (link), then read and jump to relative address. */
+/* The jump address is PC-relative to allow for relocatable object code.   */
 static void op_JAL(mk_context_t * ctx) {
     _assert_return_stack_is_not_full();
     /* Push the current Program Counter (PC) to return stack */
