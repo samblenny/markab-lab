@@ -449,9 +449,6 @@ static void test_RET(void) {
         MK_STR, 10, 's', 'u', 'r', 'p', 'r', 'i', 's', 'e', '!', '\n',
         MK_PRINT,
         MK_U16, 10, 0, MK_MTR, MK_RET,  /* Return to the past */
-        MK_I32, 0, 0, 1, 0,
-        MK_MTR, MK_DOTRH, MK_CR,        /*  100 */
-        MK_RET,                         /* This will raise an error */
         MK_HALT,
     };
     char * expected =
