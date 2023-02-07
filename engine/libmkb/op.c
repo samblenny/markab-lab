@@ -339,6 +339,7 @@ static void op_STR(mk_context_t * ctx) {
 
 /* BZ ( T -- ) Branch to PC-relative address if T == 0, drop T.            */
 /* The branch address is PC-relative to allow for relocatable object code. */
+/* NOTE: Relative distance has to be positive (+), unlike JMP, JAL, etc.   */
 static void op_BZ(mk_context_t * ctx) {
     _assert_data_stack_depth_is_at_least(1);
     if(ctx->T == 0) {
@@ -347,6 +348,7 @@ static void op_BZ(mk_context_t * ctx) {
         /* NOTE: Putting a _assert_valid_address(ctx->PC) here would give  */
         /*       a compiler warning on Plan 9 (useless comparison).        */
         u8 n = _u8_lit();
+        _assert_valid_address(ctx->PC + n);
         _adjust_PC_by(n);
     } else {
         /* Enter conditional block: Advance PC past address literal */
@@ -380,6 +382,7 @@ static void op_JAL(mk_context_t * ctx) {
 /* RET ( -- ) Return from subroutine, taking address from return stack. */
 static void op_RET(mk_context_t * ctx) {
     _assert_return_stack_depth_is_at_least(1);
+    _assert_valid_address(ctx->R);
     /* Set program counter from top of return stack */
     ctx->PC = ctx->R;
     _drop_R();
@@ -389,6 +392,7 @@ static void op_RET(mk_context_t * ctx) {
 static void op_CALL(mk_context_t * ctx) {
     _assert_return_stack_is_not_full();
     _assert_data_stack_depth_is_at_least(1);
+    _assert_valid_address(ctx->T);
     _push_R(ctx->PC);
     ctx->PC = ctx->T;
     _drop_T();

@@ -440,6 +440,7 @@ static void test_JAL(void) {
 
 /* Test RET opcode */
 static void test_RET(void) {
+    /* Round 1: ends with ERR_OK */
     u8 code[] = {
         MK_STR, 2, 'A', '\n', MK_PRINT,
         MK_U16, 16, 0, MK_MTR, MK_RET,   /* Return to the future! */
@@ -448,6 +449,9 @@ static void test_RET(void) {
         MK_STR, 10, 's', 'u', 'r', 'p', 'r', 'i', 's', 'e', '!', '\n',
         MK_PRINT,
         MK_U16, 10, 0, MK_MTR, MK_RET,  /* Return to the past */
+        MK_I32, 0, 0, 1, 0,
+        MK_MTR, MK_DOTRH, MK_CR,        /*  100 */
+        MK_RET,                         /* This will raise an error */
         MK_HALT,
     };
     char * expected =
@@ -455,15 +459,85 @@ static void test_RET(void) {
         "surprise!\n"
         "B\n";
     _score("test_RET", code, expected, MK_ERR_OK);
+
+    /* Round 2: ends with ERR_BAD_ADDRESS */
+    u8 code2[] = {
+        MK_I32, 0, 0, 1, 0,
+        MK_MTR, MK_DOTRH, MK_CR,        /*  10000 */
+        MK_RET,                         /* This will raise an error */
+        MK_HALT,
+    };
+    char * expected2 =
+        " 10000\n"
+        "ERROR: Bad address\n";
+    _score("test_RET_bad_addr", code2, expected2, MK_ERR_BAD_ADDRESS);
 }
 
 /* Test CALL opcode */
 static void test_CALL(void) {
+    /* This demonstrates a nested chain of function calls */
     u8 code[] = {
+        /* addr */
+        /*   0: */ MK_JMP, (109 - 1), 0,
+        /*   3: */ MK_INC, MK_DOTS, MK_CR, MK_RET,
+        /*   7: */ MK_INC, MK_U16,   3, 0, MK_CALL, MK_RET,
+        /*  13: */ MK_INC, MK_U16,   7, 0, MK_CALL, MK_RET,
+        /*  19: */ MK_INC, MK_U16,  13, 0, MK_CALL, MK_RET,
+        /*  25: */ MK_INC, MK_U16,  19, 0, MK_CALL, MK_RET,
+        /*  31: */ MK_INC, MK_U16,  25, 0, MK_CALL, MK_RET,
+        /*  37: */ MK_INC, MK_U16,  31, 0, MK_CALL, MK_RET,
+        /*  43: */ MK_INC, MK_U16,  37, 0, MK_CALL, MK_RET,
+        /*  49: */ MK_INC, MK_U16,  43, 0, MK_CALL, MK_RET,
+        /*  55: */ MK_INC, MK_U16,  49, 0, MK_CALL, MK_RET,
+        /*  61: */ MK_INC, MK_U16,  55, 0, MK_CALL, MK_RET,
+        /*  67: */ MK_INC, MK_U16,  61, 0, MK_CALL, MK_RET,
+        /*  73: */ MK_INC, MK_U16,  67, 0, MK_CALL, MK_RET,
+        /*  79: */ MK_INC, MK_U16,  73, 0, MK_CALL, MK_RET,
+        /*  85: */ MK_INC, MK_U16,  79, 0, MK_CALL, MK_RET,
+        /*  91: */ MK_INC, MK_U16,  85, 0, MK_CALL, MK_RET,
+        /*  97: */ MK_INC, MK_U16,  91, 0, MK_CALL, MK_RET,
+        /* 103: */ MK_INC, MK_U16,  97, 0, MK_CALL, MK_RET,
+
+        /* 109: */ MK_U8, 0, MK_U8,   3, MK_CALL, MK_DROP,  /*  1 */
+        /*    : */ MK_U8, 0, MK_U8,   7, MK_CALL, MK_DROP,  /*  2 */
+        /*    : */ MK_U8, 0, MK_U8,  13, MK_CALL, MK_DROP,  /*  3 */
+        /*    : */ MK_U8, 0, MK_U8,  19, MK_CALL, MK_DROP,  /*  4 */
+        /*    : */ MK_U8, 0, MK_U8,  25, MK_CALL, MK_DROP,  /*  5 */
+        /*    : */ MK_U8, 0, MK_U8,  31, MK_CALL, MK_DROP,  /*  6 */
+        /*    : */ MK_U8, 0, MK_U8,  37, MK_CALL, MK_DROP,  /*  7 */
+        /*    : */ MK_U8, 0, MK_U8,  43, MK_CALL, MK_DROP,  /*  8 */
+        /*    : */ MK_U8, 0, MK_U8,  49, MK_CALL, MK_DROP,  /*  9 */
+        /*    : */ MK_U8, 0, MK_U8,  55, MK_CALL, MK_DROP,  /*  10 */
+        /*    : */ MK_U8, 0, MK_U8,  61, MK_CALL, MK_DROP,  /*  11 */
+        /*    : */ MK_U8, 0, MK_U8,  67, MK_CALL, MK_DROP,  /*  12 */
+        /*    : */ MK_U8, 0, MK_U8,  73, MK_CALL, MK_DROP,  /*  13 */
+        /*    : */ MK_U8, 0, MK_U8,  79, MK_CALL, MK_DROP,  /*  14 */
+        /*    : */ MK_U8, 0, MK_U8,  85, MK_CALL, MK_DROP,  /*  15 */
+        /*    : */ MK_U8, 0, MK_U8,  91, MK_CALL, MK_DROP,  /*  16 */
+        /*    : */ MK_U8, 0, MK_U8,  97, MK_CALL, MK_DROP,  /*  17 */
+        /*    : */ MK_U8, 0, MK_U8, 103, MK_CALL,           /* ERROR: ... */
         MK_HALT,
     };
-    char * expected = "TODO: IMPLEMENT THIS";
-    _score("test_CALL", code, expected, MK_ERR_OK);
+    char * expected =
+        " 1\n"
+        " 2\n"
+        " 3\n"
+        " 4\n"
+        " 5\n"
+        " 6\n"
+        " 7\n"
+        " 8\n"
+        " 9\n"
+        " 10\n"
+        " 11\n"
+        " 12\n"
+        " 13\n"
+        " 14\n"
+        " 15\n"
+        " 16\n"
+        " 17\n"
+        "ERROR: Return stack overflow\n";
+    _score("test_CALL", code, expected, MK_ERR_R_OVER);
 }
 
 
