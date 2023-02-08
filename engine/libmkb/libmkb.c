@@ -59,7 +59,7 @@ int mk_load_rom(const u8 * code, u32 code_len_bytes) {
         0,       /* RSDEEP */
         0,       /* R */
         {0},     /* RSTACK[] */
-        MK_Heap, /* PC */
+        0,       /* PC */
         0,       /* halted */
         10,      /* base */
         {0},     /* RAM */
@@ -81,6 +81,36 @@ int mk_load_rom(const u8 * code, u32 code_len_bytes) {
     }
     /* Start clocking the VM from the boot vector */
     autogen_step(&ctx);
+    /* Return value of the VM's error register */
+    return ctx.err;
+}
+
+/* Compile Markab Script source code, run it, and return VM's error code. */
+/* Error code MK_ERR_OK means there were no errrors.                      */
+int mk_compile_and_run(const u8 * text, u32 text_len_bytes) {
+    mk_context_t ctx = {
+        0,       /* DSDEEP */
+        0,       /* T */
+        0,       /* S */
+        {0},     /* DSTACK[] */
+        0,       /* RSDEEP */
+        0,       /* R */
+        {0},     /* RSTACK[] */
+        0,       /* PC */
+        0,       /* halted */
+        10,      /* base */
+        {0},     /* RAM */
+        0,       /* err */
+        0,       /* DbgTraceEnable */
+    };
+    /* Zero VM RAM */
+    memset((void *)ctx.RAM, MK_NOP, sizeof(ctx.RAM));
+    /* Compile the Markab Script source */
+    int okay = comp_compile_src(&ctx, text, text_len_bytes);
+    if(okay) {
+        /* Start clocking the VM from the boot vector */
+        autogen_step(&ctx);
+    }
     /* Return value of the VM's error register */
     return ctx.err;
 }

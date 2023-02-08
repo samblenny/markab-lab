@@ -209,6 +209,20 @@ void mk_host_putchar(u8 data) {
     }                                                  \
     test_stdout_reset();                               }
 
+/* Macro: Compile & run source, check expected output, score results, and */
+/*        reset TEST_STDOUT                                               */
+#define _score_compiled(NAME, CODE, EXPECT_S, EXPECT_E) {     \
+    if(EXPECT_E != mk_compile_and_run(CODE, sizeof(CODE))) {  \
+        score_fail(NAME);                                     \
+    } else {                                                  \
+        if(test_stdout_match(EXPECT_S)) {                     \
+            score_pass(NAME);                                 \
+        } else {                                              \
+            score_fail(NAME);                                 \
+        }                                                     \
+    }                                                         \
+    test_stdout_reset();                                      }
+
 
 /* =========== */
 /* === NOP === */
@@ -2105,6 +2119,20 @@ static void test_ERR_DIV_OVERFLOW(void) {
 }
 
 
+/* ======================== */
+/* === Error Conditions === */
+/* ======================== */
+
+/* Compiler test number 01 */
+static void test_compiler_01(void) {
+    u8 code[] =
+        "1 1 + . cr\n";
+    char * expected =
+        " 2\n";
+    _score_compiled("test_compiler_01", code, expected, MK_ERR_OK);
+}
+
+
 /* ========================================================================= */
 /* === main() ============================================================== */
 /* ========================================================================= */
@@ -2219,6 +2247,9 @@ int main() {
     test_ERR_CPU_HOG();
     test_ERR_DIV_BY_ZERO();
     test_ERR_DIV_OVERFLOW();
+
+    /* Compiler */
+    test_compiler_01();
 
     /* If any tests failed, print the failed test log */
     if(TEST_SCORE_FAIL > 0) {

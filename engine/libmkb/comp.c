@@ -14,4 +14,18 @@
  * TODO: Write a compiler
  */
 
+/* Compile Markab Script source from text into bytecode in ctx.RAM.       */
+/* Compile error details get logged using mk_host_*() Host API functions. */
+/* Returns: 1 for success, 0 for failure                                  */
+int comp_compile_src(mk_context_t *ctx, const u8 * text, u32 text_len) {
+    u32 i;
+    for(i = 0; i < text_len; i++) {
+        if(text[i] == 0) {
+            ctx->RAM[0] = 0;
+        }
+    }
+    return 0;
+}
+
+
 #endif /* LIBMKB_COMP_C */

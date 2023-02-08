@@ -65,9 +65,9 @@ typedef struct mk_str {
 #define MK_MAX_CYCLES (65535)
 
 
-/*
- * VM Error status codes
- */
+/* =========================== */
+/* == VM Error status codes == */
+/* =========================== */
 
 #define MK_ERR_OK           (0  /* OK: No errors */)
 #define MK_ERR_D_OVER       (1  /* Stack overflow */)
@@ -81,19 +81,22 @@ typedef struct mk_str {
 #define MK_ERR_DIV_OVERFLOW (9  /* Quotient would overflow */)
 
 
-/*
- * Public Interface: Functions provided by libmkb
- */
+/* ==================================================== */
+/* == Public Interface: Functions provided by libmkb == */
+/* ==================================================== */
 
-/* Load code (a rom image) into RAM, run it, and return VM's error code.
- * Error code MK_ERR_OK means there were no errrors.
- */
+/* Load code (a rom image) into RAM, run it, and return VM's error code. */
+/* Error code MK_ERR_OK means there were no errrors.                     */
 int mk_load_rom(const u8 * code, u32 code_len_bytes);
 
+/* Compile Markab Script source code, run it, and return VM's error code. */
+/* Error code MK_ERR_OK means there were no errrors.                      */
+int mk_compile_and_run(const u8 * text, u32 text_len_bytes);
 
-/*
- * Public Interface: Functions libmkb expects its front end to export
- */
+
+/* ======================================================================== */
+/* == Public Interface: Functions libmkb expects its front end to export == */
+/* ======================================================================== */
 
 /* Log an error code to stdout */
 extern void mk_host_log_error(u8 error_code);
