@@ -2126,9 +2126,14 @@ static void test_ERR_DIV_OVERFLOW(void) {
 /* Compiler test number 01 */
 static void test_compiler_01(void) {
     u8 code[] =
-        "1 1 + . cr\n";
+        "false 1+ dup + . cr\n"
+        "true false over swap dup .S cr\n"
+        "'A' emit 'B' emit '\\t' emit 'C' emit '\\n' emit\n"
+        "halt";
     char * expected =
-        " 2\n";
+        " 2\n"
+        " -1 -1 0 0\n"
+        "AB\tC\n";
     _score_compiled("test_compiler_01", code, expected, MK_ERR_OK);
 }
 

@@ -60,6 +60,7 @@ int mk_load_rom(const u8 * code, u32 code_len_bytes) {
         0,       /* R */
         {0},     /* RSTACK[] */
         0,       /* PC */
+        0,       /* DP */
         0,       /* halted */
         10,      /* base */
         {0},     /* RAM */
@@ -97,6 +98,7 @@ int mk_compile_and_run(const u8 * text, u32 text_len_bytes) {
         0,       /* R */
         {0},     /* RSTACK[] */
         0,       /* PC */
+        0,       /* DP */
         0,       /* halted */
         10,      /* base */
         {0},     /* RAM */

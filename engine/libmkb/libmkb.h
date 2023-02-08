@@ -46,7 +46,8 @@ typedef struct mk_context {
     u32 RSDeep;            /* Return Stack Depth (count inlcudes R) */
     i32 R;                 /* Top of Return stack */
     i32 RStack[16];        /* Return Stack */
-    u16 PC;                /* Program Counter   CAUTION!  MUST BE u16!!!  */
+    u16 PC;                /* Program Counter     CAUTION!  MUST BE u16!!!  */
+    u16 DP;                /* Dictionary Pointer  CAUTION!  MUST BE u16!!!  */
     u8  halted;            /* Flag to track halt (used for `bye`) */
     u8  base;              /* Number base for parsing and print formatting */
     u8  RAM[MK_RamMax+1];  /* Random Access Memory */
