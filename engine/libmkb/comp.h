@@ -7,16 +7,15 @@
 #define LIBMKB_COMP_H
 
 /* Parameters for multiply-with-carry (mwc) string hashing function */
-#define comp_HashA 7
-#define comp_HashB 8
-#define comp_HashC 38335
-#define comp_HashBins 64
-#define comp_HashMask 63
+#define MK_comp_HashA 7
+#define MK_comp_HashB 8
+#define MK_comp_HashC 38335
+#define MK_comp_HashBins 64
+#define MK_comp_HashMask 63
 
 /* Compile Markab Script source from text into bytecode in ctx.RAM.       */
 /* Compile error details get logged using mk_host_*() Host API functions. */
-/* Returns: 1 for success, 0 for failure                                  */
+/* Returns: 1 = Success, 0 = Error (details get logged to Host API)       */
 int comp_compile_src(mk_context_t *ctx, const u8 * text, u32 text_len);
-
 
 #endif /* LIBMKB_COMP_H */
