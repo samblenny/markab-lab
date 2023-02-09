@@ -2044,7 +2044,7 @@ static void test_ERR_DIV_OVERFLOW(void) {
 /* Compiler test number 01 */
 static void test_compiler_01(void) {
     u8 code[] =
-        "false 1+ dup + . cr\n"
+        "false ++ dup + . cr\n"
         "true false over swap dup .S cr\n"
         "'A' emit 'B' emit '\\t' emit 'C' emit '\\n' emit\n"
         "halt";

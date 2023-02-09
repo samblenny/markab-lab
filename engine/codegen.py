@@ -29,8 +29,8 @@ h@ LH
 h! SH
 w@ LW
 w! SW
-1+ INC
-1- DEC
+++ INC
+-- DEC
 + ADD
 - SUB
 * MUL

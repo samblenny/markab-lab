@@ -383,10 +383,10 @@ parse_word(comp_context_t * comp_ctx, mk_context_t * ctx) {
         case ('w' << 8) | '!':                /* w! */
             _append_dictionary_byte(MK_SW);
             break;
-        case ('1' << 8) | '+':                /* 1+ */
+        case ('+' << 8) | '+':                /* 1+ */
             _append_dictionary_byte(MK_INC);
             break;
-        case ('1' << 8) | '-':                /* 1- */
+        case ('-' << 8) | '-':                /* 1- */
             _append_dictionary_byte(MK_DEC);
             break;
         case ('<' << 8) | '<':                /* << */
