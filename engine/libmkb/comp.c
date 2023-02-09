@@ -57,7 +57,7 @@ typedef enum {
 /* Macro: Make sure VM context's dictionary can accomodate N more bytes */
 /* CAUTION! This will cause enclosing function to return if check fails */
 #define _assert_dictionary_free_space(N)  \
-    if((u32)ctx->DP + N >= MK_HeapRes) {  \
+    if((u32)ctx->DP + N >= MK_HEAP_MAX) {  \
         return stat_OutOfMemory;          \
     }
 

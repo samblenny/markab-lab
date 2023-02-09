@@ -63,6 +63,10 @@ typedef struct mk_str {
 /* Maximum number of cycles allowed before infinite loop error triggers */
 #define MK_MAX_CYCLES (65535)
 
+/* Memory map */
+#define MK_HEAP_MAX  (0xfbff /* 0xffff - 1024 */)
+#define MK_MEM_MAX   (0xffff)
+
 
 /* =========================== */
 /* == VM Error status codes == */

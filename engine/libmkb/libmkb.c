@@ -72,7 +72,7 @@ int mk_load_rom(const u8 * code, u32 code_len_bytes) {
      *
      * TODO: Implement paging opcodes to access the high-area of large ROMs.
      */
-    int n = code_len_bytes <= MK_HeapMax ? code_len_bytes : MK_HeapMax;
+    int n = code_len_bytes <= MK_MEM_MAX ? code_len_bytes : MK_MEM_MAX;
     memcpy((void *)ctx.RAM, (void *)code, n);
     /* For small ROMs, fill rest of RAM with NOP instructions */
     if(n < sizeof(ctx.RAM)) {
