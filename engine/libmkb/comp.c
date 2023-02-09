@@ -504,7 +504,7 @@ parse_word(comp_context_t * comp_ctx, mk_context_t * ctx) {
         return parse_dictionary_word(comp_ctx, ctx);
     case 7:
         if(strncmp((const char *)buf, "decimal", length) == 0) {
-            _append_dictionary_byte(MK_RESET);
+            _append_dictionary_byte(MK_DECIMAL);
             break;
         }
         return parse_dictionary_word(comp_ctx, ctx);
