@@ -32,6 +32,7 @@ typedef enum {
     stat_EOF,          /* End of input                         */
     stat_OutOfMemory,  /* VM RAM image is full                 */
     stat_ParserError,  /* Parser error: malformed literal, etc */
+    stat_BadInt,       /* Bad int literal (syntax? range?)     */
 } comp_stat;
 
 
@@ -65,6 +66,12 @@ typedef enum {
 #define _append_dictionary_byte(B) {  \
     ctx->RAM[ctx->DP] = (B);          \
     ctx->DP += 1;                     }
+
+/* Advance the lexing cursor by N bytes */
+#define _advance_cursor(N)                        \
+    if(comp_ctx->cursor + (N) < comp_ctx->len) {  \
+        comp_ctx->cursor += (N);                  \
+    }
 
 
 /* ======================= */
@@ -100,7 +107,7 @@ hash_name(comp_context_t * comp_ctx, u16 * hash_bin_offset) {
 
 /* Advance the cursor to skip whitespace */
 static comp_stat
-skip_whitespace(comp_context_t * comp_ctx) {
+lex_skip_whitespace(comp_context_t * comp_ctx) {
     _assert_valid_comp_context();
     /* Compute the range of ctx->buf indexes to search within */
     u32 end = comp_ctx->len - 1;
@@ -144,10 +151,15 @@ skip_whitespace(comp_context_t * comp_ctx) {
     return stat_OK;       /* Success! Skipped some whitespace! */
 }
 
-/* Find ending index of the current word (not for use on quoted strings). */
+/* Find ending index of the current word (not for use on quoted strings) */
 static comp_stat
 lex_locate_end_of_word(comp_context_t *comp_ctx) {
     _assert_valid_comp_context();
+    /* To allow this function to be called more than once while parsing  */
+    /* the same word, only proceed if wordEnd <= cursor                  */
+    if(comp_ctx->wordEnd > comp_ctx->cursor) {
+        return stat_OK;  /* End of current word has already been located */
+    }
     /* Compute the range of ctx->buf indexes to search within */
     u32 end = comp_ctx->len - 1;
     u32 start = comp_ctx->cursor;
@@ -175,7 +187,7 @@ lex_locate_end_of_word(comp_context_t *comp_ctx) {
     return stat_OK;
 }
 
-/* Skip characters until delimiter, updating the line tracker. */
+/* Skip characters until delimiter, updating the line tracker */
 static comp_stat
 lex_skip_until(comp_context_t * comp_ctx, u8 delimiter) {
     _assert_valid_comp_context();
@@ -216,6 +228,14 @@ lex_consume_sharp_comment(comp_context_t * comp_ctx) {
 /* ============== */
 /* == Compiler == */
 /* ============== */
+
+static comp_stat
+compile_int_literal(comp_context_t *comp_ctx, mk_context_t * ctx) {
+    /* ==================== */
+    /* TODO: IMPLEMENT THIS */
+    /* ==================== */
+    return stat_BadInt;
+}
 
 /* Compile a double-quoted string literal */
 static comp_stat
@@ -288,6 +308,128 @@ compile_char(comp_context_t *comp_ctx, mk_context_t * ctx) {
 /* == Parser == */
 /* ============ */
 
+/* Parse a base-16 "0x"-prefixed hex integer literal. */
+static comp_stat
+parse_int_hex(comp_context_t *comp_ctx, mk_context_t * ctx) {
+    /* Calculate word's start position and length within the input buffer */
+    /* CAUTION! This expects lex_locate_end_of_word() was done by caller  */
+    const u8 * buf = _word_pointer(comp_ctx);
+    u32 length = _word_length(comp_ctx);
+    if(length > 2 && buf[0] == '0' && buf[1] == 'x') {
+        _advance_cursor(2);
+        i32 prev = 0;
+        i32 curr = prev;
+        int i;
+        for(i = 2; i < length; i++) {
+            curr *= 10;
+            if('0' <= buf[i] && buf[i] <= '9') {
+                curr *= 10;
+                curr += (buf[i] - '0');
+            } else if('a' <= buf[i] && buf[i] <= 'f') {
+                curr *= 10;
+                curr += (buf[i] - 'a' + 10);
+            } else if('A' <= buf[i] && buf[i] <= 'F') {
+                curr *= 10;
+                curr += (buf[i] - 'A' + 10);
+            } else {
+                return stat_BadInt;
+            }
+            /* Check for overflow */
+            if(curr < prev) {
+                return stat_BadInt;
+            }
+            prev = curr;
+            _advance_cursor(1);
+        }
+        return compile_int_literal(comp_ctx, ctx);
+    } else {
+        return stat_BadInt;
+    }
+}
+
+/* Parse a base-10 decimal integer literal. */
+static comp_stat
+parse_int_decimal(comp_context_t *comp_ctx, mk_context_t * ctx) {
+    /* Calculate word's start position and length within the input buffer */
+    /* CAUTION! This expects lex_locate_end_of_word() was done by caller  */
+    const u8 * buf = _word_pointer(comp_ctx);
+    u32 length = _word_length(comp_ctx);
+    if(length > 0) {
+        i32 prev = 0;
+        i32 curr = prev;
+        int i;
+        for(i = 0; i < length; i++) {
+            curr *= 10;
+            if('0' <= buf[i] && buf[i] <= '9') {
+                curr *= 10;
+                curr += (buf[i] - '0');
+            } else {
+                return stat_BadInt;
+            }
+            /* Check for overflow */
+            if(curr < prev) {
+                return stat_BadInt;
+            }
+            prev = curr;
+            _advance_cursor(1);
+        }
+        return compile_int_literal(comp_ctx, ctx);
+    } else {
+        return stat_BadInt;
+    }
+}
+
+/* Parse a negative (leading hyphen) base-10 decimal integer literal. */
+static comp_stat
+parse_int_decimal_neg(comp_context_t *comp_ctx, mk_context_t * ctx) {
+    /* Calculate word's start position and length within the input buffer */
+    /* CAUTION! This expects lex_locate_end_of_word() was done by caller  */
+    const u8 * buf = _word_pointer(comp_ctx);
+    u32 length = _word_length(comp_ctx);
+    if(length > 1 && buf[0] == '-') {
+        _advance_cursor(1);
+        i32 prev = 0;
+        i32 curr = prev;
+        int i;
+        for(i = 1; i < length; i++) {
+            curr *= 10;
+            if('0' <= buf[i] && buf[i] <= '9') {
+                curr *= 10;
+                curr -= (buf[i] - '0');
+            } else {
+                return stat_BadInt;
+            }
+            /* Check for overflow */
+            if(curr > prev) {
+                return stat_BadInt;
+            }
+            prev = curr;
+            _advance_cursor(1);
+        }
+        return compile_int_literal(comp_ctx, ctx);
+    } else {
+        return stat_BadInt;
+    }
+}
+
+/* Parse an integer literal (detect hex or decimal and dispatch as needed) */
+static comp_stat
+parse_int(comp_context_t *comp_ctx, mk_context_t * ctx) {
+    comp_stat status = lex_locate_end_of_word(comp_ctx);
+    if(status != stat_OK) {
+        return status;
+    }
+    /* Calculate word's start position and length within the input buffer */
+    const u8 * buf = _word_pointer(comp_ctx);
+    u32 length = _word_length(comp_ctx);
+    /* Detect hex or decimal */
+    if(length > 2 && buf[0] == '0' && buf[1] == 'x') {
+        return parse_int_hex(comp_ctx, ctx);
+    } else {
+        return parse_int_decimal(comp_ctx, ctx);
+    }
+}
+
 static comp_stat
 parse_dictionary_word(comp_context_t * comp_ctx, mk_context_t * ctx) {
     u16 hashmap_bin_offset = 0;
@@ -300,7 +442,7 @@ parse_dictionary_word(comp_context_t * comp_ctx, mk_context_t * ctx) {
     return stat_EOF;
 }
 
-/* Parse and the current word, invoking compiler functions as needed. */
+/* Parse words that are not int, char, or string literals. */
 static comp_stat
 parse_word(comp_context_t * comp_ctx, mk_context_t * ctx) {
     _assert_valid_comp_context();
@@ -495,6 +637,24 @@ parse_word(comp_context_t * comp_ctx, mk_context_t * ctx) {
     }
 }
 
+/* Parse words that begin with a hyphen. */
+static comp_stat
+parse_leading_hyphen(comp_context_t * comp_ctx, mk_context_t * ctx) {
+    _assert_valid_comp_context();
+    comp_stat status = lex_locate_end_of_word(comp_ctx);
+    if(status != stat_OK) {
+        return status;
+    }
+    /* Calculate word's start position and length within the input buffer */
+    const u8 * buf = _word_pointer(comp_ctx);
+    u32 length = _word_length(comp_ctx);
+    /* Check if second character is a digit */
+    if((length > 1) && ('0' <= buf[1]) && (buf[1] <= '9')) {
+        return parse_int_decimal_neg(comp_ctx, ctx);
+    }
+    return parse_word(comp_ctx, ctx);
+}
+
 /* Parse a lexical token, and invoke compiler functions as needed */
 static comp_stat
 parse_token(comp_context_t * comp_ctx, mk_context_t * ctx) {
@@ -502,6 +662,19 @@ parse_token(comp_context_t * comp_ctx, mk_context_t * ctx) {
     /* Check the first character of the next token */
     u8 c = comp_ctx->buf[comp_ctx->cursor];
     switch(c) {
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9':
+            return parse_int(comp_ctx, ctx);
+        case '-':
+            return parse_leading_hyphen(comp_ctx, ctx);
         case '"':
             return compile_str(comp_ctx, ctx);
         case '\'':
@@ -541,7 +714,7 @@ comp_compile_src(mk_context_t *ctx, const u8 * text, u32 text_len) {
     comp_stat status = stat_OK;
     for(i = 0; i < text_len; i++) {
         /* Skip whitespace to find the start of next lexical token */
-        status = skip_whitespace(&comp_ctx);
+        status = lex_skip_whitespace(&comp_ctx);
         if(status != stat_OK) {
             break;
         }
@@ -561,6 +734,8 @@ comp_compile_src(mk_context_t *ctx, const u8 * text, u32 text_len) {
             return 0;           /* ERROR: Dictionary in VM RAM is full  */
         case stat_ParserError:
             return 0;           /* ERROR: Malformed literal?            */
+        case stat_BadInt:
+            return 0;           /* ERROR: Int literal syntax or range   */
         default:
             return 0;
     }

@@ -2241,19 +2241,63 @@ static void test_ERR_DIV_OVERFLOW(void) {
 /* ============================== */
 
 /* Compiler test number 01 */
-static void test_compiler_01(void) {
+static void test_cStackOps(void) {
     u8 code[] =
         /* This uses silly numbers since I don't have int literals yet. I */
         /* can only make numbers by manipulating character literals, lol. */
         "'0' dup - ++ dup + . cr\n"
         "'0' '1' - '0' '0' - over swap dup .S cr\n"
-        "'A' emit 'B' emit '\\t' emit 'C' emit '\\n' emit\n"
         "halt\n";
     char * expected =
         " 2\n"
-        " -1 -1 0 0\n"
+        " -1 -1 0 0\n";
+    _score_compiled("test_StackOps", code, expected, MK_ERR_OK);
+}
+
+/* Test character literals */
+static void test_cCharLit(void) {
+    u8 code[] =
+        "'A' emit 'B' emit '\\t' emit 'C' emit '\\n' emit\n"
+        "halt\n";
+    char * expected =
         "AB\tC\n";
-    _score_compiled("test_compiler_01", code, expected, MK_ERR_OK);
+    _score_compiled("test_cCharLit", code, expected, MK_ERR_OK);
+}
+
+/* Test integer literals */
+static void test_cIntLit(void) {
+    u8 code[] =
+        "0 . 1 . -1 . 255 . -256 .\n"
+        " 2147483647 . -2147483648 . cr\n"
+        "0x0 . 0x1 . 0xffffffff . 0xff .\n"
+        " 0xffffff00 . 0x7fffffff . 0x80000000 . cr\n"
+        "halt\n";
+    char * expected =
+        "0 1 -1 255 -256 2147483647 -2147483648\n"
+        "0 1 -1 255 -256 2147483647 -2147483648\n";
+    _score_compiled("test_cIntLit", code, expected, MK_ERR_OK);
+}
+
+/* Test sharp-sign comments */
+static void test_cSharpComment(void) {
+    u8 code[] =
+        "# this is a comment\n"
+        "'s' emit 'h' emit 'a' emit 'r' emit 'p' emit cr  #another comment\n"
+        "halt  # end of input with out a newline! -->";
+    char * expected =
+        "sharp\n";
+    _score_compiled("test_cSharpComment", code, expected, MK_ERR_OK);
+}
+
+/* Test parentheses comments */
+static void test_cParenComment(void) {
+    u8 code[] =
+        "( this is a comment) 'p' emit 'a' emit\n"
+        "'r' emit 'e' (no leading space!) emit 'n' emit cr\n"
+        "halt (end of input)\n";
+    char * expected =
+        "paren\n";
+    _score_compiled("test_cParenComment", code, expected, MK_ERR_OK);
 }
 
 
@@ -2367,7 +2411,11 @@ int main() {
     test_ERR_DIV_OVERFLOW();
 
     /* Compiler */
-    test_compiler_01();
+    test_cStackOps();
+    test_cCharLit();
+    test_cIntLit();
+    test_cSharpComment();
+    test_cParenComment();
 
     /* If any tests failed, print the failed test log */
     if(TEST_SCORE_FAIL > 0) {
