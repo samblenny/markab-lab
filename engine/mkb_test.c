@@ -180,6 +180,20 @@ void mk_host_stdout_write(const void * buf, int length) {
     }
 }
 
+/* Format an integer to stdout */
+void mk_host_stdout_fmt_int(int n) {
+    /* First write to real stdout */
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%d", n);
+    int length = strlen(buf);
+    write(1 /* STDOUT */, buf, length);
+    /* Then append a copy to TEST_STDOUT */
+    if(TEST_STDOUT.len + length < sizeof(TEST_STDOUT.buf)) {
+        memcpy((void *)&(TEST_STDOUT.buf[TEST_STDOUT.len]), buf, length);
+        TEST_STDOUT.len += length;
+    }
+}
+
 /* Write byte to stdout and TEST_STDOUT */
 void mk_host_putchar(u8 data) {
     /* First write to real stdout */
@@ -2266,6 +2280,7 @@ static void test_cCharLit(void) {
 
 /* Test integer literals */
 static void test_cIntLit(void) {
+    /* cIntLit: valid integers */
     u8 code[] =
         "0 . 1 . -1 . 255 . -256 .\n"
         " 2147483647 . -2147483648 . cr\n"
@@ -2273,9 +2288,76 @@ static void test_cIntLit(void) {
         " 0xffffff00 . 0x7fffffff . 0x80000000 . cr\n"
         "halt\n";
     char * expected =
-        "0 1 -1 255 -256 2147483647 -2147483648\n"
-        "0 1 -1 255 -256 2147483647 -2147483648\n";
+        " 0 1 -1 255 -256 2147483647 -2147483648\n"
+        " 0 1 -1 255 -256 2147483647 -2147483648\n";
     _score_compiled("test_cIntLit", code, expected, MK_ERR_OK);
+
+    /* cIntLitOOR1: out of range */
+    u8 code2[] =
+        " 2147483647 . cr\n"
+        " 2147483648 . cr\n"
+        "halt\n";
+    char * expected2 =
+        "CompileError:2:11: IntOutOfRange\n"
+        " 2147483648 \n"
+        "           ^\n";
+    _score_compiled("test_cIntLitOOR1", code2, expected2, MK_ERR_OK);
+
+    /* cIntLitOOR2: out of range */
+    u8 code3[] =
+        " -2147483648 . cr\n"
+        " -2147483649 . cr\n"
+        "halt\n";
+    char * expected3 =
+        "CompileError:2:12: IntOutOfRange\n"
+        " -2147483649 \n"
+        "            ^\n";
+    _score_compiled("test_cIntLitOOR2", code3, expected3, MK_ERR_OK);
+
+    /* cIntLitOOR3: out of range */
+    u8 code4[] =
+        " 0xffffffff . cr\n"
+        " 0x100000000 . cr\n"
+        "halt\n";
+    char * expected4 =
+        "CompileError:2:12: IntOutOfRange\n"
+        " 0x100000000 \n"
+        "            ^\n";
+    _score_compiled("test_cIntLitOOR3", code4, expected4, MK_ERR_OK);
+
+    /* cIntLitSyntax1: non-digit character */
+    u8 code5[] =
+        " 0 . cr\n"
+        " 0f . cr\n"
+        "halt\n";
+    char * expected5 =
+        "CompileError:2:3: IntSyntax\n"
+        " 0f \n"
+        "   ^\n";
+    _score_compiled("test_cIntLitSyntax1", code5, expected5, MK_ERR_OK);
+
+    /* cIntLitSyntax2: non-digit character */
+    u8 code6[] =
+        " -1 . cr\n"
+        " -1g . cr\n"
+        "halt\n";
+    char * expected6 =
+        "CompileError:2:4: IntSyntax\n"
+        " -1g \n"
+        "    ^\n";
+    _score_compiled("test_cIntLitSyntax2", code6, expected6, MK_ERR_OK);
+
+    /* cIntLitSyntax1: non-digit character */
+    u8 code7[] =
+        " 0xff . cr\n"
+        " 0xfg . cr\n"
+        "halt\n";
+    char * expected7 =
+        "CompileError:2:5: IntSyntax\n"
+        " 0xfg \n"
+        "     ^\n";
+    _score_compiled("test_cIntLitSyntax3", code7, expected7, MK_ERR_OK);
+
 }
 
 /* Test sharp-sign comments */

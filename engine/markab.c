@@ -59,10 +59,15 @@ void mk_host_log_error(u8 error_code) {
 
 /* Write length bytes from byte buffer buf to stdout */
 void mk_host_stdout_write(const void * buf, int length) {
-#ifdef PLAN_9
     write(1 /* STDOUT */, buf, length);
+}
+
+/* Format an integer to stdout */
+void mk_host_stdout_fmt_int(int n) {
+#ifdef PLAN_9
+    print("%d", n);
 #else
-    write(STDOUT_FILENO, buf, length);
+    printf("%d", n);
 #endif
 }
 

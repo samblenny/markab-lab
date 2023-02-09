@@ -27,12 +27,13 @@ typedef struct comp_context {
 
 /* Compiler error status codes */
 typedef enum {
-    stat_OK,           /* Success                              */
-    stat_BadContext,   /* Compiler context struct is corrupted */
-    stat_EOF,          /* End of input                         */
-    stat_OutOfMemory,  /* VM RAM image is full                 */
-    stat_ParserError,  /* Parser error: malformed literal, etc */
-    stat_BadInt,       /* Bad int literal (syntax? range?)     */
+    stat_OK,             /* Success                              */
+    stat_BadContext,     /* Compiler context struct is corrupted */
+    stat_EOF,            /* End of input                         */
+    stat_OutOfMemory,    /* VM RAM image is full                 */
+    stat_ParserError,    /* Parser error: malformed literal, etc */
+    stat_IntSyntax,      /* Bad int literal (syntax?)            */
+    stat_IntOutOfRange,  /* Int literal is out of i32 range      */
 } comp_stat;
 
 
@@ -73,10 +74,75 @@ typedef enum {
         comp_ctx->cursor += (N);                  \
     }
 
+/* Advance the wordEnd index to match the lexing cursor */
+#define _sync_wordEnd_to_cursor() { comp_ctx->wordEnd = comp_ctx->cursor; }
+
 
 /* ======================= */
 /* == Utility Functions == */
 /* ======================= */
+
+/* Log compiler error using the libmkb Host API */
+void log_compiler_error(comp_context_t * comp_ctx, comp_stat status) {
+    const char * str1 = "CompileError:";
+    const char * str2 = ":";
+    const char * str3 = ": ";
+    const char * strCR = "\n";
+    /* Print the error message with line and column numbers */
+    mk_host_stdout_write(str1, strlen(str1));
+    const int line = comp_ctx->lineNum;
+    const int lineStart = comp_ctx->lineStart;
+    const int cursor = comp_ctx->cursor;
+    int column = cursor - lineStart + 1;
+    if(lineStart + column + 1 >= comp_ctx->len) {
+        column = comp_ctx->len - 1 - lineStart;
+    }
+    if(lineStart + column < 0) {
+        column = 0;
+    }
+    mk_host_stdout_fmt_int(line);
+    mk_host_stdout_write(str2, strlen(str2));
+    mk_host_stdout_fmt_int(column);
+    mk_host_stdout_write(str3, strlen(str3));
+    char * message = "??? Unknown ???";
+    switch(status) {
+        case stat_OK:
+            message = "OK";
+            break;
+        case stat_BadContext:
+            message = "BadContext";
+            break;
+        case stat_EOF:
+            message = "EOF";
+            break;
+        case stat_OutOfMemory:
+            message = "OutOfMemory";
+            break;
+        case stat_ParserError:
+            message = "ParserError";
+            break;
+        case stat_IntSyntax:
+            message = "IntSyntax";
+            break;
+        case stat_IntOutOfRange:
+            message = "IntOutOfRange";
+            break;
+    }
+    mk_host_stdout_write(message, strlen(message));
+    /* Now print the offending input text */
+    mk_host_stdout_write(strCR, strlen(strCR));
+    mk_host_stdout_write(&comp_ctx->buf[comp_ctx->lineStart], column + 1);
+    mk_host_stdout_write(strCR, strlen(strCR));
+    /* And add a caret below the offending column */
+    char pad[128];
+    if((1 <= column) && (column + 1 < sizeof(pad))) {
+        memset(pad, ' ', sizeof(pad));
+        pad[column] = '^';
+        pad[column + 1] = 0;
+        mk_host_stdout_write(pad, strlen(pad));
+        mk_host_stdout_write(strCR, strlen(strCR));
+    }
+}
 
 /* Hash a name string into a bin offset using multiply-with-carry (MWC) hash */
 static comp_stat
@@ -229,12 +295,31 @@ lex_consume_sharp_comment(comp_context_t * comp_ctx) {
 /* == Compiler == */
 /* ============== */
 
+/* Compile an integer literal as U8, U16, or I32 */
 static comp_stat
-compile_int_literal(comp_context_t *comp_ctx, mk_context_t * ctx) {
-    /* ==================== */
-    /* TODO: IMPLEMENT THIS */
-    /* ==================== */
-    return stat_BadInt;
+compile_int_literal(mk_context_t * ctx, i32 n) {
+    if(n >= 0) {
+        if(n <= 255) {
+            _assert_dictionary_free_space(2);
+            _append_dictionary_byte(MK_U8);
+            _append_dictionary_byte((u8)n);
+            return stat_OK;
+        }
+        if(n <= 65535) {
+            _assert_dictionary_free_space(3);
+            _append_dictionary_byte(MK_U16);
+            _append_dictionary_byte((u8)n);
+            _append_dictionary_byte((u8)(n>>8));
+            return stat_OK;
+        }
+    }
+    _assert_dictionary_free_space(5);
+    _append_dictionary_byte(MK_I32);
+    _append_dictionary_byte((u8)n);
+    _append_dictionary_byte((u8)(n>>8));
+    _append_dictionary_byte((u8)(n>>16));
+    _append_dictionary_byte((u8)(n>>24));
+    return stat_OK;
 }
 
 /* Compile a double-quoted string literal */
@@ -317,33 +402,31 @@ parse_int_hex(comp_context_t *comp_ctx, mk_context_t * ctx) {
     u32 length = _word_length(comp_ctx);
     if(length > 2 && buf[0] == '0' && buf[1] == 'x') {
         _advance_cursor(2);
-        i32 prev = 0;
-        i32 curr = prev;
+        u32 prev = 0;
+        u32 curr = prev;
         int i;
         for(i = 2; i < length; i++) {
-            curr *= 10;
+            curr *= 16;
             if('0' <= buf[i] && buf[i] <= '9') {
-                curr *= 10;
                 curr += (buf[i] - '0');
             } else if('a' <= buf[i] && buf[i] <= 'f') {
-                curr *= 10;
                 curr += (buf[i] - 'a' + 10);
             } else if('A' <= buf[i] && buf[i] <= 'F') {
-                curr *= 10;
                 curr += (buf[i] - 'A' + 10);
             } else {
-                return stat_BadInt;
+                return stat_IntSyntax;
             }
             /* Check for overflow */
             if(curr < prev) {
-                return stat_BadInt;
+                return stat_IntOutOfRange;
             }
             prev = curr;
             _advance_cursor(1);
         }
-        return compile_int_literal(comp_ctx, ctx);
+        _sync_wordEnd_to_cursor();
+        return compile_int_literal(ctx, (i32)curr);
     } else {
-        return stat_BadInt;
+        return stat_IntSyntax;
     }
 }
 
@@ -361,21 +444,21 @@ parse_int_decimal(comp_context_t *comp_ctx, mk_context_t * ctx) {
         for(i = 0; i < length; i++) {
             curr *= 10;
             if('0' <= buf[i] && buf[i] <= '9') {
-                curr *= 10;
                 curr += (buf[i] - '0');
             } else {
-                return stat_BadInt;
+                return stat_IntSyntax;
             }
             /* Check for overflow */
             if(curr < prev) {
-                return stat_BadInt;
+                return stat_IntOutOfRange;
             }
             prev = curr;
             _advance_cursor(1);
         }
-        return compile_int_literal(comp_ctx, ctx);
+        _sync_wordEnd_to_cursor();
+        return compile_int_literal(ctx, curr);
     } else {
-        return stat_BadInt;
+        return stat_IntSyntax;
     }
 }
 
@@ -394,21 +477,21 @@ parse_int_decimal_neg(comp_context_t *comp_ctx, mk_context_t * ctx) {
         for(i = 1; i < length; i++) {
             curr *= 10;
             if('0' <= buf[i] && buf[i] <= '9') {
-                curr *= 10;
                 curr -= (buf[i] - '0');
             } else {
-                return stat_BadInt;
+                return stat_IntSyntax;
             }
             /* Check for overflow */
             if(curr > prev) {
-                return stat_BadInt;
+                return stat_IntOutOfRange;
             }
             prev = curr;
             _advance_cursor(1);
         }
-        return compile_int_literal(comp_ctx, ctx);
+        _sync_wordEnd_to_cursor();
+        return compile_int_literal(ctx, curr);
     } else {
-        return stat_BadInt;
+        return stat_IntSyntax;
     }
 }
 
@@ -724,19 +807,12 @@ comp_compile_src(mk_context_t *ctx, const u8 * text, u32 text_len) {
         }
     }
     switch(status) {
-        case stat_OK:
-            return 1;           /* Odd, but OK I guess? 0-length input? */
-        case stat_EOF:
-            return 1;           /* Normal exit path                     */
-        case stat_BadContext:
-            return 0;           /* ERROR: Compiler state got corrupted  */
-        case stat_OutOfMemory:
-            return 0;           /* ERROR: Dictionary in VM RAM is full  */
-        case stat_ParserError:
-            return 0;           /* ERROR: Malformed literal?            */
-        case stat_BadInt:
-            return 0;           /* ERROR: Int literal syntax or range   */
-        default:
+        case stat_OK:   /* Odd, but OK I guess? 0-length input? */
+            return 1;
+        case stat_EOF:  /* Normal exit path                     */
+            return 1;
+        default:        /* Some type of error */
+            log_compiler_error(&comp_ctx, status);
             return 0;
     }
 }

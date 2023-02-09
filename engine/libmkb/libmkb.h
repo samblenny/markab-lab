@@ -107,6 +107,9 @@ extern void mk_host_log_error(u8 error_code);
 /* Write length bytes from byte buffer buf to stdout */
 extern void mk_host_stdout_write(const void * buf, int length);
 
+/* Format an integer to stdout */
+extern void mk_host_stdout_fmt_int(int n);
+
 /* Write byte to stdout */
 extern void mk_host_putchar(u8 data);
 
