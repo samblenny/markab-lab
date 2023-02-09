@@ -38,6 +38,7 @@ static void op_INC(mk_context_t * ctx);
 static void op_DEC(mk_context_t * ctx);
 static void op_ADD(mk_context_t * ctx);
 static void op_SUB(mk_context_t * ctx);
+static void op_NEG(mk_context_t * ctx);
 static void op_MUL(mk_context_t * ctx);
 static void op_DIV(mk_context_t * ctx);
 static void op_MOD(mk_context_t * ctx);
@@ -52,17 +53,16 @@ static void op_INV(mk_context_t * ctx);
 static void op_XOR(mk_context_t * ctx);
 static void op_OR(mk_context_t * ctx);
 static void op_AND(mk_context_t * ctx);
+static void op_ORL(mk_context_t * ctx);
+static void op_ANDL(mk_context_t * ctx);
 
 /* Comparisons */
 static void op_GT(mk_context_t * ctx);
 static void op_LT(mk_context_t * ctx);
+static void op_GTE(mk_context_t * ctx);
+static void op_LTE(mk_context_t * ctx);
 static void op_EQ(mk_context_t * ctx);
 static void op_NE(mk_context_t * ctx);
-static void op_ZE(mk_context_t * ctx);
-
-/* Truth Value Constants */
-static void op_TRUE(mk_context_t * ctx);
-static void op_FALSE(mk_context_t * ctx);
 
 /* Data Stack Operations */
 static void op_DROP(mk_context_t * ctx);

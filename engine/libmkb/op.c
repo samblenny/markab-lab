@@ -339,6 +339,26 @@ static void op_BZ(mk_context_t * ctx) {
     _drop_T();
 }
 
+/* BNZ ( T -- ) Branch to PC-relative address if T != 0, drop T.           */
+/* The branch address is PC-relative to allow for relocatable object code. */
+/* NOTE: Relative distance has to be positive (+), unlike JMP, JAL, etc.   */
+static void op_BNZ(mk_context_t * ctx) {
+    _assert_data_stack_depth_is_at_least(1);
+    if(ctx->T != 0) {
+        /* Branch forward past conditional block: Add address literal from */
+        /* instruction stream to PC. Maximum branch distance is +255.      */
+        /* NOTE: Putting a _assert_valid_address(ctx->PC) here would give  */
+        /*       a compiler warning on Plan 9 (useless comparison).        */
+        u8 n = _u8_lit();
+        _assert_valid_address(ctx->PC + n);
+        _adjust_PC_by(n);
+    } else {
+        /* Enter conditional block: Advance PC past address literal */
+        _adjust_PC_by(1);
+    }
+    _drop_T();
+}
+
 /* JMP ( -- ) Jump to subroutine at address read from instruction stream. */
 /* The jump address is PC-relative to allow for relocatable object code.  */
 static void op_JMP(mk_context_t * ctx) {
@@ -469,6 +489,11 @@ static void op_SUB(mk_context_t * ctx) {
     _apply_lambda_ST(ctx->S - ctx->T);
 }
 
+/* NEG ( n -- -n ) Two's-Complement negate the value of T (1 becomes -1). */
+static void op_NEG(mk_context_t * ctx) {
+    _apply_lambda_T(-(ctx->T));
+}
+
 /* MUL ( S T -- S*T ) Store S*T in T, nip S. */
 static void op_MUL(mk_context_t * ctx) {
     _apply_lambda_ST(ctx->S * ctx->T);
@@ -524,28 +549,35 @@ static void op_SRA(mk_context_t * ctx) {
 /* === Logic Operations === */
 /* ======================== */
 
-/* INV ( n -- ~n ) Do a bitwise inversion of each bit in T. */
+/* INV ( n -- ~n ) One's-Complement (bitwise invert) the bits of T. */
 static void op_INV(mk_context_t * ctx) {
     _apply_lambda_T(~ (ctx->T));
 }
 
-/* XOR ( S T -- S^T ) Calculate S bitwise_XOR T. */
+/* XOR ( S T -- S^T ) Bitwise XOR S into T, nip S. */
 static void op_XOR(mk_context_t * ctx) {
     _apply_lambda_ST(ctx->S ^ ctx->T);
 }
 
-/* OR ( S T -- S|T ) Calculate S bitwise_OR T, which, in Markab, is also a
- *     logical OR because we're using Forth-style truth values.
- */
+/* OR ( S T -- S|T ) Bitwise OR S into T, nip S. */
 static void op_OR(mk_context_t * ctx) {
     _apply_lambda_ST(ctx->S | ctx->T);
 }
 
-/* AND ( S T -- S&T ) Calculate S bitwise_AND T, which, in Markab, is also a
- *     logical AND because we're using Forth-style truth values.
- */
+/* AND ( S T -- S&T ) Bitwise AND S into T, nip S.             */
+/* CAUTION! This will not work reliably as a logical AND (&&). */
 static void op_AND(mk_context_t * ctx) {
     _apply_lambda_ST(ctx->S & ctx->T);
+}
+
+/* ORL ( S T -- S||T ) Set T to S||T (logical OR), nip S. */
+static void op_ORL(mk_context_t * ctx) {
+    _apply_lambda_ST(ctx->S || ctx->T);
+}
+
+/* ANDL ( S T -- S&&T ) Set T to S&&T (logical AND), nip S. */
+static void op_ANDL(mk_context_t * ctx) {
+    _apply_lambda_ST(ctx->S && ctx->T);
 }
 
 
@@ -553,46 +585,34 @@ static void op_AND(mk_context_t * ctx) {
 /* === Comparisons === */
 /* =================== */
 
-/* GT ( S T -- S>T ) Test S>T with Forth-style truth value (true is -1). */
+/* GT ( S T -- S>T ) Set T to S>T, nip S (false is 0, true is non-zero). */
 static void op_GT(mk_context_t * ctx) {
-    _apply_lambda_ST(ctx->S > ctx->T ? -1 : 0);
+    _apply_lambda_ST(ctx->S > ctx->T);
 }
 
-/* LT ( S T -- S<T ) Test S<T with Forth-style truth value (true is -1). */
+/* LT ( S T -- S<T ) Set T to S<T, nip S (false is 0, true is non-zero). */
 static void op_LT(mk_context_t * ctx) {
-    _apply_lambda_ST(ctx->S < ctx->T ? -1 : 0);
+    _apply_lambda_ST(ctx->S < ctx->T);
 }
 
-/* EQ ( S T -- S==T ) Test S==T with Forth-style truth value (true is -1). */
+/* GTE ( S T -- S>=T ) Set T to S>=T, nip S (false is 0, true is non-zero). */
+static void op_GTE(mk_context_t * ctx) {
+    _apply_lambda_ST(ctx->S >= ctx->T);
+}
+
+/* LTE ( S T -- S<=T ) Set T to S>=T, nip S (false is 0, true is non-zero). */
+static void op_LTE(mk_context_t * ctx) {
+    _apply_lambda_ST(ctx->S <= ctx->T);
+}
+
+/* EQ ( S T -- S==T ) Set T to S==T, nip S (false is 0, true is non-zero). */
 static void op_EQ(mk_context_t * ctx) {
-    _apply_lambda_ST(ctx->S == ctx->T ? -1 : 0);
+    _apply_lambda_ST(ctx->S == ctx->T);
 }
 
-/* NE ( S T -- S!=T ) Test S!=T with Forth-style truth value (true is -1). */
+/* NE ( S T -- S!=T ) Set T to S!=T, nip S (false is 0, true is non-zero). */
 static void op_NE(mk_context_t * ctx) {
-    _apply_lambda_ST(ctx->S != ctx->T ? -1 : 0);
-}
-
-/* ZE ( n -- n==0 ) Test T==0 with Forth-style truth value (true is -1). */
-static void op_ZE(mk_context_t * ctx) {
-    _apply_lambda_T(ctx->T == 0 ? -1 : 0);
-}
-
-
-/* ============================= */
-/* === Truth Value Constants === */
-/* ============================= */
-
-/* TRUE ( -- -1 ) Push the Forth-style truth value, -1 (all bits set). */
-static void op_TRUE(mk_context_t * ctx) {
-    _assert_data_stack_is_not_full();
-    _push_T(-1);
-}
-
-/* FALSE ( -- 0 ) Push the Forth-style false value, 0 (all bits clear). */
-static void op_FALSE(mk_context_t * ctx) {
-    _assert_data_stack_is_not_full();
-    _push_T(0);
+    _apply_lambda_ST(ctx->S != ctx->T);
 }
 
 

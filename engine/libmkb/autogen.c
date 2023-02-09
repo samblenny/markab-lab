@@ -44,144 +44,153 @@ static void autogen_step(mk_context_t * ctx) {
                 op_BZ(ctx);
                 break;
             case 7:
-                op_JMP(ctx);
+                op_BNZ(ctx);
                 break;
             case 8:
-                op_JAL(ctx);
+                op_JMP(ctx);
                 break;
             case 9:
-                op_RET(ctx);
+                op_JAL(ctx);
                 break;
             case 10:
-                op_CALL(ctx);
+                op_RET(ctx);
                 break;
             case 11:
-                op_LB(ctx);
+                op_CALL(ctx);
                 break;
             case 12:
-                op_SB(ctx);
+                op_LB(ctx);
                 break;
             case 13:
-                op_LH(ctx);
+                op_SB(ctx);
                 break;
             case 14:
-                op_SH(ctx);
+                op_LH(ctx);
                 break;
             case 15:
-                op_LW(ctx);
+                op_SH(ctx);
                 break;
             case 16:
-                op_SW(ctx);
+                op_LW(ctx);
                 break;
             case 17:
-                op_INC(ctx);
+                op_SW(ctx);
                 break;
             case 18:
-                op_DEC(ctx);
+                op_INC(ctx);
                 break;
             case 19:
-                op_ADD(ctx);
+                op_DEC(ctx);
                 break;
             case 20:
-                op_SUB(ctx);
+                op_ADD(ctx);
                 break;
             case 21:
-                op_MUL(ctx);
+                op_SUB(ctx);
                 break;
             case 22:
-                op_DIV(ctx);
+                op_NEG(ctx);
                 break;
             case 23:
-                op_MOD(ctx);
+                op_MUL(ctx);
                 break;
             case 24:
-                op_SLL(ctx);
+                op_DIV(ctx);
                 break;
             case 25:
-                op_SRL(ctx);
+                op_MOD(ctx);
                 break;
             case 26:
-                op_SRA(ctx);
+                op_SLL(ctx);
                 break;
             case 27:
-                op_INV(ctx);
+                op_SRL(ctx);
                 break;
             case 28:
-                op_XOR(ctx);
+                op_SRA(ctx);
                 break;
             case 29:
-                op_OR(ctx);
+                op_INV(ctx);
                 break;
             case 30:
-                op_AND(ctx);
+                op_XOR(ctx);
                 break;
             case 31:
-                op_GT(ctx);
+                op_OR(ctx);
                 break;
             case 32:
-                op_LT(ctx);
+                op_AND(ctx);
                 break;
             case 33:
-                op_EQ(ctx);
+                op_ORL(ctx);
                 break;
             case 34:
-                op_NE(ctx);
+                op_ANDL(ctx);
                 break;
             case 35:
-                op_ZE(ctx);
+                op_GT(ctx);
                 break;
             case 36:
-                op_TRUE(ctx);
+                op_LT(ctx);
                 break;
             case 37:
-                op_FALSE(ctx);
+                op_GTE(ctx);
                 break;
             case 38:
-                op_DROP(ctx);
+                op_LTE(ctx);
                 break;
             case 39:
-                op_DUP(ctx);
+                op_EQ(ctx);
                 break;
             case 40:
-                op_OVER(ctx);
+                op_NE(ctx);
                 break;
             case 41:
-                op_SWAP(ctx);
+                op_DROP(ctx);
                 break;
             case 42:
-                op_R(ctx);
+                op_DUP(ctx);
                 break;
             case 43:
-                op_MTR(ctx);
+                op_OVER(ctx);
                 break;
             case 44:
-                op_RDROP(ctx);
+                op_SWAP(ctx);
                 break;
             case 45:
-                op_EMIT(ctx);
+                op_R(ctx);
                 break;
             case 46:
-                op_PRINT(ctx);
+                op_MTR(ctx);
                 break;
             case 47:
-                op_CR();
+                op_RDROP(ctx);
                 break;
             case 48:
-                op_DOT(ctx);
+                op_EMIT(ctx);
                 break;
             case 49:
-                op_DOTH(ctx);
+                op_PRINT(ctx);
                 break;
             case 50:
-                op_DOTS(ctx);
+                op_CR();
                 break;
             case 51:
-                op_DOTSH(ctx);
+                op_DOT(ctx);
                 break;
             case 52:
-                op_DOTRH(ctx);
+                op_DOTH(ctx);
                 break;
             case 53:
+                op_DOTS(ctx);
+                break;
+            case 54:
+                op_DOTSH(ctx);
+                break;
+            case 55:
+                op_DOTRH(ctx);
+                break;
+            case 56:
                 op_DUMP(ctx);
                 break;
             default:

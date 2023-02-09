@@ -19,6 +19,7 @@ halt HALT
 <ASM> I32
 <ASM> STR
 <ASM> BZ
+<ASM> BNZ
 <ASM> JMP
 <ASM> JAL
 <ASM> RET
@@ -33,6 +34,7 @@ w! SW
 -- DEC
 + ADD
 - SUB
+neg NEG
 * MUL
 / DIV
 % MOD
@@ -43,13 +45,14 @@ w! SW
 ^ XOR
 | OR
 & AND
+|| ORL
+&& ANDL
 > GT
 < LT
-= EQ
+>= GTE
+<= LTE
+== EQ
 != NE
-0= ZE
-true TRUE
-false FALSE
 drop DROP
 dup DUP
 over OVER

@@ -356,9 +356,6 @@ parse_word(comp_context_t * comp_ctx, mk_context_t * ctx) {
         case '<':
             _append_dictionary_byte(MK_LT);   /* < */
             break;
-        case '=':
-            _append_dictionary_byte(MK_EQ);   /* = */
-            break;
         case 'r':
             _append_dictionary_byte(MK_R);    /* r */
             break;
@@ -395,11 +392,17 @@ parse_word(comp_context_t * comp_ctx, mk_context_t * ctx) {
         case ('>' << 8) | '>':                /* >> */
             _append_dictionary_byte(MK_SRL);
             break;
+        case ('>' << 8) | '=':                /* >= */
+            _append_dictionary_byte(MK_GTE);
+            break;
+        case ('<' << 8) | '=':                /* <= */
+            _append_dictionary_byte(MK_LTE);
+            break;
+        case ('=' << 8) | '=':                /* == */
+            _append_dictionary_byte(MK_EQ);
+            break;
         case ('!' << 8) | '=':                /* != */
             _append_dictionary_byte(MK_NE);
-            break;
-        case ('0' << 8) | '=':                /* 0= */
-            _append_dictionary_byte(MK_ZE);
             break;
         case ('>' << 8) | 'r':                /* >r */
             _append_dictionary_byte(MK_MTR);
@@ -421,6 +424,9 @@ parse_word(comp_context_t * comp_ctx, mk_context_t * ctx) {
         switch((buf[0] << 16) | (buf[1] << 8) | buf[2]) {
         case ('n' << 16) | ('o' << 8) | 'p':   /* nop */
             _append_dictionary_byte(MK_NOP);
+            break;
+        case ('n' << 16) | ('e' << 8) | 'g':   /* neg */
+            _append_dictionary_byte(MK_NEG);
             break;
         case ('>' << 16) | ('>' << 8) | '>':   /* >>> */
             _append_dictionary_byte(MK_SRA);
@@ -446,9 +452,6 @@ parse_word(comp_context_t * comp_ctx, mk_context_t * ctx) {
         case ('c' << 24) | ('a' << 16) | ('l' << 8) | 'l':  /* call */
             _append_dictionary_byte(MK_CALL);
             break;
-        case ('t' << 24) | ('r' << 16) | ('u' << 8) | 'e':  /* true */
-            _append_dictionary_byte(MK_TRUE);
-            break;
         case ('d' << 24) | ('r' << 16) | ('o' << 8) | 'p':  /* drop */
             _append_dictionary_byte(MK_DROP);
             break;
@@ -469,10 +472,6 @@ parse_word(comp_context_t * comp_ctx, mk_context_t * ctx) {
         }
         break;
     case 5:
-        if(strncmp((const char *)buf, "false", length) == 0) {
-            _append_dictionary_byte(MK_FALSE);
-            break;
-        }
         if(strncmp((const char *)buf, "rdrop", length) == 0) {
             _append_dictionary_byte(MK_RDROP);
             break;
