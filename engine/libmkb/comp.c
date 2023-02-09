@@ -338,6 +338,18 @@ parse_word(comp_context_t * comp_ctx, mk_context_t * ctx) {
         case '%':
             _append_dictionary_byte(MK_MOD);  /* % */
             break;
+        case '~':
+            _append_dictionary_byte(MK_INV);  /* ~ */
+            break;
+        case '^':
+            _append_dictionary_byte(MK_XOR);  /* ^ */
+            break;
+        case '|':
+            _append_dictionary_byte(MK_OR);   /* | */
+            break;
+        case '&':
+            _append_dictionary_byte(MK_AND);  /* & */
+            break;
         case '>':
             _append_dictionary_byte(MK_GT);   /* > */
             break;
@@ -383,23 +395,20 @@ parse_word(comp_context_t * comp_ctx, mk_context_t * ctx) {
         case ('>' << 8) | '>':                /* >> */
             _append_dictionary_byte(MK_SRL);
             break;
-        case ('o' << 8) | 'r':                /* or */
-            _append_dictionary_byte(MK_OR);
-            break;
         case ('!' << 8) | '=':                /* != */
             _append_dictionary_byte(MK_NE);
             break;
         case ('0' << 8) | '=':                /* 0= */
             _append_dictionary_byte(MK_ZE);
             break;
-        case ('p' << 8) | 'c':                /* pc */
-            _append_dictionary_byte(MK_PC);
-            break;
         case ('>' << 8) | 'r':                /* >r */
             _append_dictionary_byte(MK_MTR);
             break;
         case ('c' << 8) | 'r':                /* cr */
             _append_dictionary_byte(MK_CR);
+            break;
+        case ('.' << 8) | 'h':                /* .h */
+            _append_dictionary_byte(MK_DOTH);
             break;
         case ('.' << 8) | 'S':                /* .S */
             _append_dictionary_byte(MK_DOTS);
@@ -416,20 +425,8 @@ parse_word(comp_context_t * comp_ctx, mk_context_t * ctx) {
         case ('>' << 16) | ('>' << 8) | '>':   /* >>> */
             _append_dictionary_byte(MK_SRA);
             break;
-        case ('i' << 16) | ('n' << 8) | 'v':   /* inv */
-            _append_dictionary_byte(MK_INV);
-            break;
-        case ('x' << 16) | ('o' << 8) | 'r':   /* xor */
-            _append_dictionary_byte(MK_XOR);
-            break;
-        case ('a' << 16) | ('n' << 8) | 'd':   /* and */
-            _append_dictionary_byte(MK_AND);
-            break;
         case ('d' << 16) | ('u' << 8) | 'p':   /* dup */
             _append_dictionary_byte(MK_DUP);
-            break;
-        case ('h' << 16) | ('e' << 8) | 'x':   /* hex */
-            _append_dictionary_byte(MK_HEX);
             break;
         case ('.' << 16) | ('S' << 8) | 'h':   /* .Sh */
             _append_dictionary_byte(MK_DOTSH);
@@ -445,12 +442,6 @@ parse_word(comp_context_t * comp_ctx, mk_context_t * ctx) {
         switch((buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3]) {
         case ('h' << 24) | ('a' << 16) | ('l' << 8) | 't':  /* halt */
             _append_dictionary_byte(MK_HALT);
-            break;
-        case ('t' << 24) | ('r' << 16) | ('o' << 8) | 'n':  /* tron */
-            _append_dictionary_byte(MK_TRON);
-            break;
-        case ('>' << 24) | ('e' << 16) | ('r' << 8) | 'r':  /* >err */
-            _append_dictionary_byte(MK_MTE);
             break;
         case ('c' << 24) | ('a' << 16) | ('l' << 8) | 'l':  /* call */
             _append_dictionary_byte(MK_CALL);
@@ -470,9 +461,6 @@ parse_word(comp_context_t * comp_ctx, mk_context_t * ctx) {
         case ('e' << 24) | ('m' << 16) | ('i' << 8) | 't':  /* emit */
             _append_dictionary_byte(MK_EMIT);
             break;
-        case ('b' << 24) | ('a' << 16) | ('s' << 8) | 'e':  /* base */
-            _append_dictionary_byte(MK_BASE);
-            break;
         case ('d' << 24) | ('u' << 16) | ('m' << 8) | 'p':  /* dump */
             _append_dictionary_byte(MK_DUMP);
             break;
@@ -481,14 +469,6 @@ parse_word(comp_context_t * comp_ctx, mk_context_t * ctx) {
         }
         break;
     case 5:
-        if(strncmp((const char *)buf, "reset", length) == 0) {
-            _append_dictionary_byte(MK_RESET);
-            break;
-        }
-        if(strncmp((const char *)buf, "troff", length) == 0) {
-            _append_dictionary_byte(MK_TROFF);
-            break;
-        }
         if(strncmp((const char *)buf, "false", length) == 0) {
             _append_dictionary_byte(MK_FALSE);
             break;
@@ -499,12 +479,6 @@ parse_word(comp_context_t * comp_ctx, mk_context_t * ctx) {
         }
         if(strncmp((const char *)buf, "print", length) == 0) {
             _append_dictionary_byte(MK_PRINT);
-            break;
-        }
-        return parse_dictionary_word(comp_ctx, ctx);
-    case 7:
-        if(strncmp((const char *)buf, "decimal", length) == 0) {
-            _append_dictionary_byte(MK_DECIMAL);
             break;
         }
         return parse_dictionary_word(comp_ctx, ctx);

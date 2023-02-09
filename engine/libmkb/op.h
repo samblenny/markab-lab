@@ -10,11 +10,7 @@
 static void op_NOP(void);
 
 /* VM Control */
-static void op_RESET(mk_context_t * ctx);
 static void op_HALT(mk_context_t * ctx);
-static void op_TRON(mk_context_t * ctx);
-static void op_TROFF(mk_context_t * ctx);
-static void op_MTE(mk_context_t * ctx);
 
 /* Literals */
 static void op_U8(mk_context_t * ctx);
@@ -73,7 +69,6 @@ static void op_DROP(mk_context_t * ctx);
 static void op_DUP(mk_context_t * ctx);
 static void op_OVER(mk_context_t * ctx);
 static void op_SWAP(mk_context_t * ctx);
-static void op_PC(mk_context_t * ctx);
 
 /* Return Stack Operations */
 static void op_R(mk_context_t * ctx);
@@ -82,14 +77,12 @@ static void op_RDROP(mk_context_t * ctx);
 
 /* Console IO */
 static void op_EMIT(mk_context_t * ctx);
-static void op_HEX(mk_context_t * ctx);
-static void op_DECIMAL(mk_context_t * ctx);
-static void op_BASE(mk_context_t * ctx);
 static void op_PRINT(mk_context_t * ctx);
 static void op_CR(void);
 
 /* Debug Dumps for Stacks and Memory */
 static void op_DOT(mk_context_t * ctx);
+static void op_DOTH(mk_context_t * ctx);
 static void op_DOTS(mk_context_t * ctx);
 static void op_DOTSH(mk_context_t * ctx);
 static void op_DOTRH(mk_context_t * ctx);

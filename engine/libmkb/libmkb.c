@@ -61,11 +61,9 @@ int mk_load_rom(const u8 * code, u32 code_len_bytes) {
         {0},     /* RSTACK[] */
         0,       /* PC */
         0,       /* DP */
-        0,       /* halted */
-        10,      /* base */
         {0},     /* RAM */
+        0,       /* halted */
         0,       /* err */
-        0,       /* DbgTraceEnable */
     };
     /* Copy code from ROM to RAM, truncating whatever doesn't fit. This is
      * meant to allow for the possibility of a ROM file containing code
@@ -99,11 +97,9 @@ int mk_compile_and_run(const u8 * text, u32 text_len_bytes) {
         {0},     /* RSTACK[] */
         0,       /* PC */
         0,       /* DP */
-        0,       /* halted */
-        10,      /* base */
         {0},     /* RAM */
+        0,       /* halted */
         0,       /* err */
-        0,       /* DbgTraceEnable */
     };
     /* Zero VM RAM */
     memset((void *)ctx.RAM, MK_NOP, sizeof(ctx.RAM));

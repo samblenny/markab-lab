@@ -262,24 +262,6 @@ static void op_HALT(mk_context_t * ctx) {
     ctx->halted = 1;
 }
 
-/* TRON ( -- ) Enable debug tracing. */
-static void op_TRON(mk_context_t * ctx) {
-    ctx->DbgTraceEnable = 1;
-}
-
-/* TROFF ( -- ) Disable debug tracing. */
-static void op_TROFF(mk_context_t * ctx) {
-    ctx->DbgTraceEnable = 0;
-}
-
-/* MTE ( err -- ) Move value from T into the ERR register (raise an error). */
-static void op_MTE(mk_context_t * ctx) {
-    _assert_data_stack_depth_is_at_least(1);
-    ctx->err = ctx->T;
-    _drop_T();
-    vm_irq_err(ctx, ctx->err);
-}
-
 
 /* ================ */
 /* === Literals === */
@@ -647,12 +629,6 @@ static void op_SWAP(mk_context_t * ctx) {
     ctx->S = n;
 }
 
-/* PC ( -- pc ) Push value of program counter (PC) register as T. */
-static void op_PC(mk_context_t * ctx) {
-    _assert_data_stack_is_not_full();
-    _push_T(ctx->PC);
-}
-
 
 /* =============================== */
 /* === Return Stack Operations === */
@@ -690,22 +666,6 @@ static void op_EMIT(mk_context_t * ctx) {
     _drop_T();
 }
 
-/* HEX ( -- ) Set number base to 16 */
-static void op_HEX(mk_context_t * ctx) {
-    ctx->base = 16;
-}
-
-/* DECIMAL ( -- ) Set number base to 10 */
-static void op_DECIMAL(mk_context_t * ctx) {
-    ctx->base = 10;
-}
-
-/* BASE ( -- n ) Push current number base: 10 (decimal) or 16 (hex). */
-static void op_BASE(mk_context_t * ctx) {
-    _assert_data_stack_is_not_full();
-    _push_T(ctx->base);
-}
-
 /* PRINT ( addr -- ) Print counted string at address T to stdout. */
 static void op_PRINT(mk_context_t * ctx) {
     _assert_data_stack_depth_is_at_least(1);
@@ -730,16 +690,22 @@ static void op_CR(void) {
 /* === Debug Dumps for Stacks and Memory === */
 /* ========================================= */
 
-/* DOT ( i32 -- ) Format T in current number base to stdout, drop T. */
+/* DOT ( i32 -- ) Format T in base-10 (decimal) to stdout, drop T. */
 static void op_DOT(mk_context_t * ctx) {
     _assert_data_stack_depth_is_at_least(1);
     mk_str_t str = {0, {0}};
     fmt_spaces(&str, 1);
-    if(ctx->base == 10) {
-        fmt_decimal(&str, ctx->T);
-    } else {
-        fmt_hex(&str, ctx->T);
-    }
+    fmt_decimal(&str, ctx->T);
+    vm_stdout_write(&str);
+    _drop_T();
+}
+
+/* DOTH ( i32 -- ) Format T in base-16 (hex) to stdout, drop T. */
+static void op_DOTH(mk_context_t * ctx) {
+    _assert_data_stack_depth_is_at_least(1);
+    mk_str_t str = {0, {0}};
+    fmt_spaces(&str, 1);
+    fmt_hex(&str, ctx->T);
     vm_stdout_write(&str);
     _drop_T();
 }

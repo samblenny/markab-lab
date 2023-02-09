@@ -13,11 +13,7 @@ C_CODE_OUTFILE = "libmkb/autogen.c"
 
 OPCODES = """
 nop NOP
-reset RESET
 halt HALT
-tron TRON
-troff TROFF
->err MTE
 <ASM> U8
 <ASM> U16
 <ASM> I32
@@ -43,10 +39,10 @@ w! SW
 << SLL
 >> SRL
 >>> SRA
-inv INV
-xor XOR
-or OR
-and AND
+~ INV
+^ XOR
+| OR
+& AND
 > GT
 < LT
 = EQ
@@ -58,17 +54,14 @@ drop DROP
 dup DUP
 over OVER
 swap SWAP
-pc PC
 r R
 >r MTR
 rdrop RDROP
 emit EMIT
-hex HEX
-decimal DECIMAL
-base BASE
 print PRINT
 cr CR
 . DOT
+.h DOTH
 .S DOTS
 .Sh DOTSH
 .Rh DOTRH

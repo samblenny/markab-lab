@@ -231,11 +231,10 @@ void mk_host_putchar(u8 data) {
 /* Test NOP opcode */
 static void test_NOP(void) {
     u8 code[] = {
-        MK_NOP, MK_PC, MK_DOTS,
-        MK_U8, '\n', MK_EMIT,
+        MK_NOP, MK_STR, 4, 'n', 'o', 'p', '\n', MK_PRINT,
         MK_HALT,
     };
-    char * expected = " 2\n";
+    char * expected = "nop\n";
     _score("test_NOP", code, expected, MK_ERR_OK);
 }
 
@@ -243,27 +242,6 @@ static void test_NOP(void) {
 /* ================== */
 /* === VM Control === */
 /* ================== */
-
-/* Test RESET opcode */
-static void test_RESET(void) {
-    u8 code[] = {
-        MK_U8, 255, MK_DUP, MK_DUP, MK_MTR,
-        MK_DOTSH, MK_U8, '\n', MK_EMIT,
-        MK_DOTRH, MK_U8, '\n', MK_EMIT,
-        MK_U8, 255, MK_MTE,  /* Raise an error to be cleared by RESET */
-        MK_RESET,
-        MK_DOTSH, MK_U8, '\n', MK_EMIT,
-        MK_DOTRH, MK_U8, '\n', MK_EMIT,
-        MK_HALT,
-    };
-    char * expected =
-        " ff ff\n"
-        " ff\n"
-        "ERROR: 255\n"
-        " Stack is empty\n"
-        " Return stack is empty\n";
-    _score("test_RESET", code, expected, MK_ERR_OK);
-}
 
 /* Test HALT opcode */
 static void test_HALT(void) {
@@ -276,42 +254,6 @@ static void test_HALT(void) {
     };
     char * expected = "A\n";
     _score("test_HALT", code, expected, MK_ERR_OK);
-}
-
-/* Test TRON opcode */
-static void test_TRON(void) {
-    u8 code[] = {
-        MK_TRON, MK_NOP,
-        MK_HALT,
-    };
-    /* TODO: Make a better test once tracing is implemented */
-    char * expected = "";
-    _score("test_TRON", code, expected, MK_ERR_OK);
-}
-
-/* Test TROFF opcode */
-static void test_TROFF(void) {
-    u8 code[] = {
-        MK_TROFF, MK_NOP,
-        MK_HALT,
-    };
-    /* TODO: Make a better test once tracing is implemented */
-    char * expected = "";
-    _score("test_TROFF", code, expected, MK_ERR_OK);
-}
-
-/* Test MTE opcode */
-static void test_MTE(void) {
-    u8 code[] = {
-        MK_U8, 255, MK_DOT,
-        MK_STR, 6, ' ', '>', 'e', 'r', 'r', '\n', MK_PRINT,
-        MK_U8, 255, MK_MTE,
-        MK_HALT,
-    };
-    char * expected =
-        " 255 >err\n"
-        "ERROR: 255\n";
-    _score("test_MTE", code, expected, 255);
 }
 
 
@@ -1089,15 +1031,13 @@ static void test_MOD(void) {
 /* Test SLL opcode */
 static void test_SLL(void) {
     u8 code[] = {
-        MK_HEX,
         MK_U8, 1,
         MK_U8, 31,
-        MK_DOTSH, MK_SLL, MK_DOT, MK_CR,  /*  1 1e 80000000 */
-        MK_DECIMAL,
+        MK_DOTSH, MK_SLL, MK_DOTH, MK_CR,  /*  1 1e 80000000 */
         MK_U8, 5,
         MK_U8, 2,
-        MK_DOTSH, MK_SLL, MK_DOT, MK_CR,  /*  5 2 20 */
-        MK_SLL,                           /* This will raise an error */
+        MK_DOTSH, MK_SLL, MK_DOT, MK_CR,   /*  5 2 20 */
+        MK_SLL,                            /* This will raise an error */
         MK_HALT,
     };
     char * expected =
@@ -1110,18 +1050,16 @@ static void test_SLL(void) {
 /* Test SRL opcode */
 static void test_SRL(void) {
     u8 code[] = {
-        MK_HEX,
         MK_I32, 255, 255, 255, 255,
         MK_U8, 30,
-        MK_DOTSH, MK_SRL, MK_DOT, MK_CR,  /*  ffffffff 1e 3 */
+        MK_DOTSH, MK_SRL, MK_DOTH, MK_CR,  /*  ffffffff 1e 3 */
         MK_I32, 255, 255, 255, 127,
         MK_U8, 30,
-        MK_DOTSH, MK_SRL, MK_DOT, MK_CR,  /*  7fffffff 1e 1 */
+        MK_DOTSH, MK_SRL, MK_DOTH, MK_CR,  /*  7fffffff 1e 1 */
         MK_U8, 20,
         MK_U8, 2,
-        MK_DECIMAL,
-        MK_DOTS,  MK_SRL, MK_DOT, MK_CR,  /*  20 2 5 */
-        MK_SRL,                           /* This will raise an error */
+        MK_DOTS,  MK_SRL, MK_DOT, MK_CR,   /*  20 2 5 */
+        MK_SRL,                            /* This will raise an error */
         MK_HALT,
     };
     char * expected =
@@ -1135,18 +1073,16 @@ static void test_SRL(void) {
 /* Test SRA opcode */
 static void test_SRA(void) {
     u8 code[] = {
-        MK_HEX,
         MK_I32, 255, 255, 255, 255,
         MK_U8, 30,
-        MK_DOTSH, MK_SRA, MK_DOT, MK_CR,  /*  ffffffff 1e ffffffff */
+        MK_DOTSH, MK_SRA, MK_DOTH, MK_CR,  /*  ffffffff 1e ffffffff */
         MK_I32, 255, 255, 255, 127,
         MK_U8, 30,
-        MK_DOTSH, MK_SRA, MK_DOT, MK_CR,  /*  7fffffff 1e 1 */
+        MK_DOTSH, MK_SRA, MK_DOTH, MK_CR,  /*  7fffffff 1e 1 */
         MK_U8, 20,
         MK_U8, 2,
-        MK_DECIMAL,
-        MK_DOTS,  MK_SRA, MK_DOT, MK_CR,  /*  20 2 5 */
-        MK_SRA,                           /* This will raise an error */
+        MK_DOTS,  MK_SRA, MK_DOT, MK_CR,   /*  20 2 5 */
+        MK_SRA,                            /* This will raise an error */
         MK_HALT,
     };
     char * expected =
@@ -1172,7 +1108,8 @@ static void test_INV(void) {
         MK_INV, MK_DOT,
         MK_INV, MK_DOT,
         MK_INV, MK_DOT,  MK_CR,      /*  255 -1 0 */
-        MK_RESET, MK_INV,            /* This will raise an error */
+        MK_DROP, MK_DROP, MK_DROP,
+        MK_INV,                      /* This will raise an error */
         MK_HALT,
     };
     char * expected =
@@ -1528,7 +1465,8 @@ static void test_DUP(void) {
         MK_U8, 1,
         MK_DOTS, MK_CR,                  /*  1 */
         MK_DUP, MK_DUP, MK_DOTS, MK_CR,  /*  1 1 1 */
-        MK_RESET, MK_DUP,                /* This one will raise an error */
+        MK_DROP, MK_DROP, MK_DROP,
+        MK_DUP,                          /* This one will raise an error */
         MK_HALT,
     };
     char * expected =
@@ -1543,7 +1481,8 @@ static void test_OVER(void) {
     u8 code[] = {
         MK_U8, 1, MK_U8, 2, MK_DOTS, MK_CR,  /*  1 2 */
         MK_OVER, MK_OVER,   MK_DOTS, MK_CR,  /*  1 2 1 2 */
-        MK_RESET, MK_U8, 1, MK_OVER,         /* This will raise an error */
+        MK_DROP, MK_DROP, MK_DROP, MK_DROP,
+        MK_U8, 1, MK_OVER,                   /* This will raise an error */
         MK_HALT,
     };
     char * expected =
@@ -1566,19 +1505,6 @@ static void test_SWAP(void) {
         " 2 1\n"
         "ERROR: Stack underflow\n";
     _score("test_SWAP", code, expected, MK_ERR_D_UNDER);
-}
-
-/* Test PC opcode */
-static void test_PC(void) {
-    u8 code[] = {
-        MK_PC, MK_DOTS, MK_CR,  /*  1 */
-        MK_PC, MK_DOTS, MK_CR,  /*  1 4 */
-        MK_HALT,
-    };
-    char * expected =
-        " 1\n"
-        " 1 4\n";
-    _score("test_PC", code, expected, MK_ERR_OK);
 }
 
 
@@ -1707,38 +1633,6 @@ static void test_EMIT(void) {
     _score("test_EMIT", code, expected, MK_ERR_OK);
 }
 
-/* Test HEX opcode */
-static void test_HEX(void) {
-    u8 code[] = {
-        MK_U8, 255, MK_HEX, MK_DOT, MK_CR,
-        MK_HALT,
-    };
-    char * expected = " ff\n";
-    _score("test_HEX", code, expected, MK_ERR_OK);
-}
-
-/* Test DECIMAL opcode */
-static void test_DECIMAL(void) {
-    u8 code[] = {
-        MK_U8, 255, MK_DECIMAL, MK_DOT, MK_CR,
-        MK_HALT,
-    };
-    char * expected = " 255\n";
-    _score("test_DECIMAL", code, expected, MK_ERR_OK);
-}
-
-/* Test BASE opcode */
-static void test_BASE(void) {
-    u8 code[] = {
-        /* hex base decimal base .S */
-        MK_HEX, MK_BASE, MK_DECIMAL, MK_BASE,
-        MK_DOTS, MK_CR,
-        MK_HALT,
-    };
-    char * expected = " 16 10\n";
-    _score("test_BASE", code, expected, MK_ERR_OK);
-}
-
 /* Test PRINT opcode */
 static void test_PRINT(void) {
     u8 code[] = {
@@ -1790,6 +1684,30 @@ static void test_DOT(void) {
         " -1 -2147483648 2147483647 65535 255 1 0\n"
         " Stack is empty\n";
     _score("test_DOT", code, expected, MK_ERR_OK);
+}
+
+/* Test DOTH opcode */
+static void test_DOTH(void) {
+    u8 code[] = {
+        MK_DOTSH, MK_CR,
+        MK_U8,    0,
+        MK_U8,    1,
+        MK_U8,  255,
+        MK_U16, 255, 255,
+        MK_I32, 255, 255, 255, 127,
+        MK_I32,   0,   0,   0, 128,
+        MK_I32, 255, 255, 255, 255,
+        MK_DOTSH, MK_CR,
+        MK_DOTH, MK_DOTH, MK_DOTH, MK_DOTH, MK_DOTH, MK_DOTH, MK_DOTH, MK_CR,
+        MK_DOTSH, MK_CR,
+        MK_HALT,
+    };
+    char * expected =
+        " Stack is empty\n"
+        " 0 1 ff ffff 7fffffff 80000000 ffffffff\n"
+        " ffffffff 80000000 7fffffff ffff ff 1 0\n"
+        " Stack is empty\n";
+    _score("test_DOTH", code, expected, MK_ERR_OK);
 }
 
 /* Test DOTS opcode */
@@ -2156,11 +2074,7 @@ int main() {
     test_NOP();
 
     /* VM Control */
-    test_RESET();
     test_HALT();
-    test_TRON();
-    test_TROFF();
-    test_MTE();
 
     /* Integer Literals */
     test_U8();
@@ -2219,7 +2133,6 @@ int main() {
     test_DUP();
     test_OVER();
     test_SWAP();
-    test_PC();
 
     /* Return Stack Operations */
     test_R();
@@ -2228,14 +2141,12 @@ int main() {
 
     /* Console IO */
     test_EMIT();
-    test_HEX();
-    test_DECIMAL();
-    test_BASE();
     test_PRINT();
     test_CR();
 
     /* Debug Dumps for Stacks and Memory */
     test_DOT();
+    test_DOTH();
     test_DOTS();
     test_DOTSH();
     test_DOTRH();
