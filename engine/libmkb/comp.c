@@ -257,7 +257,7 @@ compile_char(comp_context_t *comp_ctx, mk_context_t * ctx) {
     } else if(length == 4) {
         /* Might be '\n', '\t', '\r', or '\\' */
         if(buf[0] == '\'' && buf[1] == '\\' && buf[3] == '\'') {
-            u8 esc = 0;
+            u8 esc;
             switch(buf[2]) {
                 case 'n':
                     esc = '\n';
