@@ -2268,16 +2268,6 @@ static void test_cStackOps(void) {
     _score_compiled("test_StackOps", code, expected, MK_ERR_OK);
 }
 
-/* Test character literals */
-static void test_cCharLit(void) {
-    u8 code[] =
-        "'A' emit 'B' emit '\\t' emit 'C' emit '\\n' emit\n"
-        "halt\n";
-    char * expected =
-        "AB\tC\n";
-    _score_compiled("test_cCharLit", code, expected, MK_ERR_OK);
-}
-
 /* Test integer literals */
 static void test_cIntLit(void) {
     /* cIntLit: valid integers */
@@ -2358,6 +2348,28 @@ static void test_cIntLit(void) {
         "     ^\n";
     _score_compiled("test_cIntLitSyntax3", code7, expected7, MK_ERR_OK);
 
+}
+
+/* Test string literals */
+static void test_cStrLit(void) {
+    u8 code[] =
+        "\"hello, world\\n\" print\n"
+        "'>' emit \"\" print '<' emit  # an empty string\n"
+        "halt\n";
+    char * expected =
+        "hello, world\n"
+        "><\n";
+    _score_compiled("test_cStrLit", code, expected, MK_ERR_OK);
+}
+
+/* Test character literals */
+static void test_cCharLit(void) {
+    u8 code[] =
+        "'A' emit 'B' emit '\\t' emit 'C' emit '\\n' emit\n"
+        "halt\n";
+    char * expected =
+        "AB\tC\n";
+    _score_compiled("test_cCharLit", code, expected, MK_ERR_OK);
 }
 
 /* Test sharp-sign comments */
@@ -2494,8 +2506,9 @@ int main() {
 
     /* Compiler */
     test_cStackOps();
-    test_cCharLit();
     test_cIntLit();
+    test_cStrLit();
+    test_cCharLit();
     test_cSharpComment();
     test_cParenComment();
 

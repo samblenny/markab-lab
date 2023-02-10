@@ -34,6 +34,7 @@ typedef enum {
     stat_ParserError,    /* Parser error: malformed literal, etc */
     stat_IntSyntax,      /* Bad int literal (syntax?)            */
     stat_IntOutOfRange,  /* Int literal is out of i32 range      */
+    stat_StrSyntax,      /* Bad string literal                   */
 } comp_stat;
 
 
@@ -126,6 +127,9 @@ void log_compiler_error(comp_context_t * comp_ctx, comp_stat status) {
             break;
         case stat_IntOutOfRange:
             message = "IntOutOfRange";
+            break;
+        case stat_StrSyntax:
+            message = "StrSyntax";
             break;
     }
     mk_host_stdout_write(message, strlen(message));
@@ -272,9 +276,11 @@ lex_skip_until(comp_context_t * comp_ctx, u8 delimiter) {
         /* Stop if this byte is the delimiter */
         if(c == delimiter) {
             comp_ctx->cursor = (i + 1 <= end_index) ? i + 1 : end_index;
+            _sync_wordEnd_to_cursor();
             return stat_OK;
         }
     }
+    _sync_wordEnd_to_cursor();
     return stat_EOF;
 }
 
@@ -330,7 +336,7 @@ compile_str(comp_context_t *comp_ctx, mk_context_t * ctx) {
     /* TODO: IMPLEMENT THIS */
     /* ==================== */
 
-    return stat_EOF;
+    return stat_StrSyntax;
 }
 
 /* Compile a single-quoted ASCII character literal */
