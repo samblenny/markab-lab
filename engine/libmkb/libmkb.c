@@ -104,10 +104,11 @@ int mk_compile_and_run(const u8 * text, u32 text_len_bytes) {
     /* Zero VM RAM */
     memset((void *)ctx.RAM, MK_NOP, sizeof(ctx.RAM));
     /* Compile the Markab Script source */
-    int okay = comp_compile_src(&ctx, text, text_len_bytes);
-    if(okay) {
+    if(comp_compile_src(&ctx, text, text_len_bytes)) {
         /* Start clocking the VM from the boot vector */
         autogen_step(&ctx);
+    } else {
+        ctx.err = MK_ERR_COMPILE;
     }
     /* Return value of the VM's error register */
     return ctx.err;

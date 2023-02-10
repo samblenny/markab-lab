@@ -82,6 +82,7 @@ typedef struct mk_str {
 #define MK_ERR_CPU_HOG      (7  /* Code was hogging CPU */)
 #define MK_ERR_DIV_BY_ZERO  (8  /* Divide by zero */)
 #define MK_ERR_DIV_OVERFLOW (9  /* Quotient would overflow */)
+#define MK_ERR_COMPILE      (10 /* Compiler error */)
 
 
 /* ==================================================== */

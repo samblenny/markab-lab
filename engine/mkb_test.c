@@ -31,7 +31,7 @@
 /* ============================== */
 
 /* Typedef for a jumbo-size counted string buffer */
-#define MKB_TEST_StrBufSize (1024 * 16)
+#define MKB_TEST_StrBufSize (1024)
 typedef struct mkb_test_str {
     u16 len;
     u8 buf[MKB_TEST_StrBufSize];
@@ -59,13 +59,29 @@ static void test_stdout_reset(void) {
     memset((void *)&TEST_STDOUT, 0, sizeof(mkb_test_str_t));
 }
 
-/* Check for match between expected string and TEST_STDOUT.
- * Returns: 1 when strings match, 0 when strings do not match
- */
+/* Check for match between expected string and TEST_STDOUT.   */
+/* Returns: 1 when strings match, 0 when strings do not match */
 static int test_stdout_match(const char *expected) {
-    long e_len = strlen(expected);
+    int e_len = strlen(expected);
     /* Check if the expected and actual lengths match */
     if(e_len != TEST_STDOUT.len) {
+        /* If the strings don't match, dump a byte by byte comparison */
+        /* CAUTION! This will spew a whole bunch of debug output      */
+        const int A = e_len;
+        const int B = TEST_STDOUT.len;
+        const int AB_min = (A < B) ? A : B;
+        printf(">>> expected output length: %d <<<\n", e_len);
+        printf(">>>   actual output length: %d <<<\n", TEST_STDOUT.len);
+        int i;
+        for(i = 0; i < AB_min; i++) {
+            const u8 x = expected[i];
+            const u8 y = TEST_STDOUT.buf[i];
+            const u8 xA = (x < 32) ? '.' : x;  /* filter ctrl chars as '.' */
+            const u8 yA = (y < 32) ? '.' : y;  /* filter ctrl chars as '.' */
+            const char * tag = (x == y) ? "" : " MISMATCH ";
+            const char * fmt = ">>> i:%3d: %3d %3d %c %c %s<<<\n";
+            printf(fmt, i, x, y, xA, yA, tag);
+        }
         return 0;  /* FAIL */
     }
     /* Check if expected and actual characters match */
@@ -2291,7 +2307,7 @@ static void test_cIntLit(void) {
         "CompileError:2:11: IntOutOfRange\n"
         " 2147483648 \n"
         "           ^\n";
-    _score_compiled("test_cIntLitOOR1", code2, expected2, MK_ERR_OK);
+    _score_compiled("test_cIntLitOOR1", code2, expected2, MK_ERR_COMPILE);
 
     /* cIntLitOOR2: out of range */
     u8 code3[] =
@@ -2302,7 +2318,7 @@ static void test_cIntLit(void) {
         "CompileError:2:12: IntOutOfRange\n"
         " -2147483649 \n"
         "            ^\n";
-    _score_compiled("test_cIntLitOOR2", code3, expected3, MK_ERR_OK);
+    _score_compiled("test_cIntLitOOR2", code3, expected3, MK_ERR_COMPILE);
 
     /* cIntLitOOR3: out of range */
     u8 code4[] =
@@ -2313,7 +2329,7 @@ static void test_cIntLit(void) {
         "CompileError:2:12: IntOutOfRange\n"
         " 0x100000000 \n"
         "            ^\n";
-    _score_compiled("test_cIntLitOOR3", code4, expected4, MK_ERR_OK);
+    _score_compiled("test_cIntLitOOR3", code4, expected4, MK_ERR_COMPILE);
 
     /* cIntLitSyntax1: non-digit character */
     u8 code5[] =
@@ -2324,7 +2340,7 @@ static void test_cIntLit(void) {
         "CompileError:2:3: IntSyntax\n"
         " 0f \n"
         "   ^\n";
-    _score_compiled("test_cIntLitSyntax1", code5, expected5, MK_ERR_OK);
+    _score_compiled("test_cIntLitSyntax1", code5, expected5, MK_ERR_COMPILE);
 
     /* cIntLitSyntax2: non-digit character */
     u8 code6[] =
@@ -2335,7 +2351,7 @@ static void test_cIntLit(void) {
         "CompileError:2:4: IntSyntax\n"
         " -1g \n"
         "    ^\n";
-    _score_compiled("test_cIntLitSyntax2", code6, expected6, MK_ERR_OK);
+    _score_compiled("test_cIntLitSyntax2", code6, expected6, MK_ERR_COMPILE);
 
     /* cIntLitSyntax1: non-digit character */
     u8 code7[] =
@@ -2346,20 +2362,142 @@ static void test_cIntLit(void) {
         "CompileError:2:5: IntSyntax\n"
         " 0xfg \n"
         "     ^\n";
-    _score_compiled("test_cIntLitSyntax3", code7, expected7, MK_ERR_OK);
+    _score_compiled("test_cIntLitSyntax3", code7, expected7, MK_ERR_COMPILE);
 
 }
 
 /* Test string literals */
 static void test_cStrLit(void) {
+    /* cStrLit: Good strings */
     u8 code[] =
-        "\"hello, world\\n\" print\n"
-        "'>' emit \"\" print '<' emit  # an empty string\n"
+        "\"hello, world\" print cr\n"
+        "\"hello \\\"with escape sequences\\\"\\n\" print\n"
+        "'>' emit \"\" print '<' emit cr  # an empty string\n"
         "halt\n";
     char * expected =
         "hello, world\n"
+        "hello \"with escape sequences\"\n"
         "><\n";
     _score_compiled("test_cStrLit", code, expected, MK_ERR_OK);
+
+    /* cStrEndLine: End of line before closing quote */
+    u8 code2[] =
+        "\"hello, world print cr\n"
+        "halt\n";
+    char * expected2 =
+        "CompileError:1:22: StrLineEnd\n"
+        "\"hello, world print cr\n"
+        "                      ^\n";
+    _score_compiled("test_cStrEndQuote", code2, expected2, MK_ERR_COMPILE);
+
+    /* cStrBackslash: Input ends on backslash */
+    u8 code3[] =
+        "\"backslash at EOF\\";
+    char * expected3 =
+        "CompileError:1:18: StrBackslash\n"
+        "\"backslash at EOF\\\n"
+        "                  ^\n";
+    _score_compiled("test_cStrBackslash", code3, expected3, MK_ERR_COMPILE);
+
+    /* cStrMaxLength: string is the maximum length of 255 bytes */
+    u8 code4[1 + 255 + 17];
+    memset(code4, '.', sizeof(code4));
+    code4[0] = '"';
+    code4[sizeof(code4) - 17] = '"';
+    code4[sizeof(code4) - 16] = ' ';
+    code4[sizeof(code4) - 15] = 'p';
+    code4[sizeof(code4) - 14] = 'r';
+    code4[sizeof(code4) - 13] = 'i';
+    code4[sizeof(code4) - 12] = 'n';
+    code4[sizeof(code4) - 11] = 't';
+    code4[sizeof(code4) - 10] = ' ';
+    code4[sizeof(code4) -  9] = 'c';
+    code4[sizeof(code4) -  8] = 'r';
+    code4[sizeof(code4) -  7] = ' ';
+    code4[sizeof(code4) -  6] = 'h';
+    code4[sizeof(code4) -  5] = 'a';
+    code4[sizeof(code4) -  4] = 'l';
+    code4[sizeof(code4) -  3] = 't';
+    code4[sizeof(code4) -  2] = '\n';
+    code4[sizeof(code4) -  1] = 0;
+    char * expected4 =
+        "................................................................"
+        "................................................................"
+        "................................................................"
+        "...............................................................\n";
+    _score_compiled("test_cStrMaxLength", code4, expected4, MK_ERR_OK);
+
+    /* cStrOverflow1: string is 1 byte too long (256 bytes) */
+    u8 code5[1 + 256 + 17];
+    memset(code5, '.', sizeof(code5));
+    code5[0] = '"';
+    code5[sizeof(code5) - 17] = '"';
+    code5[sizeof(code5) - 16] = ' ';
+    code5[sizeof(code5) - 15] = 'p';
+    code5[sizeof(code5) - 14] = 'r';
+    code5[sizeof(code5) - 13] = 'i';
+    code5[sizeof(code5) - 12] = 'n';
+    code5[sizeof(code5) - 11] = 't';
+    code5[sizeof(code5) - 10] = ' ';
+    code5[sizeof(code5) -  9] = 'c';
+    code5[sizeof(code5) -  8] = 'r';
+    code5[sizeof(code5) -  7] = ' ';
+    code5[sizeof(code5) -  6] = 'h';
+    code5[sizeof(code5) -  5] = 'a';
+    code5[sizeof(code5) -  4] = 'l';
+    code5[sizeof(code5) -  3] = 't';
+    code5[sizeof(code5) -  2] = '\n';
+    code5[sizeof(code5) -  1] = 0;
+    char * expected5 =
+        "CompileError:1:258: StrOverflow\n"
+        "\""
+        "................................................................"
+        "................................................................"
+        "................................................................"
+        "................................................................\" \n"
+        " "
+        "                                                                "
+        "                                                                "
+        "                                                                "
+        "                                                                 ^\n";
+    _score_compiled("test_cStrOverflow1", code5, expected5, MK_ERR_COMPILE);
+
+    /* cStrOverflow2: string is 2 bytes too long (257 bytes) */
+    u8 code6[1 + 257 + 17];
+    memset(code6, '.', sizeof(code6));
+    code6[0] = '"';
+    code6[sizeof(code6) - 17] = '"';
+    code6[sizeof(code6) - 16] = ' ';
+    code6[sizeof(code6) - 15] = 'p';
+    code6[sizeof(code6) - 14] = 'r';
+    code6[sizeof(code6) - 13] = 'i';
+    code6[sizeof(code6) - 12] = 'n';
+    code6[sizeof(code6) - 11] = 't';
+    code6[sizeof(code6) - 10] = ' ';
+    code6[sizeof(code6) -  9] = 'c';
+    code6[sizeof(code6) -  8] = 'r';
+    code6[sizeof(code6) -  7] = ' ';
+    code6[sizeof(code6) -  6] = 'h';
+    code6[sizeof(code6) -  5] = 'a';
+    code6[sizeof(code6) -  4] = 'l';
+    code6[sizeof(code6) -  3] = 't';
+    code6[sizeof(code6) -  2] = '\n';
+    code6[sizeof(code6) -  1] = 0;
+    char * expected6 =
+        "CompileError:1:258: StrOverflow\n"
+        "\""
+        "................................................................"
+        "................................................................"
+        "................................................................"
+        ".................................................................\""
+        "\n"
+        " "
+        "                                                                "
+        "                                                                "
+        "                                                                "
+        "                                                                 ^"
+        "\n";
+    _score_compiled("test_cStrOverflow2", code6, expected6, MK_ERR_COMPILE);
 }
 
 /* Test character literals */

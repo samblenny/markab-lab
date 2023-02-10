@@ -35,6 +35,9 @@ typedef enum {
     stat_IntSyntax,      /* Bad int literal (syntax?)            */
     stat_IntOutOfRange,  /* Int literal is out of i32 range      */
     stat_StrSyntax,      /* Bad string literal                   */
+    stat_StrLineEnd,     /* String literal cannot span lines     */
+    stat_StrBackslash,   /* String literal ends with trailing \  */
+    stat_StrOverflow,    /* String literal is too long           */
 } comp_stat;
 
 
@@ -75,6 +78,12 @@ typedef enum {
         comp_ctx->cursor += (N);                  \
     }
 
+/* Rewind the lexing cursor by 1 byte */
+#define _rewind_cursor_by_1()     \
+    if(comp_ctx->cursor > 0) {    \
+        comp_ctx->cursor -= 1;    \
+    }
+
 /* Advance the wordEnd index to match the lexing cursor */
 #define _sync_wordEnd_to_cursor() { comp_ctx->wordEnd = comp_ctx->cursor; }
 
@@ -85,12 +94,8 @@ typedef enum {
 
 /* Log compiler error using the libmkb Host API */
 void log_compiler_error(comp_context_t * comp_ctx, comp_stat status) {
-    const char * str1 = "CompileError:";
-    const char * str2 = ":";
-    const char * str3 = ": ";
-    const char * strCR = "\n";
     /* Print the error message with line and column numbers */
-    mk_host_stdout_write(str1, strlen(str1));
+    mk_host_stdout_write("CompileError:", 13);
     const int line = comp_ctx->lineNum;
     const int lineStart = comp_ctx->lineStart;
     const int cursor = comp_ctx->cursor;
@@ -102,9 +107,9 @@ void log_compiler_error(comp_context_t * comp_ctx, comp_stat status) {
         column = 0;
     }
     mk_host_stdout_fmt_int(line);
-    mk_host_stdout_write(str2, strlen(str2));
+    mk_host_stdout_write(":", 1);
     mk_host_stdout_fmt_int(column);
-    mk_host_stdout_write(str3, strlen(str3));
+    mk_host_stdout_write(": ", 2);
     char * message = "??? Unknown ???";
     switch(status) {
         case stat_OK:
@@ -131,20 +136,49 @@ void log_compiler_error(comp_context_t * comp_ctx, comp_stat status) {
         case stat_StrSyntax:
             message = "StrSyntax";
             break;
+        case stat_StrLineEnd:
+            message = "StrLineEnd";
+            break;
+        case stat_StrBackslash:
+            message = "StrBackslash";
+            break;
+        case stat_StrOverflow:
+            message = "StrOverflow";
+            break;
     }
     mk_host_stdout_write(message, strlen(message));
-    /* Now print the offending input text */
-    mk_host_stdout_write(strCR, strlen(strCR));
-    mk_host_stdout_write(&comp_ctx->buf[comp_ctx->lineStart], column + 1);
-    mk_host_stdout_write(strCR, strlen(strCR));
+    mk_host_stdout_write("\n", 1);
+    /* Now print the offending input text                                */
+    /* ...but first, scan the input to make sure we don't leak garbage   */
+    /*    or copy NULL/CR/LF into the error message. The problem is that */
+    /*    one of the parsing functions may have advanced the cursor to   */
+    /*    the end of the buffer (maybe null?) or some other character    */
+    /*    that we don't want to include in the error message.            */
+    int copy_limit = 0;
+    int i;
+    for(i = 0; i <= column; i++) {
+        const u32 n = comp_ctx->lineStart + i;
+        if(n >= comp_ctx->len) {
+            /* Stop here so we don't segfault or leak stack */
+            break;
+        }
+        const u8 c = comp_ctx->buf[n];
+        if(c == 0 || c == '\n' || c == '\r') {
+            /* Stop here so we don't print a line terminator or null */
+            break;
+        }
+        copy_limit = i + 1;
+    }
+    mk_host_stdout_write(&comp_ctx->buf[comp_ctx->lineStart], copy_limit);
+    mk_host_stdout_write("\n", 1);
     /* And add a caret below the offending column */
-    char pad[128];
-    if((1 <= column) && (column + 1 < sizeof(pad))) {
+    char pad[300];
+    if((1 <= column) && (column + 2 < sizeof(pad))) {
         memset(pad, ' ', sizeof(pad));
         pad[column] = '^';
-        pad[column + 1] = 0;
-        mk_host_stdout_write(pad, strlen(pad));
-        mk_host_stdout_write(strCR, strlen(strCR));
+        pad[column + 1] = '\n';
+        pad[column + 2] = 0;
+        mk_host_stdout_write(pad, column + 2);
     }
 }
 
@@ -331,12 +365,92 @@ compile_int_literal(mk_context_t * ctx, i32 n) {
 /* Compile a double-quoted string literal */
 static comp_stat
 compile_str(comp_context_t *comp_ctx, mk_context_t * ctx) {
-
-    /* ==================== */
-    /* TODO: IMPLEMENT THIS */
-    /* ==================== */
-
-    return stat_StrSyntax;
+    _assert_valid_comp_context();
+    /* Compute the range of ctx->buf indexes to search within              */
+    /* CAUTION! The input buffer may be null terminated. If so, adjust the */
+    /*          length so we can handle end of string conditions correctly */
+    const u8 * buf = _word_pointer(comp_ctx);
+    const i32 len0 = comp_ctx->len - comp_ctx->cursor;
+    const i32 length = (comp_ctx->buf[len0 - 1] == 0) ? len0 - 1 : len0;
+    if(length < 0) {
+        return stat_EOF;
+    }
+    /* First make sure the token starts with a double quote character */
+    if(length < 2 || buf[0] != '"') {
+        _sync_wordEnd_to_cursor();
+        return stat_StrSyntax;
+    }
+    _advance_cursor(1);
+    /* Now start processing string characters                      */
+    /* Max string size is: 1(opcode) + 1(length) + 255(data) = 257 */
+    const int MaxStrSize = 257;
+    _assert_dictionary_free_space(MaxStrSize);
+    _append_dictionary_byte(MK_STR);      /* Compile MK_STR opcode          */
+    const u16 addr_length_byte = ctx->DP; /* Remember length byte address   */
+    _append_dictionary_byte(0);           /* Compile placeholder length = 0 */
+    int i, j;
+    /* i: input buffer index                             */
+    /* j: count of string bytes compiled into dictionary */
+    for(i = 1, j = 2; (i < length) && (j <= MaxStrSize); i++) {
+        /* First, make sure this isn't a CR, LF, or NULL                */
+        /* String literals cannot span more than one line of input text */
+        const u8 c = buf[i];
+        if(c == '\n' || c == '\r' || c == 0) {
+            _rewind_cursor_by_1();
+            _sync_wordEnd_to_cursor();
+            return stat_StrLineEnd;
+        }
+        /* Otherwise, consume 1 input byte */
+        _advance_cursor(1);
+        /* Parse the byte */
+        if(c == '\\') {
+            /* Parse a backslash escape sequence */
+            if(i + 1 >= length) {
+                return stat_StrBackslash;  /* Input ends on backslash */
+            }
+            /* Consume an extra intput byte for the escaped character */
+            const u8 nextC = buf[i + 1];
+            _advance_cursor(1);
+            i += 1;
+            /* Compile the escaped byte */
+            u8 tmp;
+            switch(nextC) {
+                case 0:
+                    /* Null-terminated input string ends on backslash */
+                    return stat_StrBackslash;
+                case 'n':
+                    tmp = '\n';   /* "\n" is LF */
+                    break;
+                case 'r':
+                    tmp = '\r';   /* "\r" is CR */
+                    break;
+                case 't':
+                    tmp = '\t';   /* "\t" is TAB */
+                    break;
+                default:
+                    tmp = nextC;  /* "\\" is \, "\"" is ", "\a" is a, etc */
+            }
+            /* Compile the escaped byte */
+            _append_dictionary_byte(tmp);
+            j += 1;
+        } else if(c == '"') {
+            /* End quote of good string: update length byte and end the loop */
+            ctx->RAM[addr_length_byte] = (u8)(j - 2 /* don't count header */);
+            _sync_wordEnd_to_cursor();
+            return stat_OK;
+        } else {
+            /* Compile a regular character */
+            _append_dictionary_byte(c);
+            j += 1;
+        }
+    }
+    _sync_wordEnd_to_cursor();
+    /* ERROR: Check under what circumstances the loop ended */
+    if(j > MaxStrSize) {
+        return stat_StrOverflow;  /* String was too long */
+    } else {
+        return stat_StrLineEnd;   /* End of input without a closing quote */
+    }
 }
 
 /* Compile a single-quoted ASCII character literal */
@@ -350,6 +464,9 @@ compile_char(comp_context_t *comp_ctx, mk_context_t * ctx) {
     const u8 * buf = _word_pointer(comp_ctx);
     u32 length = _word_length(comp_ctx);
     /* Advance the cursor */
+    /* ====================================================== */
+    /* TODO: can this be replaced with _advance_cursor(1) ??? */
+    /* ====================================================== */
     if(comp_ctx->wordEnd + 1 < comp_ctx->len) {
         comp_ctx->wordEnd += 1;
         comp_ctx->cursor = comp_ctx->wordEnd;
