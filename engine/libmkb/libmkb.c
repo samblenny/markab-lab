@@ -32,14 +32,8 @@
 #ifndef LIBMKB_C
 #define LIBMKB_C
 
-#ifdef PLAN_9
-#  include <u.h>
-#  include <libc.h>    /* memcpy() */
-#else
-#  include <stdint.h>
-#  include <string.h>  /* memcpy() */
-#endif
-
+#include <stdint.h>
+#include <string.h>  /* memcpy() */
 #include "libmkb.h"
 #include "fmt.c"
 #include "op.c"

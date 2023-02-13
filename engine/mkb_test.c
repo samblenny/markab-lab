@@ -3,25 +3,16 @@
  *
  * Test libmkb's VM and compiler.
  */
-#ifdef PLAN_9
-/* Plan 9 inlcudes */
-#  include <u.h>              /* u8int, u16int, u32int, ... */
-#  include <libc.h>           /* print(), exits(), memset(), ... */
-#  include <stdio.h>          /* getchar(), putchar() */
-#else
-/* POSIX includes */
-#  ifndef __MACH__
-/*   This unlocks snprintf() powers on Debian since I'm using `clang -ansi`. */
-/*   Conversely, on macOS, this actually makes clang mad. I hesitate to just */
-/*   crank up the _XOPEN_SOURCE level even higher because I want to be       */
-/*   warned if I try to use C99 features that might cause trouble on Plan 9. */
+
+#ifndef __MACH__
+/* This unlocks snprintf() powers on Debian since I'm using `clang -ansi`.   */
+/* But _XOPEN_SOURCE 500 on macOS causes trouble, so hide this behind ifdef. */
 #    define _XOPEN_SOURCE 500
-#  endif
-#  include <stdint.h>         /* uint8_t, uint16_t, int32_t, ... */
-#  include <stdio.h>          /* printf(), putchar(), ... */
-#  include <string.h>         /* memset() */
-#  include <unistd.h>         /* STDOUT_FILENO */
 #endif
+#include <stdint.h>         /* uint8_t, uint16_t, int32_t, ... */
+#include <stdio.h>          /* printf(), putchar(), ... */
+#include <string.h>         /* memset() */
+#include <unistd.h>         /* STDOUT_FILENO */
 #include "libmkb/libmkb.h"
 #include "libmkb/autogen.h"
 
@@ -98,11 +89,7 @@ static int test_stdout_match(const char *expected) {
 static void score_pass(const char * name) {
     TEST_SCORE_PASS += 1;
     const char * fmt = "[%s: pass]\n\n";
-#ifdef PLAN_9
-    print(fmt, name);
-#else
     printf(fmt, name);
-#endif
 }
 
 /* Record score for failed test and print the FAIL message */
@@ -110,11 +97,7 @@ static void score_fail(const char * name) {
     TEST_SCORE_FAIL += 1;
     const char * fmt = "[%s: FAIL]\n\n";
     /* First log the message to stdout */
-#ifdef PLAN_9
-    print(fmt, name);
-#else
     printf(fmt, name);
-#endif
     /* Then append the message to FAIL_LOG */
     char buf[128];
     snprintf(buf, sizeof(buf), "[  %-22s ]\n", name);
@@ -170,11 +153,7 @@ void mk_host_log_error(u8 error_code) {
     }
     /* Log the error message to real stdout */
     const char * fmt = "ERROR: %s\n";
-#ifdef PLAN_9
-    print(fmt, tag);
-#else
     printf(fmt, tag);
-#endif
     /* Log the error message to TEST_STDOUT */
     char buf[128];
     snprintf(buf, sizeof(buf), fmt, tag);
@@ -2537,11 +2516,7 @@ static void test_cParenComment(void) {
 /* === main() ============================================================== */
 /* ========================================================================= */
 
-#ifdef PLAN_9
-void main() {
-#else
 int main() {
-#endif
     /* Clear the buffer used to capture the VM's stdout writes during tests */
     test_stdout_reset();
 
@@ -2668,15 +2643,7 @@ int main() {
         "[ Fail: %3d    ]\n"
         "[==============]\n";
     char pass = (TEST_SCORE_FAIL == 0) ? 1 : 0;
-#ifdef PLAN_9
-    print(fmt, TEST_SCORE_PASS, TEST_SCORE_FAIL);
-    if(pass) {
-        exits(0);
-    }
-    exits("fail");
-#else
     printf(fmt, TEST_SCORE_PASS, TEST_SCORE_FAIL);
     return pass ? 0 : 1;
-#endif
 }
 

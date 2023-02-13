@@ -94,7 +94,7 @@ def c_bytecode_switch_guts():
     if not (opcode in ['NOP', 'CR']):
       s += [f"                op_{opcode.upper()}(ctx);"]
     else:
-      # Don't pass context to NOP, CR, etc to avoid Plan 9 compiler warnings
+      # Don't pass context to NOP, CR, etc because they don't use it
       s += [f"                op_{opcode.upper()}();"]
     s += [f"                break;"]
   s += ["            default:"]

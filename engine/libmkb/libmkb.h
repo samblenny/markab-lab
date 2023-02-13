@@ -5,30 +5,15 @@
 #define LIBMKB_H
 
 /*
- * Integer Types (CAUTION: platform-specific quirkiness)
+ * Integer Types
+ * You need to do a `#include <stdint.h>` somewhere before this.
  */
-
-#ifdef PLAN_9
-  /* This is for Plan 9.
-   * You need to do a `#include <u.h>` somewhere before this.
-   */
-  typedef char i8;
-  typedef short i16;
-  typedef int i32;
-  typedef u8int u8;
-  typedef u16int u16;
-  typedef u32int u32;
-#else
-  /* This is for POSIX systems.
-   * You need to do a `#include <stdint.h>` somewhere before this.
-   */
-  typedef  uint8_t  u8;
-  typedef   int8_t  i8;
-  typedef uint16_t u16;
-  typedef  int16_t i16;
-  typedef  int32_t i32;
-  typedef uint32_t u32;
-#endif
+typedef  uint8_t  u8;
+typedef   int8_t  i8;
+typedef uint16_t u16;
+typedef  int16_t i16;
+typedef  int32_t i32;
+typedef uint32_t u32;
 
 
 /*

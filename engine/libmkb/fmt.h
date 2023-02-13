@@ -4,9 +4,7 @@
  * Minimalist DIY string formatting functions.
  *
  * NOTE: This relies on typedefs from libmkb.h. This does not inlcude libmkb.h
- *       so you need to arrange for that on your own. Doing it this way makes
- *       it easier to build on POSIX systems and Plan 9 without a lot of chaos
- *       around different platform assumptions about header include paths.
+ *       so you need to arrange for that on your own.
  */
 #ifndef LIBMKB_FMT_H
 #define LIBMKB_FMT_H

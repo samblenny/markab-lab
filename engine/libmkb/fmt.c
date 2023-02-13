@@ -121,8 +121,7 @@ static void fmt_decimal(mk_str_t * str, i32 n) {
     /* If n is negative (sign bit set), append a '-' to str then negate n
      *
      * CAUTION: Initially, I thought it might be fine to negate n as i32 with
-     *          (-n). That worked okay on macOS at first glance. But, the
-     *          conversion for 0x80000000 went haywire on Plan 9. Taking a
+     *          (-n). That worked okay on macOS at first glance. Taking a
      *          closer look at edge-case behavior for 0x80000000 = -2147483648,
      *          it seems better to do `u32 x=n;` and negate with `(~x) + 1`.
      */

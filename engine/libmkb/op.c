@@ -271,8 +271,6 @@ static void op_HALT(mk_context_t * ctx) {
 static void op_U8(mk_context_t * ctx) {
     _assert_data_stack_is_not_full();
     /* Read and push an 8-bit unsigned integer from instruction stream */
-    /* NOTE: Putting a _assert_valid_address(ctx->PC) here would give  */
-    /*       a compiler warning on Plan 9 (useless comparison).        */
     i32 zero_extended = (i32) _u8_lit();
     _push_T(zero_extended);
     /* advance program counter past the literal */
@@ -327,8 +325,6 @@ static void op_BZ(mk_context_t * ctx) {
     if(ctx->T == 0) {
         /* Branch forward past conditional block: Add address literal from */
         /* instruction stream to PC. Maximum branch distance is +255.      */
-        /* NOTE: Putting a _assert_valid_address(ctx->PC) here would give  */
-        /*       a compiler warning on Plan 9 (useless comparison).        */
         u8 n = _u8_lit();
         _assert_valid_address(ctx->PC + n);
         _adjust_PC_by(n);
@@ -347,8 +343,6 @@ static void op_BNZ(mk_context_t * ctx) {
     if(ctx->T != 0) {
         /* Branch forward past conditional block: Add address literal from */
         /* instruction stream to PC. Maximum branch distance is +255.      */
-        /* NOTE: Putting a _assert_valid_address(ctx->PC) here would give  */
-        /*       a compiler warning on Plan 9 (useless comparison).        */
         u8 n = _u8_lit();
         _assert_valid_address(ctx->PC + n);
         _adjust_PC_by(n);
