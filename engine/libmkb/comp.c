@@ -111,42 +111,54 @@ void log_compiler_error(comp_context_t * comp_ctx, comp_stat status) {
     mk_host_stdout_fmt_int(column);
     mk_host_stdout_write(": ", 2);
     char * message = "??? Unknown ???";
+    u32 length = 15;
     switch(status) {
         case stat_OK:
             message = "OK";
+            length = 2;
             break;
         case stat_BadContext:
             message = "BadContext";
+            length = 10;
             break;
         case stat_EOF:
             message = "EOF";
+            length = 3;
             break;
         case stat_OutOfMemory:
             message = "OutOfMemory";
+            length = 11;
             break;
         case stat_ParserError:
             message = "ParserError";
+            length = 11;
             break;
         case stat_IntSyntax:
             message = "IntSyntax";
+            length = 9;
             break;
         case stat_IntOutOfRange:
             message = "IntOutOfRange";
+            length = 13;
             break;
         case stat_StrSyntax:
             message = "StrSyntax";
+            length = 9;
             break;
         case stat_StrLineEnd:
             message = "StrLineEnd";
+            length = 10;
             break;
         case stat_StrBackslash:
             message = "StrBackslash";
+            length = 12;
             break;
         case stat_StrOverflow:
             message = "StrOverflow";
+            length = 11;
             break;
     }
-    mk_host_stdout_write(message, strlen(message));
+    mk_host_stdout_write(message, length);
     mk_host_stdout_write("\n", 1);
     /* Now print the offending input text                                */
     /* ...but first, scan the input to make sure we don't leak garbage   */
@@ -820,11 +832,15 @@ parse_word(comp_context_t * comp_ctx, mk_context_t * ctx) {
         }
         break;
     case 5:
-        if(strncmp((const char *)buf, "rdrop", length) == 0) {
+        if((buf[0]=='r') && (buf[1]=='d') && (buf[2]=='r') && (buf[3]=='o')
+            && (buf[4]=='p')                                /* rdrop */
+        ) {
             _append_dictionary_byte(MK_RDROP);
             break;
         }
-        if(strncmp((const char *)buf, "print", length) == 0) {
+        if((buf[0]=='p') && (buf[1]=='r') && (buf[2]=='i') && (buf[3]=='n')
+            && (buf[4]=='t')                                /* print */
+        ) {
             _append_dictionary_byte(MK_PRINT);
             break;
         }

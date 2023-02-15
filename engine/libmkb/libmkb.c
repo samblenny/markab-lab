@@ -33,13 +33,35 @@
 #define LIBMKB_C
 
 #include <stdint.h>
-#include <string.h>  /* memcpy() */
+#ifndef WASM_MEMCPY
+#   include <string.h>  /* memcpy(), memset() */
+#else
+/*****************************************************************************/
+/* DIY stdlib replacement: this works around lack of wasm32 standard library */
+/*****************************************************************************/
+    void *memcpy(void *dest, const void *src, unsigned long n) {
+        u32 i;
+        for(i = 0; i < n; i++) {
+            ((u8 *)dest)[i] = ((u8 *)src)[i];
+        }
+        return dest;
+    }
+    void *memset(void *s, int c, unsigned long n) {
+        u32 i;
+        for(i = 0; i < n; i++) {
+            ((u8 *)s)[i] = c;
+        }
+        return s;
+    }
+/*****************************************************************************/
+#endif
 #include "libmkb.h"
 #include "fmt.c"
 #include "op.c"
 #include "vm.c"
 #include "autogen.c"
 #include "comp.c"
+
 
 /* Load and run a markab VM ROM image.
  * Returns: value of VM err register (0 means OK, see vm.h for other codes)
@@ -66,7 +88,7 @@ int mk_load_rom(const u8 * code, u32 code_len_bytes) {
      *
      * TODO: Implement paging opcodes to access the high-area of large ROMs.
      */
-    int n = code_len_bytes <= MK_MEM_MAX ? code_len_bytes : MK_MEM_MAX;
+    u32 n = code_len_bytes <= MK_MEM_MAX ? code_len_bytes : MK_MEM_MAX;
     memcpy((void *)ctx.RAM, (void *)code, n);
     /* For small ROMs, fill rest of RAM with NOP instructions */
     if(n < sizeof(ctx.RAM)) {

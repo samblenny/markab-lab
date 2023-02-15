@@ -1,0 +1,49 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<!--
+Copyright (c) 2023 Sam Blenny
+SPDX-License-Identifier: MIT
+ -->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Markab Engine Demo">
+<title>Markab Engine Demo</title><style>
+:root{
+--C_BKGND:#bA8Fb7;
+--C_BEZEL:#222;
+--BEZEL:15px;
+--R_BEZEL:10px;
+--S_WIDE:480px;
+--S_HIGH:320px;
+}
+html{-webkit-text-size-adjust:none;}
+html,body{min-height:100%;width:100%;background:var(--C_BKGND);}
+body{font-family:sans-serif;font-size:12px;}
+html,body,div,canvas,{margin:0;padding:0;box-sizing:border-box;}
+div{line-height:0;}
+#screen{
+image-rendering:pixelated;
+overflow:auto;
+width:var(--S_WIDE);
+height:var(--S_HIGH);
+background:black;
+}
+#bezel{
+grid-area:B;
+width:var(--S_WIDE);
+height:var(--S_HIGH);
+margin:var(--BEZEL);
+border:var(--BEZEL) solid var(--C_BEZEL);
+border-radius:var(--R_BEZEL);
+}
+body{
+display:grid;
+grid:
+". . ." 20px
+". B ." auto
+". . ." 1fr / minmax(10px,1fr) auto minmax(10px,1fr);
+}
+</style></head><body>
+<div id="bezel">
+  <canvas id="screen"></canvas>
+</div>
+<script type="module" src="main.js" async></script>
+</body></html>
