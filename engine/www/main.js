@@ -19,23 +19,11 @@ var PREV_TIMESTAMP;  /* Timestamp of previous animation frame */
 /* Dimensions and zoom factor for screen represented by framebuffer data */
 var WIDE = 240;
 var HIGH = 160;
-var ZOOM = 2;
 
 
 /*****************/
 /* Function Defs */
 /*****************/
-
-/* Initialize canvas element with zoom factor to provide pixel effect */
-function initializeCanvas(wide, high, zoom) {
-    /* Prevent blur on displays with non-integer dpi-ratio */
-    let pixelRatio = window.devicePixelRatio || 1;
-    SCREEN.width = wide;
-    SCREEN.height = high;
-    SCREEN.style.width = (wide * zoom / pixelRatio) + 'px';
-    SCREEN.style.height = (high * zoom / pixelRatio) + 'px';
-    CTX.scale(zoom, zoom);
-}
 
 /* Paint frame buffer (wasm shared memory) to screen (canvas element) */
 function repaint() {
@@ -59,10 +47,15 @@ function wasmloadModule(callback) {
         WebAssembly.instantiateStreaming(fetch(wasmModule), importObject)
             .then(initSharedMemBindings)
             .then(callback)
-            .catch(function (e) {console.error(e);}
-        );
+            .catch(function (e) {console.error(e);});
     } else {
-        console.error("Browser does not support instantiateStreaming()");
+        // Fallback for older versions of Safari
+        fetch(wasmModule)
+            .then(response => response.arrayBuffer())
+            .then(bytes => WebAssembly.instantiate(bytes, importObject))
+            .then(initSharedMemBindings)
+            .then(callback)
+            .catch(function (e) {console.error(e);});
     }
 }
 
@@ -115,10 +108,7 @@ function regularFrame(timestamp_ms) {
 /* JS Module Entry Point */
 /*************************/
 
-/* Prepare the canvas element */
-initializeCanvas(WIDE, HIGH, ZOOM);
-
-/* Load the wasm module */
+/* Load the wasm module and start the event loop */
 wasmloadModule(() => {
     WASM_EXPORT.init();
     window.requestAnimationFrame(frameZero);  /* Start the event loop */

@@ -30,10 +30,30 @@ u32 FB_SIZE = sizeof(FB_BYTES);
 
 /******************************************************/
 /* Imported Symobols (to be linked by js wasm loader) */
+/* These rely on -Wl,--allow-undefined to compile     */
 /******************************************************/
 
-/* This relies on -Wl,--allow-undefined and linking by wasm loader */
 extern void js_trace(u32 code);
+
+extern void repaint();
+
+
+/**************************/
+/* Non-exported functions */
+/**************************/
+
+/* Generate a test pattern in the framebuffer */
+void test_pattern(u32 offset) {
+    /* Put some noise in the frame buffer */
+    u32 i;
+    for(i = 0; i < sizeof(FB_BYTES); i += 4) {
+        u32 x = i + offset;
+        FB_BYTES[i] = (u8) (x >> 8);
+        FB_BYTES[i+1] = (u8) (x >> 1);
+        FB_BYTES[i+2] = (u8) (x >> 1);
+        FB_BYTES[i+3] = 255;
+    }
+}
 
 
 /*******************************/
@@ -43,14 +63,30 @@ extern void js_trace(u32 code);
 /* Initialization function (gets called by js) */
 __attribute__((visibility("default")))
 i32 init(void) {
-    /* Put some noise in the frame buffer */
-    u32 i;
-    for(i = 0; i < sizeof(FB_BYTES); i += 4) {
-        FB_BYTES[i] = (u8) (i >> 8);
-        FB_BYTES[i+1] = (u8) (i >> 1);
-        FB_BYTES[i+2] = (u8) (i >> 1);
-        FB_BYTES[i+3] = 255;
-    }
     js_trace(sizeof(FB_BYTES));
     return 0;
+}
+
+/* Prepare the next frame */
+/* elapsed_ms: number of milliseconds since previous frame */
+__attribute__((visibility("default")))
+void next(u32 elapsed_ms) {
+    static u32 timer_ms;
+    static u32 offset;
+    const u32 delay_ms = 100;
+    timer_ms += elapsed_ms;
+    /* Return early if the frame would be the same (save clock cycles) */
+    if(timer_ms < delay_ms) {
+        return;
+    }
+    /* Otherwise, animate the offset. CAUTION! Using `%= delay_ms` here     */
+    /* instead of `=0` or `-= delay_ms` allows for smoothing jitter at the  */
+    /* normal 60 fps update rate. But, it also helps with catching up after */
+    /* a long delay between frames. For example, long delays can happen     */
+    /* when a background tab regains focus.                                 */
+    timer_ms %= delay_ms;
+    offset = (offset + 1) % FB_WIDE;
+    /* Recalculate the frame and paint it */
+    test_pattern(offset);
+    repaint();
 }
