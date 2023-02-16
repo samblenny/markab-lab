@@ -66,9 +66,11 @@ function initSharedMemBindings(result) {
     /* from dereferencing FB_SIZE pointer exported from wasm module.         */
     let wasmBufU8 = new Uint8Array(WASM_EXPORT.memory.buffer);
     let wasmDV = new DataView(WASM_EXPORT.memory.buffer);
-    const buf = WASM_EXPORT.FB_BYTES.value;
+    /* NOTE! the `... | WASM_EXPORT.FB_BYTES` helps on old mobile safari */
+    const buf = WASM_EXPORT.FB_BYTES.value | WASM_EXPORT.FB_BYTES;
     /* Dereference the FB_SIZE pointer to get sizeof(FB_BYTES) */
-    const sizePtr = WASM_EXPORT.FB_SIZE.value;
+    /* NOTE! the `... | WASM_EXPORT.FB_SIZE` helps on old mobile safari */
+    const sizePtr = WASM_EXPORT.FB_SIZE.value | WASM_EXPORT.FB_SIZE;
     const size = wasmDV.getUint32(sizePtr, true);  /* true = little-endian */
     /* Wrap buffer in an ImageData so it can be passed to putImageData() */
     let clamped = new Uint8ClampedArray(WASM_EXPORT.memory.buffer, buf, size);
