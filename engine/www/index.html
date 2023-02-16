@@ -27,7 +27,6 @@ transform-origin:top left;
 image-rendering: pixelated;
 image-rendering: -moz-crisp-edges;
 image-rendering: crisp-edges;
-/*scale:2;*/
 }
 @media (height < 410px) { #bezel{margin:10px auto 0 auto;} } /* thin pad */
 @media (height < 370px) { #bezel{margin: 5px auto 0 auto;} } /* thinner pad */
@@ -39,12 +38,14 @@ image-rendering: crisp-edges;
  border:unset;
  border-radius:unset;
  }
- #screen{/*scale:1.5;*/}
 }
 </style>
 </head>
 <body>
 <div id="bezel">
+  <!-- NOTE: Canvas width and height are not the same as css width/height. -->
+  <!-- Canvas framebuffer size is 240x160 px and it gets scaled up by css. -->
+  <!-- Specifying 240x160 here makes the CSS scaling behave better.        -->
   <canvas id="screen" width="240" height="160"></canvas>
 </div>
 <script type="module" src="main.js" async></script>
