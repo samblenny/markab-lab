@@ -14,18 +14,37 @@
 #define FB_WIDE (240)
 #define FB_HIGH (160)
 
+/* Gamepad Vector Indexes */
+#define GP_A         (0)
+#define GP_B         (1)
+#define GP_SELECT    (2)
+#define GP_START     (3)
+#define GP_U         (4)
+#define GP_D         (5)
+#define GP_L         (6)
+#define GP_R         (7)
+#define GP_CONNECTED (8)
+
 
 /**************************************/
 /* Exported Symbols: Global Variables */
 /**************************************/
 
-/* Frame buffer byte array (RGBA, 4 bytes per pixel)*/
+/* Frame buffer byte array (RGBA, 4 bytes per pixel) */
 __attribute__((visibility("default")))
 u8 FB_BYTES[FB_WIDE * FB_HIGH * 4];
 
 /* Size of frame buffer in bytes */
 __attribute__((visibility("default")))
 u32 FB_SIZE = sizeof(FB_BYTES);
+
+/* Gamepad button state vector */
+__attribute__((visibility("default")))
+u8 GAMEPAD[GP_CONNECTED + 1];
+
+/* Size of gamepad button state vector in bytes */
+__attribute__((visibility("default")))
+u32 GP_SIZE = sizeof(GAMEPAD);
 
 
 /******************************************************/
@@ -73,7 +92,7 @@ __attribute__((visibility("default")))
 void next(u32 elapsed_ms) {
     static u32 timer_ms;
     static u32 offset;
-    const u32 delay_ms = 100;
+    const u32 delay_ms = 50;
     timer_ms += elapsed_ms;
     /* Return early if the frame would be the same (save clock cycles) */
     if(timer_ms < delay_ms) {
@@ -85,7 +104,12 @@ void next(u32 elapsed_ms) {
     /* a long delay between frames. For example, long delays can happen     */
     /* when a background tab regains focus.                                 */
     timer_ms %= delay_ms;
-    offset = (offset + 1) % FB_WIDE;
+    u32 turbo = GAMEPAD[GP_B] ? 3 : 1;
+    offset = offset + 1
+        + (GAMEPAD[GP_U] * turbo * (FB_WIDE * 2 - 16))
+        + (GAMEPAD[GP_D] * turbo * (FB_WIDE * -2 + 16))
+        + (GAMEPAD[GP_L] *  (turbo *  2)    )
+        + (GAMEPAD[GP_R] * ((turbo * -2) -1));
     /* Recalculate the frame and paint it */
     test_pattern(offset);
     repaint();
