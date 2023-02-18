@@ -14,16 +14,15 @@
 #define FB_WIDE (240)
 #define FB_HIGH (160)
 
-/* Gamepad Vector Indexes */
-#define GP_A         (0)
-#define GP_B         (1)
-#define GP_SELECT    (2)
-#define GP_START     (3)
-#define GP_U         (4)
-#define GP_D         (5)
-#define GP_L         (6)
-#define GP_R         (7)
-#define GP_CONNECTED (8)
+/* Gamepad Button Bitfield Masks */
+#define GP_A        (1)
+#define GP_B        (2)
+#define GP_SELECT   (4)
+#define GP_START    (8)
+#define GP_U       (16)
+#define GP_D       (32)
+#define GP_L       (64)
+#define GP_R      (128)
 
 
 /**************************************/
@@ -38,13 +37,9 @@ u8 FB_BYTES[FB_WIDE * FB_HIGH * 4];
 __attribute__((visibility("default")))
 u32 FB_SIZE = sizeof(FB_BYTES);
 
-/* Gamepad button state vector */
+/* Gamepad button state bitfield */
 __attribute__((visibility("default")))
-u8 GAMEPAD[GP_CONNECTED + 1];
-
-/* Size of gamepad button state vector in bytes */
-__attribute__((visibility("default")))
-u32 GP_SIZE = sizeof(GAMEPAD);
+u32 GAMEPAD;
 
 
 /******************************************************/
@@ -56,23 +51,22 @@ extern void js_trace(u32 code);
 
 extern void repaint();
 
+extern void drawTiles();
+
+extern void drawLines();
+
+
+/*********************************/
+/* Non-exported Global Variables */
+/*********************************/
+
+/* Previous gamepad button state packed into a bitfield */
+static u8 PREV_GAMEPAD = 0;
+
 
 /**************************/
-/* Non-exported functions */
+/* Non-exported Functions */
 /**************************/
-
-/* Generate a test pattern in the framebuffer */
-void test_pattern(u32 offset) {
-    /* Put some noise in the frame buffer */
-    u32 i;
-    for(i = 0; i < sizeof(FB_BYTES); i += 4) {
-        u32 x = i + offset;
-        FB_BYTES[i] = (u8) (x >> 8);
-        FB_BYTES[i+1] = (u8) (x >> 1);
-        FB_BYTES[i+2] = (u8) (x >> 1);
-        FB_BYTES[i+3] = 255;
-    }
-}
 
 
 /*******************************/
@@ -83,6 +77,7 @@ void test_pattern(u32 offset) {
 __attribute__((visibility("default")))
 i32 init(void) {
     js_trace(sizeof(FB_BYTES));
+    drawTiles();
     return 0;
 }
 
@@ -91,26 +86,25 @@ i32 init(void) {
 __attribute__((visibility("default")))
 void next(u32 elapsed_ms) {
     static u32 timer_ms;
-    static u32 offset;
     const u32 delay_ms = 50;
     timer_ms += elapsed_ms;
     /* Return early if the frame would be the same (save clock cycles) */
     if(timer_ms < delay_ms) {
+/*        return;
+*/
+    }
+    /* Check if any gamepad buttons changed */
+    if(GAMEPAD == PREV_GAMEPAD) {
         return;
     }
-    /* Otherwise, animate the offset. CAUTION! Using `%= delay_ms` here     */
-    /* instead of `=0` or `-= delay_ms` allows for smoothing jitter at the  */
-    /* normal 60 fps update rate. But, it also helps with catching up after */
-    /* a long delay between frames. For example, long delays can happen     */
-    /* when a background tab regains focus.                                 */
-    timer_ms %= delay_ms;
-    u32 turbo = GAMEPAD[GP_B] ? 3 : 1;
-    offset = offset + 1
-        + (GAMEPAD[GP_U] * turbo * (FB_WIDE * 2 - 16))
-        + (GAMEPAD[GP_D] * turbo * (FB_WIDE * -2 + 16))
-        + (GAMEPAD[GP_L] *  (turbo *  2)    )
-        + (GAMEPAD[GP_R] * ((turbo * -2) -1));
-    /* Recalculate the frame and paint it */
-    test_pattern(offset);
-    repaint();
+    u32 diff = PREV_GAMEPAD ^ GAMEPAD;
+    PREV_GAMEPAD = GAMEPAD;
+    if(diff) {
+        /* Button press draws LINE_STRIP, none draws TRIANGLE_STRIP */
+        if(GAMEPAD) {
+            drawLines();
+        } else {
+            drawTiles();
+        }
+    }
 }

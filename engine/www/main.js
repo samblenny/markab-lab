@@ -7,18 +7,129 @@
 /* Constants & Global State Vars */
 /*********************************/
 
+/* Initialize vars for accessing the "screen" (a canvas element) */
 const SCREEN = document.querySelector('#screen');
-const CTX = SCREEN.getContext('2d', {alpha: false});
+const gl = SCREEN.getContext('webgl', {
+    alpha: false,
+    antialias: false,
+    powerPreference: "low-power",
+    preserveDrawingBuffer: false,
+});
+if(gl === null) {
+    console.error("Unable to initialize webgl");
+}
+
+/* WASM module stuff, including shared memory regions */
 const wasmModule = "markab-engine.wasm";
+var WASM_EXPORT;   /* Wrapper object for symbols exported by wasm module */
+var GAMEPAD;       /* Wrapper object for shared gampad memory region */
+var FRAME_BUFFER;  /* Wrapper object for shared framebuffer memory region */
+var WIDE = 240;    /* Framebuffer px width */
+var HIGH = 160;    /* Framebuffer px height */
 
-var WASM_EXPORT;     /* Wrapper object for symbols exported by wasm module */
-var FRAME_BUFFER;    /* Wrapper object for shared framebuffer memory region */
+/* Animation timing */
 var PREV_TIMESTAMP;  /* Timestamp of previous animation frame */
-var GAMEPAD;         /* Wrapper object for shared gampad memory region */
 
-/* Dimensions and zoom factor for screen represented by framebuffer data */
-var WIDE = 240;
-var HIGH = 160;
+
+/************************************************/
+/* WebGL Shaders for 2D Orthographic Projection */
+/************************************************/
+
+/* Clear gl canvas to solid gray */
+gl.clearColor(0.3, 0.3, 0.3, 1);
+gl.clear(gl.COLOR_BUFFER_BIT);
+
+/* Compile gl vertex shader */
+const vertexSrc =
+`   attribute vec4 a_position;  // <- assume gl provides .z=0, .w=1
+    void main() {
+        gl_Position = a_position;
+    }
+`;
+var vShader = gl.createShader(gl.VERTEX_SHADER);
+gl.shaderSource(vShader, vertexSrc);
+gl.compileShader(vShader);
+if(!gl.getShaderParameter(vShader, gl.COMPILE_STATUS)) {
+    throw "vShader compile log: " + gl.getShaderInfoLog(vShader);
+}
+
+/* Compile gl fragment shader */
+const fragmentSrc =
+`   precision mediump float;
+    void main() {
+        gl_FragColor = vec4(1,0,1,1); /* magenta */
+    }
+`;
+var fShader = gl.createShader(gl.FRAGMENT_SHADER);
+gl.shaderSource(fShader, fragmentSrc);
+gl.compileShader(fShader);
+if(!gl.getShaderParameter(fShader, gl.COMPILE_STATUS)) {
+    throw "fShader compile log: " + gl.getShaderInfoLog(fShader);
+}
+
+/* Link gl Program */
+const program = gl.createProgram();
+gl.attachShader(program, vShader);
+gl.attachShader(program, fShader);
+gl.linkProgram(program);
+if(!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    throw "program link log: " + gl.getProgramInfoLog(program);
+}
+
+/* Start using the gl program */
+gl.useProgram(program);
+
+/* Release memory used to compile shaders */
+/* developer.mozilla.org/en-US/docs/Web/API/WebGL_API/WebGL_best_practices */
+gl.deleteShader(vShader);
+gl.deleteShader(fShader);
+gl.detachShader(program, vShader);
+gl.detachShader(program, fShader);
+vShader = undefined;
+fShader = undefined;
+
+/* Add an indexed buffer of triangle strips to tile the screen          */
+/* - NDC coordinates are left-handed: +x=right +y=up +z=into_screen     */
+/* - Default front-face winding order is counter-clockwise              */
+/* - Triangle strip winding order is determined by first triangle       */
+/* - To append disjoint strips A and B into a single buffer, repeat the */
+/*   last vertex of A and first vertex of B to create a "degenerate"    */
+/*   triangle that marks the start of a new triangle strip.             */
+const vertices = new Float32Array([
+    -0.995,1,    -0.5,1,    0,1,    0.5,1,    1,1,    /* 0..4 */
+    -0.995,0.5,  -0.5,0.5,  0,0.5,  0.5,0.5,  1,0.5,  /* 5..9 */
+    -0.995,0,    -0.5,0,    0,0,    0.5,0,    1,0,    /* 10..14 */
+]);
+const vBuf = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, vBuf);
+gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+const a_position = gl.getAttribLocation(program, 'a_position');
+/* args: index, size, type, normalized, stride, pointer */
+/* CAUTION! This assumes gl will set .z=0 and .w=1 going from vec2 to vec4 */
+gl.vertexAttribPointer(a_position, 2, gl.FLOAT, false, 0, 0);
+gl.enableVertexAttribArray(a_position);
+
+const indices = new Uint16Array([
+    0,5,1,  6, 2, 7, 3, 8, 4, 9,
+    9, 5,
+    5,10,6,  11, 7, 12, 8, 13, 9,
+]);
+const iBuf = gl.createBuffer();
+gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, iBuf);
+gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+
+
+/* Draw indexed vertices as triangle strips */
+function drawTiles() {
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.drawElements(gl.TRIANGLE_STRIP, indices.length, gl.UNSIGNED_SHORT, 0);
+}
+
+/* Draw indexed vertices as a line strip */
+function drawLines() {
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.drawElements(gl.LINE_STRIP, indices.length, gl.UNSIGNED_SHORT, 0);
+}
 
 
 /*****************/
@@ -27,7 +138,7 @@ var HIGH = 160;
 
 /* Paint frame buffer (wasm shared memory) to screen (canvas element) */
 function repaint() {
-    CTX.putImageData(FRAME_BUFFER, 0, 0);
+    // CTX.putImageData(FRAME_BUFFER, 0, 0);
 }
 
 
@@ -41,6 +152,8 @@ function wasmloadModule(callback) {
         env: {
             js_trace: (code) => {console.log("wasm trace:", code);},
             repaint: repaint,
+            drawLines, drawLines,
+            drawTiles, drawTiles,
         },
     };
     if ("instantiateStreaming" in WebAssembly) {
@@ -59,13 +172,9 @@ function wasmloadModule(callback) {
     }
 }
 
-/* Clear the gamepad button vector, meaning set each button as not-pressed */
-function clearGamepadButtons() {
-    if(GAMEPAD !== undefined) {
-        for(let i = 0; i < GAMEPAD.length; i++) {
-            GAMEPAD[i] = 0x00;
-        }
-    }
+/* Update the shared memory for gamepad button status */
+function setGamepadButtons(bits) {
+    GAMEPAD[0] = bits & 0xffffffff;
 }
 
 /* Initialize shared memory IPC bindings once WASM module is ready */
@@ -78,7 +187,6 @@ function initSharedMemBindings(result) {
     /* NOTE! the `... | WASM_EXPORT.FB_BYTES` helps on old mobile safari */
     const buf = WASM_EXPORT.FB_BYTES.value | WASM_EXPORT.FB_BYTES;
     /* Dereference the FB_SIZE pointer to get sizeof(FB_BYTES) */
-    /* NOTE! the `... | WASM_EXPORT.FB_SIZE` helps on old mobile safari */
     const sizePtr = WASM_EXPORT.FB_SIZE.value | WASM_EXPORT.FB_SIZE;
     const size = wasmDV.getUint32(sizePtr, true);  /* true = little-endian */
     /* Wrap buffer in an ImageData so it can be passed to putImageData() */
@@ -87,10 +195,8 @@ function initSharedMemBindings(result) {
 
     /* Set up the gampad button vector */
     const gp = WASM_EXPORT.GAMEPAD.value | WASM_EXPORT.GAMEPAD;
-    const gpSizePtr = WASM_EXPORT.GP_SIZE.value | WASM_EXPORT.GP_SIZE;
-    const gpSize = wasmDV.getUint32(gpSizePtr, true);
-    GAMEPAD = new Uint8Array(WASM_EXPORT.memory.buffer, gp, gpSize);
-    clearGamepadButtons();
+    GAMEPAD = new Uint32Array(WASM_EXPORT.memory.buffer, gp, 1);
+    setGamepadButtons(0);
 }
 
 
@@ -113,42 +219,40 @@ function pollGamepad() {
     /* Check if gamepad is present */
     const gp0 = navigator.getGamepads()[0];
     if(gp0 === undefined || gp0 == null) {
-        /* No gamepad */
-        GAMEPAD[8] = 0 | 0;  /* clear gamepad-connected bit */
-        return;              /* bail out to avoid triggering exceptions */
+        return;  /* no gamepad... we're done */
     }
     /* Otherwise, attempt to decode button mapping */
     const b = gp0.buttons;
     const a = gp0.axes;
+    var bits = 0x00;
     if(gp0.mapping == "standard") {
         /* This is for Gamepad API "Standard Gamepad" layout */
         /* See https://w3c.github.io/gamepad/#remapping */
         /* In this case, dpad gets mapped as buttons (not axes) */
-        GAMEPAD[0] = b[ 1].value | 0;  /* A      (right cluster: right)  */
-        GAMEPAD[1] = b[ 0].value | 0;  /* B      (right cluster: bottom) */
-        GAMEPAD[2] = b[ 8].value | 0;  /* Select (center cluster: left)  */
-        GAMEPAD[3] = b[ 9].value | 0;  /* Start  (center cluster: right) */
-        GAMEPAD[4] = b[12].value | 0;  /* Up     (dpad) */
-        GAMEPAD[5] = b[13].value | 0;  /* Down   (dpad) */
-        GAMEPAD[6] = b[14].value | 0;  /* Left   (dpad) */
-        GAMEPAD[7] = b[15].value | 0;  /* Right  (dpad) */
-        GAMEPAD[8] = 1 | 0;            /* Set gamepad-connected bit */
+        bits |= b[ 1].value ?   1 : 0;  /* A      (right cluster: right)  */
+        bits |= b[ 0].value ?   2 : 0;  /* B      (right cluster: bottom) */
+        bits |= b[ 8].value ?   4 : 0;  /* Select (center cluster: left)  */
+        bits |= b[ 9].value ?   8 : 0;  /* Start  (center cluster: right) */
+        bits |= b[12].value ?  16 : 0;  /* Up     (dpad) */
+        bits |= b[13].value ?  32 : 0;  /* Down   (dpad) */
+        bits |= b[14].value ?  64 : 0;  /* Left   (dpad) */
+        bits |= b[15].value ? 128 : 0;  /* Right  (dpad) */
+        setGamepadButtons(bits);
     } else if(b.length == 11 && a.length == 8) {
         /* Assuming this is an id="045e-028e-Microsoft X-Box 360 pad". */
         /* In Firefox on Debian 11, my Sn30 Pro has .mapping = "" and  */
         /* the dpad buttons shows up in .axes instead of .buttons.     */
-        GAMEPAD[0] = b[1].value | 0;   /* A (right cluster: right)  */
-        GAMEPAD[1] = b[0].value | 0;   /* B (right cluster: bottom) */
-        GAMEPAD[2] = b[6].value | 0;          /* Select             */
-        GAMEPAD[3] = b[7].value | 0;          /* Start              */
-        GAMEPAD[4] = a[7] == -1 ? 1|0 : 0|0;  /* Up    = -1  (dpad) */
-        GAMEPAD[5] = a[7] ==  1 ? 1|0 : 0|0;  /* Down  =  1  (dpad) */
-        GAMEPAD[6] = a[6] == -1 ? 1|0 : 0|0;  /* Left  = -1  (dpad) */
-        GAMEPAD[7] = a[6] ==  1 ? 1|0 : 0|0;  /* Right =  1  (dpad) */
-        GAMEPAD[8] = 1 | 0;            /* Set gamepad-connected bit */
+        bits |= b[1].value ?   1 : 0;  /* A (right cluster: right)  */
+        bits |= b[0].value ?   2 : 0;  /* B (right cluster: bottom) */
+        bits |= b[6].value ?   4 : 0;  /* Select             */
+        bits |= b[7].value ?   8 : 0;  /* Start              */
+        bits |= a[7] == -1 ?  16 : 0;  /* Up    = -1  (dpad) */
+        bits |= a[7] ==  1 ?  32 : 0;  /* Down  =  1  (dpad) */
+        bits |= a[6] == -1 ?  64 : 0;  /* Left  = -1  (dpad) */
+        bits |= a[6] ==  1 ? 128 : 0;  /* Right =  1  (dpad) */
+        setGamepadButtons(bits);
     } else {
         /* Ignore unknown gamepad mapping */
-        GAMEPAD[8] = 0 | 0;         /* clear gamepad-connected bit */
         if(GamepadMapWarnArmed) {
             console.warn("Ignoring gamepad because it uses unknown mapping");
             GamepadMapWarnArmed = false;
@@ -209,7 +313,7 @@ function gamepadConn(e) {
 function gamepadDisconn(e) {
     if(e.gamepad.index == 0) {
         /* If buttons were still pressed at disconnect, unpress them */
-        clearGamepadButtons();
+        setGamepadButtons(0);
     }
     console.log("gamepadDisonn", e);
 }

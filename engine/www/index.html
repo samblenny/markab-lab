@@ -28,6 +28,7 @@ image-rendering: pixelated;
 image-rendering: -moz-crisp-edges;
 image-rendering: crisp-edges;
 }
+p{width:480px;margin:10px auto;}
 @media (height < 410px) { #bezel{margin:10px auto 0 auto;} } /* thin pad */
 @media (height < 370px) { #bezel{margin: 5px auto 0 auto;} } /* thinner pad */
 @media (width < 510px) or (height < 360px) { /* remove bezel, reduce scale */
@@ -48,6 +49,11 @@ image-rendering: crisp-edges;
   <!-- Specifying 240x160 here makes the CSS scaling behave better.        -->
   <canvas id="screen" width="240" height="160"></canvas>
 </div>
+<p>
+Updated 2023-02-18: Baby steps toward a WebGL ortho-projected 2D sprite
+drawing engine. Press a gamepad button to switch from from drawing filled
+triangle strips to wireframe line segments.
+</p>
 <script type="module" src="main.js" async></script>
 </body>
 </html>
