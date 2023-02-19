@@ -41,9 +41,16 @@ gl.clear(gl.COLOR_BUFFER_BIT);
 
 /* Compile gl vertex shader */
 const vertexSrc =
-`   attribute vec4 a_position;  // <- assume gl provides .z=0, .w=1
+`   precision mediump float;
+    attribute vec4 a_position;  // <- assume gl provides .z=0, .w=1
     void main() {
-        gl_Position = a_position;
+        // Scale from tile coords to px coords
+        vec2 pos = a_position.xy * vec2(16.0, 16.0);
+        // Scale and translate from px coords to clip space
+        pos /= vec2(120.0, 80.0);
+        pos -= 1.0;
+        pos *= vec2(1.0, -1.0);
+        gl_Position = vec4(pos, 0.0, 1.0);
     }
 `;
 var vShader = gl.createShader(gl.VERTEX_SHADER);
@@ -57,7 +64,7 @@ if(!gl.getShaderParameter(vShader, gl.COMPILE_STATUS)) {
 const fragmentSrc =
 `   precision mediump float;
     void main() {
-        gl_FragColor = vec4(1,0,1,1); /* magenta */
+        gl_FragColor = vec4(1.0, 0.0, 1.0, 1.0); /* magenta */
     }
 `;
 var fShader = gl.createShader(gl.FRAGMENT_SHADER);
@@ -95,11 +102,16 @@ fShader = undefined;
 /* - To append disjoint strips A and B into a single buffer, repeat the */
 /*   last vertex of A and first vertex of B to create a "degenerate"    */
 /*   triangle that marks the start of a new triangle strip.             */
-const vertices = new Float32Array([
-    -0.995,1,    -0.5,1,    0,1,    0.5,1,    1,1,    /* 0..4 */
-    -0.995,0.5,  -0.5,0.5,  0,0.5,  0.5,0.5,  1,0.5,  /* 5..9 */
-    -0.995,0,    -0.5,0,    0,0,    0.5,0,    1,0,    /* 10..14 */
-]);
+const columns = 240/16;
+const rows = 160/16;
+const vertices = new Float32Array((columns + 1) * (rows + 1) * 2);
+for(let y = 0; y <= rows; y++) {
+    for(let x = 0; x <= columns; x++) {
+        let i = ((y * (columns + 1)) + x) * 2;
+        vertices[i] = x;
+        vertices[i+1] = y;
+    }
+}
 const vBuf = gl.createBuffer();
 gl.bindBuffer(gl.ARRAY_BUFFER, vBuf);
 gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
@@ -109,11 +121,38 @@ const a_position = gl.getAttribLocation(program, 'a_position');
 gl.vertexAttribPointer(a_position, 2, gl.FLOAT, false, 0, 0);
 gl.enableVertexAttribArray(a_position);
 
-const indices = new Uint16Array([
-    0,5,1,  6, 2, 7, 3, 8, 4, 9,
-    9, 5,
-    5,10,6,  11, 7, 12, 8, 13, 9,
-]);
+/* Arrange the vertices into triangle strips                                 */
+/*                ,+--------------------- 2 vertices to start first triangle */
+/*                |        ,+------------ plus 1 vertex per triangle         */
+/*                |        |          ,+- plus 2 vertices to separate strips */
+const i_per_row = 2 + (columns * 2) + 2;
+/* Note: The -2 is because the triangle strip for the final row does not  */
+/*       need to end with the 2 extra vertices for a degenerate triangle. */
+const indices = new Uint16Array(i_per_row * rows - 2);
+for(let y = 0; y < rows; y ++) {
+    let baseY = y * i_per_row;
+    let iy0 = (y    ) * (columns + 1);
+    let iy1 = (y + 1) * (columns + 1);
+    /* Start first triangle of triangle strip with 2 vertices, then add 1 */
+    /* vertex per triangle for the remaining triangles. This adds 2 per   */
+    /* iteration of the loop because there are two triangles per column.  */
+    /* The triangle pattern tiles like this:                              */
+    /*   0--1--2--3--4   indices to begin first triangle:  0, 5           */
+    /*   | /| /| /| /|   indices to finish first column:   1, 6           */
+    /*   |/ |/ |/ |/ |   indices to define next column:    2, 7           */
+    /*   5--6--7--8--9                                                    */
+    for(let x = 0; x <= columns; x++) {
+        let i = baseY + (x * 2);
+        indices[i] = iy0 + x;
+        indices[i+1] = iy1 + x;
+    }
+    /* Make degenerate triangle to separate disjoint triangle strips */
+    if(y + 1 < rows) {
+        let i = baseY + i_per_row - 3;
+        indices[i+1] = indices[i];     /* Duplicate this strip last vertex  */
+        indices[i+2] = iy1;            /* Duplicate next strip first vertex */
+    }
+}
 const iBuf = gl.createBuffer();
 gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, iBuf);
 gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
