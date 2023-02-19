@@ -64,7 +64,9 @@ if(!gl.getShaderParameter(vShader, gl.COMPILE_STATUS)) {
 const fragmentSrc =
 `   precision mediump float;
     void main() {
-        gl_FragColor = vec4(1.0, 0.0, 1.0, 1.0); /* magenta */
+        vec2 tile = mod(gl_FragCoord.xy, 16.0);
+        float x = (tile.x < 1.0) || (tile.y < 1.0) ? 0.7 : 1.0;
+        gl_FragColor = vec4(x, 0.0, x, 1.0); /* magenta */
     }
 `;
 var fShader = gl.createShader(gl.FRAGMENT_SHADER);
