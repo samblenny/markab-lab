@@ -5,7 +5,9 @@ SPDX-License-Identifier: MIT
  -->
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="Markab Engine Demo">
-<title>Markab Engine Demo</title><style>
+<title>Markab Engine Demo</title>
+<link rel="modulepreload" href="./main.js" />
+<style>
 html{-webkit-text-size-adjust:none;}
 html,body{min-height:100%;background:#ba8fb7;}
 body{font-family:sans-serif;font-size:12px;}
@@ -28,7 +30,7 @@ image-rendering: pixelated;
 image-rendering: -moz-crisp-edges;
 image-rendering: crisp-edges;
 }
-p{width:480px;margin:10px auto;}
+p{max-width:480px;margin:10px auto;}
 @media (height < 410px) { #bezel{margin:10px auto 0 auto;} } /* thin pad */
 @media (height < 370px) { #bezel{margin: 5px auto 0 auto;} } /* thinner pad */
 @media (width < 510px) or (height < 360px) { /* remove bezel, reduce scale */
@@ -57,6 +59,6 @@ easier to see boundaries of the 16x16 px tiles.
 Press a gamepad button to switch from from drawing filled triangle strips to
 wireframe line segments.
 </p>
-<script type="module" src="main.js" async></script>
+<script type="module" src="main.js"></script>
 </body>
 </html>
