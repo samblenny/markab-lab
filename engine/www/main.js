@@ -29,8 +29,8 @@ var WIDE = 240;    /* Framebuffer px width */
 var HIGH = 160;    /* Framebuffer px height */
 
 /* Animation Control */
-var PREV_TIMESTAMP;  /* Timestamp of previous animation frame */
-var PAUSED = true;   /* Controls requestAnimationFrame() looping */
+var PREV_TIMESTAMP;     /* Timestamp of previous animation frame */
+var NO_GAMEPAD = true;  /* Controls requestAnimationFrame() to poll gamepad */
 
 
 /******************************************************/
@@ -257,11 +257,6 @@ function wasmloadModule(callback) {
     }
 }
 
-/* Update the shared memory for gamepad button status */
-function setGamepadButtons(bits) {
-    GAMEPAD[0] = bits & 0xffffffff;
-}
-
 /* Initialize shared memory IPC bindings once WASM module is ready */
 function initSharedMemBindings(result) {
     WASM_EXPORT = result.instance.exports;
@@ -285,15 +280,36 @@ function initSharedMemBindings(result) {
 }
 
 
-/**************/
-/* Event Loop */
-/**************/
+/********************************************************/
+/* Gamepad and Keyboard equivalents (WASD, arrows, etc) */
+/********************************************************/
 
-/* Initialize the mechanism to track elapsed time between frames */
-function frameZero(timestamp_ms) {
-    // Schedule the next frame
-    window.requestAnimationFrame(oddFrame);
-    PREV_TIMESTAMP = timestamp_ms;
+/* Gamepad button bits */
+const gpA   =   1;
+const gpB   =   2;
+const gpSel =   4;  /* Select */
+const gpSt  =   8;  /* Start  */
+const gpUp  =  16;  /* dpad up    */
+const gpDn  =  32;  /* dpad down  */
+const gpL   =  64;  /* dpad left  */
+const gpR   = 128;  /* dpad right */
+
+/* Update shared memory for gamepad buttons and schedule a frame if needed */
+function setGamepadButtons(bits) {
+    const newBits = bits & 0xffffffff;
+    if((GAMEPAD[0] != newBits) && NO_GAMEPAD) {
+        /* Trigger a frame since gampad polling loop is not active */
+        window.requestAnimationFrame(evenFrame);
+    }
+    GAMEPAD[0] = newBits;
+}
+
+/* Get a copy of the gamepad button status bitfield */
+function getGamepadButtons() {
+    if(GAMEPAD !== undefined) {
+        return GAMEPAD[0];
+    }
+    return 0x00000000;
 }
 
 /* Poll gamepad 0 buttons and update the gamepad vector shared memory.       */
@@ -314,27 +330,27 @@ function pollGamepad() {
         /* This is for Gamepad API "Standard Gamepad" layout */
         /* See https://w3c.github.io/gamepad/#remapping */
         /* In this case, dpad gets mapped as buttons (not axes) */
-        bits |= b[ 1].value ?   1 : 0;  /* A      (right cluster: right)  */
-        bits |= b[ 0].value ?   2 : 0;  /* B      (right cluster: bottom) */
-        bits |= b[ 8].value ?   4 : 0;  /* Select (center cluster: left)  */
-        bits |= b[ 9].value ?   8 : 0;  /* Start  (center cluster: right) */
-        bits |= b[12].value ?  16 : 0;  /* Up     (dpad) */
-        bits |= b[13].value ?  32 : 0;  /* Down   (dpad) */
-        bits |= b[14].value ?  64 : 0;  /* Left   (dpad) */
-        bits |= b[15].value ? 128 : 0;  /* Right  (dpad) */
+        bits |= b[ 1].value ?   gpA : 0;  /* A      (right cluster: right)  */
+        bits |= b[ 0].value ?   gpB : 0;  /* B      (right cluster: bottom) */
+        bits |= b[ 8].value ? gpSel : 0;  /* Select (center cluster: left)  */
+        bits |= b[ 9].value ?  gpSt : 0;  /* Start  (center cluster: right) */
+        bits |= b[12].value ?  gpUp : 0;  /* Up     (dpad) */
+        bits |= b[13].value ?  gpDn : 0;  /* Down   (dpad) */
+        bits |= b[14].value ?   gpL : 0;  /* Left   (dpad) */
+        bits |= b[15].value ?   gpR : 0;  /* Right  (dpad) */
         setGamepadButtons(bits);
     } else if(b.length == 11 && a.length == 8) {
         /* Assuming this is an id="045e-028e-Microsoft X-Box 360 pad". */
         /* In Firefox on Debian 11, my Sn30 Pro has .mapping = "" and  */
         /* the dpad buttons shows up in .axes instead of .buttons.     */
-        bits |= b[1].value ?   1 : 0;  /* A (right cluster: right)  */
-        bits |= b[0].value ?   2 : 0;  /* B (right cluster: bottom) */
-        bits |= b[6].value ?   4 : 0;  /* Select             */
-        bits |= b[7].value ?   8 : 0;  /* Start              */
-        bits |= a[7] == -1 ?  16 : 0;  /* Up    = -1  (dpad) */
-        bits |= a[7] ==  1 ?  32 : 0;  /* Down  =  1  (dpad) */
-        bits |= a[6] == -1 ?  64 : 0;  /* Left  = -1  (dpad) */
-        bits |= a[6] ==  1 ? 128 : 0;  /* Right =  1  (dpad) */
+        bits |= b[1].value ?   gpA : 0;  /* A (right cluster: right)  */
+        bits |= b[0].value ?   gpB : 0;  /* B (right cluster: bottom) */
+        bits |= b[6].value ? gpSel : 0;  /* Select             */
+        bits |= b[7].value ?  gpSt : 0;  /* Start              */
+        bits |= a[7] == -1 ?  gpUp : 0;  /* Up    = -1  (dpad) */
+        bits |= a[7] ==  1 ?  gpDn : 0;  /* Down  =  1  (dpad) */
+        bits |= a[6] == -1 ?   gpL : 0;  /* Left  = -1  (dpad) */
+        bits |= a[6] ==  1 ?   gpR : 0;  /* Right =  1  (dpad) */
         setGamepadButtons(bits);
     } else {
         /* Ignore unknown gamepad mapping */
@@ -344,6 +360,119 @@ function pollGamepad() {
         }
     }
 
+}
+
+/* Handle keydown events by setting equivalent gamepad button press bits */
+/* Dpad: WASD or arrows */
+/* A: X or / or Space   */
+/* B: Z or .            */
+/* Select: Backspace    */
+/* Start:  Enter        */
+function handleKeydown(e) {
+    if(e.defaultPrevented || e.ctrlKey || e.metaKey || e.shiftKey) {
+        return;
+    }
+    /* CAUTION! event.code uses QWERTY layout locations regardless */
+    /*          of what the actual keyboard layout may be set to.  */
+    var bits = getGamepadButtons();
+    switch(e.code) {
+        case "Space":  /* A */
+        case "Slash":
+        case "KeyX":
+            bits |= gpA;
+            break;
+        case "Period":  /* B */
+        case "KeyZ":
+            bits |= gpB;
+            break;
+        case "Backspace":  /* Select */
+            bits |= gpSel;
+            break;
+        case "Enter":      /* Start */
+            bits |= gpSt;
+            break;
+        case "ArrowUp":  /* Up (clear down) */
+        case "KeyW":
+            bits |= gpUp;
+            bits &= ~gpDn;
+            break;
+        case "ArrowDown":  /* Down (clear up) */
+        case "KeyS":
+            bits |= gpDn;
+            bits &= ~gpUp;
+            break;
+        case "ArrowLeft":  /* Left (clear right) */
+        case "KeyA":
+            bits |= gpL;
+            bits &= ~gpR;
+            break;
+        case "ArrowRight":  /* Right (clear left) */
+        case "KeyD":
+            bits |= gpR;
+            bits &= ~gpL;
+            break;
+        default:
+            return;
+    }
+    e.preventDefault();
+    setGamepadButtons(bits);
+}
+
+/* Handle keydown events by clearing equivalent gamepad button press bits */
+function handleKeyup(e) {
+    if(e.defaultPrevented /* ignoring modifiers here is intentional */) {
+        return;
+    }
+    var bits = getGamepadButtons();
+    switch(e.code) {
+        case "Space":  /* A */
+        case "Slash":
+        case "KeyX":
+            bits &= ~gpA;
+            break;
+        case "Period":  /* B */
+        case "KeyZ":
+            bits &= ~gpB;
+            break;
+        case "Backspace":  /* Select */
+            bits &= ~gpSel;
+            break;
+        case "Enter":  /* Start */
+            bits &= ~gpSt;
+            break;
+        case "ArrowUp":  /* Up */
+        case "KeyW":
+            bits &= ~gpUp;
+            break;
+        case "ArrowDown":  /* Down */
+        case "KeyS":
+            bits &= ~gpDn;
+            break;
+        case "ArrowLeft":  /* Left */
+        case "KeyA":
+            bits &= ~gpL;
+            break;
+        case "ArrowRight":  /* Right */
+        case "KeyD":
+            bits &= ~gpR;
+            break;
+        default:
+            return;
+    }
+    e.preventDefault();
+    setGamepadButtons(bits);
+}
+
+
+/**************/
+/* Event Loop */
+/**************/
+
+/* Initialize the mechanism to track elapsed time between frames */
+function frameZero(timestamp_ms) {
+    // Schedule the next frame
+    window.requestAnimationFrame(oddFrame);
+    PREV_TIMESTAMP = timestamp_ms;
 }
 
 /* Poll for gamepad input on odd frames */
@@ -360,10 +489,10 @@ function oddFrame(timestamp_ms) {
     }
 }
 
-/* Call the wasm module on even frames */
+/* Call wasm module on even frames and schedule another frame if needed */
 function evenFrame(timestamp_ms) {
-    /* Schedule the next frame */
-    if(!PAUSED) {
+    /* Keep polling gamepad if gamepad is connected */
+    if(!NO_GAMEPAD) {
         const requestID = window.requestAnimationFrame(oddFrame);
     }
     /* Compute elapsed time since previous frame in ms, convert to uint32_t */
@@ -382,9 +511,9 @@ function evenFrame(timestamp_ms) {
 
 /* Handle gamepad connect event */
 function gamepadConn(e) {
-    /* Start the animation loop */
-    if(PAUSED) {
-        PAUSED = false;
+    /* Start animation frame loop to poll gamepad buttons */
+    if(NO_GAMEPAD) {
+        NO_GAMEPAD = false;
         window.requestAnimationFrame(oddFrame);
     }
     /* Log gamepad info to help with troubleshooting of button mappings */
@@ -406,6 +535,10 @@ function gamepadDisconn(e) {
     if(e.gamepad.index == 0) {
         /* If buttons were still pressed at disconnect, unpress them */
         setGamepadButtons(0);
+        /* Stop the animation frame loop to poll gamepad buttons */
+        NO_GAMEPAD = true;
+        /* Schedule a one-shot frame */
+        window.requestAnimationFrame(evenFrame);
     }
     console.log("gamepadDisonn", e);
 }
@@ -419,6 +552,10 @@ function gamepadDisconn(e) {
 /* Works on Chrome and Firefox. Safari mysteriously ignores my gamepad. */
 window.addEventListener("gamepadconnected", gamepadConn);
 window.addEventListener("gamepaddisconnected", gamepadDisconn);
+
+/* Register event handlers for keyboard gamepad equivalents (WASD, etc) */
+window.addEventListener("keydown", handleKeydown);
+window.addEventListener("keyup", handleKeyup);
 
 /* Start the WebGL canvas initialization chain (split across rAF callbacks) */
 glInit0Clear();
