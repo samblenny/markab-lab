@@ -31,6 +31,11 @@ var HIGH = 160;    /* Framebuffer px height */
 /* Animation Control */
 var PREV_TIMESTAMP;     /* Timestamp of previous animation frame */
 var NO_GAMEPAD = true;  /* Controls requestAnimationFrame() to poll gamepad */
+var ANIMATE_EN = true;  /* Track whether window is focused (allow animation) */
+
+/* Gamepad and Keyboard-WASD-pad button state */
+var WASD_BITS = 0;     /* Bitfied for state of WASD keys */
+var GAMEPAD_BITS = 0;  /* Bitfied for state of gamepad buttons */
 
 
 /******************************************************/
@@ -276,7 +281,7 @@ function initSharedMemBindings(result) {
     /* Set up the gampad button vector */
     const gp = WASM_EXPORT.GAMEPAD.value | WASM_EXPORT.GAMEPAD;
     GAMEPAD = new Uint32Array(WASM_EXPORT.memory.buffer, gp, 1);
-    setGamepadButtons(0);
+    unpressAllButtons();
 }
 
 
@@ -294,22 +299,68 @@ const gpDn  =  32;  /* dpad down  */
 const gpL   =  64;  /* dpad left  */
 const gpR   = 128;  /* dpad right */
 
-/* Update shared memory for gamepad buttons and schedule a frame if needed */
-function setGamepadButtons(bits) {
-    const newBits = bits & 0xffffffff;
-    if((GAMEPAD[0] != newBits) && NO_GAMEPAD) {
+/* Clear gamepad and WASD-pad buttons and schedule a frame if needed */
+function unpressAllButtons() {
+    const oldBits = GAMEPAD_BITS | WASD_BITS;
+    WASD_BITS = 0;
+    GAMEPAD_BITS = 0;
+    GAMEPAD[0] = 0;
+    if(oldBits != 0) {
+        window.requestAnimationFrame(evenFrame);
+    }
+}
+
+/* Update keyboard WASD-pad buttons and schedule a frame if needed */
+function setWASDButtons(bits) {
+    /* Carefully combine (OR) the WASD-pad and gamepad button states */
+    const newBits = (bits & 0xffffffff);
+    const oldBits = GAMEPAD_BITS | WASD_BITS;
+    WASD_BITS = newBits;
+    var mergedBits = newBits | GAMEPAD_BITS;
+    /* Deconflict simultaneous left+right or up+down inputs */
+    if(newBits & gpL ) { mergedBits &= ~gpR;  }
+    if(newBits & gpR ) { mergedBits &= ~gpL;  }
+    if(newBits & gpUp) { mergedBits &= ~gpDn; }
+    if(newBits & gpDn) { mergedBits &= ~gpUp; }
+    /* Only proceed if merged button state differs from old button state */
+    if(oldBits == mergedBits) {
+        return;
+    }
+    if(NO_GAMEPAD) {
         /* Trigger a frame since gampad polling loop is not active */
         window.requestAnimationFrame(evenFrame);
     }
-    GAMEPAD[0] = newBits;
+    /* Update shared memory for gamepad bitfield */
+    GAMEPAD[0] = mergedBits;
 }
 
-/* Get a copy of the gamepad button status bitfield */
-function getGamepadButtons() {
-    if(GAMEPAD !== undefined) {
-        return GAMEPAD[0];
+/* Update shared memory for gamepad buttons and schedule a frame if needed */
+function setGamepadButtons(bits) {
+    /* Carefully combine (OR) the WASD-pad and gamepad button states */
+    const newBits = (bits & 0xffffffff);
+    const oldBits = GAMEPAD_BITS | WASD_BITS;
+    GAMEPAD_BITS = newBits;
+    var mergedBits = newBits | WASD_BITS;
+    /* Deconflict simultaneous left+right or up+down inputs */
+    if(newBits & gpL ) { mergedBits &= ~gpR;  }
+    if(newBits & gpR ) { mergedBits &= ~gpL;  }
+    if(newBits & gpUp) { mergedBits &= ~gpDn; }
+    if(newBits & gpDn) { mergedBits &= ~gpUp; }
+    /* Only proceed if merged button state differs from old button state */
+    if(oldBits == mergedBits) {
+        return;
     }
-    return 0x00000000;
+    if(NO_GAMEPAD) {
+        /* Trigger a frame since gampad polling loop is not active */
+        window.requestAnimationFrame(evenFrame);
+    }
+    /* Update shared memory for gamepad bitfield */
+    GAMEPAD[0] = mergedBits;
+}
+
+/* Get a copy of the WASD-pad button status bitfield */
+function getWASDButtons() {
+    return WASD_BITS;
 }
 
 /* Poll gamepad 0 buttons and update the gamepad vector shared memory.       */
@@ -359,22 +410,16 @@ function pollGamepad() {
             GamepadMapWarnArmed = false;
         }
     }
-
 }
 
 /* Handle keydown events by setting equivalent gamepad button press bits */
-/* Dpad: WASD or arrows */
-/* A: X or / or Space   */
-/* B: Z or .            */
-/* Select: Backspace    */
-/* Start:  Enter        */
 function handleKeydown(e) {
     if(e.defaultPrevented || e.ctrlKey || e.metaKey || e.shiftKey) {
         return;
     }
     /* CAUTION! event.code uses QWERTY layout locations regardless */
     /*          of what the actual keyboard layout may be set to.  */
-    var bits = getGamepadButtons();
+    var bits = getWASDButtons();
     switch(e.code) {
         case "Space":  /* A */
         case "Slash":
@@ -415,7 +460,7 @@ function handleKeydown(e) {
             return;
     }
     e.preventDefault();
-    setGamepadButtons(bits);
+    setWASDButtons(bits);
 }
 
 /* Handle keydown events by clearing equivalent gamepad button press bits */
@@ -423,7 +468,7 @@ function handleKeyup(e) {
     if(e.defaultPrevented /* ignoring modifiers here is intentional */) {
         return;
     }
-    var bits = getGamepadButtons();
+    var bits = getWASDButtons();
     switch(e.code) {
         case "Space":  /* A */
         case "Slash":
@@ -460,7 +505,23 @@ function handleKeyup(e) {
             return;
     }
     e.preventDefault();
-    setGamepadButtons(bits);
+    setWASDButtons(bits);
+}
+
+/* When window loses focus, inhibit gamepad polling */
+function handleBlur() {
+    ANIMATE_EN = false;
+    /* Unpress any buttons that were pressed during loss of focus */
+    unpressAllButtons();
+}
+
+/* When window regains focus, resume gamepad polling */
+function handleFocus() {
+    ANIMATE_EN = true;
+    if(!NO_GAMEPAD) {
+        /* Restart gamepad polling if a gamepad is connected */
+        window.requestAnimationFrame(oddFrame);
+    }
 }
 
 
@@ -481,7 +542,9 @@ function oddFrame(timestamp_ms) {
     const requestID = window.requestAnimationFrame(evenFrame);
     try {
         /* Update the gamepad state */
-        pollGamepad();
+        if(!NO_GAMEPAD && ANIMATE_EN) {
+            pollGamepad();
+        }
     } catch(e) {
         /* If something goes wrong, stop the animation loop */
         window.cancelAnimationFrame(requestID);
@@ -491,8 +554,8 @@ function oddFrame(timestamp_ms) {
 
 /* Call wasm module on even frames and schedule another frame if needed */
 function evenFrame(timestamp_ms) {
-    /* Keep polling gamepad if gamepad is connected */
-    if(!NO_GAMEPAD) {
+    /* Keep polling gamepad if window has focus and gamepad is connected */
+    if(!NO_GAMEPAD && ANIMATE_EN) {
         const requestID = window.requestAnimationFrame(oddFrame);
     }
     /* Compute elapsed time since previous frame in ms, convert to uint32_t */
@@ -534,7 +597,7 @@ function gamepadConn(e) {
 function gamepadDisconn(e) {
     if(e.gamepad.index == 0) {
         /* If buttons were still pressed at disconnect, unpress them */
-        setGamepadButtons(0);
+        unpressAllButtons();
         /* Stop the animation frame loop to poll gamepad buttons */
         NO_GAMEPAD = true;
         /* Schedule a one-shot frame */
@@ -556,6 +619,13 @@ window.addEventListener("gamepaddisconnected", gamepadDisconn);
 /* Register event handlers for keyboard gamepad equivalents (WASD, etc) */
 window.addEventListener("keydown", handleKeydown);
 window.addEventListener("keyup", handleKeyup);
+
+/* Register onblur and onfocus events to interrupt gamepad polling when     */
+/* window has lost focus. This is an attempt to preempt edge-case weirdness */
+/* due to unintended input, the browser throttling our framerate, etc.      */
+window.addEventListener("blur", handleBlur);
+window.addEventListener("focus", handleFocus);
+
 
 /* Start the WebGL canvas initialization chain (split across rAF callbacks) */
 glInit0Clear();
