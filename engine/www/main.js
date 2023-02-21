@@ -61,9 +61,9 @@ function glInit1VertexShader() {
         attribute vec4 a_position;  // <- assume gl provides .z=0, .w=1
         void main() {
             // Scale from tile coords to px coords
-            vec2 pos = a_position.xy * vec2(16.0, 16.0);
+            vec2 pos = a_position.xy * vec2(32.0, 32.0);
             // Scale and translate from px coords to clip space
-            pos /= vec2(120.0, 80.0);
+            pos /= vec2(240.0, 160.0);
             pos -= 1.0;
             pos *= vec2(1.0, -1.0);
             gl_Position = vec4(pos, 0.0, 1.0);
@@ -84,8 +84,8 @@ function glInit2FragmentShader() {
     const fragmentSrc =
     `   precision mediump float;
         void main() {
-            vec2 tile = mod(gl_FragCoord.xy, 16.0);
-            float x = (tile.x < 1.0) || (tile.y < 1.0) ? 0.7 : 1.0;
+            vec2 tile = mod(gl_FragCoord.xy, 32.0);
+            float x = (tile.x < 2.0) || (tile.y < 2.0) ? 0.7 : 1.0;
             gl_FragColor = vec4(x, 0.0, x, 1.0); /* magenta */
         }
     `;
@@ -209,14 +209,12 @@ function glInit5LoadWasm() {
 
 /* Draw indexed vertices as triangle strips */
 function drawTiles() {
-    gl.clear(gl.COLOR_BUFFER_BIT);
     const length = GLD.indices.length;
     gl.drawElements(gl.TRIANGLE_STRIP, length, gl.UNSIGNED_SHORT, 0);
 }
 
 /* Draw indexed vertices as a line strip */
 function drawLines() {
-    gl.clear(gl.COLOR_BUFFER_BIT);
     const length = GLD.indices.length;
     gl.drawElements(gl.LINE_STRIP, length, gl.UNSIGNED_SHORT, 0);
 }

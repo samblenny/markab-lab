@@ -21,11 +21,8 @@ margin:30px auto 0 auto;
 border-radius:10px;
 background:magenta;
 }
-#screen{     /* This uses `width:100%` because `scale:2` blurs in Safari */
-width:100%;  /* 480px */
-height:100%; /* 320px */
+#screen{
 background:black;
-transform-origin:top left;
 image-rendering: pixelated;
 image-rendering: -moz-crisp-edges;
 image-rendering: crisp-edges;
@@ -34,6 +31,10 @@ p{max-width:480px;margin:10px auto;}
 @media (height < 410px) { #bezel{margin:10px auto 0 auto;} } /* thin pad */
 @media (height < 370px) { #bezel{margin: 5px auto 0 auto;} } /* thinner pad */
 @media (width < 510px) or (height < 360px) { /* remove bezel, reduce scale */
+ #screen{
+ width:360px;  /* =240*1.5 */
+ height:240px; /* =160*1.5 */
+ }
  #bezel{
  width:360px;  /* =240*1.5 */
  height:240px; /* =160*1.5 */
@@ -49,10 +50,10 @@ p{max-width:480px;margin:10px auto;}
   <!-- NOTE: Canvas width and height are not the same as css width/height. -->
   <!-- Canvas framebuffer size is 240x160 px and it gets scaled up by css. -->
   <!-- Specifying 240x160 here makes the CSS scaling behave better.        -->
-  <canvas id="screen" width="240" height="160"></canvas>
+  <canvas id="screen" width="480" height="320"></canvas>
 </div>
 <p>
-2023-02-21: Updated input handling code to avoid edge-case glitches.
+2023-02-21: Adjusted CSS, shaders, and draw calls to reduce GPU load.
 </p>
 <p>
 Press a button to switch from filled triangles to wireframes.
