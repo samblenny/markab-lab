@@ -30,7 +30,7 @@ var HIGH = 160;    /* Framebuffer px height */
 
 /* Animation Control */
 var PREV_TIMESTAMP;     /* Timestamp of previous animation frame */
-var NO_GAMEPAD = true;  /* Controls requestAnimationFrame() to poll gamepad */
+var PAUSED = false;     /* Controls requestAnimationFrame() animation loop */
 var ANIMATE_EN = true;  /* Track whether window is focused (allow animation) */
 
 /* Gamepad and Keyboard-WASD-pad button state */
@@ -84,12 +84,14 @@ function glInit1VertexShader() {
 function glInit2FragmentShader() {
     const fragmentSrc =
     `   precision mediump float;
+        uniform float player_tile;
         varying float v_tile_number;
         void main() {
             vec2 tile = mod(gl_FragCoord.xy, 32.0);
             float lum = v_tile_number / (15.0 * 10.0);
+            float grn = (player_tile == v_tile_number) ? 0.9 : 0.0;
             float x = (tile.x < 2.0) || (tile.y < 2.0) ? 0.7 : lum;
-            gl_FragColor = vec4(x, 0.0, x, 1.0); /* magenta */
+            gl_FragColor = vec4(x, grn, x, 1.0); /* magenta */
         }
     `;
     GLD.fShader = gl.createShader(gl.FRAGMENT_SHADER);
@@ -121,6 +123,9 @@ function glInit3Program() {
     gl.detachShader(GLD.program, GLD.fShader);
     delete GLD.vShader;
     delete GLD.fShader;
+    /* Save the uniform offsets */
+    GLD.playerTile = gl.getUniformLocation(GLD.program, "player_tile");
+
     /* Schedule next init function */
     window.requestAnimationFrame(glInit4Vertices);
 }
@@ -195,8 +200,6 @@ function glInit4Vertices() {
 
 /* WebGL incremental init chain step 5: Load Wasm module */
 function glInit5LoadWasm() {
-    /* Draw some stuff */
-    drawTiles();
     /* Load the wasm module with callback to start the event loop */
     wasmloadModule(() => {
         WASM_EXPORT.init();
@@ -204,10 +207,16 @@ function glInit5LoadWasm() {
     });
 }
 
-/* Draw indexed vertices as triangle strips */
+/* Draw the grid of tiles, 15 wide by 10 high */
 function drawTiles() {
     const first = 0;
     gl.drawArrays(gl.TRIANGLES, first, GLD.vertexCount);
+}
+
+/* Tell shaders which tile the player character is on */
+function setPlayerTile(n) {
+    const tile = n < 0 ? 0 : (n > 150 ? 150 : n);
+    gl.uniform1f(GLD.playerTile, tile);
 }
 
 /* Draw indexed vertices as a line strip */
@@ -237,8 +246,9 @@ function wasmloadModule(callback) {
         env: {
             js_trace: (code) => {console.log("wasm trace:", code);},
             repaint: repaint,
-            drawLines, drawLines,
-            drawTiles, drawTiles,
+            drawLines: drawLines,
+            setPlayerTile: setPlayerTile,
+            drawTiles: drawTiles,
         },
     };
     if ("instantiateStreaming" in WebAssembly) {
@@ -321,9 +331,11 @@ function setWASDButtons(bits) {
     if(oldBits == mergedBits) {
         return;
     }
-    if(NO_GAMEPAD) {
+    if(PAUSED) {
         /* Trigger a frame since gampad polling loop is not active */
         window.requestAnimationFrame(evenFrame);
+        /* Run the animation loop */
+        PAUSED = 0;
     }
     /* Update shared memory for gamepad bitfield */
     GAMEPAD[0] = mergedBits;
@@ -345,7 +357,7 @@ function setGamepadButtons(bits) {
     if(oldBits == mergedBits) {
         return;
     }
-    if(NO_GAMEPAD) {
+    if(PAUSED) {
         /* Trigger a frame since gampad polling loop is not active */
         window.requestAnimationFrame(evenFrame);
     }
@@ -513,7 +525,7 @@ function handleBlur() {
 /* When window regains focus, resume gamepad polling */
 function handleFocus() {
     ANIMATE_EN = true;
-    if(!NO_GAMEPAD) {
+    if(!PAUSED) {
         /* Restart gamepad polling if a gamepad is connected */
         window.requestAnimationFrame(oddFrame);
     }
@@ -537,7 +549,7 @@ function oddFrame(timestamp_ms) {
     const requestID = window.requestAnimationFrame(evenFrame);
     try {
         /* Update the gamepad state */
-        if(!NO_GAMEPAD && ANIMATE_EN) {
+        if(!PAUSED && ANIMATE_EN) {
             pollGamepad();
         }
     } catch(e) {
@@ -550,7 +562,7 @@ function oddFrame(timestamp_ms) {
 /* Call wasm module on even frames and schedule another frame if needed */
 function evenFrame(timestamp_ms) {
     /* Keep polling gamepad if window has focus and gamepad is connected */
-    if(!NO_GAMEPAD && ANIMATE_EN) {
+    if(!PAUSED && ANIMATE_EN) {
         const requestID = window.requestAnimationFrame(oddFrame);
     }
     /* Compute elapsed time since previous frame in ms, convert to uint32_t */
@@ -570,8 +582,8 @@ function evenFrame(timestamp_ms) {
 /* Handle gamepad connect event */
 function gamepadConn(e) {
     /* Start animation frame loop to poll gamepad buttons */
-    if(NO_GAMEPAD) {
-        NO_GAMEPAD = false;
+    if(PAUSED) {
+        PAUSED = false;
         window.requestAnimationFrame(oddFrame);
     }
     /* Log gamepad info to help with troubleshooting of button mappings */
@@ -593,10 +605,6 @@ function gamepadDisconn(e) {
     if(e.gamepad.index == 0) {
         /* If buttons were still pressed at disconnect, unpress them */
         unpressAllButtons();
-        /* Stop the animation frame loop to poll gamepad buttons */
-        NO_GAMEPAD = true;
-        /* Schedule a one-shot frame */
-        window.requestAnimationFrame(evenFrame);
     }
     console.log("gamepadDisonn", e);
 }
