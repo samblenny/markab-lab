@@ -58,15 +58,16 @@ function glInit0Clear() {
 function glInit1VertexShader() {
     const vertexSrc =
     `   precision mediump float;
-        attribute vec4 a_position;  // <- assume gl provides .z=0, .w=1
+        attribute vec2 a_position;
+        attribute float a_tile_number;
+        varying float v_tile_number;
         void main() {
-            // Scale from tile coords to px coords
-            vec2 pos = a_position.xy * vec2(32.0, 32.0);
-            // Scale and translate from px coords to clip space
-            pos /= vec2(240.0, 160.0);
-            pos -= 1.0;
-            pos *= vec2(1.0, -1.0);
+            // Scale and translate from tile coords to clip space coords
+            vec2 pos = a_position / vec2(15.0, 10.0);
+            pos -= 0.5;
+            pos *= vec2(2.0, -2.0);
             gl_Position = vec4(pos, 0.0, 1.0);
+            v_tile_number = a_tile_number;
         }
     `;
     GLD.vShader = gl.createShader(gl.VERTEX_SHADER);
@@ -83,9 +84,11 @@ function glInit1VertexShader() {
 function glInit2FragmentShader() {
     const fragmentSrc =
     `   precision mediump float;
+        varying float v_tile_number;
         void main() {
             vec2 tile = mod(gl_FragCoord.xy, 32.0);
-            float x = (tile.x < 2.0) || (tile.y < 2.0) ? 0.7 : 1.0;
+            float lum = v_tile_number / (15.0 * 10.0);
+            float x = (tile.x < 2.0) || (tile.y < 2.0) ? 0.7 : lum;
             gl_FragColor = vec4(x, 0.0, x, 1.0); /* magenta */
         }
     `;
@@ -119,79 +122,73 @@ function glInit3Program() {
     delete GLD.vShader;
     delete GLD.fShader;
     /* Schedule next init function */
-    window.requestAnimationFrame(glInit4VerticesIndices);
+    window.requestAnimationFrame(glInit4Vertices);
 }
 
-/* WebGL incremental init chain step 4: Bind vertex and index data */
-function glInit4VerticesIndices() {
-    /* Add an indexed buffer of triangle strips to tile the screen          */
-    /* - NDC coordinates are left-handed: +x=right +y=up +z=into_screen     */
-    /* - Default front-face winding order is counter-clockwise              */
-    /* - Triangle strip winding order is determined by first triangle       */
-    /* - To append disjoint strips A and B into a single buffer, repeat the */
-    /*   last vertex of A and first vertex of B to create a "degenerate"    */
-    /*   triangle that marks the start of a new triangle strip.             */
+/* WebGL incremental init chain step 4: Bind vertex data */
+function glInit4Vertices() {
+    /* Add a buffer of triangles to tile the screen                     */
+    /* - NDC coordinates are left-handed: +x=right +y=up +z=into_screen */
+    /* - Default front-face winding order is counter-clockwise          */
+    /* - Vertices are aligned on 4-byte boundary: (x, y, tile, padding) */
     const columns = 240/16;
     const rows = 160/16;
+    const vertsPerTile = 6;
+    const bytesPerTile = 24;  /* 6 vert/tile * 4 bytes/vert -> 24 bytes/tile */
     GLD.columns = columns;
     GLD.rows = rows;
-    GLD.vertices = new Float32Array((columns + 1) * (rows + 1) * 2);
-    for(let y = 0; y <= rows; y++) {
-        for(let x = 0; x <= columns; x++) {
-            let i = ((y * (columns + 1)) + x) * 2;
-            GLD.vertices[i] = x;
-            GLD.vertices[i+1] = y;
+    GLD.vertexCount = columns * rows * vertsPerTile;
+    GLD.vertices = new Uint8Array(columns * rows * bytesPerTile);
+    for(let y = 0; y < rows; y++) {
+        for(let x = 0; x < columns; x++) {
+            let tile = (y * columns) + x;
+            let i = tile * bytesPerTile;
+            GLD.vertices[i   ] = x;      /*  X--/ */
+            GLD.vertices[i+ 1] = y;      /*  | /  */
+            GLD.vertices[i+ 2] = tile;   /*  |/   */
+            GLD.vertices[i+ 3] = 0;
+
+            GLD.vertices[i+ 4] = x;      /*  +--/ */
+            GLD.vertices[i+ 5] = y+1;    /*  | /  */
+            GLD.vertices[i+ 6] = tile;   /*  X/   */
+            GLD.vertices[i+ 7] = 0;
+
+            GLD.vertices[i+ 8] = x+1;    /*  +--X */
+            GLD.vertices[i+ 9] = y;      /*  | /  */
+            GLD.vertices[i+10] = tile;   /*  |/   */
+            GLD.vertices[i+11] = 0;
+
+            GLD.vertices[i+12] = x+1;    /*    /X */
+            GLD.vertices[i+13] = y;      /*   / | */
+            GLD.vertices[i+14] = tile;   /*  /--+ */
+            GLD.vertices[i+15] = 0;
+
+            GLD.vertices[i+16] = x;      /*    /| */
+            GLD.vertices[i+17] = y+1;    /*   / | */
+            GLD.vertices[i+18] = tile;   /*  X--+ */
+            GLD.vertices[i+19] = 0;
+
+            GLD.vertices[i+20] = x+1;    /*    /| */
+            GLD.vertices[i+21] = y+1;    /*   / | */
+            GLD.vertices[i+22] = tile;   /*  /--X */
+            GLD.vertices[i+23] = 0;
         }
     }
     GLD.vBuf = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, GLD.vBuf);
     gl.bufferData(gl.ARRAY_BUFFER, GLD.vertices, gl.STATIC_DRAW);
+    /* Bind the interleaved x,y position and tile_number vertex attributes */
+    /* vertexAttribPointer(index, size, type, normalized, stride, pointer) */
+    const gltype = gl.UNSIGNED_BYTE;
+    const normalize = false;
+    const stride = 4;
     const a_position = gl.getAttribLocation(GLD.program, 'a_position');
-    /* args: index, size, type, normalized, stride, pointer */
-    /* CAUTION! This assumes gl will set .z=0 and .w=1 going for vec2->vec4 */
-    gl.vertexAttribPointer(a_position, 2, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribPointer(a_position, 2, gltype, normalize, stride, 0);
     gl.enableVertexAttribArray(a_position);
+    const a_tile_number = gl.getAttribLocation(GLD.program, 'a_tile_number');
+    gl.vertexAttribPointer(a_tile_number, 2, gltype, normalize, stride, 2);
+    gl.enableVertexAttribArray(a_tile_number);
 
-    /* Arrange the vertices into triangle strips */
-    /* WebGL incremental init chain step 5: Bind index data         */
-    /* Layout of indices for one row:                               */
-    /*   ,+--------------------- 2 vertices to start first triangle */
-    /*   |        ,+------------ plus 1 vertex per triangle         */
-    /*   |        |          ,+- plus 2 vertices to separate strips */
-    /*   2 + (columns * 2) + 2                                      */
-    const i_per_row = 2 + (columns * 2) + 2;
-    /* Note: The -2 is because the triangle strip for the final row does    */
-    /* not need to end with the 2 extra vertices for a degenerate triangle. */
-    GLD.indices = new Uint16Array(i_per_row * rows - 2);
-    for(let y = 0; y < rows; y ++) {
-        let baseY = y * i_per_row;
-        let iy0 = (y    ) * (columns + 1);
-        let iy1 = (y + 1) * (columns + 1);
-        /* Start first triangle of triangle strip with 2 vertices, then */
-        /* add 1 vertex per triangle for the remaining triangles. This  */
-        /* adds 2 per iteration of the loop because there are two       */
-        /* triangles per column. The triangle pattern tiles like this:  */
-        /*   0--1--2--3--4   indices to begin first triangle:  0, 5     */
-        /*   | /| /| /| /|   indices to finish first column:   1, 6     */
-        /*   |/ |/ |/ |/ |   indices to define next column:    2, 7     */
-        /*   5--6--7--8--9                                              */
-        for(let x = 0; x <= columns; x++) {
-            let i = baseY + (x * 2);
-            GLD.indices[i] = iy0 + x;
-            GLD.indices[i+1] = iy1 + x;
-        }
-        /* Make degenerate triangle to separate disjoint triangle strips */
-        if(y + 1 < rows) {
-            let i = baseY + i_per_row - 3;
-            /* Duplicate this strip's last vertex  */
-            GLD.indices[i+1] = GLD.indices[i];
-            /* Duplicate next strip's first vertex */
-            GLD.indices[i+2] = iy1;
-        }
-    }
-    GLD.iBuf = gl.createBuffer();
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, GLD.iBuf);
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, GLD.indices, gl.STATIC_DRAW);
     /* Schedule next init function */
     window.requestAnimationFrame(glInit5LoadWasm);
 }
@@ -209,14 +206,14 @@ function glInit5LoadWasm() {
 
 /* Draw indexed vertices as triangle strips */
 function drawTiles() {
-    const length = GLD.indices.length;
-    gl.drawElements(gl.TRIANGLE_STRIP, length, gl.UNSIGNED_SHORT, 0);
+    const first = 0;
+    gl.drawArrays(gl.TRIANGLES, first, GLD.vertexCount);
 }
 
 /* Draw indexed vertices as a line strip */
 function drawLines() {
-    const length = GLD.indices.length;
-    gl.drawElements(gl.LINE_STRIP, length, gl.UNSIGNED_SHORT, 0);
+    const first = 0;
+    gl.drawArrays(gl.LINE_STRIP, first, GLD.vertexCount);
 }
 
 
