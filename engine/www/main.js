@@ -24,9 +24,6 @@ const GLD = {};  /* Dictionary to hold gl state objects during init chain */
 const wasmModule = "markab-engine.wasm";
 var WASM_EXPORT;   /* Wrapper object for symbols exported by wasm module */
 var GAMEPAD;       /* Wrapper object for shared gampad memory region */
-var FRAME_BUFFER;  /* Wrapper object for shared framebuffer memory region */
-var WIDE = 240;    /* Framebuffer px width */
-var HIGH = 160;    /* Framebuffer px height */
 
 /* Animation Control */
 var PREV_TIMESTAMP;     /* Timestamp of previous animation frame */
@@ -274,16 +271,9 @@ function initSharedMemBindings(result) {
     /* from dereferencing FB_SIZE pointer exported from wasm module.         */
     let wasmBufU8 = new Uint8Array(WASM_EXPORT.memory.buffer);
     let wasmDV = new DataView(WASM_EXPORT.memory.buffer);
-    /* NOTE! the `... | WASM_EXPORT.FB_BYTES` helps on old mobile safari */
-    const buf = WASM_EXPORT.FB_BYTES.value | WASM_EXPORT.FB_BYTES;
-    /* Dereference the FB_SIZE pointer to get sizeof(FB_BYTES) */
-    const sizePtr = WASM_EXPORT.FB_SIZE.value | WASM_EXPORT.FB_SIZE;
-    const size = wasmDV.getUint32(sizePtr, true);  /* true = little-endian */
-    /* Wrap buffer in an ImageData so it can be passed to putImageData() */
-    let clamped = new Uint8ClampedArray(WASM_EXPORT.memory.buffer, buf, size);
-    FRAME_BUFFER = new ImageData(clamped, WIDE, HIGH);
 
     /* Set up the gampad button vector */
+    /* The `| WASM_EXPORT.GAMEPAD` (i.e. not `.value`) is for Safari */
     const gp = WASM_EXPORT.GAMEPAD.value | WASM_EXPORT.GAMEPAD;
     GAMEPAD = new Uint32Array(WASM_EXPORT.memory.buffer, gp, 1);
     unpressAllButtons();

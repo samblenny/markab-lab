@@ -10,40 +10,10 @@
 /* translation unit. This should give better results than relying on LTO.  */
 #include "libmkb/libmkb.c"
 
-/* Frame Buffer Resolution */
-#define FB_WIDE (240)
-#define FB_HIGH (160)
-
-/* Tile Resolution */
-#define TILES_WIDE (15)
-#define TILES_HIGH (10)
-
-/* Delays in ms for walking and running */
-#define WALK_MS (300)
-#define RUN_MS  (150)
-
-/* Gamepad Button Bitfield Masks */
-#define GP_A        (1)
-#define GP_B        (2)
-#define GP_SELECT   (4)
-#define GP_START    (8)
-#define GP_U       (16)
-#define GP_D       (32)
-#define GP_L       (64)
-#define GP_R      (128)
-#define GP_DPAD   (GP_U|GP_D|GP_L|GP_R)
 
 /**************************************/
 /* Exported Symbols: Global Variables */
 /**************************************/
-
-/* Frame buffer byte array (RGBA, 4 bytes per pixel) */
-__attribute__((visibility("default")))
-u8 FB_BYTES[FB_WIDE * FB_HIGH * 4];
-
-/* Size of frame buffer in bytes */
-__attribute__((visibility("default")))
-u32 FB_SIZE = sizeof(FB_BYTES);
 
 /* Gamepad button state bitfield */
 __attribute__((visibility("default")))
@@ -66,6 +36,34 @@ extern void setPlayerTile(u32 tile);
 extern void drawLines();
 
 
+/**************************/
+/* Non-exported Constants */
+/**************************/
+
+/* Tile Resolution */
+#define TILES_WIDE (15)
+#define TILES_HIGH (10)
+
+/* Delays in ms for walking and running */
+/* Diagonal paces are regular paces scaled by approximately sqrt(2) */
+#define RUN_MS       (140)
+#define WALK_MS      (RUN_MS * 2)
+#define WALK_DIAG_MS ((WALK_MS * 90) >> 6)
+#define RUN_DIAG_MS  ((RUN_MS * 90) >> 6)
+#define DEBOUNCE_MS  (100)
+
+/* Gamepad Button Bitfield Masks */
+#define GP_A        (1)
+#define GP_B        (2)
+#define GP_SELECT   (4)
+#define GP_START    (8)
+#define GP_U       (16)
+#define GP_D       (32)
+#define GP_L       (64)
+#define GP_R      (128)
+#define GP_DPAD   (GP_U|GP_D|GP_L|GP_R)
+
+
 /*********************************/
 /* Non-exported Global Variables */
 /*********************************/
@@ -77,8 +75,18 @@ static u8 PREV_GAMEPAD = 0;
 static u8 PLAYER_X = 7;
 static u8 PLAYER_Y = 5;
 
-/* Hold times for pressed buttons */
-static u32 HOLD_UDLR = 0;
+/* Hold time for pressed dpad buttons */
+static u32 DPAD_MS = 0;
+
+/* Debounce flag for dpad buttons */
+static u32 DPAD_DEBOUNCED = 0;
+
+/* Types of motion that can be triggered by dpad buttons */
+typedef enum e_DpMove {
+    DpWait = 0,
+    DpFace,
+    DpStep,
+} DpMove;
 
 
 /**************************/
@@ -87,26 +95,49 @@ static u32 HOLD_UDLR = 0;
 
 /* Update timer to handle button debounce and repeat.  */
 /* The repeat interval is determined by pace_ms        */
-/* Modifies: *timer_ms gets updated from interval_ms   */
 /* Returns: 0: don't do the thing yet, 1: do the thing */
-u32 updateTimer(u32 interval_ms, u32 pace_ms, u32 *timer_ms) {
-    if(timer_ms == (u32 *)0) {
-        return 0;
+static DpMove updateDpadTimer(u16 interval_ms, u32 pace_ms) {
+    /* Debounce the button press. This allows for precise diagonal motion */
+    /* and for quick presses to face a new direction without taking steps */
+    if(!DPAD_DEBOUNCED) {
+        /* For initial button-down, immediately face in that direction */
+        if(DPAD_MS == 0) {
+            DPAD_MS = interval_ms;
+            return DpFace;
+        }
+        /* After debounce delay expires, take a step */
+        DPAD_MS += interval_ms;
+        if(DPAD_MS >= DEBOUNCE_MS) {
+            DPAD_DEBOUNCED = 1;
+            DPAD_MS %= DEBOUNCE_MS; /* make sure 1st repeat isn't too soon */
+            return DpStep;
+        }
     }
-    if(*timer_ms == 0) {
-        *timer_ms = 1;
-        return 1;
+    /* Once initial debounce period is over, update timer and decide */
+    /* when enough time has passed to trigger a repeating step.      */
+    DPAD_MS += interval_ms;
+    if(DPAD_MS >= pace_ms) {
+        DPAD_MS %= pace_ms;
+        return DpStep;
     }
-    *timer_ms += interval_ms;
-    if(*timer_ms >= pace_ms) {
-        *timer_ms %= pace_ms;
-        return 1;
+    return DpWait;
+}
+
+/* Test if dpad input represents diagonal motion             */
+/* Returns: 1: motion is diagonal, 0: motion is not diagonal */
+static u32 dpadIsDiagonal(u32 buttons) {
+    switch(buttons & GP_DPAD) {
+        case GP_U|GP_R:
+        case GP_U|GP_L:
+        case GP_D|GP_R:
+        case GP_D|GP_L:
+            return 1;
     }
     return 0;
 }
 
 /* Move player up. Returns 1 when redraw needed, otherwise 0. */
-u32 dpadUp() {
+static u32 dpadUp() {
     if(PLAYER_Y > 0) {
         PLAYER_Y -= 1;
         return 1;
@@ -115,7 +146,7 @@ u32 dpadUp() {
 }
 
 /* Move player down. Returns 1 when redraw needed, otherwise 0. */
-u32 dpadDown() {
+static u32 dpadDown() {
     if(PLAYER_Y < TILES_HIGH - 1) {
         PLAYER_Y += 1;
         return 1;
@@ -124,7 +155,7 @@ u32 dpadDown() {
 }
 
 /* Move player left. Returns 1 when redraw needed, otherwise 0. */
-u32 dpadLeft() {
+static u32 dpadLeft() {
     if(PLAYER_X > 0) {
         PLAYER_X -= 1;
         return 1;
@@ -133,7 +164,7 @@ u32 dpadLeft() {
 }
 
 /* Move player right. Returns 1 when redraw needed, otherwise 0. */
-u32 dpadRight() {
+static u32 dpadRight() {
     if(PLAYER_X < TILES_WIDE - 1) {
         PLAYER_X += 1;
         return 1;
@@ -142,12 +173,13 @@ u32 dpadRight() {
 }
 
 /* Clear the dpad timers */
-void dpadNone() {
-    HOLD_UDLR = 0;
+static void dpadNone() {
+    DPAD_MS = 0;
+    DPAD_DEBOUNCED = 0;
 }
 
 /* Tell the front-end to update the player's tile coordinates */
-void updatePlayerTile() {
+static void updatePlayerTile() {
     u8 tile = (PLAYER_Y * TILES_WIDE) + PLAYER_X;
     setPlayerTile(tile);
 }
@@ -160,7 +192,7 @@ void updatePlayerTile() {
 /* Initialization function (gets called by js) */
 __attribute__((visibility("default")))
 i32 init(void) {
-    js_trace(sizeof(FB_BYTES));
+    js_trace(12345);
     updatePlayerTile();
     drawTiles();
     return 0;
@@ -175,18 +207,22 @@ void next(u32 elapsed_ms) {
     PREV_GAMEPAD = GAMEPAD;
     u32 buttons = GAMEPAD;
     /* Update player position based on dpad button state */
-    u32 doDpadAction = 0;
+    DpMove action = 0;
     u32 moved = 0;
-    if((buttons & GP_B) && (buttons & GP_DPAD)) {
-        /* Run if B is pressed */
-        doDpadAction = updateTimer(elapsed_ms, RUN_MS, &HOLD_UDLR);
-    } else if(buttons & GP_DPAD) {
-        /* Otherwise walk */
-        doDpadAction = updateTimer(elapsed_ms, WALK_MS, &HOLD_UDLR);
+    u32 dpad_bits = buttons & GP_DPAD;
+    u32 b_down = buttons & GP_B;
+    u32 pace;
+    if(dpadIsDiagonal(buttons)) {
+        pace = b_down ? RUN_DIAG_MS : WALK_DIAG_MS;
+    } else {
+        pace = b_down ? RUN_MS : WALK_MS;
+    }
+    if(dpad_bits) {
+        action = updateDpadTimer(elapsed_ms, pace);
     } else {
         dpadNone();
     }
-    if(doDpadAction) {
+    if(action == DpStep) {
         if(buttons & GP_U) { moved += dpadUp();    }
         if(buttons & GP_D) { moved += dpadDown();  }
         if(buttons & GP_L) { moved += dpadLeft();  }
