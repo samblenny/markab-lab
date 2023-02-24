@@ -26,11 +26,11 @@ people to be less wasteful.
 
 What I'm doing here is mainly about documenting an art practice.
 
-Markab is not an "Open Source project", and I am not "seeking contributions". I
-use an open license on this code because it is a good fit for my goals around
-process documentation and communicating with other artists. What I'm aiming for
-here, among other things, is to use tools and techniques that will stand up
-well against the passage of time.
+Markab is not an "Open Source project", and I am not "seeking contributions".
+To the extent that I use open licenses on markab code, that is because doing so
+is a good fit for my goals around process documentation and communicating with
+other artists. What I'm aiming for here, among other things, is to use tools
+and techniques that will stand up well against the passage of time.
 
 For an individual working on small projects, keeping up with the churn in
 modern software development tools and practices becomes prohibitively
