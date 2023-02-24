@@ -5,7 +5,10 @@
  */
 
 #include <stdint.h>
-#include "mkb_engine.h"  /* u8, u32, i32, ... */
+#include "libmkb/libmkb.h"  /* u8, u32, i32, ... */
+/* Including C source here lets LLVM optimize the whole module as a single */
+/* translation unit. This should give better results than relying on LTO.  */
+#include "libmkb/libmkb.c"
 
 
 /**************************************/

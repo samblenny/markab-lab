@@ -41,17 +41,26 @@ reliable tools so I can focus on using those tools to make stuff.
 
 ## Source Code Contents
 
-1. [engine/](engine): Work in progress on a game engine with Markab scripting.
+1. [engine/](engine): Work in progress on a game engine. This is my second game
+   engine experiment, and I think it may veer into more of a 3D WebGL thing.
+   Earlier, I'd planned to make a 2D sprite engine, but I'm feeling more into
+   the idea of simple 3D now that I've written a couple shaders.
 
-2. [repl2/](repl2):  **[inactive]** Markab VM emulator, Markab kernel rom,
+2. [old_engine/](old_engine): **[inactive]** Initial experiment game engine
+   with Markab scripting. This has a Wasm + 2D WebGL front-end GUI with a back
+   end Wasm module written in C. There's also a bunch of code and tests for a
+   Markab Script compiler, but that turned out to be a lot less useful than I
+   had imagined. Just writing in ANSI C seems to work pretty well.
+
+3. [repl2/](repl2):  **[inactive]** Markab VM emulator, Markab kernel rom,
    Markab compilers, and Markab language specification. The tools in this
    directory are mostly written in Python, with a little C.
 
-3. [repl/](repl):  **[inactive]** Experimental Forth system with interpreters
+4. [repl/](repl):  **[inactive]** Experimental Forth system with interpreters
    and compiler running on top of a kernel written in amd64 assembly language
    for linux.
 
-4. [asm/amd64/](asm/amd64): **[inactive]** Several C and amd64 assembly language
+5. [asm/amd64/](asm/amd64): **[inactive]** Several C and amd64 assembly language
    experiments written to prepare for making the prototype Forth system in
    [repl/](repl).
 

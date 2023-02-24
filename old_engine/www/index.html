@@ -1,0 +1,63 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<!--
+Copyright (c) 2023 Sam Blenny
+SPDX-License-Identifier: MIT
+ -->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Markab Engine Demo">
+<title>Markab Engine Demo</title>
+<link rel="modulepreload" href="./main.js" />
+<style>
+html{-webkit-text-size-adjust:none;}
+html,body{min-height:100%;background:#ba8fb7;}
+body{font-family:sans-serif;font-size:12px;}
+html,body,div,canvas{margin:0;padding:0;box-sizing:border-box;}
+#bezel{
+display:block;
+width:510px;   /* =15+(240*2)+15 */
+height:350px;  /* =15+(160*2)+15 */
+border:15px solid #222;
+margin:30px auto 0 auto;
+border-radius:10px;
+background:magenta;
+}
+#screen{
+background:black;
+image-rendering: pixelated;
+image-rendering: -moz-crisp-edges;
+image-rendering: crisp-edges;
+}
+p{max-width:480px;margin:10px auto;}
+@media (height < 410px) { #bezel{margin:10px auto 0 auto;} } /* thin pad */
+@media (height < 370px) { #bezel{margin: 5px auto 0 auto;} } /* thinner pad */
+@media (width < 510px) or (height < 360px) { /* remove bezel, reduce scale */
+ #screen{
+ width:360px;  /* =240*1.5 */
+ height:240px; /* =160*1.5 */
+ }
+ #bezel{
+ width:360px;  /* =240*1.5 */
+ height:240px; /* =160*1.5 */
+ margin:10px auto;
+ border:unset;
+ border-radius:unset;
+ }
+}
+</style>
+</head>
+<body>
+<div id="bezel">
+  <!-- NOTE: Canvas width and height are not the same as css width/height. -->
+  <!-- Canvas framebuffer size is 240x160 px and it gets scaled up by css. -->
+  <!-- Specifying 240x160 here makes the CSS scaling behave better.        -->
+  <canvas id="screen" width="480" height="320"></canvas>
+</div>
+<p>
+2023-02-22: Debounced dpad inputs to allow for precise diagonals.
+</p>
+<p>
+Press dpad or WASD/arrow keys to walk. Hold B, keyboard-z, or keyboard-. to run.
+</p>
+<script type="module" src="main.js"></script>
+</body>
+</html>
