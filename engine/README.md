@@ -1,5 +1,5 @@
 <!-- Copyright (c) 2023 Sam Blenny -->
-<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-License-Identifier: CC-BY-NC-SA-4.0 -->
 
 # Markab Game Engine
 
