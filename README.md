@@ -1,3 +1,6 @@
+<!-- Copyright (c) 2023 Sam Blenny -->
+<!-- SPDX-License-Identifier: CC-BY-NC-SA-4.0 -->
+
 # markab-lab
 
 Markab is the working name for a suite of software tools for exploring ideas in
@@ -75,3 +78,26 @@ Ponzi schemes.
 
 On the other hand, to friends, fans, and supporters: Welcome! Let's try to get
 along and have a good time.
+
+
+## License
+
+The markab project incudes code and other creative works released under either
+the MIT or CC BY-NC-SA licenses, depending on the nature of the work. For
+specifics, look at the SPDX license header comments of text files, metadata of
+image files, etc.
+
+More generally, for code that I don't care who uses for what, there will be an
+SPDX comment header at the top specifying the MIT license. On some other works,
+such as prose and game assets, I use the CC BY-NC-SA license in the possibly
+vain hope that it might discourage uncompensated commercial derivative works
+"in the style of" me.
+
+This README is licensed under a Creative Commons
+Attribution-NonCommercial-ShareAlike 4.0 International License.
+
+See [LICENSE_CCBY-NC-SA](LICENSE_CCBY-NC-SA) in this repo for a plaintext copy
+of the license or https://creativecommons.org/licenses/by-nc-sa/4.0/ for the
+online html version.
+
+See [LICENSE_MIT](LICENSE_MIT) in this repo for the text of the MIT license.
