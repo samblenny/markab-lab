@@ -50,10 +50,12 @@ reliable tools so I can focus on using those tools to make stuff.
    the idea of simple 3D now that I've written a couple shaders.
 
 2. [old_engine/](old_engine): **[inactive]** Initial experiment game engine
-   with Markab scripting. This has a Wasm + 2D WebGL front-end GUI with a back
-   end Wasm module written in C. There's also a bunch of code and tests for a
-   Markab Script compiler, but that turned out to be a lot less useful than I
-   had imagined. Just writing in ANSI C seems to work pretty well.
+   with Markab scripting. This is implemented in HTML, Javascript, CSS, and C
+   compiled to WebAssembly, with a 2D WebGL GUI. There's a bunch of code for
+   walking and running input by gamepad or WASD keyboard equivalents. There's
+   also a bunch of code and tests for a Markab Script compiler, but that turned
+   out to be a lot less useful than I had imagined. Just writing in ANSI C
+   seems to work pretty well.
 
 3. [repl2/](repl2):  **[inactive]** Markab VM emulator, Markab kernel rom,
    Markab compilers, and Markab language specification. The tools in this
